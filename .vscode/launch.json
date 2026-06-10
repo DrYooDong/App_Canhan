@@ -7,8 +7,8 @@
         {
             "type": "msedge",
             "request": "launch",
-            "name": "Open Boxaobai_Tarot.html",
-            "file": "i:\\Drive của tôi\\apps\\App_Canhan\\Boxaobai_Tarot.html"
+            "name": "Open index.html",
+            "file": "i:\\Drive của tôi\\apps\\App_Canhan\\index.html"
         }
     ]
 }
