@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trải Bài Tarot Mystical</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cinzel@5.0.8/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/index.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        
+        .card-container {
+            perspective: 1200px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-inner.reversed.flipped {
+            transform: rotateY(180deg) rotateZ(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(251, 191, 36, 0.1);
+            border: 2px solid rgba(251, 191, 36, 0.3);
+        }
+        .card-front {
+            transform: rotateY(180deg);
+            background: #1e293b;
+        }
+        .card-back {
+            background: #0f172a;
+        }
+        
+        @keyframes shuffleShake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-10px, 5px) rotate(-5deg); }
+            50% { transform: translate(10px, -5px) rotate(5deg); }
+            75% { transform: translate(-5px, 10px) rotate(-3deg); }
+        }
+        .shuffling {
+            animation: shuffleShake 0.3s ease-in-out infinite;
+        }
+        
+        @keyframes floatIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .float-in {
+            animation: floatIn 0.6s ease-out forwards;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1b4b; }
+        ::-webkit-scrollbar-thumb { background: #fbbf24; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-amber-100 flex flex-col items-center p-4 md:p-8">
+    <header class="text-center mb-8">
+        <h1 class="font-cinzel text-4xl md:text-6xl font-bold text-amber-400 mb-2 tracking-wider drop-shadow-lg">
+            ✦ Tarot Mystical ✦
+        </h1>
+        <p class="text-amber-200/70 text-sm md:text-base font-light tracking-wide">
+            Khám phá thông điệp từ vũ trụ qua những lá bài
+        </p>
+    </header>
+
+    <main class="w-full max-w-6xl flex flex-col lg:flex-row gap-8">
+        <div class="lg:w-1/3 flex flex-col gap-6">
+            <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-amber-500/20 shadow-xl">
+                <h2 class="font-cinzel text-xl text-amber-400 mb-4">Chọn Bộ Bài</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-rws" onclick="selectDeck('rws')" class="bg-blue-900/50 hover:bg-blue-800/50 border-2 border-blue-500/50 text-blue-200 font-semibold py-3 px-4 rounded-xl transition-all text-sm">
+                        Rider Waite Smith
+                    </button>
+                    <button id="btn-shadow" onclick="selectDeck('shadow')" class="bg-emerald-900/50 hover:bg-emerald-800/50 border-2 border-emerald-500/50 text-emerald-200 font-semibold py-3 px-4 rounded-xl transition-all text-sm">
+                        Shadowscapes
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-amber-500/20 shadow-xl">
+                <h2 class="font-cinzel text-xl text-amber-400 mb-4">Chọn Trải Bài</h2>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="radio" name="spread" value="1" checked class="accent-amber-400 w-4 h-4">
+                        <span class="group-hover:text-amber-300 transition-colors">1 Lá - Thông điệp hôm nay</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="radio" name="spread" value="3" class="accent-amber-400 w-4 h-4">
+                        <span class="group-hover:text-amber-300 transition-colors">3 Lá - Quá khứ • Hiện tại • Tương lai</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-amber-500/20 shadow-xl flex flex-col items-center">
+                <div id="deck-container" class="card-container w-48 h-72 mb-6 cursor-pointer hover:scale-105 transition-transform" onclick="shuffleDeck()">
+                    <div id="deck-card" class="card-inner">
+                        <div class="card-back">
+                            <img id="deck-back-img" src="" alt="Card Back" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 w-full">
+                    <button id="btn-shuffle" onclick="shuffleDeck()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-amber-600/30">
+                        🔄 Xào Bài
+                    </button>
+                    <button id="btn-draw" onclick="drawCards()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-600/30">
+                         Rút Bài
+                    </button>
+                </div>
+                <p class="text-xs text-amber-200/50 mt-3 text-center">Nhấn vào bộ bài hoặc nút Xào Bài để trộn</p>
+            </div>
+
+            <button onclick="toggleJournal()" class="w-full bg-slate-700/50 hover:bg-slate-600/50 text-amber-300 font-semibold py-3 px-4 rounded-xl border border-amber-500/20 transition-all">
+                📖 Nhật Ký Trải Bài
+            </button>
+        </div>
+
+        <div class="lg:w-2/3 flex flex-col gap-6">
+            <div id="card-display-area" class="bg-slate-800/30 backdrop-blur-sm rounded-2xl p-8 border border-amber-500/10 shadow-xl min-h-[400px] flex items-center justify-center">
+                <div id="cards-container" class="flex flex-wrap justify-center gap-6 md:gap-8">
+                    <div class="text-center text-amber-200/50">
+                        <p class="font-cinzel text-2xl mb-2">Chào mừng bạn</p>
+                        <p class="text-sm">Hãy chọn bộ bài và rút lá bài của bạn</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="journal-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/30 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
+            <div class="p-6 border-b border-amber-500/20 flex justify-between items-center">
+                <h2 class="font-cinzel text-2xl text-amber-400"> Nhật Ký Trải Bài</h2>
+                <button onclick="toggleJournal()" class="text-amber-200 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="journal-list" class="p-6 overflow-y-auto space-y-4 flex-1">
+                <p class="text-amber-200/50 text-center">Chưa có trải bài nào được lưu.</p>
+            </div>
+            <div class="p-4 border-t border-amber-500/20 flex justify-end gap-3">
+                <button onclick="clearJournal()" class="text-red-400 hover:text-red-300 text-sm">Xóa tất cả</button>
+                <button onclick="toggleJournal()" class="bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold py-2 px-6 rounded-lg">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ĐỊNH NGHĨA CẤU TRÚC 78 LÁ BÀI ---
+        const majorArcana = [
+            { id: "00", name: "The Fool", nameVi: "Kẻ Khờ" },
+            { id: "01", name: "The Magician", nameVi: "Ảo Thuật Gia" },
+            { id: "02", name: "The High Priestess", nameVi: "Nữ Tu Tối Cao" },
+            { id: "03", name: "The Empress", nameVi: "Nữ Hoàng" },
+            { id: "04", name: "The Emperor", nameVi: "Hoàng Đế" },
+            { id: "05", name: "The Hierophant", nameVi: "Giáo Chủ" },
+            { id: "06", name: "The Lovers", nameVi: "Tình Yêu" },
+            { id: "07", name: "The Chariot", nameVi: "Cỗ Xe" },
+            { id: "08", name: "Strength", nameVi: "Sức Mạnh" },
+            { id: "09", name: "The Hermit", nameVi: "Ẩn Sĩ" },
+            { id: "10", name: "Wheel of Fortune", nameVi: "Bánh Xe Số Phận" },
+            { id: "11", name: "Justice", nameVi: "Công Lý" },
+            { id: "12", name: "The Hanged Man", nameVi: "Người Treo Ngược" },
+            { id: "13", name: "Death", nameVi: "Cái Chết" },
+            { id: "14", name: "Temperance", nameVi: "Tiết Chế" },
+            { id: "15", name: "The Devil", nameVi: "Ác Quỷ" },
+            { id: "16", name: "The Tower", nameVi: "Tháp" },
+            { id: "17", name: "The Star", nameVi: "Ngôi Sao" },
+            { id: "18", name: "The Moon", nameVi: "Mặt Trăng" },
+            { id: "19", name: "The Sun", nameVi: "Mặt Trời" },
+            { id: "20", name: "Judgement", nameVi: "Phán Xét" },
+            { id: "21", name: "The World", nameVi: "Thế Giới" }
+        ];
+
+        const suits = [
+            { name: "Wands", nameVi: "Gậy", prefix: "w" },
+            { name: "Cups", nameVi: "Cốc", prefix: "c" },
+            { name: "Swords", nameVi: "Kiếm", prefix: "s" },
+            { name: "Pentacles", nameVi: "Tiền", prefix: "p" }
+        ];
+
+        const ranks = [
+            { id: "ac", name: "Ace", nameVi: "Át" },
+            { id: "02", name: "Two", nameVi: "2" },
+            { id: "03", name: "Three", nameVi: "3" },
+            { id: "04", name: "Four", nameVi: "4" },
+            { id: "05", name: "Five", nameVi: "5" },
+            { id: "06", name: "Six", nameVi: "6" },
+            { id: "07", name: "Seven", nameVi: "7" },
+            { id: "08", name: "Eight", nameVi: "8" },
+            { id: "09", name: "Nine", nameVi: "9" },
+            { id: "10", name: "Ten", nameVi: "10" },
+            { id: "pa", name: "Page", nameVi: "Tiểu Đồng" },
+            { id: "kn", name: "Knight", nameVi: "Kỵ Sĩ" },
+            { id: "qu", name: "Queen", nameVi: "Nữ Hoàng" },
+            { id: "ki", name: "King", nameVi: "Quốc Vương" }
+        ];
+
+        // Hàm tạo tự động 56 lá Ẩn Phụ (Minor Arcana)
+        function generateMinorArcana() {
+            let minor = [];
+            suits.forEach(suit => {
+                ranks.forEach(rank => {
+                    minor.push({
+                        id: `${suit.prefix}${rank.id}`,
+                        name: `${rank.name} of ${suit.name}`,
+                        nameVi: `${rank.nameVi} ${suit.nameVi}`
+                    });
+                });
+            });
+            return minor;
+        }
+
+        const fullDeckData = [...majorArcana, ...generateMinorArcana()]; // Tổng cộng 78 lá
+
+        // --- 2. QUẢN LÝ HÌNH ẢNH ---
+        function getCardImage(cardId, deckType) {
+            const fileId = cardId.charAt(0).toUpperCase() + cardId.slice(1).toLowerCase();
+            if (deckType === 'rws') {
+                return `images/Rider Waite Smith/${fileId}.jpg`;
+            } else {
+                return `images/Shadowscapes/${fileId}.jpg`;
+            }
+        }
+
+        function getDeckBackImage(deckType) {
+            if (deckType === 'rws') {
+                return "images/Rider Waite Smith/Bia_do.jpg";
+            } else {
+                // Shadowscapes chưa có mặt sau riêng trong thư mục, dùng tạm mặt sau xanh
+                return "images/Rider Waite Smith/Bia_xanh.jpg";
+            }
+        }
+
+        // --- 3. LOGIC ỨNG DỤNG ---
+        let currentDeckType = 'rws';
+        let currentDeck = [];
+        let drawnCards = [];
+        let isShuffling = false;
+
+        function selectDeck(type) {
+            currentDeckType = type;
+            document.getElementById('deck-back-img').src = getDeckBackImage(type);
+            
+            // Cập nhật UI nút bấm
+            const btnRws = document.getElementById('btn-rws');
+            const btnShadow = document.getElementById('btn-shadow');
+            
+            if (type === 'rws') {
+                btnRws.className = "bg-blue-900/80 border-2 border-blue-400 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm shadow-lg shadow-blue-900/50";
+                btnShadow.className = "bg-emerald-900/30 border border-emerald-500/30 text-emerald-200/70 font-semibold py-3 px-4 rounded-xl transition-all text-sm hover:bg-emerald-900/50";
+            } else {
+                btnShadow.className = "bg-emerald-900/80 border-2 border-emerald-400 text-white font-bold py-3 px-4 rounded-xl transition-all text-sm shadow-lg shadow-emerald-900/50";
+                btnRws.className = "bg-blue-900/30 border border-blue-500/30 text-blue-200/70 font-semibold py-3 px-4 rounded-xl transition-all text-sm hover:bg-blue-900/50";
+            }
+            
+            currentDeck = [];
+            document.getElementById('cards-container').innerHTML = `
+                <div class="text-center text-amber-200/50">
+                    <p class="font-cinzel text-2xl mb-2">Đã chọn bộ ${type === 'rws' ? 'Rider Waite Smith' : 'Shadowscapes'}</p>
+                    <p class="text-sm">Bộ bài đã sẵn sàng (78 lá). Hãy xào và rút bài!</p>
+                </div>
+            `;
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function shuffleDeck() {
+            if (isShuffling) return;
+            isShuffling = true;
+            
+            const deckCard = document.getElementById('deck-card');
+            const btnShuffle = document.getElementById('btn-shuffle');
+            const btnDraw = document.getElementById('btn-draw');
+            
+            btnShuffle.disabled = true;
+            btnDraw.disabled = true;
+            btnShuffle.classList.add('opacity-50', 'cursor-not-allowed');
+            btnDraw.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            deckCard.classList.add('shuffling');
+            currentDeck = shuffleArray(fullDeckData); // Trộn đủ 78 lá
+            
+            setTimeout(() => {
+                deckCard.classList.remove('shuffling');
+                isShuffling = false;
+                btnShuffle.disabled = false;
+                btnDraw.disabled = false;
+                btnShuffle.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnDraw.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                btnShuffle.textContent = '✅ Đã xào 78 lá!';
+                setTimeout(() => { btnShuffle.textContent = '🔄 Xào Bài'; }, 1500);
+            }, 1000);
+        }
+
+        function drawCards() {
+            if (currentDeck.length === 0) {
+                shuffleDeck();
+                setTimeout(() => performDraw(), 1100);
+            } else {
+                performDraw();
+            }
+        }
+
+        function performDraw() {
+            const spreadType = document.querySelector('input[name="spread"]:checked').value;
+            const numCards = parseInt(spreadType);
+            
+            if (currentDeck.length < numCards) {
+                currentDeck = shuffleArray(fullDeckData);
+            }
+            
+            drawnCards = [];
+            const cardsContainer = document.getElementById('cards-container');
+            cardsContainer.innerHTML = '';
+            
+            const labels = numCards === 1 ? ['Thông điệp'] : ['Quá khứ', 'Hiện tại', 'Tương lai'];
+            
+            for (let i = 0; i < numCards; i++) {
+                const cardData = currentDeck.pop();
+                const isReversed = Math.random() < 0.5;
+                
+                const drawnCard = {
+                    ...cardData,
+                    orientation: isReversed ? 'reversed' : 'upright',
+                    position: labels[i],
+                    image: getCardImage(cardData.id, currentDeckType)
+                };
+                drawnCards.push(drawnCard);
+                
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = 'flex flex-col items-center gap-3 float-in';
+                cardWrapper.style.animationDelay = `${i * 0.2}s`;
+                
+                const cardContainer = document.createElement('div');
+                cardContainer.className = 'card-container w-32 h-52 md:w-40 md:h-64';
+                
+                const cardInner = document.createElement('div');
+                cardInner.className = 'card-inner';
+                cardInner.id = `card-${i}`;
+                
+                const cardBack = document.createElement('div');
+                cardBack.className = 'card-back';
+                cardBack.innerHTML = `<img src="${getDeckBackImage(currentDeckType)}" alt="Card Back" class="w-full h-full object-cover">`;
+                
+                const cardFront = document.createElement('div');
+                cardFront.className = 'card-front';
+                cardFront.innerHTML = `<img src="${drawnCard.image}" alt="${drawnCard.nameVi}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x500/1e293b/fbbf24?text=No+Image'">`;
+                
+                cardInner.appendChild(cardBack);
+                cardInner.appendChild(cardFront);
+                cardContainer.appendChild(cardInner);
+                
+                const positionLabel = document.createElement('p');
+                positionLabel.className = 'font-cinzel text-amber-400 text-sm md:text-base font-bold';
+                positionLabel.textContent = labels[i];
+                
+                const cardName = document.createElement('p');
+                cardName.className = 'text-amber-200/90 text-xs md:text-sm text-center font-medium flex flex-col';
+                cardName.innerHTML = `<span>${drawnCard.nameVi} ${isReversed ? '↻' : ''}</span><span class="text-[10px] md:text-xs text-amber-400/70 mt-0.5">${drawnCard.name}</span>`;
+                
+                cardWrapper.appendChild(cardContainer);
+                cardWrapper.appendChild(positionLabel);
+                cardWrapper.appendChild(cardName);
+                cardsContainer.appendChild(cardWrapper);
+                
+                setTimeout(() => {
+                    cardInner.classList.add('flipped');
+                    if (isReversed) {
+                        cardInner.classList.add('reversed');
+                    }
+                }, 500 + (i * 400));
+            }
+        }
+
+        // --- 4. NHẬT KÝ (Giữ nguyên logic cũ, cập nhật hiển thị ảnh) ---
+        function saveToJournal() {
+            if (drawnCards.length === 0) return;
+            const journalEntry = {
+                date: new Date().toLocaleString('vi-VN'),
+                deck: currentDeckType === 'rws' ? 'Rider Waite Smith' : 'Shadowscapes',
+                spread: document.querySelector('input[name="spread"]:checked').value + ' lá',
+                cards: drawnCards.map(c => ({
+                    name: c.nameVi,
+                    orientation: c.orientation,
+                    position: c.position,
+                    image: c.image
+                }))
+            };
+            let journal = JSON.parse(localStorage.getItem('tarotJournal') || '[]');
+            journal.unshift(journalEntry);
+            localStorage.setItem('tarotJournal', JSON.stringify(journal));
+            alert('✅ Đã lưu trải bài vào Nhật Ký!');
+        }
+
+        function toggleJournal() {
+            const modal = document.getElementById('journal-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) renderJournal();
+        }
+
+        function renderJournal() {
+            const journalList = document.getElementById('journal-list');
+            const journal = JSON.parse(localStorage.getItem('tarotJournal') || '[]');
+            if (journal.length === 0) {
+                journalList.innerHTML = '<p class="text-amber-200/50 text-center">Chưa có trải bài nào được lưu.</p>';
+                return;
+            }
+            journalList.innerHTML = journal.map((entry, idx) => `
+                <div class="bg-slate-800/50 rounded-xl p-4 border border-amber-500/10">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="font-cinzel text-amber-400 text-sm">${entry.date}</p>
+                            <p class="text-xs text-amber-200/60">Bộ ${entry.deck} • ${entry.spread}</p>
+                        </div>
+                        <button onclick="deleteJournalEntry(${idx})" class="text-red-400 hover:text-red-300 text-xs">Xóa</button>
+                    </div>
+                    <div class="flex gap-4 flex-wrap justify-center">
+                        ${entry.cards.map(c => `
+                            <div class="flex flex-col items-center gap-2">
+                                <img src="${c.image}" alt="${c.name}" class="w-16 h-24 md:w-20 md:h-32 object-cover rounded border border-amber-500/30 shadow-md ${c.orientation === 'reversed' ? 'rotate-180' : ''}" onerror="this.src='https://via.placeholder.com/80x128/1e293b/fbbf24?text=Err'">
+                                <p class="text-xs text-amber-200/80 text-center leading-tight">${c.position}<br><span class="text-amber-400">${c.name}</span><br><span class="text-[10px] text-amber-400/60">${c.nameEn || ''}</span></p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteJournalEntry(index) {
+            let journal = JSON.parse(localStorage.getItem('tarotJournal') || '[]');
+            journal.splice(index, 1);
+            localStorage.setItem('tarotJournal', JSON.stringify(journal));
+            renderJournal();
+        }
+
+        function clearJournal() {
+            if (confirm('Bạn có chắc muốn xóa tất cả nhật ký?')) {
+                localStorage.removeItem('tarotJournal');
+                renderJournal();
+            }
+        }
+
+        // Khởi tạo
+        selectDeck('rws');
+        currentDeck = shuffleArray(fullDeckData);
+    </script>
+</body>
+</html>
