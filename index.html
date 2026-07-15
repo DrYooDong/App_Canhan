@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Nội Tâm — Trung tâm Tri thức & Phản tư Cá nhân. Hệ thống quản lý tri thức cá nhân kết hợp Tử Vi.">
+  <meta name="theme-color" content="#08080d">
+  <title>Nội Tâm — Tri thức Cá nhân</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="index.css">
+
+  <!-- Favicon (inline SVG data URI) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☯</text></svg>">
+</head>
+<body>
+  <!-- Mobile Menu Button -->
+  <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+      <div class="content-container">
+        <!-- Content will be rendered by router -->
+        <div class="empty-state animate-fade-in">
+          <div class="empty-state-icon">☯</div>
+          <div class="empty-state-title">Đang tải...</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SOS Button -->
+  <button class="sos-btn" id="sos-btn" title="Lời nhắc ngay lập tức" aria-label="SOS">💡</button>
+
+  <!-- Data -->
+  <script src="data/tuvi.js"></script>
+  <script src="data/sample.js"></script>
+
+  <!-- Components -->
+  <script src="components/sidebar.js"></script>
+  <script src="components/dashboard.js"></script>
+  <script src="components/overview.js"></script>
+  <script src="components/lessons.js"></script>
+  <script src="components/rules.js"></script>
+  <script src="components/reminders.js"></script>
+  <script src="components/library.js"></script>
+  <script src="components/journal.js"></script>
+  <script src="components/search.js"></script>
+
+  <!-- App Core (must be last) -->
+  <script src="app.js"></script>
+</body>
+</html>
