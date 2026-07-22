@@ -103,10 +103,20 @@
 
       // Alias mapping for consolidated modules
       const ALIASES = {
+        'command': ['dashboard', 'command'],
+        'commandcenter': ['dashboard', 'command'],
         'morning': ['dashboard', 'morning'],
         'overview': ['dashboard', 'overview'],
+        'tasks': ['dashboard', 'tasks'],
         'health': ['astrology', 'health'],
         'heatmap': ['astrology', 'heatmap'],
+        'timemachine': ['astrology', 'timemachine'],
+        'rpg': ['astrology', 'rpg'],
+        'mood': ['astrology', 'mood'],
+        'moodtracker': ['astrology', 'mood'],
+        'meditation': ['astrology', 'meditation'],
+        'timing': ['finance', 'timing'],
+        'retroverify': ['finance', 'retroverify'],
         'compass': ['oracle', 'compass'],
         'iching': ['oracle', 'iching'],
         'journal': ['knowledge', 'journal'],
@@ -401,7 +411,7 @@
   // ── Theme Manager ──
   const Theme = {
     get() {
-      return Storage.get('theme') || 'light';
+      return Storage.get('theme') || 'dark';
     },
 
     set(theme) {
@@ -412,7 +422,7 @@
 
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
-        metaTheme.setAttribute('content', targetTheme === 'dark' ? '#08080d' : '#f5f6f9');
+        metaTheme.setAttribute('content', targetTheme === 'dark' ? '#070912' : '#f4f6ff');
       }
 
       const icon = document.querySelector('#theme-toggle-btn .theme-icon');
@@ -465,13 +475,20 @@
     }
     applyDynamicTheme();
 
-    // Register consolidated 5 main routes
+    // Register consolidated 5 main routes & 6 breakthrough routes
     Router.register('dashboard', window.renderDashboard);
     Router.register('astrology', window.renderAstrology);
     Router.register('oracle', window.renderOracle);
     Router.register('knowledge', window.renderKnowledge);
     Router.register('search', window.renderSearch);
     Router.register('library', window.renderLibrary);
+
+    Router.register('commandcenter', window.renderCommandCenter);
+    Router.register('finance', window.renderFinance);
+    Router.register('meditation', window.renderMeditation);
+    Router.register('retroverify', window.renderRetroVerify);
+    Router.register('moodtracker', window.renderMoodTracker);
+    Router.register('rpg', window.renderRPG);
 
     // Render sidebar
     if (window.renderSidebar) window.renderSidebar();

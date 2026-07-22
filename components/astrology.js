@@ -5,11 +5,11 @@
 (function() {
   'use strict';
 
-  let activeTab = 'chart'; // 'chart' | 'tasks' | 'morning' | 'health' | 'heatmap' | 'overview'
+  let activeTab = 'chart'; // 'chart' | 'tasks' | 'morning' | 'health' | 'heatmap' | 'timemachine' | 'overview'
 
   function renderAstrology(container, params) {
     if (params && params[0]) {
-      if (['chart', 'tasks', 'morning', 'health', 'heatmap', 'overview', 'vanhan', 'laban'].includes(params[0])) {
+      if (['chart', 'timemachine', 'rpg', 'mood', 'meditation', 'tasks', 'morning', 'health', 'heatmap', 'overview', 'lifebalance', 'vanhan', 'laban'].includes(params[0])) {
         if (params[0] === 'chart' || params[0] === 'vanhan' || params[0] === 'laban') activeTab = 'chart';
         else activeTab = params[0];
       }
@@ -22,20 +22,23 @@
           <button class="btn btn-tab ${activeTab === 'chart' ? 'active' : ''}" data-tab="chart" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'chart' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'chart' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'chart' ? 'var(--border-accent)' : 'transparent'};">
             <span>🔮</span> Lá Số Tử Vi
           </button>
-          <button class="btn btn-tab ${activeTab === 'tasks' ? 'active' : ''}" data-tab="tasks" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'tasks' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'tasks' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'tasks' ? 'var(--border-accent)' : 'transparent'};">
-            <span>🌱</span> Nhiệm Vụ Cải Mệnh
+          <button class="btn btn-tab ${activeTab === 'timemachine' ? 'active' : ''}" data-tab="timemachine" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'timemachine' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'timemachine' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'timemachine' ? 'var(--border-accent)' : 'transparent'};">
+            <span>⏳</span> Time-Machine 60 Năm
           </button>
-          <button class="btn btn-tab ${activeTab === 'morning' ? 'active' : ''}" data-tab="morning" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'morning' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'morning' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'morning' ? 'var(--border-accent)' : 'transparent'};">
-            <span>☀️</span> Thực Dưỡng Buổi Sáng
+          <button class="btn btn-tab ${activeTab === 'rpg' ? 'active' : ''}" data-tab="rpg" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'rpg' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'rpg' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'rpg' ? 'var(--border-accent)' : 'transparent'};">
+            <span>🎮</span> RPG Cuộc Đời
+          </button>
+          <button class="btn btn-tab ${activeTab === 'mood' ? 'active' : ''}" data-tab="mood" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'mood' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'mood' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'mood' ? 'var(--border-accent)' : 'transparent'};">
+            <span>🌊</span> Real-Time Mood
+          </button>
+          <button class="btn btn-tab ${activeTab === 'meditation' ? 'active' : ''}" data-tab="meditation" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'meditation' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'meditation' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'meditation' ? 'var(--border-accent)' : 'transparent'};">
+            <span>🧘</span> Thiền Solfeggio
           </button>
           <button class="btn btn-tab ${activeTab === 'health' ? 'active' : ''}" data-tab="health" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'health' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'health' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'health' ? 'var(--border-accent)' : 'transparent'};">
             <span>🏥</span> Trợ Lý Sức Khỏe
           </button>
           <button class="btn btn-tab ${activeTab === 'heatmap' ? 'active' : ''}" data-tab="heatmap" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'heatmap' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'heatmap' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'heatmap' ? 'var(--border-accent)' : 'transparent'};">
             <span>⚡</span> Nhịp Giờ Hoàng Đạo
-          </button>
-          <button class="btn btn-tab ${activeTab === 'lifebalance' ? 'active' : ''}" data-tab="lifebalance" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'lifebalance' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'lifebalance' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'lifebalance' ? 'var(--border-accent)' : 'transparent'};">
-            <span>🕸️</span> Cân Bằng 6 Trụ Cột
           </button>
           <button class="btn btn-tab ${activeTab === 'overview' ? 'active' : ''}" data-tab="overview" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'overview' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'overview' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'overview' ? 'var(--border-accent)' : 'transparent'};">
             <span>🌟</span> Tổng Quan Cuộc Đời
@@ -61,6 +64,14 @@
       subContent.innerHTML = '';
       if (tab === 'chart') {
         renderAstrologyChart(subContent);
+      } else if (tab === 'timemachine' && window.renderTimeMachine) {
+        window.renderTimeMachine(subContent);
+      } else if (tab === 'rpg' && window.renderRPG) {
+        window.renderRPG(subContent);
+      } else if (tab === 'mood' && window.renderMoodTracker) {
+        window.renderMoodTracker(subContent);
+      } else if (tab === 'meditation' && window.renderMeditation) {
+        window.renderMeditation(subContent);
       } else if (tab === 'tasks' && window.renderTasks) {
         window.renderTasks(subContent);
       } else if (tab === 'morning' && window.renderMorning) {
@@ -443,21 +454,21 @@
 
   function renderLifeBalanceTab(container) {
     container.innerHTML = `
-      <div class="animate-fade-in">
-        <div id="astro-life-balance-widget-container"></div>
+      <div class="animate-fade-in" style="padding:10px 0;">
+        <div class="tuvi-card" style="text-align:center; padding:32px 20px; background:linear-gradient(135deg, var(--bg-card), var(--bg-tertiary));">
+          <div style="font-size:2.5rem; margin-bottom:12px;">🕸️</div>
+          <h3 class="card-title" style="font-size:1.2rem; color:var(--text-primary); margin-bottom:8px;">
+            Bảng Cân Bằng "Năng Lượng Sống" 6 Trụ Cột (Life Balance Hub)
+          </h3>
+          <p class="card-text" style="max-width:560px; margin:0 auto 20px auto; color:var(--text-secondary); line-height:1.6; font-size:0.88rem;">
+            Công cụ vẽ biểu đồ Dual-Layer Radar Engine 6 Trụ Cột (Thân Tâm, Sự Nghiệp, Gia Đạo, Mối Quan Hệ, Tài Chính, Tri Thức) hiện được tích hợp tập trung tại <strong>Lịch Ngày Tốt Master Hub (Dashboard)</strong> để hỗ trợ Check-in và cập nhật điểm số hàng ngày.
+          </p>
+          <button class="btn btn-primary" onclick="if(window.App && window.App.Router) window.App.Router.navigate('dashboard');">
+            🏠 Mở Bảng Check-in 6 Trụ Cột Tại Dashboard ➔
+          </button>
+        </div>
       </div>
     `;
-    const target = container.querySelector('#astro-life-balance-widget-container');
-    if (target) {
-      target.id = 'life-balance-radar-widget';
-      const AL = window.AstrologyLogic;
-      const profile = window.getUserProfile ? window.getUserProfile() : null;
-      if (typeof window.renderLifeBalanceRadarWidget === 'function') {
-        window.renderLifeBalanceRadarWidget(new Date(), profile);
-      } else {
-        target.innerHTML = `<div class="tuvi-card" style="padding:16px;">Vui lòng quay lại Dashboard để xem Bảng Cân Bằng Radar 6 Trụ Cột.</div>`;
-      }
-    }
   }
 
   // Export

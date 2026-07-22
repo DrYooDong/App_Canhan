@@ -1163,6 +1163,7 @@ window.AstrologyLogic = (function() {
 
     const flyingStars = calculateFlyingStars(d);
     const karmaQuests = generateKarmaQuests(d, profile);
+    const shortTermScenarios = generateShortTermScenarios(d, profile, task);
 
     return {
       dateObj: d,
@@ -1179,7 +1180,215 @@ window.AstrologyLogic = (function() {
       movingLine,
       healthFocus,
       flyingStars,
-      karmaQuests
+      karmaQuests,
+      shortTermScenarios
+    };
+  }
+
+  // --- THUẬT TOÁN 3 KỊCH BẢN TƯƠNG LAI NGẮN HẠN & ĐIỀU KIỆN KÍCH HOẠT ---
+  function generateShortTermScenarios(dateObj, userProfile, taskType) {
+    const d = dateObj || new Date();
+    const profile = userProfile || { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const task = taskType || 'GENERAL';
+
+    const scoreResult = evaluatePersonalizedDay(d, profile, task);
+    let birthDate = new Date(1990, 0, 1);
+    if (profile && profile.birthYear) {
+      birthDate = new Date(profile.birthYear, 0, 1);
+    }
+    const bio = calculateBiorhythms(birthDate, d);
+    const hourly = evaluateHourlyRhythm(d, profile);
+    
+    let canNgay = 'Giáp';
+    let hanhNgay = 'Kim';
+    if (typeof Lunar !== 'undefined') {
+      try {
+        const lunar = Lunar.fromDate(d);
+        canNgay = CAN[lunar.getDayGanIndex()] || 'Giáp';
+        hanhNgay = NGU_HANH_CAN[canNgay] || 'Kim';
+      } catch (e) {}
+    }
+
+    const totalScore = scoreResult ? (scoreResult.totalScore || 70) : 70;
+    const hoangDaoHours = hourly && hourly.hours ? hourly.hours.filter(h => h.isHoangDao).map(h => h.chi) : ['Tý', 'Ngọ'];
+    const bestHoursStr = hoangDaoHours.slice(0, 3).join(', ');
+
+    return {
+      favorable: {
+        title: '🟢 Kịch Bản Thuận Lợi (Tối Đa Hanh Thông)',
+        badgeClass: 'success',
+        scoreRange: `${Math.min(99, totalScore + 15)} - 99đ`,
+        activationCondition: `Mở đầu đàm phán/hành động vào Giờ Hoàng Đạo (${bestHoursStr}), giữ tâm thế lắng nghe, kiềm chế cái tôi và ứng dụng phong thủy Ngũ hành ngày (${hanhNgay}).`,
+        predictedFlow: `Vận khí hanh thông rực rỡ. Đạt 85–95% mục tiêu ${task === 'EXAM' ? 'thi cử' : task === 'CONTRACT' ? 'ký kết' : 'công việc'}, dễ gặp Quý nhân phù trợ và chốt thỏa thuận có lợi.`,
+        remedyAction: `Ưu tiên trang phục theo hành ${hanhNgay}, chuẩn bị kỹ tài liệu và chủ động tiến hành công việc trước 11h sáng.`
+      },
+      neutral: {
+        title: '🟡 Kịch Bản Trung Tính (Bình Hòa & Định Tấn)',
+        badgeClass: 'warning',
+        scoreRange: `${Math.max(50, totalScore - 5)} - ${Math.min(85, totalScore + 5)}đ`,
+        activationCondition: `Tuân thủ đúng quy trình sẵn có, làm tròn trách nhiệm, không mạo hiểm đầu tư mới nhưng cũng không phản ứng gắt gao khi gặp trở ngại nhẹ.`,
+        predictedFlow: `Diễn biến ổn định đúng tiến độ 65–75%. Tránh được các xung đột bất ngờ, giữ vững thành quả và nguồn lực hiện có.`,
+        remedyAction: `Tập trung giải quyết các công việc còn dở dang, uống trà ấm và theo dõi nhịp sinh học.`
+      },
+      challenging: {
+        title: '🔴 Kịch Bản Thách Thức (Cảnh Báo & Phòng Thủ)',
+        badgeClass: 'danger',
+        scoreRange: `${Math.max(20, totalScore - 25)} - 55đ`,
+        activationCondition: `Vội vã quyết định trong Giờ Hắc Đạo, tranh luận nảy lửa, giữ tâm lý bốc đồng hoặc cố chấp ép buộc đối phương theo ý mình.`,
+        predictedFlow: `Dễ nảy sinh bất đồng (ảnh hưởng Lục Xung / Nhịp cảm xúc ${bio.emotional || 0}%), hợp đồng bị đình trệ, căng thẳng thần kinh và tổn thất năng lượng.`,
+        remedyAction: `Tạm hoãn quyết định lớn trong 24h, mở nhạc tần số định tâm (432Hz/528Hz), ứng xử ôn hòa và rút về phòng thủ.`
+      }
+    };
+  }
+
+  // --- THUẬT TOÁN RADAR CẢNH BÁO SỚM (EARLY WARNING RADAR ENGINE) ---
+  function calculateEarlyWarningRadar(userProfile, startDate, daysCount = 7) {
+    const start = startDate ? new Date(startDate) : new Date();
+    const profile = userProfile || { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const warnings = [];
+
+    let highConflictDays = [];
+    let financeRiskDays = [];
+    let careerCautionDays = [];
+    let healthRiskDays = [];
+
+    for (let i = 0; i < daysCount; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+
+      const dayIntel = getMasterDailyIntelligence(d, profile, 'GENERAL');
+      const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+      const dayLabel = `Ngày ${dateStr} (${dayIntel.canNgay} ${dayIntel.chiNgay})`;
+
+      // 1. Kiểm tra Mối Quan Hệ & Xung Đột
+      const isXungTuoi = dayIntel.scoreResult && dayIntel.scoreResult.lucXung && dayIntel.scoreResult.lucXung.isXung;
+      const isEmotionLow = dayIntel.biorhythms && dayIntel.biorhythms.emotional < -40;
+      if (isXungTuoi || isEmotionLow) {
+        highConflictDays.push({
+          dateStr,
+          dayLabel,
+          reason: isXungTuoi ? `Trực xung tuổi (${dayIntel.chiNgay})` : `Nhịp cảm xúc âm (${dayIntel.biorhythms.emotional}%)`
+        });
+      }
+
+      // 2. Kiểm tra Tài Chính & Giao Dịch
+      const isBadDay = dayIntel.scoreResult && dayIntel.scoreResult.badDayInfo && dayIntel.scoreResult.badDayInfo.isXau;
+      const isIntellectLow = dayIntel.biorhythms && dayIntel.biorhythms.intellectual < -40;
+      const isBadHexagram = dayIntel.queInfo && (dayIntel.queInfo.name.includes('Bĩ') || dayIntel.queInfo.name.includes('Truân') || dayIntel.queInfo.name.includes('Tùy'));
+      if (isBadDay || isIntellectLow || isBadHexagram) {
+        financeRiskDays.push({
+          dateStr,
+          dayLabel,
+          reason: isBadDay ? (dayIntel.scoreResult.badDayInfo.errors[0] || 'Ngày xấu') : (isBadHexagram ? `Quẻ Dịch: ${dayIntel.queInfo.name}` : `Nhịp trí tuệ âm (${dayIntel.biorhythms.intellectual}%)`)
+        });
+      }
+
+      // 3. Kiểm tra Sự Nghiệp & Khởi Đầu
+      if (dayIntel.scoreResult && dayIntel.scoreResult.totalScore < 60) {
+        careerCautionDays.push({
+          dateStr,
+          dayLabel,
+          reason: `Điểm năng lượng thấp (${dayIntel.scoreResult.totalScore}đ)`
+        });
+      }
+
+      // 4. Kiểm tra Thể Chất & Sức Khỏe
+      if (dayIntel.biorhythms && (dayIntel.biorhythms.physical < -45 || dayIntel.biorhythms.statusTag === 'CRITICAL')) {
+        healthRiskDays.push({
+          dateStr,
+          dayLabel,
+          reason: `Nhịp thể lực suy giảm (${dayIntel.biorhythms.physical}%)`
+        });
+      }
+    }
+
+    if (highConflictDays.length > 0) {
+      const dates = highConflictDays.map(x => x.dateStr).join(', ');
+      warnings.push({
+        id: 'rel-conflict',
+        domain: 'RELATIONSHIP',
+        domainLabel: 'Mối Quan Hệ & Gia Đạo',
+        icon: '⚡',
+        severity: highConflictDays.length >= 2 ? 'CRITICAL' : 'WARNING',
+        title: `${dates}: Dễ nảy sinh xung đột & bất đồng`,
+        period: `Các ngày: ${dates}`,
+        detail: highConflictDays.map(x => `• ${x.dayLabel}: ${x.reason}`).join('<br/>'),
+        remedy: 'Giữ thái độ lắng nghe, tránh tranh luận gay gắt. Dùng vật phẩm Mộc-Thủy để hòa giải.'
+      });
+    } else {
+      warnings.push({
+        id: 'rel-smooth',
+        domain: 'RELATIONSHIP',
+        domainLabel: 'Mối Quan Hệ & Gia Đạo',
+        icon: '🕊️',
+        severity: 'INFO',
+        title: 'Năng lượng giao tiếp 7 ngày tới ôn hòa',
+        period: `Cả tuần`,
+        detail: 'Cảm xúc và Can Chi tương hợp, thích hợp gặp gỡ đối tác.',
+        remedy: 'Thích hợp đàm phán, kết nối tình cảm.'
+      });
+    }
+
+    if (financeRiskDays.length > 0) {
+      const dates = financeRiskDays.map(x => x.dateStr).join(', ');
+      warnings.push({
+        id: 'fin-caution',
+        domain: 'FINANCE',
+        domainLabel: 'Tài Chính & Đầu Tư',
+        icon: '🛑',
+        severity: 'CRITICAL',
+        title: `Không nên quyết định tài chính lớn trong các ngày: ${dates}`,
+        period: `Các ngày: ${dates}`,
+        detail: financeRiskDays.map(x => `• ${x.dayLabel}: ${x.reason}`).join('<br/>'),
+        remedy: 'Tạm hoãn giải ngân, rà soát hợp đồng kỹ lưỡng. Không mạo hiểm.'
+      });
+    } else {
+      warnings.push({
+        id: 'fin-stable',
+        domain: 'FINANCE',
+        domainLabel: 'Tài Chính & Đầu Tư',
+        icon: '💰',
+        severity: 'INFO',
+        title: 'Dòng tiền và năng lượng tài chính ổn định',
+        period: `Cả tuần`,
+        detail: 'Không phạm ngày xấu hay quẻ Dịch trở ngại.',
+        remedy: 'Duy trì kế hoạch chi tiêu chuẩn mực.'
+      });
+    }
+
+    if (careerCautionDays.length > 0) {
+      warnings.push({
+        id: 'car-advice',
+        domain: 'CAREER',
+        domainLabel: 'Sự Nghiệp & Khởi Đầu',
+        icon: '🎯',
+        severity: 'WARNING',
+        title: 'Tuần này hợp đàm phán & củng cố hơn là khởi đầu dự án mới',
+        period: `${daysCount} ngày tới`,
+        detail: `Có ${careerCautionDays.length} ngày điểm năng lượng thấp.`,
+        remedy: 'Dùng Smart Target Scanner để chọn Top ngày Cát tường.'
+      });
+    }
+
+    if (healthRiskDays.length > 0) {
+      warnings.push({
+        id: 'hea-alert',
+        domain: 'HEALTH',
+        domainLabel: 'Thân Tâm & Thể Chất',
+        icon: '🏥',
+        severity: 'WARNING',
+        title: 'Chú ý nghỉ ngơi, phòng ngừa mệt mỏi thể chất',
+        period: `Các ngày: ${healthRiskDays.map(x => x.dateStr).join(', ')}`,
+        detail: healthRiskDays.map(x => `• ${x.dayLabel}: ${x.reason}`).join('<br/>'),
+        remedy: 'Nghỉ ngơi đúng giờ, dùng Trà thảo mộc và thiền định.'
+      });
+    }
+
+    return {
+      startDate: start,
+      daysCount,
+      warnings,
+      summaryText: warnings.filter(w => w.severity !== 'INFO').map(w => w.title).join(' • ') || 'Năng lượng 7 ngày tới bình hòa, thuận lợi.'
     };
   }
 
@@ -1199,52 +1408,44 @@ window.AstrologyLogic = (function() {
     }
 
     const astroPotentialScores = {
-      health_mind: Math.max(30, Math.min(98, Math.round(50 + bio.physical * 0.4 + (dayBase % 15)))),
-      career: Math.max(35, Math.min(99, Math.round(55 + bio.intellectual * 0.35 + (dayBase % 20)))),
-      family: Math.max(40, Math.min(95, Math.round(60 + bio.emotional * 0.3 + ((dayBase + 5) % 15)))),
-      relationship: Math.max(35, Math.min(95, Math.round(55 + bio.emotional * 0.35 + ((dayBase + 10) % 15)))),
-      finance: Math.max(30, Math.min(98, Math.round(50 + bio.intellectual * 0.3 + ((dayBase + 12) % 20)))),
-      knowledge: Math.max(40, Math.min(99, Math.round(60 + bio.intellectual * 0.35 + ((dayBase + 8) % 15))))
+      health: Math.min(100, Math.max(30, Math.round(dayBase * 0.4 + (bio.physical + 100) * 0.3))),
+      career: Math.min(100, Math.max(30, Math.round(dayBase * 0.5 + (bio.intellectual + 100) * 0.25))),
+      family: Math.min(100, Math.max(30, Math.round(dayBase * 0.45 + (bio.emotional + 100) * 0.28))),
+      relationship: Math.min(100, Math.max(30, Math.round(dayBase * 0.4 + (bio.emotional + 100) * 0.3))),
+      finance: Math.min(100, Math.max(30, Math.round(dayBase * 0.5 + (bio.intellectual + 100) * 0.25))),
+      knowledge: Math.min(100, Math.max(30, Math.round(dayBase * 0.35 + (bio.intellectual + 100) * 0.32)))
     };
 
-    let realScores = customRealScores;
-    if (!realScores && typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('user_life_balance_scores');
-        if (saved) realScores = JSON.parse(saved);
-      } catch (e) { realScores = null; }
-    }
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem('user_life_balance_scores'));
+    } catch (e) {}
 
-    if (!realScores) {
-      realScores = {
-        health_mind: 80,
-        career: 90,
-        family: 65,
-        relationship: 65,
-        finance: 85,
-        knowledge: 88
-      };
-    }
+    const realScores = customRealScores || saved || {
+      health: 75,
+      career: 80,
+      family: 70,
+      relationship: 65,
+      finance: 75,
+      knowledge: 85
+    };
 
     const pillars = [
-      { key: 'health_mind', label: '1. Thân Tâm (Sức Khỏe & Tĩnh Lạc)' },
-      { key: 'career', label: '2. Sự Nghiệp (Công Việc & Task)' },
-      { key: 'family', label: '3. Gia Đạo (Gia Đình & Tổ Ấm)' },
-      { key: 'relationship', label: '4. Mối Quan Hệ (Hợp Tác & Xã Hội)' },
-      { key: 'finance', label: '5. Tài Chính (Tích Lũy & Dòng Tiền)' },
-      { key: 'knowledge', label: '6. Tri Thức (Học Tập & Phản Tư)' }
+      { key: 'health', name: 'Thân Tâm', icon: '🧘', real: realScores.health, astro: astroPotentialScores.health },
+      { key: 'career', name: 'Sự Nghiệp', icon: '🎯', real: realScores.career, astro: astroPotentialScores.career },
+      { key: 'family', name: 'Gia Đạo', icon: '🏡', real: realScores.family, astro: astroPotentialScores.family },
+      { key: 'relationship', name: 'Mối Quan Hệ', icon: '🤝', real: realScores.relationship, astro: astroPotentialScores.relationship },
+      { key: 'finance', name: 'Tài Chính', icon: '💰', real: realScores.finance, astro: astroPotentialScores.finance },
+      { key: 'knowledge', name: 'Tri Thức', icon: '📚', real: realScores.knowledge, astro: astroPotentialScores.knowledge }
     ];
 
     const insights = [];
     pillars.forEach(p => {
-      const real = realScores[p.key] || 70;
-      const astro = astroPotentialScores[p.key] || 70;
-      const delta = real - astro;
-
-      if (delta < -18) {
-        insights.push(`🔴 <strong>${p.label}</strong>: Tiềm năng Vận hạn cao (${astro}đ) nhưng thực tế đầu tư chỉ ${real}đ. Cảnh báo lãng phí thời cơ vàng!`);
-      } else if (delta > 20) {
-        insights.push(`🟡 <strong>${p.label}</strong>: Thực tế gồng ép ${real}đ vượt xa tiềm năng (${astro}đ). Cảnh báo nguy cơ kiệt sức / Burnout!`);
+      const diff = p.real - p.astro;
+      if (diff > 15) {
+        insights.push(`🔴 <strong>${p.name}</strong>: Đang gồng sức thực tế (${p.real}%) cao hơn xung lực Vận hạn (${p.astro}%). Cần đề phòng quá tải.`);
+      } else if (diff < -15) {
+        insights.push(`🟢 <strong>${p.name}</strong>: Tiềm năng Vận hạn đang rất tốt (${p.astro}%), nhưng thực tế chưa khai thác hết (${p.real}%). Nên mạnh dạn bứt phá!`);
       }
     });
 
@@ -1258,6 +1459,117 @@ window.AstrologyLogic = (function() {
       astroPotentialScores,
       insights,
       pillars
+    };
+  }
+
+  // --- THUẬT TOÁN TIME-MACHINE CUỘC ĐỜI CÁ NHÂN (20 - 80 TUỔI) ---
+  function calculateLifeTimeline(userProfile) {
+    const profile = userProfile || {
+      birthYear: 1995,
+      currentAge: 31,
+      canNam: 'Ất',
+      chiNam: 'Hợi',
+      hanhMenh: 'Hỏa'
+    };
+
+    const birthYear = profile.birthYear || 1995;
+    const currentYear = new Date().getFullYear();
+    const currentAge = profile.currentAge || (currentYear - birthYear + 1);
+
+    const LUU_TINH_MAP = [
+      ["Lưu Lộc Tồn", "Lưu Thiên Mã", "Lưu Đào Hoa"],
+      ["Lưu Thái Tuế", "Lưu Hóa Lộc", "Lưu Thiên Khôi"],
+      ["Lưu Hóa Kị", "Lưu Kình Dương", "Lưu Quan Phù"],
+      ["Lưu Thiên Việt", "Lưu Hóa Quyền", "Lưu Hồng Loan"],
+      ["Lưu Lộc Tồn", "Lưu Hóa Khoa", "Lưu Thiên Hỷ"],
+      ["Lưu Đà La", "Lưu Tang Môn", "Lưu Bạch Hổ"]
+    ];
+
+    const HEXAGRAMS = [
+      { name: "Quẻ Thuần Càn", desc: "Thế khí vững chãi, quân tử tự cường bất tức, hành động quyết đoán." },
+      { name: "Quẻ Thuần Khôn", desc: "Nhu thuận bao dung, tích lũy nội lực, tĩnh tâm đợi thời cơ." },
+      { name: "Quẻ Lôi Thiên Đại Tráng", desc: "Thế khí đang lên rất mạnh, giữ kỷ luật, tránh kiêu ngạo vội vã." },
+      { name: "Quẻ Hỏa Phong Đỉnh", desc: "Đổi mới tư duy, cải tạo nền tảng, đón nhận vạn sự hanh thông." },
+      { name: "Quẻ Trạch Thiên Quải", desc: "Dứt khoát loại bỏ rủi ro, minh bạch trong các giao dịch tài chính." },
+      { name: "Quẻ Địa Thủy Sư", desc: "Tập hợp lực lượng, quản trị kỷ luật và điều phối nguồn lực chặt chẽ." },
+      { name: "Quẻ Phong Lôi Ích", desc: "Thời cơ mở rộng, gia tăng giá trị cá nhân và hỗ trợ cộng đồng." },
+      { name: "Quẻ Thủy Hỏa Ký Tế", desc: "Công thành danh tựu, cần duy trì sự tỉnh táo và bảo vệ thành quả." }
+    ];
+
+    const yearlyData = [];
+
+    for (let age = 20; age <= 80; age++) {
+      const calendarYear = birthYear + age;
+      const canIdx = Math.abs((calendarYear - 4) % 10);
+      const chiIdx = Math.abs((calendarYear - 4) % 12);
+      const canStr = CAN[canIdx] || "Giáp";
+      const chiStr = CHI[chiIdx] || "Tý";
+      const canChi = `${canStr} ${chiStr}`;
+
+      // Đại vận 10 năm
+      const decStart = Math.floor((age - 3) / 10) * 10 + 3;
+      const decEnd = decStart + 9;
+      const decadeRange = `${decStart} - ${decEnd}`;
+      const decadePalace = CHI[(chiIdx + Math.floor(age / 7)) % 12];
+
+      // Đánh giá điểm Đại vận & Tiểu vận
+      const seed = (birthYear * 7 + age * 13 + calendarYear * 3) % 100;
+      let decadeScore = 65 + (seed % 31);
+      let annualScore = 55 + ((seed * 3) % 41);
+
+      const lesScore = Math.min(99, Math.max(35, Math.round(decadeScore * 0.6 + annualScore * 0.4)));
+
+      let statusFlag = "🟡 Bình Hòa & Tích Lũy";
+      let statusClass = "warning";
+      if (lesScore >= 80) {
+        statusFlag = "🟢 Tấn Công & Bứt Phá";
+        statusClass = "success";
+      } else if (lesScore < 55) {
+        statusFlag = "🔴 Phòng Thủ & Cẩn Trọng";
+        statusClass = "danger";
+      }
+
+      const career = Math.min(98, Math.max(40, Math.round(lesScore * 0.9 + (seed % 15))));
+      const finance = Math.min(98, Math.max(35, Math.round(lesScore * 0.85 + ((seed * 2) % 20))));
+      const health = Math.min(95, Math.max(45, Math.round(100 - (age * 0.4) + (seed % 15))));
+      const relationship = Math.min(95, Math.max(50, Math.round(lesScore * 0.75 + ((seed * 4) % 25))));
+
+      const starsIdx = (age + canIdx) % LUU_TINH_MAP.length;
+      const keyActiveStars = LUU_TINH_MAP[starsIdx];
+
+      const hexIdx = (calendarYear + age + seed) % HEXAGRAMS.length;
+      const ichingHexagram = HEXAGRAMS[hexIdx];
+
+      let strategicAdvice = "";
+      if (lesScore >= 80) {
+        strategicAdvice = `Năm có ${keyActiveStars[0]} & ${keyActiveStars[1]} hội chiếu. Thời cơ thiên thời địa lợi để bứt phá sự nghiệp, mở rộng quy mô đầu tư hoặc thực hiện các dự án trọng điểm.`;
+      } else if (lesScore >= 55) {
+        strategicAdvice = `Vận khí ổn định hòa hợp. Thích hợp duy trì nhịp làm việc hiện tại, củng cố nội lực, học hỏi kỹ năng mới và chuẩn bị nguồn lực cho các mốc bứt phá tiếp theo.`;
+      } else {
+        strategicAdvice = `Năm gặp ${keyActiveStars.includes("Lưu Hóa Kị") ? "Lưu Hóa Kị" : "Lưu Kình Dương"} chiếu mệnh. Nên ưu tiên phòng thủ tài chính, quản trị rủi ro hợp đồng, chú ý sức khỏe và tránh đầu tư mạo hiểm.`;
+      }
+
+      yearlyData.push({
+        age,
+        calendarYear,
+        canChi,
+        decadeRange,
+        decadePalace,
+        lesScore,
+        statusFlag,
+        statusClass,
+        fourPillars: { career, finance, health, relationship },
+        keyActiveStars,
+        ichingHexagram,
+        strategicAdvice,
+        isCurrentAge: age === currentAge
+      });
+    }
+
+    return {
+      birthYear,
+      currentAge,
+      yearlyData
     };
   }
 
@@ -1285,8 +1597,273 @@ window.AstrologyLogic = (function() {
     CANH_GIO,
     evaluateHourlyRhythm,
     getMasterDailyIntelligence,
-    calculateLifeBalanceScores
+    calculateLifeBalanceScores,
+    calculateLifeTimeline,
+    generateShortTermScenarios,
+    calculateEarlyWarningRadar,
+
+    // --- 1. Finance & Investment Timing Logic ---
+    evaluateWealthDay(dateObj, userProfile) {
+      const baseDay = this.evaluatePersonalizedDay(dateObj, userProfile, 'CONTRACT');
+      const canNgay = baseDay.canNgay || 'Giáp';
+      const chiNgay = baseDay.chiNgay || 'Tý';
+      
+      const thanCatMap = {
+        'Giáp': { wealthDirection: 'Đông Nam', star: 'Thần Tài Giáp Wood', rating: 'Thượng Cát' },
+        'Ất': { wealthDirection: 'Đông', star: 'Lộc Tồn Ất', rating: 'Đại Cát' },
+        'Bính': { wealthDirection: 'Nam', star: 'Hỷ Thần Bính Fire', rating: 'Thượng Cát' },
+        'Đinh': { wealthDirection: 'Đông Nam', star: 'Thái Âm Đinh', rating: 'Bình Hòa' },
+        'Mậu': { wealthDirection: 'Đông Nam', star: 'Thiên Lộc Mậu Thổ', rating: 'Đại Cát' },
+        'Kỷ': { wealthDirection: 'Tây', star: 'Vũ Khúc Kỷ Metal', rating: 'Thượng Cát' },
+        'Canh': { wealthDirection: 'Tây', star: 'Thiên Phủ Canh Metal', rating: 'Đại Cát' },
+        'Tân': { wealthDirection: 'Tây Bắc', star: 'Thái Dương Tân', rating: 'Thượng Cát' },
+        'Nhâm': { wealthDirection: 'Bắc', star: 'Hóa Lộc Nhâm Water', rating: 'Đại Cát' },
+        'Quý': { wealthDirection: 'Bắc', star: 'Liêm Trinh Quý Water', rating: 'Bình Hòa' }
+      };
+
+      const wealthInfo = thanCatMap[canNgay] || thanCatMap['Giáp'];
+      const score = Math.min(100, Math.max(30, baseDay.score + 5));
+
+      let recommendation = "";
+      if (score >= 80) {
+        recommendation = "Ngày vượng lộc phát tài. Rất tốt cho ký kết hợp đồng, giải ngân đầu tư và thu hồi nợ.";
+      } else if (score >= 60) {
+        recommendation = "Tài khí bình hòa. Thích hợp mua sắm nhỏ, tích lũy tài sản dài hạn, tránh lướt sóng ngắn hạn.";
+      } else {
+        recommendation = "Cực kỵ cho các giao dịch lớn. Nên quản trị rủi ro, kiểm tra lại hợp đồng và bảo toàn dòng tiền.";
+      }
+
+      return {
+        dateObj,
+        canNgay,
+        chiNgay,
+        score,
+        rating: wealthInfo.rating,
+        wealthDirection: wealthInfo.wealthDirection,
+        star: wealthInfo.star,
+        recommendation
+      };
+    },
+
+    // --- 2. Retro-Verification Correlation Engine ---
+    calculateRetroAccuracy(pastEntries = []) {
+      if (!pastEntries || pastEntries.length === 0) {
+        return {
+          totalChecked: 0,
+          accuracyPct: 85,
+          correlationLevel: 'Rất Cao (Mẫu thử khởi đầu)',
+          insight: 'Chưa có đủ nhật ký đối chiếu. Hãy check-in mỗi tối để nâng cao độ chính xác.'
+        };
+      }
+
+      let matchedCount = 0;
+      pastEntries.forEach(entry => {
+        const predicted = entry.predictedScore || 70;
+        const actual = entry.actualScore || 4; // scale 1-5 -> mapped to 20-100
+        const mappedActual = actual * 20;
+        if (Math.abs(predicted - mappedActual) <= 20) {
+          matchedCount++;
+        }
+      });
+
+      const accuracyPct = Math.round((matchedCount / pastEntries.length) * 100);
+      let correlationLevel = 'Khá';
+      if (accuracyPct >= 80) correlationLevel = 'Rất Cao';
+      else if (accuracyPct >= 60) correlationLevel = 'Trung Bình';
+      else correlationLevel = 'Cần Hiệu Chỉnh';
+
+      return {
+        totalChecked: pastEntries.length,
+        accuracyPct,
+        correlationLevel,
+        insight: `Đã đối chiếu ${pastEntries.length} ngày. Độ tương thích thuật toán với thực tế cá nhân đạt ${accuracyPct}%.`
+      };
+    },
+
+    // --- 3. Mood-Energy Correlation Engine ---
+    analyzeEmotionalPattern(moodLogs = [], bioData = { emotional: 50 }) {
+      const count = moodLogs.length;
+      const recentMood = count > 0 ? moodLogs[moodLogs.length - 1] : { mood: 'Bình Thường', val: 3 };
+      const emotionalWave = bioData.emotional || 0;
+
+      let harmonyText = "Hòa hợp tốt với sóng sinh học.";
+      if (recentMood.val >= 4 && emotionalWave < -30) {
+        harmonyText = "Tâm trạng thực tế tích cực hơn sóng Biorhythm — Bạn đang chuyển hóa năng lượng tốt!";
+      } else if (recentMood.val <= 2 && emotionalWave > 30) {
+        harmonyText = "Sóng Biorhythm cao nhưng tâm trạng trầm xuống — Cần thả lỏng và nghỉ ngơi.";
+      }
+
+      return {
+        recentMood: recentMood.mood,
+        emotionalWave,
+        harmonyText,
+        logCount: count
+      };
+    },
+
+    // --- 4. RPG Character Stats Engine ---
+    calculateCharacterStats(userProfile = {}, phucDucPoints = 0) {
+      const balance = this.calculateLifeBalanceScores(userProfile);
+      const scores = balance.scores || [75, 80, 70, 85, 65, 90];
+
+      const bonus = Math.floor(phucDucPoints / 20);
+
+      return {
+        vit: Math.min(100, scores[0] + bonus), // Thân Tâm
+        int: Math.min(100, scores[1] + bonus), // Sự Nghiệp
+        cha: Math.min(100, scores[2] + bonus), // Gia Đạo
+        wis: Math.min(100, scores[3] + bonus), // Mối Quan Hệ
+        str: Math.min(100, scores[4] + bonus), // Tài Chính
+        dex: Math.min(100, scores[5] + bonus), // Tri Thức
+        totalPower: scores.reduce((a, b) => a + b, 0) + bonus * 6,
+        phucDucPoints
+      };
+    },
+
+    // --- 5. Skill Tree Data Engine ---
+    getSkillTreeData() {
+      return [
+        {
+          id: 'vit_branch',
+          name: 'Nhánh Thân Tâm (VIT)',
+          icon: '🧘',
+          color: '#10b981',
+          skills: [
+            { id: 'v1', name: 'Thiền Định Solfeggio', level: 1, maxLevel: 3, desc: 'Giảm 30% căng thẳng thần kinh' },
+            { id: 'v2', name: 'Thực Dưỡng Ngũ Hành', level: 2, maxLevel: 3, desc: 'Cân bằng tạng phủ theo Can Chi ngày' },
+            { id: 'v3', name: 'Bảo Hòa Nhịp Giờ', level: 1, maxLevel: 3, desc: 'Tối ưu hóa giấc ngủ và nhịp 24H' }
+          ]
+        },
+        {
+          id: 'int_branch',
+          name: 'Nhánh Sự Nghiệp (INT)',
+          icon: '👑',
+          color: '#3b82f6',
+          skills: [
+            { id: 'i1', name: 'Săn Ngày Vàng Target Scanner', level: 2, maxLevel: 3, desc: 'Top 3 ngày cát cho thi cử/trình sếp' },
+            { id: 'i2', name: 'Chiến Lược Time-Machine', level: 1, maxLevel: 3, desc: 'Quản trị nguồn lực 10 năm' }
+          ]
+        },
+        {
+          id: 'str_branch',
+          name: 'Nhánh Tài Chính (STR)',
+          icon: '💰',
+          color: '#f59e0b',
+          skills: [
+            { id: 's1', name: 'Timing Đầu Tư Ngũ Hành', level: 1, maxLevel: 3, desc: 'Nắm bắt thời điểm Tài Thần vượng' },
+            { id: 's2', name: 'Quản Trị Rủi Ro Hợp Đồng', level: 1, maxLevel: 3, desc: 'Cảnh báo sớm ngày phạm Lục Xung/Hóa Kỵ' }
+          ]
+        },
+        {
+          id: 'wis_branch',
+          name: 'Nhánh Tri Thức (WIS)',
+          icon: '📚',
+          color: '#8b5cf6',
+          skills: [
+            { id: 'w1', name: 'Kinh Dịch Chiêm Nghiệm', level: 2, maxLevel: 3, desc: 'Nhận thức thời cơ qua 64 quẻ' },
+            { id: 'w2', name: 'Phản Tư Đúc Kết Bài Học', level: 3, maxLevel: 3, desc: 'Chuyển hóa trải nghiệm thành trí tuệ' }
+          ]
+        }
+      ];
+    },
+
+    // --- Batch 2: Adaptive Streak Engine (#3) ---
+    getAdaptiveStreakStatus(pastLogs = [], todayScore = 80) {
+      const isLowScoreDay = todayScore < 50;
+      let streakType = 'NORMAL';
+      let streakBadge = '🔥 Chuỗi Tấn Công';
+      let taskRecommendation = 'Hoàn thành ít nhất 1 nhiệm vụ trọng tâm hôm nay.';
+
+      if (isLowScoreDay) {
+        streakType = 'REST_DAY';
+        streakBadge = '🛡️ Ngày Nghỉ Thiên Ý (Bảo Toàn Chuỗi)';
+        taskRecommendation = 'Ngày Hắc Đạo: Chỉ cần hoàn thành 1 việc nhẹ (Thiền 10p hoặc đi dạo) để giữ chuỗi +5 KP.';
+      } else if (todayScore >= 85) {
+        streakType = 'POWER_DAY';
+        streakBadge = '⚡ Ngày Đại Cát (Streak x2 Bonus)';
+        taskRecommendation = 'Ngày Đại Cát: Hoàn thành nhiệm vụ lớn để nhân đôi điểm Phúc Đức (+30 KP)!';
+      }
+
+      return {
+        isLowScoreDay,
+        streakType,
+        streakBadge,
+        taskRecommendation,
+        currentStreak: pastLogs.length > 0 ? pastLogs.length : 1
+      };
+    },
+
+    // --- Batch 2: Micro-Sprint 24H Engine (#2) ---
+    generateMicroSprintSchedule(dateObj, userProfile = {}) {
+      const hourly = this.evaluateHourlyRhythm(dateObj, userProfile);
+      const hours = hourly.hourlyList || [];
+
+      return hours.map(h => {
+        let type = 'ROUTINE';
+        let activity = 'Xử lý công việc thường nhật / Admin';
+
+        if (h.score >= 75) {
+          type = 'DEEP_WORK';
+          activity = '🎯 DEEP WORK: Trình sếp, ký hợp đồng, học tập chuyên sâu';
+        } else if (h.score < 45) {
+          type = 'REST';
+          activity = '🧘 REST & RECOVERY: Nghỉ ngơi, thiền Solfeggio, tập nhẹ';
+        }
+
+        return {
+          time: h.canh,
+          name: h.name,
+          score: h.score,
+          type,
+          activity,
+          isHoangDao: h.isHoangDao
+        };
+      });
+    },
+
+    // --- Batch 2: Social Energy Map Engine (#1) ---
+    getSocialEnergyMap(userContacts = [], selectedDate = new Date()) {
+      const defaultContacts = [
+        { name: 'Đồng Nghiệp Kế Toán', canChi: 'Giáp Tý' },
+        { name: 'Đối Tác Kinh Doanh', canChi: 'Bính Dần' },
+        { name: 'Người Thân / Bạn Đời', canChi: 'Mậu Thìn' }
+      ];
+      const contacts = userContacts.length > 0 ? userContacts : defaultContacts;
+
+      return contacts.map(c => {
+        const result = this.tuongHopNhanSu('Canh Thìn', c.canChi);
+        return {
+          name: c.name,
+          canChi: c.canChi,
+          harmonyScore: result.diemTuongHop || 85,
+          compatibilityText: result.danhGia || 'Hợp tác thuận lợi',
+          recommendation: result.diemTuongHop >= 75 ? 'Rất tốt để thảo luận công việc & đàm phán.' : 'Nên nhường nhịn, tránh xung đột quan điểm.'
+        };
+      });
+    },
+
+    // --- Batch 2: Moon Phase Reflection Engine (#9) ---
+    getMoonPhaseReflection(dateObj = new Date()) {
+      let day = dateObj.getDate();
+      if (typeof Lunar !== 'undefined') {
+        const lunar = Lunar.fromDate(dateObj);
+        day = lunar.getDay();
+      }
+
+      if (day <= 3) {
+        return { phase: '🌑 Sóc (Mồng 1 - 3)', title: 'Gieo Hạt Ý Niệm', question: 'Tôi muốn tập trung nuôi dưỡng điều gì nhất trong tháng này?' };
+      } else if (day <= 10) {
+        return { phase: '🌓 Thượng Huyền (Mồng 4 - 10)', title: 'Vượt Trở Ngại', question: 'Trở ngại lớn nhất đang làm tôi xao nhãng là gì và cách vượt qua?' };
+      } else if (day <= 18) {
+        return { phase: '🌕 Vọng (11 - 18)', title: 'Tỏa Sáng & Đạt Thành', question: 'Điều gì trong tôi đang đạt đỉnh cao năng lượng và sự biết ơn?' };
+      } else if (day <= 25) {
+        return { phase: '🌗 Hạ Huyền (19 - 25)', title: 'Buông Bỏ & Tối Ưu', question: 'Gần đây điều gì đang làm kiệt sức mà tôi cần buông bỏ?' };
+      } else {
+        return { phase: '🌑 Hối (26 - 30)', title: 'Chiêm Nghiệm & Đúc Kết', question: 'Bài học đắt giá nhất tôi gặt hái được trong chu kỳ vừa qua là gì?' };
+      }
+    }
   };
 })();
+
 
 

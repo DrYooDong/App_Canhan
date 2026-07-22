@@ -115,8 +115,9 @@
 
   function renderDashboard(container, params) {
     if (params && params[0]) {
-      if (['morning', 'tasks', 'overview', 'main'].includes(params[0])) {
-        if (params[0] === 'morning') activeDashTab = 'morning';
+      if (['command', 'morning', 'tasks', 'overview', 'main'].includes(params[0])) {
+        if (params[0] === 'command') activeDashTab = 'command';
+        else if (params[0] === 'morning') activeDashTab = 'morning';
         else if (params[0] === 'tasks') activeDashTab = 'tasks';
         else activeDashTab = 'overview';
       }
@@ -125,6 +126,9 @@
     container.innerHTML = `
       <div class="dashboard-hub animate-fade-in">
         <div class="tabs-header" style="display:flex;gap:12px;margin-bottom:24px;border-bottom:1px solid var(--border-color);padding-bottom:12px;flex-wrap:wrap;">
+          <button class="btn btn-tab ${activeDashTab === 'command' ? 'active' : ''}" data-tab="command" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'command' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'command' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'command' ? 'var(--border-accent)' : 'transparent'};">
+            <span>📱</span> Ambient HUD
+          </button>
           <button class="btn btn-tab ${activeDashTab === 'overview' ? 'active' : ''}" data-tab="overview" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'overview' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'overview' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'overview' ? 'var(--border-accent)' : 'transparent'};">
             <span>☯</span> Tổng Quan & Lịch Ngày Tốt
           </button>
@@ -153,7 +157,9 @@
       });
 
       subContent.innerHTML = '';
-      if (tab === 'morning' && window.renderMorning) {
+      if (tab === 'command' && window.renderCommandCenter) {
+        window.renderCommandCenter(subContent);
+      } else if (tab === 'morning' && window.renderMorning) {
         window.renderMorning(subContent);
       } else if (tab === 'tasks' && window.renderTasks) {
         window.renderTasks(subContent);
@@ -196,9 +202,10 @@
       }
     };
     let currentTaskType = "GENERAL";
+    let currentCalDate = new Date();
 
     // Tích hợp dữ liệu tổng hợp cho ngày hôm nay
-    const todayInfo = getDailyIntegratedDetails(new Date(), userProfile, currentTaskType);
+    const todayInfo = getDailyIntegratedDetails(currentCalDate, userProfile, currentTaskType);
 
     container.innerHTML = `
       <!-- Master Header -->
@@ -223,6 +230,9 @@
         </div>
       </div>
 
+      <!-- Radar Cảnh Báo Sớm 7 Ngày (Early Warning Radar) -->
+      <div id="early-warning-radar-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
+
       <!-- Smart Target Scanner (Săn Ngày Thăng Tiến & Thi Cử) -->
       <div class="stagger-item" style="margin-bottom: var(--space-xl);">
         <div class="tuvi-card">
@@ -239,6 +249,7 @@
                 <option value="EXAM">🎓 Thi Cử / Bảo Vệ Luận Văn</option>
                 <option value="INTERVIEW">💼 Phỏng Vấn / Xin Việc</option>
                 <option value="PROMOTION">👑 Trình Sếp / Tăng Lương</option>
+                <option value="CONTRACT">✍️ Hợp Đồng / Đầu Tư</option>
                 <option value="PITCHING">🎤 Ra Mắt / Thuyết Trình</option>
               </select>
               <button class="btn btn-primary btn-sm" id="btn-run-goal-scan">🔍 Quét Top 3 Ngày Vàng</button>
@@ -297,6 +308,12 @@
       <div class="stagger-item" style="margin-bottom: var(--space-xl);">
         <div id="master-daily-intelligence-board"></div>
       </div>
+
+      <!-- BATCH 2: ADAPTIVE STREAK & WORK MODE WIDGET (#3 & #4) -->
+      <div id="batch2-adaptive-streak-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
+
+      <!-- BATCH 2: SOCIAL ENERGY MAP & MICRO-SPRINT 24H (#1 & #2) -->
+      <div id="batch2-social-sprint-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
 
       <div class="ornamental-divider">✦ ────── ❖ ────── ✦</div>
 
@@ -373,6 +390,15 @@
             <div class="feature-hub-info">
               <div class="feature-hub-title">Lá Số Tử Vi & Vận Hạn</div>
               <div class="feature-hub-desc">Xem lá số, vận hạn từng thời kỳ, la bàn nhân sự</div>
+            </div>
+            <div class="feature-hub-arrow">→</div>
+          </div>
+
+          <div class="feature-hub-card" onclick="App.Router.navigate('astrology/timemachine')" role="button" tabindex="0">
+            <div class="feature-hub-icon" style="background:linear-gradient(135deg,#ec489922,#8b5cf622);">⏳</div>
+            <div class="feature-hub-info">
+              <div class="feature-hub-title">Time-Machine Cuộc Đời 60 Năm</div>
+              <div class="feature-hub-desc">Bản đồ chiến lược thời gian (20–80t), điểm LES & ghim mục tiêu</div>
             </div>
             <div class="feature-hub-arrow">→</div>
           </div>
@@ -484,7 +510,9 @@
 
     // Bind events
     if (userProfile) {
+      renderEarlyWarningRadarWidget(userProfile);
       renderCalendar(userProfile, currentTaskType);
+      renderBatch2Widgets(currentCalDate, userProfile);
 
       // Quick Date Filters Handler
       const quickFilters = container.querySelector('#quick-date-filters');
@@ -516,21 +544,46 @@
             } else if (filterType === 'scan-exam' || filterType === 'scan-contract') {
               const goalType = filterType === 'scan-exam' ? 'EXAM' : 'CONTRACT';
               const scanSelect = container.querySelector('#goal-scanner-type');
+              const calSelect = container.querySelector('#cal-task-type');
               const scanBtn = container.querySelector('#btn-run-goal-scan');
-              if (scanSelect && scanBtn) {
-                scanSelect.value = goalType;
-                scanBtn.click();
+              if (scanSelect) scanSelect.value = goalType;
+              if (calSelect) {
+                calSelect.value = goalType;
+                currentTaskType = goalType;
+                renderCalendar(userProfile, currentTaskType);
+                renderMasterDailyBoard(currentCalDate, userProfile, currentTaskType);
               }
+              if (scanBtn) scanBtn.click();
             }
           });
         });
       }
 
-      document.getElementById('cal-task-type').addEventListener('change', (e) => {
-        currentTaskType = e.target.value;
-        renderCalendar(userProfile, currentTaskType);
-        renderMasterDailyBoard(currentCalDate, userProfile, currentTaskType);
-      });
+      const calTaskSelect = document.getElementById('cal-task-type');
+      const goalScanSelect = document.getElementById('goal-scanner-type');
+
+      if (calTaskSelect) {
+        calTaskSelect.addEventListener('change', (e) => {
+          currentTaskType = e.target.value;
+          if (goalScanSelect && currentTaskType !== 'GENERAL') {
+            goalScanSelect.value = currentTaskType;
+          }
+          renderCalendar(userProfile, currentTaskType);
+          renderMasterDailyBoard(currentCalDate, userProfile, currentTaskType);
+        });
+      }
+
+      if (goalScanSelect) {
+        goalScanSelect.addEventListener('change', (e) => {
+          const val = e.target.value;
+          if (calTaskSelect) {
+            calTaskSelect.value = val;
+            currentTaskType = val;
+            renderCalendar(userProfile, currentTaskType);
+            renderMasterDailyBoard(currentCalDate, userProfile, currentTaskType);
+          }
+        });
+      }
 
       document.getElementById('btn-cal-prev').addEventListener('click', () => {
         currentCalDate.setMonth(currentCalDate.getMonth() - 1);
@@ -558,21 +611,31 @@
             <div style="font-weight:700; font-size:0.95em; color:var(--accent-primary); margin-bottom:10px;">
               🌟 TOP 3 NGÀY VÀNG TỐI ƯU NHẤT — ${topDates[0].config.icon} ${topDates[0].config.label}
             </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
-              ${topDates.map((d, idx) => `
-                <div class="card" style="padding:12px; border-left:4px solid ${idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309'}; cursor:pointer;" data-scan-date="${d.dateStr}">
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:0.9em;">
-                    <span>${idx === 0 ? '🥇 Rank #1' : idx === 1 ? '🥈 Rank #2' : '🥉 Rank #3'}: ${d.formattedDate}</span>
-                    <span style="color:var(--accent-primary); font-size:1.1em;">${d.goalScore}đ</span>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
+              ${topDates.map((d, idx) => {
+                const [yStr, mStr, dStr] = d.dateStr.split('-');
+                const dateObj = new Date(yStr, mStr - 1, dStr);
+                const scenarios = window.AstrologyLogic.generateShortTermScenarios(dateObj, userProfile, goalType);
+
+                return `
+                  <div class="card" style="padding:12px; border-left:4px solid ${idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309'}; cursor:pointer;" data-scan-date="${d.dateStr}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:0.9em;">
+                      <span>${idx === 0 ? '🥇 Rank #1' : idx === 1 ? '🥈 Rank #2' : '🥉 Rank #3'}: ${d.formattedDate}</span>
+                      <span style="color:var(--accent-primary); font-size:1.1em;">${d.goalScore}đ</span>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-top:4px;">
+                      Can Chi: ${d.canChi} (${d.rating})
+                    </div>
+                    <div style="font-size:0.78em; color:var(--color-success); font-weight:600; margin-top:4px;">
+                      ⌛ Giờ Vàng: ${d.bestHours.slice(0, 2).join(', ')}
+                    </div>
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color); font-size:0.75rem; color:var(--text-tertiary);">
+                      <div style="font-weight:700; color:var(--accent-primary); margin-bottom:2px;">🔮 Kịch bản kích hoạt:</div>
+                      <div style="color:var(--color-success);">🟢 <strong>Thuận lợi:</strong> ${scenarios.favorable.activationCondition.substring(0, 50)}...</div>
+                    </div>
                   </div>
-                  <div style="font-size:0.8em; color:var(--text-secondary); margin-top:4px;">
-                    Can Chi: ${d.canChi} (${d.rating})
-                  </div>
-                  <div style="font-size:0.78em; color:var(--color-success); font-weight:600; margin-top:4px;">
-                    ⌛ Giờ Vàng: ${d.bestHours.slice(0, 2).join(', ')}
-                  </div>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           `;
 
@@ -589,6 +652,216 @@
         });
       }
     }
+  }
+
+  function renderEarlyWarningRadarWidget(userProfile) {
+    const container = document.getElementById('early-warning-radar-widget');
+    if (!container) return;
+
+    const AL = window.AstrologyLogic;
+    if (!AL || typeof AL.calculateEarlyWarningRadar !== 'function') {
+      container.innerHTML = '';
+      return;
+    }
+
+    const radar = AL.calculateEarlyWarningRadar(userProfile, new Date(), 7);
+    const criticalCount = radar.warnings.filter(w => w.severity === 'CRITICAL').length;
+    const warningCount = radar.warnings.filter(w => w.severity === 'WARNING').length;
+
+    // Build 7-day timeline status ribbon
+    const today = new Date();
+    const dailyTimeline = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      let dayIntel = null;
+      if (typeof AL.getMasterDailyIntelligence === 'function') {
+        try {
+          dayIntel = AL.getMasterDailyIntelligence(d, userProfile, 'GENERAL');
+        } catch (e) {}
+      }
+      
+      const dayName = i === 0 ? 'Hôm nay' : (i === 1 ? 'Ngày mai' : d.toLocaleDateString('vi-VN', { weekday: 'short' }));
+      const dateNum = `${d.getDate()}/${d.getMonth() + 1}`;
+      const score = dayIntel?.scoreResult?.totalScore || 70;
+      const isXau = dayIntel?.scoreResult?.badDayInfo?.isXau;
+      const canNgay = dayIntel?.canNgay || '';
+      const chiNgay = dayIntel?.chiNgay || '';
+
+      let statusBg = 'rgba(16, 185, 129, 0.15)';
+      let statusColor = '#10b981';
+      if (score < 50 || isXau) {
+        statusBg = 'rgba(239, 68, 68, 0.15)';
+        statusColor = '#ef4444';
+      } else if (score < 70) {
+        statusBg = 'rgba(245, 158, 11, 0.15)';
+        statusColor = '#f59e0b';
+      }
+
+      dailyTimeline.push({
+        dateStr: `${d.getDate()}/${d.getMonth() + 1}`,
+        dayName,
+        dateNum,
+        score,
+        statusBg,
+        statusColor,
+        canChi: `${canNgay} ${chiNgay}`
+      });
+    }
+
+    container.innerHTML = `
+      <div class="tuvi-card" style="border: 1px solid var(--border-color); background: linear-gradient(135deg, var(--bg-card), var(--bg-tertiary));">
+        <!-- Header -->
+        <div class="tuvi-card-header" style="flex-wrap:wrap; gap:12px;">
+          <div class="tuvi-card-title-group">
+            <div class="tuvi-card-icon" style="background:linear-gradient(135deg,#ef444422,#f59e0b22);">📡</div>
+            <div>
+              <div class="tuvi-card-title" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span>Radar Cảnh Báo Sớm 7 Ngày</span>
+                ${criticalCount > 0 ? `<span class="tag tag-weakness" style="font-size:0.7rem; padding:2px 8px;">🔴 ${criticalCount} Cảnh Báo Trọng Tâm</span>` : ''}
+                ${warningCount > 0 ? `<span class="tag" style="font-size:0.7rem; padding:2px 8px; background:rgba(245, 158, 11, 0.15); color:#d97706; border:1px solid rgba(245,158,11,0.3);">🟡 ${warningCount} Chú Ý</span>` : ''}
+                ${criticalCount === 0 && warningCount === 0 ? `<span class="tag tag-strength" style="font-size:0.7rem; padding:2px 8px;">🟢 Năng Lượng Tuần Ôn Hòa</span>` : ''}
+              </div>
+              <div class="tuvi-card-subtitle">Rủi ro Tử Vi, Biorhythm, Can Chi & Quẻ Dịch — Click thẻ để mở lời khuyên</div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-all-radar-details" style="font-size:0.78rem; padding:4px 10px;">
+              <span id="radar-toggle-all-icon">👁️</span> <span id="radar-toggle-all-text">Mở Chi Tiết All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 7-Day Energy Ribbon -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.75rem; color:var(--text-tertiary); font-weight:600;">
+            <span>🗓️ NHỊP NĂNG LƯỢNG 7 NGÀY TỚI (Click ngày để lọc):</span>
+            <span id="radar-active-date-label" style="color:var(--accent-primary); font-weight:700;">Tất cả 7 ngày</span>
+          </div>
+          <div class="radar-timeline-ribbon">
+            <div class="radar-day-chip active" data-date-filter="ALL" title="Xem tất cả 7 ngày">
+              <div class="day-date">Tất Cả</div>
+              <div class="day-score-pill" style="background:var(--accent-muted); color:var(--accent-primary);">7 Ngày</div>
+              <div class="day-canchi">Toàn Cảnh</div>
+            </div>
+            ${dailyTimeline.map(dt => `
+              <div class="radar-day-chip" data-date-filter="${dt.dateStr}" title="${dt.dayName} (${dt.canChi}) - ${dt.score}đ">
+                <div class="day-date">${dt.dayName} <span style="font-weight:400; opacity:0.8;">${dt.dateNum}</span></div>
+                <div class="day-score-pill" style="background:${dt.statusBg}; color:${dt.statusColor};">${dt.score}đ</div>
+                <div class="day-canchi">${dt.canChi}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Categorized Warning Cards Grid -->
+        <div id="radar-warnings-list" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(270px, 1fr)); gap:10px;">
+          ${radar.warnings.map(w => {
+            let cardClass = 'info';
+            let badgeClass = 'tag-strength';
+            let badgeText = '🟢 Ôn Hòa';
+            let titleColor = 'var(--text-primary)';
+
+            if (w.severity === 'CRITICAL') {
+              cardClass = 'critical';
+              badgeClass = 'tag-weakness';
+              badgeText = '🔴 Trọng Tâm';
+              titleColor = 'var(--color-danger)';
+            } else if (w.severity === 'WARNING') {
+              cardClass = 'warning';
+              badgeClass = '';
+              badgeText = '🟡 Chú Ý';
+              titleColor = '#d97706';
+            }
+
+            const isExpandedByDefault = w.severity === 'CRITICAL';
+
+            return `
+              <div class="radar-warning-card ${cardClass} ${isExpandedByDefault ? 'expanded' : ''}" data-domain="${w.domain}" data-period="${w.period}">
+                <div class="radar-warning-header" onclick="this.parentElement.classList.toggle('expanded')">
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:2px; flex-wrap:wrap;">
+                      <span style="font-size:0.75rem; font-weight:700; color:${titleColor}; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                        <span>${w.icon}</span> <span>${w.domainLabel}</span>
+                      </span>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="tag ${badgeClass}" style="font-size:0.65rem; padding:1px 6px;">${badgeText}</span>
+                        <span style="font-size:0.68rem; color:var(--text-tertiary); font-weight:500;">${w.period}</span>
+                      </div>
+                    </div>
+                    <div class="radar-warning-title" style="color:${titleColor}; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${w.title}">
+                      ${w.title}
+                    </div>
+                  </div>
+                  <div style="margin-left:8px; flex-shrink:0;">
+                    <span class="radar-toggle-icon">▼</span>
+                  </div>
+                </div>
+
+                <div class="radar-warning-body">
+                  <div style="font-size:0.78rem; color:var(--text-secondary); line-height:1.45; margin-bottom:8px; background:rgba(0,0,0,0.12); padding:8px 10px; border-radius:6px;">
+                    ${w.detail}
+                  </div>
+                  <div style="font-size:0.75rem; background:var(--bg-card); padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); color:var(--text-primary); line-height:1.4;">
+                    <strong style="color:var(--accent-primary);">💡 Khuyên Hóa Giải:</strong> ${w.remedy}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    // Attach Event Listeners
+    let allExpanded = false;
+    const btnToggleAll = container.querySelector('#btn-toggle-all-radar-details');
+    if (btnToggleAll) {
+      btnToggleAll.addEventListener('click', () => {
+        allExpanded = !allExpanded;
+        const cards = container.querySelectorAll('.radar-warning-card');
+        cards.forEach(c => {
+          if (allExpanded) c.classList.add('expanded');
+          else c.classList.remove('expanded');
+        });
+        const iconEl = container.querySelector('#radar-toggle-all-icon');
+        const textEl = container.querySelector('#radar-toggle-all-text');
+        if (iconEl) iconEl.textContent = allExpanded ? '🙈' : '👁️';
+        if (textEl) textEl.textContent = allExpanded ? 'Thu Gọn Chi Tiết' : 'Mở Chi Tiết All';
+      });
+    }
+
+    const dayChips = container.querySelectorAll('.radar-day-chip');
+    const warningCards = container.querySelectorAll('.radar-warning-card');
+    const activeDateLabel = container.querySelector('#radar-active-date-label');
+
+    dayChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        dayChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        const filterDate = chip.getAttribute('data-date-filter');
+        if (activeDateLabel) {
+          activeDateLabel.textContent = filterDate === 'ALL' ? 'Tất cả 7 ngày' : `Ngày ${filterDate}`;
+        }
+
+        warningCards.forEach(card => {
+          if (filterDate === 'ALL') {
+            card.style.display = 'block';
+          } else {
+            const periodText = card.getAttribute('data-period') || '';
+            const cardBodyText = card.innerHTML || '';
+            if (periodText.includes('Cả tuần') || periodText.includes('7 ngày') || periodText.includes(filterDate) || cardBodyText.includes(filterDate)) {
+              card.style.display = 'block';
+              card.classList.add('expanded');
+            } else {
+              card.style.display = 'none';
+            }
+          }
+        });
+      });
+    });
   }
 
   function renderCalendar(userProfile, taskType) {
@@ -735,6 +1008,10 @@
   }
 
   function renderMasterDailyBoard(selectedDate, userProfile, taskType) {
+    if (window.renderBatch2Widgets) {
+      window.renderBatch2Widgets(selectedDate, userProfile);
+    }
+
     const container = document.getElementById('master-daily-intelligence-board');
     if (!container) return;
 
@@ -810,7 +1087,9 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px;">
           
           <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🎨 Y PHỤC NẠP KHÍ</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🎨 Y PHỤC NẠP KHÍ</div>
+            </div>
             <div style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top:2px;">
               Màu ${info.remedy.wardrobe.colors[0]} & ${info.remedy.wardrobe.colors[1]}
             </div>
@@ -818,7 +1097,10 @@
           </div>
 
           <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">☕ THỰC DƯỠNG TRÀ SÁNG</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">☕ THỰC DƯỠNG TRÀ SÁNG</div>
+              <button class="btn btn-ghost btn-sm" onclick="App.Router.navigate('astrology', 'morning')" style="font-size:0.68rem; padding:1px 6px; color:var(--accent-primary);">🔗 Chi Tiết ➔</button>
+            </div>
             <div style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top:2px;">
               ${info.remedy.dietary.tea.split(',')[0]}
             </div>
@@ -826,7 +1108,10 @@
           </div>
 
           <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🧭 HƯỚNG XUẤT HÀNH CÁT</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🧭 HƯỚNG XUẤT HÀNH CÁT</div>
+              <button class="btn btn-ghost btn-sm" onclick="App.Router.navigate('oracle', 'compass')" style="font-size:0.68rem; padding:1px 6px; color:var(--accent-primary);">🔗 La Bàn ➔</button>
+            </div>
             <div style="font-size: 0.92rem; font-weight: 700; color: var(--color-success); margin-top:2px;">
               Tài Thần: Hướng ${info.thanCat.taiThan}
             </div>
@@ -834,7 +1119,10 @@
           </div>
 
           <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">☯ QUẺ CHỦ NGÀY MAI HOA</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">☯ QUẺ NGÀY MAI HOA</div>
+              <button class="btn btn-ghost btn-sm" onclick="App.Router.navigate('oracle', 'iching')" style="font-size:0.68rem; padding:1px 6px; color:var(--accent-primary);">🔗 Gieo Quẻ ➔</button>
+            </div>
             <div style="font-size: 0.92rem; font-weight: 700; color: var(--accent-secondary); margin-top:2px;">
               ${info.queInfo.name}
             </div>
@@ -842,7 +1130,10 @@
           </div>
 
           <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🩺 BẢO VỆ SỨC KHỎE</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 0.72rem; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;">🩺 BẢO VỆ SỨC KHỎE</div>
+              <button class="btn btn-ghost btn-sm" onclick="App.Router.navigate('astrology', 'health')" style="font-size:0.68rem; padding:1px 6px; color:var(--accent-primary);">🔗 Sức Khỏe ➔</button>
+            </div>
             <div style="font-size: 0.92rem; font-weight: 700; color: var(--color-warning); margin-top:2px;">
               ${info.healthFocus.organ}
             </div>
@@ -1165,9 +1456,10 @@
           <div style="font-size: 0.85em; margin-top: 2px; color: var(--text-muted);">${info.lunarStr}</div>
         </div>
 
-        <!-- Integrated 7 Sub-Tabs -->
+        <!-- Integrated 8 Sub-Tabs -->
         <div class="modal-tab-headers" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:10px; margin-bottom:14px; border-bottom:1px solid var(--border-color);">
           <button class="btn btn-sm modal-tab-btn active" data-tab="tab-cat-hung" style="white-space:nowrap; padding:6px 12px;">🔮 Cát Hung</button>
+          <button class="btn btn-sm modal-tab-btn" data-tab="tab-scenarios" style="white-space:nowrap; padding:6px 12px;">🎯 3 Kịch Bản Tương Lai</button>
           <button class="btn btn-sm modal-tab-btn" data-tab="tab-hourly-rhythm" style="white-space:nowrap; padding:6px 12px;">⚡ Nhịp Giờ 24H</button>
           <button class="btn btn-sm modal-tab-btn" data-tab="tab-remedy" style="white-space:nowrap; padding:6px 12px;">🎨 Y Phục & Trà</button>
           <button class="btn btn-sm modal-tab-btn" data-tab="tab-qimen" style="white-space:nowrap; padding:6px 12px;">🧭 Hướng Kỳ Môn</button>
@@ -1223,7 +1515,50 @@
           ` : ''}
         </div>
 
-        <!-- Tab 2: Nhịp Giờ Hoàng Đạo 24H -->
+        <!-- Tab 2: 3 Kịch Bản Tương Lai Ngắn Hạn -->
+        <div class="modal-tab-pane" id="tab-scenarios" style="display:none;">
+          <div style="background:var(--bg-card); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:12px;">
+            <div style="font-weight:700; color:var(--accent-primary); font-size:0.92rem; margin-bottom:4px;">
+              🔮 3 Kịch Bản Tương Lai Ngắn Hạn & Điều Kiện Kích Hoạt
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">
+              Hệ thống dự báo 3 con đường khả thi. Kết quả cuối cùng tùy thuộc vào sự lựa chọn và hành vi ứng xử thực tế của bạn.
+            </div>
+          </div>
+
+          <div style="display:grid; gap:10px; max-height:420px; overflow-y:auto; padding-right:4px;">
+            ${(function() {
+              const sc = info.shortTermScenarios || (window.AstrologyLogic ? window.AstrologyLogic.generateShortTermScenarios(dateObj, userProfile, taskType) : null);
+              if (!sc) return '<div style="padding:10px; color:var(--text-tertiary);">Chưa có dữ liệu kịch bản.</div>';
+
+              const items = [
+                { key: 'favorable', data: sc.favorable, borderColor: 'var(--color-success)', bgAlpha: 'rgba(16, 185, 129, 0.06)' },
+                { key: 'neutral', data: sc.neutral, borderColor: 'var(--color-warning)', bgAlpha: 'rgba(245, 158, 11, 0.06)' },
+                { key: 'challenging', data: sc.challenging, borderColor: 'var(--color-danger)', bgAlpha: 'rgba(239, 68, 68, 0.06)' }
+              ];
+
+              return items.map(it => `
+                <div style="background:${it.bgAlpha}; border:1px solid ${it.borderColor}; border-left:4px solid ${it.borderColor}; border-radius:var(--radius-md); padding:12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">${it.data.title}</span>
+                    <span class="tag tag-${it.data.badgeClass}" style="font-size:0.75rem;">Mức kỳ vọng: ${it.data.scoreRange}</span>
+                  </div>
+                  <div style="font-size:0.82rem; color:var(--text-primary); margin-bottom:6px; background:var(--bg-card); padding:8px; border-radius:6px; border:1px solid var(--border-color);">
+                    <strong>🎯 Điều kiện kích hoạt:</strong> ${it.data.activationCondition}
+                  </div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4; margin-bottom:6px;">
+                    <strong>📉 Dự báo diễn biến:</strong> ${it.data.predictedFlow}
+                  </div>
+                  <div style="font-size:0.78rem; color:var(--text-secondary); line-height:1.4;">
+                    <strong>🌱 Hành động cải mệnh:</strong> ${it.data.remedyAction}
+                  </div>
+                </div>
+              `).join('');
+            })()}
+          </div>
+        </div>
+
+        <!-- Tab 3: Nhịp Giờ Hoàng Đạo 24H -->
         <div class="modal-tab-pane" id="tab-hourly-rhythm" style="display:none;">
           <div style="background:var(--bg-card); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:12px;">
             <div style="font-weight:700; color:var(--accent-primary); font-size:0.92rem; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
@@ -1415,6 +1750,91 @@
     }
   }
 
+  function renderBatch2Widgets(selectedDate, userProfile) {
+    const AL = window.AstrologyLogic;
+    if (!AL) return;
+
+    const streakContainer = document.getElementById('batch2-adaptive-streak-widget');
+    const sprintContainer = document.getElementById('batch2-social-sprint-widget');
+
+    const scoreResult = AL.evaluatePersonalizedDay ? AL.evaluatePersonalizedDay(selectedDate, userProfile, 'GENERAL') : { score: 80 };
+    const todayScore = scoreResult.score || 80;
+
+    const streakInfo = AL.getAdaptiveStreakStatus ? AL.getAdaptiveStreakStatus([], todayScore) : null;
+    const sprints = AL.generateMicroSprintSchedule ? AL.generateMicroSprintSchedule(selectedDate, userProfile) : [];
+    const socialMap = AL.getSocialEnergyMap ? AL.getSocialEnergyMap([], selectedDate) : [];
+
+    if (streakContainer && streakInfo) {
+      streakContainer.innerHTML = `
+        <div class="tuvi-card" style="border: 1px solid var(--border-accent); background: linear-gradient(135deg, var(--bg-card), var(--bg-surface));">
+          <div class="tuvi-card-header" style="border-bottom: 1px dashed var(--border-color); padding-bottom: 12px; margin-bottom: 14px;">
+            <div class="tuvi-card-title-group">
+              <div class="tuvi-card-icon">🔗</div>
+              <div>
+                <div class="tuvi-card-title">Chuỗi Thích Nghi (Adaptive Streak) & Work Mode</div>
+                <div class="tuvi-card-subtitle">${streakInfo.streakBadge}</div>
+              </div>
+            </div>
+            <span class="badge" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:800; font-size:0.9rem; padding:6px 14px; border-radius:20px;">
+              Streak: ${streakInfo.currentStreak} Ngày
+            </span>
+          </div>
+
+          <div style="font-size:0.9rem; color:var(--text-secondary); line-height:1.6;">
+            💡 <strong>Khuyến Nghị Thiên Ý:</strong> ${streakInfo.taskRecommendation}
+          </div>
+        </div>
+      `;
+    }
+
+    if (sprintContainer) {
+      sprintContainer.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+          <!-- Micro-Sprint 24H Block Timeline (#2) -->
+          <div class="tuvi-card">
+            <div class="tuvi-card-title" style="margin-bottom:12px; font-size:1.05rem;">
+              📐 Micro-Sprint Planner 24H (Khung Giờ Cát)
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto;">
+              ${sprints.slice(0, 6).map(s => `
+                <div style="padding:8px 12px; border-radius:8px; background:var(--bg-surface); border:1px solid ${s.type === 'DEEP_WORK' ? '#3b82f644' : s.type === 'REST' ? '#10b98144' : 'var(--border-color)'}; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <span style="font-weight:700; font-size:0.85rem; color:var(--text-primary);">${s.time} (${s.name})</span>
+                    <div style="font-size:0.78rem; color:var(--text-muted);">${s.activity}</div>
+                  </div>
+                  <span class="badge" style="background:${s.score >= 70 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color:${s.score >= 70 ? '#10b981' : '#ef4444'}; font-weight:700;">
+                    ${s.score}đ
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Social Energy Map (#1) -->
+          <div class="tuvi-card">
+            <div class="tuvi-card-title" style="margin-bottom:12px; font-size:1.05rem;">
+              🤝 Nhiệt Kế Xã Hội (Social Energy Map)
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${socialMap.map(c => `
+                <div style="padding:10px; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-weight:700; font-size:0.88rem;">${c.name} (${c.canChi})</div>
+                    <div style="font-size:0.78rem; color:var(--text-secondary);">${c.recommendation}</div>
+                  </div>
+                  <span class="badge" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:700;">
+                    ${c.harmonyScore}%
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   window.renderDashboard = renderDashboard;
   window.renderLifeBalanceRadarWidget = renderLifeBalanceRadarWidget;
+  window.renderBatch2Widgets = renderBatch2Widgets;
 })();
