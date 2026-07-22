@@ -1,5 +1,5 @@
 // ============================================
-// NỘI TÂM — Rules Component (Quy luật xã hội)
+// NỘI TÂM — Rules Component (Quy luật)
 // ============================================
 
 (function() {
@@ -17,8 +17,8 @@
         <div class="animate-fade-in">
           <div class="page-toolbar">
             <div>
-              <h1 class="page-title">Quy luật Xã hội</h1>
-              <p class="page-subtitle" style="margin-bottom:0;">Nguyên tắc về con người, công việc, quan hệ và quyền lực</p>
+              <h1 class="page-title">Quy luật</h1>
+              <p class="page-subtitle" style="margin-bottom:0;">Nguyên tắc, chân lý tự nhiên và quy luật vận hành của cuộc sống</p>
             </div>
             <button class="btn btn-primary" id="btn-add-rule">+ Thêm quy luật</button>
           </div>
@@ -64,7 +64,7 @@
           <div class="empty-state stagger-item">
             <div class="empty-state-icon">⚖️</div>
             <div class="empty-state-title">Chưa có quy luật nào</div>
-            <div class="empty-state-text">Ghi lại những nguyên tắc xã hội bạn đã đúc kết.</div>
+            <div class="empty-state-text">Ghi lại những quy luật, nguyên tắc mà bạn đã đúc kết được.</div>
             <button class="btn btn-primary" id="btn-add-rule-empty">+ Thêm quy luật đầu tiên</button>
           </div>
         `}

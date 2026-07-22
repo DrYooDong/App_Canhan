@@ -16,7 +16,7 @@ const TUVI_DATA = [
     id: 1,
     title: 'Hé lộ Cục diện Mệnh bàn',
     section: 'chan-dung',
-    content: 'Bạn là Dương Nam, sinh năm Canh Thìn, Bản mệnh Bạch Lạp Kim, Hỏa Lục Cục. Mệnh an tại Tý có Thiên Đồng tọa thủ, Thân cư Phúc Đức tại Dần. Việc sinh vào giờ Mùi khiến Cung Thân đóng tại Phúc Đức, chỉ ra rằng cuộc đời bạn chịu ảnh hưởng vô cùng sâu sắc từ phước phần của tổ tiên, họ hàng. Mệnh chủ là Liêm Trinh, Thân chủ là Văn Xương, đóng vai trò định hình những nét tính cách ẩn sâu bên trong. Lai nhân cung nằm ở Quan Lộc, cho thấy cuộc đời bạn có duyên nghiệp, khát vọng gắn liền với công danh, sự nghiệp.',
+    content: 'Bạn là Dương Nam, sinh năm Canh Thìn, Bản mệnh Bạch Lạp Kim, Hỏa Lục Cục. Mệnh an tại Tý có bộ sao Thiên Đồng, Thái Âm (Đồng Âm cư Tý) tọa thủ, Thân cư Phúc Đức tại Dần. Việc sinh vào giờ Mùi khiến Cung Thân đóng tại Phúc Đức, chỉ ra rằng cuộc đời bạn chịu ảnh hưởng vô cùng sâu sắc từ phước phần của tổ tiên, họ hàng. Mệnh chủ là Liêm Trinh, Thân chủ là Văn Xương, đóng vai trò định hình những nét tính cách ẩn sâu bên trong. Lai nhân cung nằm ở Quan Lộc, cho thấy cuộc đời bạn có duyên nghiệp, khát vọng gắn liền với công danh, sự nghiệp.',
     tags: ['mệnh', 'thiên-đồng', 'bạch-lạp-kim', 'hỏa-lục-cục', 'phúc-đức'],
     strengths: [],
     weaknesses: [],
@@ -26,7 +26,7 @@ const TUVI_DATA = [
     id: 2,
     title: 'Ngoại hình và Tướng mạo',
     section: 'chan-dung',
-    content: 'Nhờ sao Thiên Đồng đắc địa tọa thủ tại Mệnh, bạn sở hữu một ngoại hình mang nhiều nét "phúc tướng". Người có Thiên Đồng thủ Mệnh thường có vóc dáng phi nộn (đậm người, có da có thịt), da trắng, mày xanh, mắt sáng, lưng dày. Gương mặt thường vuông vắn, đầy đặn, mang nét phong mãn, thanh tú. Kết hợp với Thân chủ Văn Xương, ngoại hình của bạn còn toát lên sự đĩnh đạc, nho nhã và sáng sủa.',
+    content: 'Nhờ bộ sao Thiên Đồng, Thái Âm vượng địa tọa thủ tại Mệnh, bạn sở hữu một ngoại hình mang nhiều nét "phúc tướng". Người có Đồng Âm thủ Mệnh thường có vóc dáng phi nộn (đậm người, có da có thịt), da trắng, mày xanh, mắt sáng, lưng dày. Gương mặt thường vuông vắn, đầy đặn, mang nét phong mãn, thanh tú. Kết hợp với Thân chủ Văn Xương, ngoại hình của bạn còn toát lên sự đĩnh đạc, nho nhã và sáng sủa.',
     tags: ['ngoại-hình', 'thiên-đồng', 'văn-xương', 'phúc-tướng'],
     strengths: ['phúc-tướng', 'đĩnh-đạc', 'nho-nhã'],
     weaknesses: [],
@@ -36,7 +36,7 @@ const TUVI_DATA = [
     id: 3,
     title: 'Tính cách cốt lõi (Ưu điểm)',
     section: 'chan-dung',
-    content: 'Tính cách cốt lõi của bạn được định hình bởi phúc tinh Thiên Đồng. Bạn là người bẩm tính ôn hòa, nhân hậu, đức hạnh và có lòng từ thiện. Bạn sở hữu một tâm hồn hướng thượng, thích tìm hiểu về triết lý, đạo lý và thường xử sự một cách khiêm cung, nhã nhặn. Dù là người có chí khí và thông minh khôn ngoan, bạn không bao giờ tỏ vẻ cao ngạo hay chống báng người khác.',
+    content: 'Tính cách cốt lõi của bạn được định hình bởi phúc tinh Thiên Đồng và sự điềm tĩnh của Thái Âm. Bạn là người bẩm tính ôn hòa, nhân hậu, đức hạnh và có lòng từ thiện. Bạn sở hữu một tâm hồn hướng thượng, thích tìm hiểu về triết lý, đạo lý và thường xử sự một cách khiêm cung, nhã nhặn. Dù là người có chí khí và thông minh khôn ngoan, bạn không bao giờ tỏ vẻ cao ngạo hay chống báng người khác.',
     tags: ['tính-cách', 'ưu-điểm', 'thiên-đồng'],
     strengths: ['ôn-hòa', 'nhân-hậu', 'khiêm-cung', 'thông-minh'],
     weaknesses: [],
@@ -46,7 +46,7 @@ const TUVI_DATA = [
     id: 4,
     title: 'Góc khuất tính cách (Khuyết điểm)',
     section: 'chan-dung',
-    content: 'Điểm yếu lớn nhất của Thiên Đồng là sự thiếu kiên định. Bạn dễ mắc phải nhược điểm là "hay thay đổi ý kiến, chí hướng, công việc", đôi khi tỏ ra nông nổi, bất quyết và thiếu sự bền chí (hay bỏ dở nửa chừng). Ngoài ra, do chịu ảnh hưởng ngầm từ Mệnh chủ Liêm Trinh, sâu thẳm bên trong bạn đôi khi có sự nóng nảy, cuồng độc ngầm, không ưa bị gò bó hoặc áp đặt.',
+    content: 'Điểm yếu lớn nhất của Thiên Đồng là sự thiếu kiên định, kết hợp với sự nhạy cảm của Thái Âm khiến bạn dễ suy nghĩ nhiều. Bạn dễ mắc phải nhược điểm là "hay thay đổi ý kiến, chí hướng, công việc", đôi khi tỏ ra nông nổi, bất quyết và thiếu sự bền chí (hay bỏ dở nửa chừng). Ngoài ra, do chịu ảnh hưởng ngầm từ Mệnh chủ Liêm Trinh, sâu thẳm bên trong bạn đôi khi có sự nóng nảy, cuồng độc ngầm, không ưa bị gò bó hoặc áp đặt.',
     tags: ['tính-cách', 'khuyết-điểm', 'thiên-đồng', 'liêm-trinh'],
     strengths: [],
     weaknesses: ['thiếu-kiên-định', 'bất-quyết', 'nóng-nảy-ngầm'],
@@ -56,7 +56,7 @@ const TUVI_DATA = [
     id: 5,
     title: 'Năng khiếu bẩm sinh',
     section: 'chan-dung',
-    content: 'Bạn sở hữu trí thông minh bẩm sinh, khả năng học hỏi rộng và tư chất tinh thông văn bút. Sao Thiên Đồng trao cho bạn óc kinh doanh, sự tháo vát, biết quyền biến trong công việc và có hoa tay khéo léo. Ngoài ra, ảnh hưởng từ Thân chủ Văn Xương giúp bạn có cơ trí sắc sảo, tài năng hiểu biết nhiều lĩnh vực, có thiên hướng tốt trong các công việc đòi hỏi trí tuệ, nghiên cứu.',
+    content: 'Bạn sở hữu trí thông minh bẩm sinh, khả năng học hỏi rộng và tư chất tinh thông văn bút. Bộ sao Đồng Âm trao cho bạn óc kinh doanh, sự tháo vát, biết quyền biến trong công việc và có hoa tay khéo léo. Ngoài ra, ảnh hưởng từ Thân chủ Văn Xương giúp bạn có cơ trí sắc sảo, tài năng hiểu biết nhiều lĩnh vực, có thiên hướng tốt trong các công việc đòi hỏi trí tuệ, nghiên cứu.',
     tags: ['năng-khiếu', 'trí-tuệ', 'văn-xương'],
     strengths: ['trí-thông-minh', 'tháo-vát', 'đa-tài'],
     weaknesses: [],
@@ -86,7 +86,7 @@ const TUVI_DATA = [
     id: 8,
     title: 'Đánh giá Cung Thân (Hậu vận)',
     section: 'chan-dung',
-    content: 'Cung Thân của bạn an tại Phúc Đức, nghĩa là từ sau 30 tuổi (hậu vận), cuộc sống của bạn sẽ gắn liền và bị chi phối mạnh mẽ bởi gia tộc, mồ mả tổ tiên, và nghiệp quả của chính mình. Nửa đời sau, tư tưởng của bạn sẽ chuyển hướng mạnh từ việc tranh đoạt cá nhân sang việc chăm lo cho gia đình lớn, dòng họ, hướng về cội nguồn và những giá trị tâm linh.',
+    content: 'Cung Thân của bạn an tại Phúc Đức (có Cự Nhật hội chiếu), nghĩa là từ sau 30 tuổi (hậu vận), cuộc sống của bạn sẽ gắn liền và bị chi phối mạnh mẽ bởi gia tộc, mồ mả tổ tiên, và nghiệp quả của chính mình. Nửa đời sau, tư tưởng của bạn sẽ chuyển hướng mạnh từ việc tranh đoạt cá nhân sang việc chăm lo cho gia đình lớn, dòng họ, hướng về cội nguồn và những giá trị tâm linh.',
     tags: ['hậu-vận', 'phúc-đức', 'gia-tộc', 'tâm-linh'],
     strengths: ['hậu-vận-tốt'],
     weaknesses: [],
@@ -96,7 +96,7 @@ const TUVI_DATA = [
     id: 9,
     title: 'Độ nhất quán Thân – Mệnh',
     section: 'chan-dung',
-    content: 'Khoa Tử Vi quan niệm "Mệnh là nhân, Thân là quả". Ở đây, Mệnh của bạn là Thiên Đồng (Phúc tinh, hiền lành) và Thân nằm ở cung Phúc Đức. Có một sự nhất quán lớn: hạt mầm nhân hậu, từ thiện ở Mệnh sẽ trổ quả thành một hậu vận bình an, được hưởng phúc lộc từ dòng họ nếu bạn giữ vững được cốt cách lương thiện.',
+    content: 'Khoa Tử Vi quan niệm "Mệnh là nhân, Thân là quả". Ở đây, Mệnh của bạn là Đồng Âm (Phúc tinh, điềm tĩnh, hiền lành) và Thân nằm ở cung Phúc Đức. Có một sự nhất quán lớn: hạt mầm nhân hậu, từ thiện ở Mệnh sẽ trổ quả thành một hậu vận bình an, được hưởng phúc lộc từ dòng họ nếu bạn giữ vững được cốt cách lương thiện.',
     tags: ['thân-mệnh', 'nhân-quả', 'phúc-đức'],
     strengths: ['nhất-quán', 'phúc-lộc'],
     weaknesses: [],
@@ -106,7 +106,7 @@ const TUVI_DATA = [
     id: 10,
     title: 'Định vị đẳng cấp xã hội',
     section: 'chan-dung',
-    content: 'Với cốt cách của Thiên Đồng, xã hội sẽ luôn nhìn nhận bạn là một nhân sĩ đàng hoàng, tử tế, đáng tin cậy. Dù bạn có thể bị môi trường chèn ép (Cục khắc Mệnh), nhưng nhờ lối hành xử khiêm cung, hòa nhã, bạn tự định vị mình là người dùng đạo đức và trí tuệ để thu phục lòng người, chứ không dùng thủ đoạn đoạt lợi.',
+    content: 'Với cốt cách của Đồng Âm, xã hội sẽ luôn nhìn nhận bạn là một nhân sĩ đàng hoàng, tử tế, đáng tin cậy. Dù bạn có thể bị môi trường chèn ép (Cục khắc Mệnh), nhưng nhờ lối hành xử khiêm cung, hòa nhã, bạn tự định vị mình là người dùng đạo đức và trí tuệ để thu phục lòng người, chứ không dùng thủ đoạn đoạt lợi.',
     tags: ['xã-hội', 'uy-tín', 'đạo-đức'],
     strengths: ['đáng-tin-cậy', 'uy-tín'],
     weaknesses: [],
@@ -126,7 +126,7 @@ const TUVI_DATA = [
     id: 12,
     title: 'Mối liên kết Tâm linh',
     section: 'chan-dung',
-    content: 'Là người có Thiên Đồng tọa Mệnh và Thân cư Phúc Đức, sợi dây liên kết giữa bạn với thế giới tâm linh, tín ngưỡng rất bền chặt. Bạn có khuynh hướng tò mò về triết học, đạo lý, và sở hữu một "thiện tâm" lớn. Đây là cơ sở để bạn dễ dàng cảm nhận được những sự che chở vô hình trong cuộc sống.',
+    content: 'Là người có Đồng Âm tọa Mệnh và Thân cư Phúc Đức, sợi dây liên kết giữa bạn với thế giới tâm linh, tín ngưỡng rất bền chặt. Bạn có khuynh hướng tò mò về triết học, đạo lý, và sở hữu một "thiện tâm" lớn. Đây là cơ sở để bạn dễ dàng cảm nhận được những sự che chở vô hình trong cuộc sống.',
     tags: ['tâm-linh', 'triết-học', 'thiện-tâm'],
     strengths: ['tâm-linh-mạnh'],
     weaknesses: [],
@@ -136,7 +136,7 @@ const TUVI_DATA = [
     id: 13,
     title: 'Chỉ số Hạnh phúc',
     section: 'chan-dung',
-    content: 'Chỉ số hạnh phúc của bạn ở mức rất cao, chủ yếu xuất phát từ thế giới quan nội tâm. Vì sao Thiên Đồng chủ về sự "ích thọ", "phúc thiện", bạn dễ tìm thấy niềm vui trong sự thanh thản, giúp đỡ người khác. Bạn "hay làm phúc, không hại ai nên ít bị người hại", điều này mang lại một tâm lý bình yên, không bị dằn vặt hay thù hằn.',
+    content: 'Chỉ số hạnh phúc của bạn ở mức rất cao, chủ yếu xuất phát từ thế giới quan nội tâm. Vì bộ Đồng Âm chủ về sự "ích thọ", "phúc thiện" và tĩnh tại, bạn dễ tìm thấy niềm vui trong sự thanh thản, giúp đỡ người khác. Bạn "hay làm phúc, không hại ai nên ít bị người hại", điều này mang lại một tâm lý bình yên, không bị dằn vặt hay thù hằn.',
     tags: ['hạnh-phúc', 'nội-tâm', 'bình-yên'],
     strengths: ['hạnh-phúc-cao', 'bình-yên'],
     weaknesses: [],
@@ -146,7 +146,7 @@ const TUVI_DATA = [
     id: 14,
     title: 'Chỉ số Vượt khó (AQ)',
     section: 'chan-dung',
-    content: 'Chỉ số vượt khó của bạn được rèn luyện do thế "Cục khắc Mệnh" (Hỏa khắc Kim). Bạn luôn bị hoàn cảnh đặt vào thế phải nỗ lực vươn lên. Tuy vẻ ngoài (Mệnh Thiên Đồng) có vẻ nhàn nhã, thiếu kiên định, nhưng ẩn sâu bên trong (Mệnh chủ Liêm Trinh) lại là một sức sống mạnh mẽ, không chịu khuất phục sự gò bó, giúp bạn đứng lên sau những lần vấp ngã.',
+    content: 'Chỉ số vượt khó của bạn được rèn luyện do thế "Cục khắc Mệnh" (Hỏa khắc Kim). Bạn luôn bị hoàn cảnh đặt vào thế phải nỗ lực vươn lên. Tuy vẻ ngoài (Mệnh Đồng Âm) có vẻ nhàn nhã, thiếu kiên định, nhưng ẩn sâu bên trong (Mệnh chủ Liêm Trinh) lại là một sức sống mạnh mẽ, không chịu khuất phục sự gò bó, giúp bạn đứng lên sau những lần vấp ngã.',
     tags: ['vượt-khó', 'AQ', 'liêm-trinh', 'sức-sống'],
     strengths: ['sức-sống-mạnh', 'vượt-khó'],
     weaknesses: [],
@@ -156,7 +156,7 @@ const TUVI_DATA = [
     id: 15,
     title: 'Đạo đức và Lương tâm',
     section: 'chan-dung',
-    content: 'Đạo đức là điểm sáng rực rỡ nhất trong cốt cách của bạn. Sự thiện lương, độ lượng, thích làm việc thiện giúp người không phải là vỏ bọc mà là bản chất thật của bạn. Bạn xử sự bằng sự chân thành, giữ gìn phẩm hạnh và luôn hướng tới việc tích đức cho bản thân và con cháu sau này.',
+    content: 'Đạo đức là điểm sáng rực rỡ nhất trong cốt cách của bạn. Sự thiện lương, độ lượng, điềm tĩnh và thích làm việc thiện giúp người không phải là vỏ bọc mà là bản chất thật của bạn. Bạn xử sự bằng sự chân thành, giữ gìn phẩm hạnh và luôn hướng tới việc tích đức cho bản thân và con cháu sau này.',
     tags: ['đạo-đức', 'lương-tâm', 'thiện-lương'],
     strengths: ['đạo-đức-cao', 'chân-thành'],
     weaknesses: [],
@@ -176,7 +176,7 @@ const TUVI_DATA = [
     id: 17,
     title: 'Quý nhân âm trợ',
     section: 'chan-dung',
-    content: 'Sao Thiên Đồng tại Mệnh vốn là Phúc Tinh, tượng trưng cho việc ra ngoài luôn có thần linh che chở và quý nhân phù trợ. Bất cứ khi nào bạn gặp gian nan, nhờ vào phước đức đã gieo trồng và gốc rễ từ dòng họ, luôn có người xuất hiện đúng lúc để giúp đỡ bạn vượt qua sóng gió.',
+    content: 'Bộ sao Đồng Âm tại Mệnh vốn là các Phúc Tinh, tượng trưng cho việc ra ngoài luôn có thần linh che chở và quý nhân phù trợ. Bất cứ khi nào bạn gặp gian nan, nhờ vào phước đức đã gieo trồng và gốc rễ từ dòng họ, luôn có người xuất hiện đúng lúc để giúp đỡ bạn vượt qua sóng gió.',
     tags: ['quý-nhân', 'phúc-tinh', 'che-chở'],
     strengths: ['quý-nhân-phù-trợ'],
     weaknesses: [],
@@ -186,7 +186,7 @@ const TUVI_DATA = [
     id: 18,
     title: 'Nỗi lo âu thường trực',
     section: 'chan-dung',
-    content: 'Góc khuất của Mệnh Thiên Đồng khiến bạn thường trực một nỗi lo âu về sự mất phương hướng. Vì tính cách đôi khi "bất quyết", bạn hay phân vân, trăn trở khi phải đưa ra các quyết định lớn, dẫn đến việc dễ chán nản hoặc mệt mỏi với hoàn cảnh hiện tại (do Cục Hỏa khắc Mệnh Kim).',
+    content: 'Góc khuất của Mệnh Đồng Âm khiến bạn thường trực một nỗi lo âu về sự mất phương hướng. Vì tính cách đôi khi "bất quyết", bạn hay phân vân, trăn trở khi phải đưa ra các quyết định lớn, dẫn đến việc dễ chán nản hoặc mệt mỏi với hoàn cảnh hiện tại (do Cục Hỏa khắc Mệnh Kim).',
     tags: ['lo-âu', 'bất-quyết', 'mệt-mỏi'],
     strengths: [],
     weaknesses: ['lo-âu', 'mất-phương-hướng', 'chán-nản'],
@@ -206,7 +206,7 @@ const TUVI_DATA = [
     id: 20,
     title: 'Tuổi thọ và Nghiệp quả',
     section: 'chan-dung',
-    content: 'Thiên Đồng là sao "Mộc chủ Thọ tinh", chuyên ban phước và kéo dài tuổi thọ. Cuộc đời bạn là một bài toán nhân quả rõ rệt (nghiệp báo của Phúc Đức). Nếu bạn liên tục hành thiện, tu dưỡng tâm tính, bạn không chỉ hóa giải được các ách nạn (do Cục khắc Mệnh mang lại) mà còn được an hưởng một hậu vận trường thọ, thanh nhàn, viên mãn bên gia tộc.',
+    content: 'Thiên Đồng là sao "Phúc tinh" cùng với Thái Âm (Phú tinh), chuyên ban phước và kéo dài tuổi thọ. Cuộc đời bạn là một bài toán nhân quả rõ rệt (nghiệp báo của Phúc Đức). Nếu bạn liên tục hành thiện, tu dưỡng tâm tính, bạn không chỉ hóa giải được các ách nạn (do Cục khắc Mệnh mang lại) mà còn được an hưởng một hậu vận trường thọ, thanh nhàn, viên mãn bên gia tộc.',
     tags: ['tuổi-thọ', 'nghiệp-quả', 'nhân-quả', 'hành-thiện'],
     strengths: ['trường-thọ'],
     weaknesses: [],
@@ -268,7 +268,7 @@ const TUVI_DATA = [
     id: 26,
     title: 'Tính ổn định nghề nghiệp',
     section: 'su-nghiep',
-    content: 'Tuy có tư chất thông minh và vị trí tốt, nhưng do ảnh hưởng của Thiên Đồng thủ Mệnh, tâm lý của bạn đôi khi thiếu sự kiên định, dễ "chóng chán", hay thay đổi ý kiến và có thể có những giai đoạn muốn chuyển đổi môi trường làm việc. Tuy nhiên, nhờ cung Quan Lộc có bộ sao vững chắc, sự nghiệp dù có lúc thay đổi vị trí nhưng tựu trung vẫn luôn thăng tiến.',
+    content: 'Tuy có tư chất thông minh và vị trí tốt, nhưng do ảnh hưởng của Đồng Âm thủ Mệnh, tâm lý của bạn đôi khi thiếu sự kiên định, dễ "chóng chán", hay thay đổi ý kiến và có thể có những giai đoạn muốn chuyển đổi môi trường làm việc. Tuy nhiên, nhờ cung Quan Lộc có bộ sao vững chắc, sự nghiệp dù có lúc thay đổi vị trí nhưng tựu trung vẫn luôn thăng tiến.',
     tags: ['ổn-định', 'chóng-chán', 'thăng-tiến'],
     strengths: ['thăng-tiến'],
     weaknesses: ['chóng-chán', 'thiếu-kiên-định'],
@@ -428,7 +428,7 @@ const TUVI_DATA = [
     id: 42,
     title: 'Xu hướng Xuất ngoại/Đi xa',
     section: 'su-nghiep',
-    content: 'Sao Thiên Đồng tọa Mệnh mang đậm "khuynh hướng thay đổi", bao gồm việc dễ di chuyển, thay đổi chỗ ở, chỗ làm. Bạn có cơ hội và xu hướng đi xa, lập nghiệp phương xa. Tuy nhiên, đi đâu thì cuối cùng tâm trí vẫn luôn hướng về dòng họ, quê hương (Thân cư Phúc).',
+    content: 'Bộ Đồng Âm tọa Mệnh mang đậm "khuynh hướng thay đổi" nhưng cũng rất điềm tĩnh, bao gồm việc dễ di chuyển, thay đổi chỗ ở, chỗ làm. Bạn có cơ hội và xu hướng đi xa, lập nghiệp phương xa. Tuy nhiên, đi đâu thì cuối cùng tâm trí vẫn luôn hướng về dòng họ, quê hương (Thân cư Phúc).',
     tags: ['xuất-ngoại', 'đi-xa', 'thay-đổi'],
     strengths: [],
     weaknesses: [],
@@ -710,7 +710,7 @@ const TUVI_DATA = [
     id: 70,
     title: 'Sự gắn kết gia đình nhỏ',
     section: 'gia-dao',
-    content: 'Gia đình nhỏ của bạn là một sự bù trừ thú vị. Trong khi bạn (Thiên Đồng) ôn hòa, vợ/chồng (Cơ Lương) nguyên tắc, tri thức, thì con cái (Liêm Phá) lại nổi loạn, phá cách. Điều này đòi hỏi bạn và người phối ngẫu phải sử dụng tối đa sự kiên nhẫn, mưu trí và lòng nhân hậu để nuôi dạy, cảm hóa con cái.',
+    content: 'Gia đình nhỏ của bạn là một sự bù trừ thú vị. Trong khi bạn (Đồng Âm) ôn hòa, điềm đạm, vợ/chồng (Cơ Lương) nguyên tắc, tri thức, thì con cái (Liêm Phá) lại nổi loạn, phá cách. Điều này đòi hỏi bạn và người phối ngẫu phải sử dụng tối đa sự kiên nhẫn, mưu trí và lòng nhân hậu để nuôi dạy, cảm hóa con cái.',
     tags: ['gia-đình', 'gắn-kết', 'bù-trừ'],
     strengths: [],
     weaknesses: [],
@@ -820,6 +820,184 @@ const TUVI_DATA = [
   }
 ];
 
+// ============================================
+// Astro-Matrix 100 & Knowledge Graph Extensions
+// ============================================
+
+const TUVI_PALACES = [
+  { id: 'all', name: 'Tất cả 12 Cung', icon: '🌐', chi: '' },
+  { id: 'menh', name: 'Cung Mệnh', icon: '👤', chi: 'Tý' },
+  { id: 'phu-mau', name: 'Phụ Mẫu', icon: '👴', chi: 'Sửu' },
+  { id: 'phuc-duc', name: 'Phúc Đức', icon: '☯️', chi: 'Dần' },
+  { id: 'dien-trach', name: 'Điền Trạch', icon: '🏡', chi: 'Mão' },
+  { id: 'quan-loc', name: 'Quan Lộc', icon: '💼', chi: 'Thìn' },
+  { id: 'no-boc', name: 'Nô Bộc', icon: '🤝', chi: 'Tỵ' },
+  { id: 'thien-di', name: 'Thiên Di', icon: '🚀', chi: 'Ngọ' },
+  { id: 'tat-ach', name: 'Tật Ách', icon: '🏥', chi: 'Mùi' },
+  { id: 'tai-bach', name: 'Tài Bạch', icon: '💰', chi: 'Thân' },
+  { id: 'tu-tuc', name: 'Tử Tức', icon: '👶', chi: 'Dậu' },
+  { id: 'phu-the', name: 'Phu Thê', icon: '💍', chi: 'Tuất' },
+  { id: 'huynh-de', name: 'Huynh Đệ', icon: '👥', chi: 'Hợi' }
+];
+
+const PALACE_MAPPING = {
+  'menh': [1, 2, 3, 4, 5, 7, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20],
+  'quan-loc': [6, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+  'tai-bach': [31, 32, 33, 34, 35, 36, 37, 38, 39, 40],
+  'phuc-duc': [8, 11, 12, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50],
+  'phu-the': [51, 52, 53, 54, 55, 56, 57, 58, 59, 60],
+  'tu-tuc': [61, 62, 63, 64, 65, 66, 67, 68, 69, 70],
+  'huynh-de': [71, 72, 73, 74, 75],
+  'phu-mau': [76, 77, 78, 79, 80],
+  'tat-ach': [81, 82, 83, 84, 85, 86],
+  'thien-di': [87, 88, 89, 90],
+  'no-boc': [91, 92, 93, 94, 95],
+  'dien-trach': [96, 97, 98, 99, 100]
+};
+
+// Assign palace to each item in TUVI_DATA
+TUVI_DATA.forEach(item => {
+  for (const [palaceId, ids] of Object.entries(PALACE_MAPPING)) {
+    if (ids.includes(item.id)) {
+      item.palace = palaceId;
+      break;
+    }
+  }
+  if (!item.palace) item.palace = 'menh';
+});
+
+const ANNUAL_DYNAMICS = {
+  2026: {
+    canChi: 'Bính Ngọ',
+    hanh: 'Hỏa',
+    luuSao: ['Lưu Thái Tuế tại Cung Thiên Di (Ngọ)', 'Lưu Lộc Tồn tại Cung Nô Bộc (Tỵ)', 'Lưu Kình Dương tại Ngọ', 'Lưu Đà La tại Thìn'],
+    highlights: 'Năm Bính Ngọ mang Hỏa khí vượng. Cung Thiên Di xáo động mạnh, thuận lợi xuất hành ngoại giao, mở rộng mạng lưới quan hệ. Cần chú ý kiềm chế cảm xúc, tránh nóng giận bốc đồng.'
+  },
+  2027: {
+    canChi: 'Đinh Mùi',
+    hanh: 'Thổ',
+    luuSao: ['Lưu Thái Tuế tại Cung Tật Ách (Mùi)', 'Lưu Lộc Tồn tại Cung Thiên Di (Ngọ)', 'Lưu Văn Xương tại Dậu', 'Lưu Văn Khúc tại Hợi'],
+    highlights: 'Năm Đinh Mùi mang hành Thổ tương sinh Bản Mệnh Kim. Vận trình gia tăng tích lũy tài sản, chăm sóc thể trạng và sức khỏe tốt. Nhiều tin vui về đường học vấn, nghiên cứu.'
+  },
+  2028: {
+    canChi: 'Mậu Thân',
+    hanh: 'Thổ',
+    luuSao: ['Lưu Thái Tuế tại Cung Tài Bạch (Thân)', 'Lưu Lộc Tồn tại Cung Nô Bộc (Tỵ)', 'Lưu Thiên Khôi tại Mão', 'Lưu Thiên Việt tại Tỵ'],
+    highlights: 'Năm Mậu Thân khởi sắc mạnh mẽ ở Cung Tài Bạch. Cơ hội đầu tư sinh lời, gặt hái thành quả sự nghiệp, được quý nhân nâng đỡ.'
+  },
+  2029: {
+    canChi: 'Kỷ Dậu',
+    hanh: 'Thổ',
+    luuSao: ['Lưu Thái Tuế tại Cung Tử Tức (Dậu)', 'Lưu Lộc Tồn tại Cung Thiên Di (Ngọ)', 'Lưu Khôi tại Tý', 'Lưu Việt tại Thân'],
+    highlights: 'Năm Kỷ Dậu gia tăng tài lộc gia đạo, tinh thần phấn chấn, thích hợp triển khai các dự án lâu dài và gắn kết gia đình.'
+  },
+  2030: {
+    canChi: 'Canh Tuất',
+    hanh: 'Kim',
+    luuSao: ['Lưu Thái Tuế tại Cung Phu Thê (Tuất)', 'Lưu Lộc Tồn tại Cung Tài Bạch (Thân)', 'Lưu Kình tại Tuất', 'Lưu Đà tại Thân'],
+    highlights: 'Năm Canh Tuất đồng hành Mệnh Kim, vượng uy tín và vị thế. Cần chú ý giữ hòa khí trong hôn nhân và tình cảm.'
+  },
+  2031: {
+    canChi: 'Tân Hợi',
+    hanh: 'Kim',
+    luuSao: ['Lưu Thái Tuế tại Cung Huynh Đệ (Hợi)', 'Lưu Lộc Tồn tại Cung Dậu', 'Lưu Việt tại Ngọ'],
+    highlights: 'Năm Tân Hợi thuận lợi mở rộng quan hệ đồng nghiệp, bạn bè và đối tác thân thiết.'
+  },
+  2032: {
+    canChi: 'Nhâm Tý',
+    hanh: 'Thủy',
+    luuSao: ['Lưu Thái Tuế tại Cung Mệnh (Tý)', 'Lưu Lộc Tồn tại Cung Hợi'],
+    highlights: 'Năm Nhâm Tý Lưu Thái Tuế đáo Mệnh! Thời điểm xoay chuyển vận thế, đón nhận nhiều trọng trách mới.'
+  },
+  2033: {
+    canChi: 'Quý Sửu',
+    hanh: 'Thủy',
+    luuSao: ['Lưu Thái Tuế tại Cung Phụ Mẫu (Sửu)', 'Lưu Lộc Tồn tại Tý'],
+    highlights: 'Năm Quý Sửu vượng phước ân gia đình, củng cố nền tảng kiến thức và gia đạo bình an.'
+  },
+  2034: {
+    canChi: 'Giáp Dần',
+    hanh: 'Mộc',
+    luuSao: ['Lưu Thái Tuế tại Cung Phúc Đức (Dần)', 'Lưu Lộc Tồn tại Dần'],
+    highlights: 'Năm Giáp Dần Thân cư Phúc Đức gặp Lưu Thái Tuế, nhân duyên tâm linh vượng, phát triển trí tuệ sâu sắc.'
+  },
+  2035: {
+    canChi: 'Ất Mão',
+    hanh: 'Mộc',
+    luuSao: ['Lưu Thái Tuế tại Cung Điền Trạch (Mão)', 'Lưu Lộc Tồn tại Mão'],
+    highlights: 'Năm Ất Mão vượng Điền Trạch, gia tăng bất động sản và tích lũy giá trị bền vững.'
+  }
+};
+
+function getDynamicTuViItemContent(item, year) {
+  const dynamicInfo = ANNUAL_DYNAMICS[year] || {
+    canChi: `Năm ${year}`,
+    hanh: 'Ngũ Hành',
+    luuSao: [`Lưu Thái Tuế năm ${year}`],
+    highlights: `Vận hạn năm ${year} chuyển biến theo chu kỳ địa chi.`
+  };
+
+  if ([39, 87, 88, 89].includes(item.id)) {
+    return `${item.content}\n\n🔮 **Dự báo Động theo Năm ${year} (${dynamicInfo.canChi})**: ${dynamicInfo.highlights}\n📌 **Lưu sao vận hạn**: ${dynamicInfo.luuSao.join(', ')}`;
+  }
+  return item.content;
+}
+
+function getTuViReflections() {
+  try {
+    return JSON.parse(localStorage.getItem('tuvi_reflection_notes') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveTuViReflection(itemId, noteText) {
+  const reflections = getTuViReflections();
+  const dateStr = new Date().toISOString().split('T')[0];
+  if (!reflections[itemId]) reflections[itemId] = [];
+  
+  const item = TUVI_DATA.find(d => d.id === itemId);
+  const title = item ? item.title : `Mục #${itemId}`;
+
+  const noteObj = {
+    id: 'ref_' + Date.now(),
+    itemId: itemId,
+    title: title,
+    note: noteText,
+    date: dateStr
+  };
+
+  reflections[itemId].unshift(noteObj);
+  localStorage.setItem('tuvi_reflection_notes', JSON.stringify(reflections));
+
+  // Sync with App.CRUD journals if available
+  if (window.App && window.App.CRUD) {
+    window.App.CRUD.create('journals', {
+      title: `[Phản tư Tử Vi] #${itemId}: ${title}`,
+      content: noteText,
+      mood: '🧘 Bình Thần',
+      tags: ['#TuVi', `#Muc${itemId}`]
+    });
+  }
+
+  return noteObj;
+}
+
+function deleteTuViReflection(itemId, noteId) {
+  const reflections = getTuViReflections();
+  if (reflections[itemId]) {
+    reflections[itemId] = reflections[itemId].filter(n => n.id !== noteId);
+    localStorage.setItem('tuvi_reflection_notes', JSON.stringify(reflections));
+  }
+}
+
 // Export for use in other modules
 window.TUVI_DATA = TUVI_DATA;
 window.TUVI_SECTIONS = TUVI_SECTIONS;
+window.TUVI_PALACES = TUVI_PALACES;
+window.ANNUAL_DYNAMICS = ANNUAL_DYNAMICS;
+window.getDynamicTuViItemContent = getDynamicTuViItemContent;
+window.getTuViReflections = getTuViReflections;
+window.saveTuViReflection = saveTuViReflection;
+window.deleteTuViReflection = deleteTuViReflection;
+

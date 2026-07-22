@@ -16,12 +16,36 @@
         <div class="animate-fade-in">
           <div class="page-toolbar">
             <div>
-              <h1 class="page-title">Nhật ký Phản tư</h1>
-              <p class="page-subtitle" style="margin-bottom:0;">Ghi lại trải nghiệm để cập nhật hiểu biết về bản thân</p>
+              <h1 class="page-title">Nhật ký Năng lượng</h1>
+              <p class="page-subtitle" style="margin-bottom:0;">Ghi lại trải nghiệm và cảm xúc theo Ngũ Hành</p>
             </div>
             <button class="btn btn-primary" id="btn-add-journal">+ Viết nhật ký</button>
           </div>
         </div>
+
+        <!-- Cảnh báo SOS Năng lượng -->
+        ${(() => {
+          if (journals.length >= 3) {
+            const recentJournals = journals.slice(0, 3);
+            const fireCount = recentJournals.filter(j => j.mood && j.mood.includes('Hỏa')).length;
+            if (fireCount >= 2) {
+              return `
+                <div class="card card-highlight animate-fade-in stagger-item" style="margin-bottom:var(--space-xl); border: 1px solid var(--danger-color); background: rgba(220, 38, 38, 0.1);">
+                  <div class="flex items-center gap-sm mb-sm">
+                    <span style="font-size: 1.2rem;">🚨</span>
+                    <span style="font-weight: bold; color: var(--danger-color); text-transform: uppercase;">SOS: Cảnh báo Hỏa Khí</span>
+                  </div>
+                  <p class="card-text" style="color: var(--text-base); line-height: 1.6;">
+                    Hệ thống nhận thấy bạn đang có nhiều năng lượng <strong>Hỏa</strong> (áp lực, bức bối) trong những ghi chép gần đây. 
+                    Bản mệnh Kim của bạn đang bị khắc chế mạnh. <br>
+                    💡 <strong>Lời khuyên Phong Thủy:</strong> Hãy tìm người mệnh Thổ để tâm sự, mặc trang phục màu Vàng/Nâu đất, và giảm bớt các quyết định bốc đồng.
+                  </p>
+                </div>
+              `;
+            }
+          }
+          return '';
+        })()}
 
         <!-- Daily Prompt -->
         <div class="card card-highlight stagger-item" style="margin-bottom:var(--space-xl);">
@@ -39,9 +63,12 @@
             ${journals.map((journal, i) => `
               <div class="timeline-item stagger-item">
                 <div class="timeline-date">${Utils.formatDateTime(journal.createdAt)} ${journal.mood ? journal.mood : ''}</div>
-                <div class="card">
+                <div class="card" style="${(journal.tags || []).includes('#TuVi') ? 'border-left: 3px solid var(--accent-primary); background: linear-gradient(90deg, rgba(59, 130, 246, 0.04), transparent);' : ''}">
                   <div class="flex items-center justify-between mb-sm">
-                    <h4 class="card-title" style="font-size:var(--text-base);margin-bottom:0;">${Utils.escapeHtml(journal.title)}</h4>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      ${(journal.tags || []).includes('#TuVi') ? '<span style="font-size:1.1rem;" title="Nhật ký Phản tư Tử Vi">🔮</span>' : ''}
+                      <h4 class="card-title" style="font-size:var(--text-base);margin-bottom:0;">${Utils.escapeHtml(journal.title)}</h4>
+                    </div>
                     <div class="flex gap-xs">
                       <button class="btn btn-ghost btn-icon btn-sm" data-edit="${journal.id}" title="Sửa">✏️</button>
                       <button class="btn btn-ghost btn-icon btn-sm" data-delete="${journal.id}" title="Xóa">🗑️</button>
@@ -93,7 +120,14 @@
     }
 
     function showJournalForm(existing = null, prompt = null) {
-      const moods = ['🤔 Suy tư', '💪 Quyết tâm', '😌 Bình yên', '😤 Bức bối', '🥀 Buồn', '✨ Hào hứng', '😶 Trung tính'];
+      const moods = [
+        '🔥 Hỏa (Bức bối/Áp lực)', 
+        '💧 Thủy (Buồn bã/Trầm ngâm)', 
+        '⛰️ Thổ (Bình ổn/An toàn)', 
+        '⚔️ Kim (Sắc bén/Lý trí)', 
+        '🌳 Mộc (Hào hứng/Sáng tạo)',
+        '😶 Trung tính'
+      ];
 
       const overlay = Modal.show(`
         ${prompt ? `

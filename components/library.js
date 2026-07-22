@@ -22,8 +22,8 @@
         <div class="flex items-center gap-md">
           <div style="font-size:2.5rem;">☯</div>
           <div>
-            <h3 class="card-title">Lá số Tử Vi — Cơ Nguyệt Đồng Lương</h3>
-            <p class="card-text">Mệnh Thiên Đồng tại Tý • Bạch Lạp Kim • Hỏa Lục Cục • Thân cư Phúc Đức • Điểm: 8/10</p>
+            <h3 class="card-title">Lá số Tử Vi — Đồng Âm cư Tý / Cơ Nguyệt Đồng Lương</h3>
+            <p class="card-text">Mệnh Đồng Âm tại Tý • Phúc Cự Nhật Hóa Lộc • Bạch Lạp Kim • Hỏa Lục Cục • Điểm: 8.5/10</p>
           </div>
         </div>
       </div>

@@ -28,7 +28,7 @@
       localStorage.removeItem(this.prefix + key);
     },
 
-    // Initialize sample data if first run
+    // Initialize sample data if first run, and sync any missing sample rules
     init() {
       if (!this.get('initialized')) {
         this.set('lessons', window.SAMPLE_LESSONS || []);
@@ -36,6 +36,19 @@
         this.set('reminders', window.SAMPLE_REMINDERS || []);
         this.set('journals', window.SAMPLE_JOURNALS || []);
         this.set('initialized', true);
+      } else {
+        const storedRules = this.get('rules') || [];
+        const sampleRules = window.SAMPLE_RULES || [];
+        let updated = false;
+        sampleRules.forEach(sRule => {
+          if (!storedRules.some(r => r.id === sRule.id)) {
+            storedRules.push(sRule);
+            updated = true;
+          }
+        });
+        if (updated) {
+          this.set('rules', storedRules);
+        }
       }
     }
   };
@@ -85,8 +98,28 @@
     },
 
     _handleRoute() {
-      const hash = window.location.hash.slice(1) || 'dashboard';
-      const [route, ...params] = hash.split('/');
+      const hash = window.location.hash.slice(1) || 'dashboard/overview';
+      let [route, ...params] = hash.split('/');
+
+      // Alias mapping for consolidated modules
+      const ALIASES = {
+        'morning': ['dashboard', 'morning'],
+        'overview': ['dashboard', 'overview'],
+        'health': ['astrology', 'health'],
+        'heatmap': ['astrology', 'heatmap'],
+        'compass': ['oracle', 'compass'],
+        'iching': ['oracle', 'iching'],
+        'journal': ['knowledge', 'journal'],
+        'lessons': ['knowledge', 'lessons'],
+        'rules': ['knowledge', 'rules'],
+        'reminders': ['knowledge', 'reminders']
+      };
+
+      if (ALIASES[route]) {
+        const alias = ALIASES[route];
+        route = alias[0];
+        params = [alias[1], ...params];
+      }
 
       if (this.routes[route]) {
         this.currentRoute = route;
@@ -365,20 +398,80 @@
     }
   };
 
+  // ── Theme Manager ──
+  const Theme = {
+    get() {
+      return Storage.get('theme') || 'light';
+    },
+
+    set(theme) {
+      const targetTheme = (theme === 'dark') ? 'dark' : 'light';
+      Storage.set('theme', targetTheme);
+      document.documentElement.setAttribute('data-theme', targetTheme);
+      document.body.setAttribute('data-theme', targetTheme);
+
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', targetTheme === 'dark' ? '#08080d' : '#f5f6f9');
+      }
+
+      const icon = document.querySelector('#theme-toggle-btn .theme-icon');
+      if (icon) {
+        icon.textContent = targetTheme === 'dark' ? '☀️' : '🌙';
+      }
+      const btn = document.querySelector('#theme-toggle-btn');
+      if (btn) {
+        btn.setAttribute('title', targetTheme === 'dark' ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối');
+      }
+    },
+
+    toggle() {
+      const current = this.get();
+      this.set(current === 'dark' ? 'light' : 'dark');
+    },
+
+    init() {
+      const current = this.get();
+      this.set(current);
+    }
+  };
+
   // ── App Initialization ──
   function initApp() {
     Storage.init();
+    Theme.init();
     Toast.init();
 
-    // Register routes
+    // Áp dụng Theme theo Ngũ Hành ngày hôm nay
+    function applyDynamicTheme() {
+      if (typeof Lunar !== 'undefined' && window.AstrologyLogic) {
+        const lunar = Lunar.fromDate(new Date());
+        const canNgayIdx = lunar.getDayGanIndex();
+        const canNgay = window.AstrologyLogic.CAN[canNgayIdx];
+        const hanhNgay = window.AstrologyLogic.NGU_HANH_CAN[canNgay];
+        
+        const themeMap = {
+          "Kim": "theme-kim",
+          "Mộc": "theme-moc",
+          "Thủy": "theme-thuy",
+          "Hỏa": "theme-hoa",
+          "Thổ": "theme-tho"
+        };
+        const themeClass = themeMap[hanhNgay];
+        if (themeClass) {
+          document.body.classList.add(themeClass);
+        }
+      }
+    }
+    applyDynamicTheme();
+
+    // Register consolidated 5 main routes
     Router.register('dashboard', window.renderDashboard);
-    Router.register('overview', window.renderOverview);
-    Router.register('lessons', window.renderLessons);
-    Router.register('rules', window.renderRules);
-    Router.register('reminders', window.renderReminders);
-    Router.register('library', window.renderLibrary);
-    Router.register('journal', window.renderJournal);
+    Router.register('astrology', window.renderAstrology);
+    Router.register('oracle', window.renderOracle);
+    Router.register('knowledge', window.renderKnowledge);
     Router.register('search', window.renderSearch);
+    Router.register('library', window.renderLibrary);
 
     // Render sidebar
     if (window.renderSidebar) window.renderSidebar();
@@ -424,6 +517,7 @@
     DetailPanel,
     Utils,
     CRUD,
+    Theme,
     init: initApp
   };
 

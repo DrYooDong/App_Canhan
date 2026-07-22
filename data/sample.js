@@ -101,6 +101,142 @@ const SAMPLE_RULES = [
     tags: ['kỷ-luật', 'thói-quen', 'kiên-trì'],
     createdAt: '2026-07-09T07:30:00',
     source: 'James Clear — Atomic Habits'
+  },
+  {
+    id: 'r_nguhanh_1',
+    title: 'Quy luật Tương Sinh (Sự nuôi dưỡng, thúc đẩy)',
+    content: `Tương sinh là quá trình hành này trợ giúp, nuôi dưỡng và thúc đẩy hành kia phát triển. Vòng tương sinh diễn ra liên tục:
+• Mộc sinh Hỏa: Cây cối là vật liệu để đốt cháy, tạo ra lửa.
+• Hỏa sinh Thổ: Lửa thiêu đốt vạn vật thành tro bụi tích tụ thành đất.
+• Thổ sinh Kim: Trong đất đá ẩn chứa và kết tụ các quặng kim loại.
+• Kim sinh Thủy: Kim loại khi bị nung chảy thành thể lỏng, hoặc lạnh làm ngưng tụ hơi nước.
+• Thủy sinh Mộc: Nước cung cấp dưỡng chất nuôi cây cối sinh trưởng.
+
+* Tính một chiều:
+- Sinh nhập (Người nhận): Hành được sinh ra nhận lợi ích, trở nên mạnh mẽ và sung mãn hơn.
+- Sinh xuất (Người cho): Hành đi sinh bị tiêu hao năng lượng, yếu đi (Mộc sinh Hỏa thì Hỏa vượng nhưng Mộc cháy rụi).`,
+    category: 'ngũ-hành',
+    tags: ['ngũ-hành', 'tương-sinh', 'sinh-nhập', 'sinh-xuất'],
+    createdAt: '2026-07-22T10:00:00',
+    source: 'Thuyết Ngũ Hành'
+  },
+  {
+    id: 'r_nguhanh_2',
+    title: 'Quy luật Tương Khắc (Sự ức chế, cản trở)',
+    content: `Tương khắc là quá trình hành này kiểm soát, ức chế hoặc tiêu diệt hành kia để giữ thế quân bình vũ trụ:
+• Kim khắc Mộc: Công cụ kim loại (dao, búa, cưa) có thể đốn hạ cây cối.
+• Mộc khắc Thổ: Rễ cây cắm sâu vào đất, hút hết chất dinh dưỡng của đất.
+• Thổ khắc Thủy: Đất đắp thành đê đập ngăn dòng chảy, đất hút cạn nước.
+• Thủy khắc Hỏa: Nước dập tắt ngọn lửa.
+• Hỏa khắc Kim: Lửa ở nhiệt độ cao nung chảy và phá hủy kim loại.
+
+* Tính một chiều:
+- Khắc xuất (Bên thắng): Hành đi khắc chiếm ưu thế, đàn áp đối phương.
+- Khắc nhập (Bên thua): Hành bị khắc chịu thua thiệt, tổn thương và hao mòn.`,
+    category: 'ngũ-hành',
+    tags: ['ngũ-hành', 'tương-khắc', 'khắc-xuất', 'khắc-nhập'],
+    createdAt: '2026-07-22T10:05:00',
+    source: 'Thuyết Ngũ Hành'
+  },
+  {
+    id: 'r_nguhanh_3',
+    title: 'Quy luật Tỷ Hòa (Sự đồng hành)',
+    content: `Tỷ hòa là khi hai hành giống nhau kết hợp với nhau (Kim gặp Kim, Mộc gặp Mộc...). Quy luật này có thể mang lại sức mạnh nhân đôi, nhưng cũng có thể mang lại sự triệt tiêu:
+• Điểm tốt: "Lưỡng Mộc thành lâm" (hai cây hợp thành rừng), "Lưỡng Thổ thành sơn" (đất đắp thành núi), "Lưỡng Kim thành khí" (kim loại gom lại đúc thành binh khí).
+• Điểm xấu: "Lưỡng Hỏa Hỏa tuyệt" (hai ngọn lửa tiêu diệt nhau), "Lưỡng Thủy Thủy kiệt" (hai luồng nước trái ngược làm cạn kiệt nhau).`,
+    category: 'ngũ-hành',
+    tags: ['ngũ-hành', 'tỷ-hòa', 'đồng-hành', 'sức-mạnh'],
+    createdAt: '2026-07-22T10:10:00',
+    source: 'Thuyết Ngũ Hành'
+  },
+  {
+    id: 'r_nguhanh_4',
+    title: 'Quy luật Tiêu Trưởng theo Thời tiết (Vượng - Tướng - Hưu - Tù - Tuyệt)',
+    content: `Ngũ Hành thay đổi sức mạnh (tiêu trưởng) theo chu kỳ 4 mùa. Trạng thái mạnh nhất là Vượng, yếu nhất/hết năng lượng là Tuyệt:
+• Mùa Xuân: Mộc Vượng (cây đâm chồi), Hỏa Tướng (ấm áp), Thủy Hưu (nghỉ ngơi), Kim Tù (bị nhốt), Thổ Tuyệt (hết dưỡng chất).
+• Mùa Hạ: Hỏa Vượng (nắng nóng đỉnh điểm), Thổ Tướng, Mộc Hưu, Thủy Tù, Kim Tuyệt.
+• Mùa Thu: Kim Vượng (cây rụng lá lộ gân cốt), Thủy Tướng, Thổ Hưu, Hỏa Tù, Mộc Tuyệt.
+• Mùa Đông: Thủy Vượng (lạnh lẽo), Mộc Tướng, Kim Hưu, Thổ Tù, Hỏa Tuyệt.
+• Tứ Quý (tháng cuối mỗi mùa): Thổ Vượng, Kim Tướng, Hỏa Hưu, Mộc Tù, Thủy Tuyệt.
+
+* Ứng dụng: Người mệnh Mộc sinh mùa Thu (Kim vượng khắc Mộc) thường sinh ra chịu thiệt thòi, cơ thể dễ mang bệnh tật.`,
+    category: 'ngũ-hành',
+    tags: ['ngũ-hành', 'tiêu-trưởng', 'thời-tiết', 'vượng-tướng-hưu-tù-tuyệt'],
+    createdAt: '2026-07-22T10:15:00',
+    source: 'Thuyết Ngũ Hành'
+  },
+  {
+    id: 'r_nguhanh_5',
+    title: 'Ứng dụng quy luật Ngũ Hành vào đời sống và Tử Vi',
+    content: `Quy luật Ngũ Hành cực kỳ biến ảo khi áp dụng vào thực tế luận đoán mệnh lý:
+• Tương tác Môi trường & Bản mệnh: Cục sinh Mệnh là tốt nhất (hoàn cảnh ưu ái, dễ gặp may mắn). Cục khắc Mệnh là xấu nhất (bị đè nén, chèn ép). Mệnh khắc Cục thì vất vả nhưng cá nhân vẫn dùng năng lực chinh phục được hoàn cảnh.
+• Tương tác Cung & Sao: Đất (Cung) tốt thì Cây (Sao) mới phát triển. Sao Mộc ở Cung Thủy (Thủy sinh Mộc) phát huy tối đa; Sao Kim ở Cung Hỏa thì năng lượng Sao bị thiêu rụi, báo hiệu hung họa.
+• Sự phản biện của Ngũ Hành Nạp Âm: Không phải "Khắc" nào cũng xấu. Ví dụ: Kiếm Phong Kim hay Sa Trung Kim cần Hỏa nung đốt mới thành binh khí sắc bén hoặc vàng khối quý giá.`,
+    category: 'ngũ-hành',
+    tags: ['ngũ-hành', 'tử-vi', 'ứng-dụng', 'bản-mệnh', 'nạp-âm'],
+    createdAt: '2026-07-22T10:20:00',
+    source: 'Thuyết Ngũ Hành & Tử Vi'
+  },
+  {
+    id: 'r_batquai_1',
+    title: 'Quy luật Sinh Thành của Bát Quái (Nguồn gốc vũ trụ)',
+    content: `Bát Quái đồ được hình thành dựa trên nguyên lý biến dịch không ngừng của vũ trụ. Quá trình sinh hóa vạn vật diễn ra theo cấu trúc phân lớp:
+• Thái Cực sinh Lưỡng Nghi: Vũ trụ ban sơ (Thái Cực) phân chia năng lượng thành hai khí Âm và Dương.
+• Lưỡng Nghi sinh Tứ Tượng: Âm Dương tương tác phân tách thành Thái Âm, Thiếu Âm, Thái Dương, Thiếu Dương.
+• Tứ Tượng sinh Bát Quái: Sinh ra 8 quẻ cơ bản đại diện cho 8 hiện tượng tự nhiên: Càn (Trời), Khảm (Nước), Cấn (Núi), Chấn (Sấm), Tốn (Gió), Ly (Lửa), Khôn (Đất), Đoài (Đầm).
+• 8 quẻ cơ sở giao thoa sinh ra 64 quẻ (trùng quái), đại diện cho sự biến hóa sinh diệt vô tận của vạn vật.`,
+    category: 'bát-quái',
+    tags: ['bát-quái', 'thái-cực', 'lưỡng-nghi', 'tứ-tượng', 'dịch-lý'],
+    createdAt: '2026-07-22T11:00:00',
+    source: 'Dịch Lý & Tử Vi'
+  },
+  {
+    id: 'r_batquai_2',
+    title: 'Quy luật phân bổ Phương hướng và Ngũ hành trên Địa Bàn',
+    content: `Bát Quái được sắp xếp tương ứng với 12 cung Địa Chi để xác định tính lý Ngũ hành, màu sắc và phương hướng:
+• Quái Khảm: Hành Thủy, màu Đen, cai quản phương Chính Bắc (cung Tý).
+• Quái Cấn: Hành Mộc, màu Xanh, cai quản phương Đông Bắc thiên Đông (cung Dần).
+• Quái Chấn: Hành Mộc, màu Xanh, cai quản phương Chính Đông (cung Mão).
+• Quái Tốn: Hành Hỏa, màu Đỏ, cai quản phương Đông Nam thiên Nam (cung Tỵ).
+• Quái Ly: Hành Hỏa, màu Đỏ, cai quản phương Chính Nam (cung Ngọ).
+• Quái Khôn: Hành Kim, màu Trắng, cai quản phương Tây Nam thiên Tây (cung Thân).
+• Quái Đoài: Hành Kim, màu Trắng, cai quản phương Chính Tây (cung Dậu).
+• Quái Càn: Hành Thủy, màu Đen, cai quản phương Tây Bắc thiên Bắc (cung Hợi).`,
+    category: 'bát-quái',
+    tags: ['bát-quái', 'địa-bàn', 'phương-hướng', 'ngũ-hành', 'cung-vị'],
+    createdAt: '2026-07-22T11:05:00',
+    source: 'Dịch Lý & Tử Vi'
+  },
+  {
+    id: 'r_batquai_3',
+    title: 'Quy luật Động - Tĩnh và sự tương quan Xung / Hợp',
+    content: `Bát Quái được chia thành các cặp năng lượng Động và Tĩnh xen kẽ nhau trên 12 cung Địa bàn:
+• Tuất - Hợi - Tý: Quái Càn (Động) & Khảm (Tĩnh).
+• Sửu - Dần - Mão: Quái Cấn (Tĩnh) & Chấn (Động).
+• Thìn - Tỵ - Ngọ: Quái Tốn (Tĩnh) & Ly (Động).
+• Mùi - Thân - Dậu: Quái Khôn (Tĩnh) & Đoài (Động).
+
+* Quy tắc Tương tác:
+- Tính trái ngược (Xung chiếu): Các cặp xung chiếu nghịch đảo năng lượng (Càn Động xung Tốn Tĩnh, Khảm Tĩnh xung Ly Động).
+- Tính đồng dạng (Tương hợp): Quẻ cùng đặc tính hỗ trợ lẫn nhau (Chấn - Đoài hợp vì cùng Động; Khôn - Cấn hợp vì cùng Tĩnh).`,
+    category: 'bát-quái',
+    tags: ['bát-quái', 'động-tĩnh', 'xung-chiếu', 'tương-hợp'],
+    createdAt: '2026-07-22T11:10:00',
+    source: 'Dịch Lý & Tử Vi'
+  },
+  {
+    id: 'r_batquai_4',
+    title: 'Ứng dụng Bát Quái Tượng trong Hôn Nhân và Gia Đạo',
+    content: `Bát Quái Tượng được ứng dụng xem xét mức độ hòa hợp trong hôn nhân. Nếu cung mệnh nam nữ tác hợp rơi vào thế tương khắc sẽ sinh điềm hung:
+• Bát san Tuyệt mạng: Cung mệnh tác hợp rơi vào Càn, Ly, Đoài, Chấn, Cấn, Tốn tạo thế Âm khắc Dương, nguy cơ đứt gánh gia đạo.
+• Bát san Ngũ quỷ (Giao chiến): Kết hợp các quái Càn, Chấn, Tốn, Khôn tạo thế Âm khắc Âm, chủ về hung kỵ, tai ách.
+• Lục sát: Kết hợp các quái Càn, Khảm, Cấn, Chấn, Tốn, Đoài, Khôn, Ly sinh ra sự lục đục, bất hòa triền miên.
+
+Bát Quái cung cấp cơ sở triết học vững chắc định vị 12 cung, xem thuộc tính sinh khắc và dự đoán nhân duyên con người.`,
+    category: 'bát-quái',
+    tags: ['bát-quái', 'bát-quái-tượng', 'hôn-nhân', 'gia-đạo', 'phong-thủy'],
+    createdAt: '2026-07-22T11:15:00',
+    source: 'Dịch Lý & Tử Vi'
   }
 ];
 
@@ -192,7 +328,9 @@ const RULE_CATEGORIES = [
   { value: 'quyền-lực', label: '👑 Quyền lực', color: '#c47a5a' },
   { value: 'cảm-xúc', label: '💭 Cảm xúc', color: '#7a5ac4' },
   { value: 'kỷ-luật', label: '⚔️ Kỷ luật', color: '#5bc47a' },
-  { value: 'tài-chính', label: '💰 Tài chính', color: '#c4a95a' }
+  { value: 'tài-chính', label: '💰 Tài chính', color: '#c4a95a' },
+  { value: 'ngũ-hành', label: '🔥 Ngũ Hành', color: '#e63946' },
+  { value: 'bát-quái', label: '☯️ Bát Quái', color: '#1d3557' }
 ];
 
 const JOURNAL_PROMPTS = [
