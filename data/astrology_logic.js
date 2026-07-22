@@ -1183,6 +1183,84 @@ window.AstrologyLogic = (function() {
     };
   }
 
+  function calculateLifeBalanceScores(userProfile, dateObj, customRealScores) {
+    const d = dateObj || new Date();
+    const profile = userProfile || { birthYear: 1990, canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+
+    const birthDate = new Date(profile.birthYear || 1990, 0, 1);
+    const bio = calculateBiorhythms(birthDate, d);
+
+    let dayBase = 70;
+    if (typeof Lunar !== 'undefined') {
+      try {
+        const lunar = Lunar.fromDate(d);
+        dayBase = 60 + ((lunar.getDay() * 3 + lunar.getMonth() * 5) % 35);
+      } catch (e) { dayBase = 70; }
+    }
+
+    const astroPotentialScores = {
+      health_mind: Math.max(30, Math.min(98, Math.round(50 + bio.physical * 0.4 + (dayBase % 15)))),
+      career: Math.max(35, Math.min(99, Math.round(55 + bio.intellectual * 0.35 + (dayBase % 20)))),
+      family: Math.max(40, Math.min(95, Math.round(60 + bio.emotional * 0.3 + ((dayBase + 5) % 15)))),
+      relationship: Math.max(35, Math.min(95, Math.round(55 + bio.emotional * 0.35 + ((dayBase + 10) % 15)))),
+      finance: Math.max(30, Math.min(98, Math.round(50 + bio.intellectual * 0.3 + ((dayBase + 12) % 20)))),
+      knowledge: Math.max(40, Math.min(99, Math.round(60 + bio.intellectual * 0.35 + ((dayBase + 8) % 15))))
+    };
+
+    let realScores = customRealScores;
+    if (!realScores && typeof localStorage !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('user_life_balance_scores');
+        if (saved) realScores = JSON.parse(saved);
+      } catch (e) { realScores = null; }
+    }
+
+    if (!realScores) {
+      realScores = {
+        health_mind: 80,
+        career: 90,
+        family: 65,
+        relationship: 65,
+        finance: 85,
+        knowledge: 88
+      };
+    }
+
+    const pillars = [
+      { key: 'health_mind', label: '1. Thân Tâm (Sức Khỏe & Tĩnh Lạc)' },
+      { key: 'career', label: '2. Sự Nghiệp (Công Việc & Task)' },
+      { key: 'family', label: '3. Gia Đạo (Gia Đình & Tổ Ấm)' },
+      { key: 'relationship', label: '4. Mối Quan Hệ (Hợp Tác & Xã Hội)' },
+      { key: 'finance', label: '5. Tài Chính (Tích Lũy & Dòng Tiền)' },
+      { key: 'knowledge', label: '6. Tri Thức (Học Tập & Phản Tư)' }
+    ];
+
+    const insights = [];
+    pillars.forEach(p => {
+      const real = realScores[p.key] || 70;
+      const astro = astroPotentialScores[p.key] || 70;
+      const delta = real - astro;
+
+      if (delta < -18) {
+        insights.push(`🔴 <strong>${p.label}</strong>: Tiềm năng Vận hạn cao (${astro}đ) nhưng thực tế đầu tư chỉ ${real}đ. Cảnh báo lãng phí thời cơ vàng!`);
+      } else if (delta > 20) {
+        insights.push(`🟡 <strong>${p.label}</strong>: Thực tế gồng ép ${real}đ vượt xa tiềm năng (${astro}đ). Cảnh báo nguy cơ kiệt sức / Burnout!`);
+      }
+    });
+
+    if (insights.length === 0) {
+      insights.push('🟢 <strong>Trạng Thái Cân Bằng Âm Dương</strong>: Các trụ cột đời sống đang đi đúng nhịp năng lượng vũ trụ. Mọi sự hanh thông, thân tâm an lạc.');
+    }
+
+    return {
+      dateObj: d,
+      realScores,
+      astroPotentialScores,
+      insights,
+      pillars
+    };
+  }
+
   return {
     CUNG,
     CAN,
@@ -1206,7 +1284,8 @@ window.AstrologyLogic = (function() {
     evaluateMicroSpaceEnergy,
     CANH_GIO,
     evaluateHourlyRhythm,
-    getMasterDailyIntelligence
+    getMasterDailyIntelligence,
+    calculateLifeBalanceScores
   };
 })();
 

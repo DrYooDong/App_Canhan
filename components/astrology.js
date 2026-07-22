@@ -34,6 +34,9 @@
           <button class="btn btn-tab ${activeTab === 'heatmap' ? 'active' : ''}" data-tab="heatmap" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'heatmap' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'heatmap' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'heatmap' ? 'var(--border-accent)' : 'transparent'};">
             <span>⚡</span> Nhịp Giờ Hoàng Đạo
           </button>
+          <button class="btn btn-tab ${activeTab === 'lifebalance' ? 'active' : ''}" data-tab="lifebalance" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'lifebalance' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'lifebalance' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'lifebalance' ? 'var(--border-accent)' : 'transparent'};">
+            <span>🕸️</span> Cân Bằng 6 Trụ Cột
+          </button>
           <button class="btn btn-tab ${activeTab === 'overview' ? 'active' : ''}" data-tab="overview" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeTab === 'overview' ? 'var(--accent-muted)' : 'transparent'};color:${activeTab === 'overview' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeTab === 'overview' ? 'var(--border-accent)' : 'transparent'};">
             <span>🌟</span> Tổng Quan Cuộc Đời
           </button>
@@ -68,6 +71,8 @@
         window.renderHeatmap(subContent);
       } else if (tab === 'overview' && window.renderOverview) {
         window.renderOverview(subContent, params);
+      } else if (tab === 'lifebalance') {
+        renderLifeBalanceTab(subContent);
       }
     }
 
@@ -434,6 +439,25 @@
         </div>
       `;
     });
+  }
+
+  function renderLifeBalanceTab(container) {
+    container.innerHTML = `
+      <div class="animate-fade-in">
+        <div id="astro-life-balance-widget-container"></div>
+      </div>
+    `;
+    const target = container.querySelector('#astro-life-balance-widget-container');
+    if (target) {
+      target.id = 'life-balance-radar-widget';
+      const AL = window.AstrologyLogic;
+      const profile = window.getUserProfile ? window.getUserProfile() : null;
+      if (typeof window.renderLifeBalanceRadarWidget === 'function') {
+        window.renderLifeBalanceRadarWidget(new Date(), profile);
+      } else {
+        target.innerHTML = `<div class="tuvi-card" style="padding:16px;">Vui lòng quay lại Dashboard để xem Bảng Cân Bằng Radar 6 Trụ Cột.</div>`;
+      }
+    }
   }
 
   // Export

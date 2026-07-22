@@ -298,6 +298,13 @@
         <div id="master-daily-intelligence-board"></div>
       </div>
 
+      <div class="ornamental-divider">✦ ────── ❖ ────── ✦</div>
+
+      <!-- LIFE ENERGY BALANCE RADAR CHART (Bảng Cân Bằng Năng Lượng Sống 6 Trụ Cột) -->
+      <div class="stagger-item" style="margin-bottom: var(--space-xl);">
+        <div id="life-balance-radar-widget"></div>
+      </div>
+
       <!-- Daily Reminder -->
       ${todayReminder ? `
         <div class="insight-block animate-fade-in-up stagger-item" style="margin-bottom: var(--space-xl);">
@@ -652,11 +659,13 @@
         const dateObj = new Date(y, m - 1, d);
         renderHourlyRhythmWidget(dateObj, userProfile);
         renderMasterDailyBoard(dateObj, userProfile, taskType);
+        renderLifeBalanceRadarWidget(dateObj, userProfile);
       });
     });
 
-    // Render initial hourly rhythm widget for current/today date
+    // Render initial widgets for current/today date
     renderHourlyRhythmWidget(new Date(), userProfile);
+    renderLifeBalanceRadarWidget(new Date(), userProfile);
   }
 
   function renderHourlyRhythmWidget(selectedDate, userProfile) {
@@ -679,8 +688,11 @@
           <div style="font-weight:700; font-size:0.9rem; color:var(--accent-primary); display:flex; align-items:center; gap:6px;">
             <span>⚡</span> Nhịp Giờ Hoàng Đạo 12 Canh Giờ (${dateFormatted})
           </div>
-          <div style="font-size:0.75rem; color:var(--text-tertiary);">
-            Ngày Canh ${rhythm.chiNgay || ''} • Di chuột vào giờ để xem chi tiết
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:0.75rem; color:var(--text-tertiary);">
+              Ngày Canh ${rhythm.chiNgay || ''}
+            </span>
+            <button class="btn btn-ghost btn-sm" id="btn-jump-heatmap" style="font-size:0.75rem; padding:2px 8px; color:var(--accent-primary);">🔗 Ma Trận 24H ➔</button>
           </div>
         </div>
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:8px;">
@@ -708,6 +720,15 @@
           }).join('')}
         </div>
       `;
+
+      const jumpBtn = container.querySelector('#btn-jump-heatmap');
+      if (jumpBtn) {
+        jumpBtn.addEventListener('click', () => {
+          if (window.App && window.App.Router) {
+            window.App.Router.navigate('astrology', 'heatmap');
+          }
+        });
+      }
     } catch(e) {
       console.error("Lỗi khi render widget nhịp giờ:", e);
     }
@@ -868,6 +889,254 @@
       detailBtn.addEventListener('click', () => {
         showDayDetail(selectedDate, userProfile, taskType);
       });
+    }
+  }
+
+  function renderLifeBalanceRadarWidget(selectedDate, userProfile) {
+    const container = document.getElementById('life-balance-radar-widget');
+    if (!container) return;
+
+    const AL = window.AstrologyLogic;
+    if (!AL || !AL.calculateLifeBalanceScores) return;
+
+    const balanceData = AL.calculateLifeBalanceScores(userProfile, selectedDate);
+    const dateFormatted = selectedDate.toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric', year: 'numeric' });
+
+    container.innerHTML = `
+      <div class="tuvi-card">
+        <div class="tuvi-card-header">
+          <div class="tuvi-card-title-group">
+            <div class="tuvi-card-icon">🕸️</div>
+            <div>
+              <div class="tuvi-card-title">Bảng Cân Bằng "Năng Lượng Sống" 6 Trụ Cột (Life Balance Engine)</div>
+              <div class="tuvi-card-subtitle">Đối chiếu Điểm Thực Tế (Xanh Lục) vs Tiềm Năng Tử Vi Vũ Trụ (Vàng Kim) (${dateFormatted})</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-open-life-checkin">
+            📝 Check-in Điểm Tuần Này →
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; align-items:center;">
+          <!-- Radar Canvas Column -->
+          <div style="text-align:center; padding:10px; position:relative;">
+            <canvas id="life-balance-canvas" width="340" height="300" style="max-width:100%; height:auto;"></canvas>
+            <div style="display:flex; justify-content:center; gap:16px; margin-top:8px; font-size:0.78rem; font-weight:600;">
+              <span style="display:flex; align-items:center; gap:6px; color:#10b981;">
+                <span style="width:12px; height:3px; background:#10b981; border-radius:2px;"></span> 🔹 Thực Tế Đầu Tư
+              </span>
+              <span style="display:flex; align-items:center; gap:6px; color:var(--accent-primary);">
+                <span style="width:12px; height:3px; background:var(--accent-primary); border-radius:2px; border:1px dashed var(--accent-primary);"></span> 🟡 Tiềm Năng Tử Vi
+              </span>
+            </div>
+          </div>
+
+          <!-- Insight & Score Progress Column -->
+          <div>
+            <div style="font-size:0.8rem; font-weight:700; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+              💡 ĐÚC KẾT & CẢNH BÁO CHIẾN LƯỢC TUẦN
+            </div>
+            <div style="background:var(--bg-tertiary); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-color); font-size:0.82rem; line-height:1.5; color:var(--text-secondary); margin-bottom:12px;">
+              ${balanceData.insights.map(i => `<div style="margin-bottom:6px;">${i}</div>`).join('')}
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              ${balanceData.pillars.map(p => {
+                const real = balanceData.realScores[p.key] || 70;
+                const astro = balanceData.astroPotentialScores[p.key] || 70;
+                return `
+                  <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); font-size:0.75rem;">
+                    <div style="font-weight:700; color:var(--text-primary); margin-bottom:2px;">${p.label.split('(')[0]}</div>
+                    <div style="display:flex; justify-content:space-between; color:var(--text-tertiary);">
+                      <span>Thực tế: <strong style="color:#10b981;">${real}%</strong></span>
+                      <span>Tử Vi: <strong style="color:var(--accent-primary);">${astro}%</strong></span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const canvas = container.querySelector('#life-balance-canvas');
+    if (canvas) {
+      drawRadarCanvas(canvas, balanceData.realScores, balanceData.astroPotentialScores);
+    }
+
+    const checkinBtn = container.querySelector('#btn-open-life-checkin');
+    if (checkinBtn) {
+      checkinBtn.addEventListener('click', () => {
+        showLifeBalanceCheckinModal(userProfile, selectedDate);
+      });
+    }
+  }
+
+  function drawRadarCanvas(canvas, realScores, astroScores) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(centerX, centerY) - 45;
+    const numSides = 6;
+    const angleStep = (Math.PI * 2) / numSides;
+
+    const labels = ['1. Thân Tâm', '2. Sự Nghiệp', '3. Gia Đạo', '4. Quan Hệ', '5. Tài Chính', '6. Tri Thức'];
+    const keys = ['health_mind', 'career', 'family', 'relationship', 'finance', 'knowledge'];
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)';
+    const textColor = isDark ? '#e2e8f0' : '#334155';
+    const realColor = '#10b981';
+    const realFill = 'rgba(16, 185, 129, 0.25)';
+    const astroColor = isDark ? '#d4af37' : '#b8860b';
+    const astroFill = 'rgba(212, 175, 55, 0.18)';
+
+    // Hexagon Concentric Grid (5 Rings)
+    for (let level = 1; level <= 5; level++) {
+      const r = (radius / 5) * level;
+      ctx.beginPath();
+      for (let i = 0; i < numSides; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Radial Spokes & Labels
+    for (let i = 0; i < numSides; i++) {
+      const angle = i * angleStep - Math.PI / 2;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = gridColor;
+      ctx.stroke();
+
+      const labelRadius = radius + 22;
+      const lx = centerX + labelRadius * Math.cos(angle);
+      const ly = centerY + labelRadius * Math.sin(angle);
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.fillStyle = textColor;
+      ctx.textAlign = Math.abs(Math.cos(angle)) < 0.1 ? 'center' : (Math.cos(angle) > 0 ? 'left' : 'right');
+      ctx.textBaseline = Math.abs(Math.sin(angle)) < 0.1 ? 'middle' : (Math.sin(angle) > 0 ? 'top' : 'bottom');
+      ctx.fillText(labels[i], lx, ly);
+    }
+
+    function drawPolygon(scores, strokeStyle, fillStyle, isDashed) {
+      ctx.beginPath();
+      for (let i = 0; i < numSides; i++) {
+        const val = Math.max(0, Math.min(100, scores[keys[i]] || 0));
+        const r = (radius * val) / 100;
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+
+      ctx.save();
+      if (isDashed) ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      for (let i = 0; i < numSides; i++) {
+        const val = Math.max(0, Math.min(100, scores[keys[i]] || 0));
+        const r = (radius * val) / 100;
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = strokeStyle;
+        ctx.fill();
+      }
+    }
+
+    drawPolygon(astroScores, astroColor, astroFill, true);
+    drawPolygon(realScores, realColor, realFill, false);
+  }
+
+  function showLifeBalanceCheckinModal(userProfile, dateObj) {
+    const AL = window.AstrologyLogic;
+    if (!AL || !AL.calculateLifeBalanceScores) return;
+
+    const data = AL.calculateLifeBalanceScores(userProfile, dateObj);
+    const real = data.realScores;
+
+    const content = `
+      <div style="padding:4px 0;">
+        <p style="font-size:0.85em; color:var(--text-secondary); margin-bottom:16px;">
+          Tự phản tư và đánh giá mức độ hài lòng / năng lượng bạn đã đầu tư cho 6 trụ cột đời sống trong tuần này (1 - 100 điểm):
+        </p>
+
+        <form id="form-life-checkin" style="display:grid; gap:14px;">
+          ${data.pillars.map(p => {
+            const val = real[p.key] || 70;
+            return `
+              <div>
+                <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:4px;">
+                  <span>${p.label}</span>
+                  <span id="val-${p.key}" style="color:var(--accent-primary);">${val}%</span>
+                </div>
+                <input type="range" min="10" max="100" value="${val}" class="form-range" id="slider-${p.key}" style="width:100%;">
+              </div>
+            `;
+          }).join('')}
+
+          <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="submit" class="btn btn-primary" style="width:100%;">💾 Lưu Check-in & Cập Nhật Radar Engine</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    const overlay = App.Modal.show(content, { title: '📝 Check-in Cân Bằng Năng Lượng Sống 6 Trụ Cột' });
+
+    if (overlay) {
+      data.pillars.forEach(p => {
+        const slider = overlay.querySelector(`#slider-${p.key}`);
+        const valDisp = overlay.querySelector(`#val-${p.key}`);
+        if (slider && valDisp) {
+          slider.addEventListener('input', (e) => {
+            valDisp.textContent = `${e.target.value}%`;
+          });
+        }
+      });
+
+      const form = overlay.querySelector('#form-life-checkin');
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const newScores = {};
+          data.pillars.forEach(p => {
+            const slider = overlay.querySelector(`#slider-${p.key}`);
+            newScores[p.key] = parseInt(slider ? slider.value : 70, 10);
+          });
+
+          localStorage.setItem('user_life_balance_scores', JSON.stringify(newScores));
+          App.Modal.hide(overlay);
+          renderLifeBalanceRadarWidget(dateObj, userProfile);
+        });
+      }
     }
   }
 
@@ -1147,4 +1416,5 @@
   }
 
   window.renderDashboard = renderDashboard;
+  window.renderLifeBalanceRadarWidget = renderLifeBalanceRadarWidget;
 })();
