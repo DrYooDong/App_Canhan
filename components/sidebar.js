@@ -101,7 +101,41 @@
       });
     }
 
+    // Sync Mobile Header Date Badge
+    const mobileLunarBadge = document.getElementById('mobile-lunar-badge');
+    if (mobileLunarBadge) {
+      mobileLunarBadge.textContent = getLunarDateDisplay();
+    }
+
+    // Sync Mobile Theme Toggle Button
+    const mobileThemeBtn = document.getElementById('mobile-theme-toggle-btn');
+    if (mobileThemeBtn) {
+      mobileThemeBtn.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+      mobileThemeBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (window.App && window.App.Theme) {
+          window.App.Theme.toggle();
+        }
+      };
+    }
+
+    // Mobile Sidebar Overlay Backdrop handler
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+      overlay.onclick = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+      };
+    }
+
     updateBadges();
+  }
+
+  function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
   }
 
   function updateBadges() {

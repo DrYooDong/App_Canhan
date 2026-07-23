@@ -31,8 +31,21 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☯</text></svg>">
 </head>
 <body>
-  <!-- Mobile Menu Button -->
-  <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
+  <!-- Mobile Header Bar -->
+  <header class="mobile-top-bar" id="mobile-top-bar">
+    <div class="mobile-brand" onclick="App.Router.navigate('dashboard')">
+      <div class="mobile-logo">☯</div>
+      <span class="mobile-title">NỘI TÂM</span>
+    </div>
+    <div class="mobile-top-actions">
+      <div class="mobile-lunar-badge" id="mobile-lunar-badge" title="Lịch Âm Dương">📅 Đang tải...</div>
+      <button class="mobile-icon-btn" id="mobile-theme-toggle-btn" title="Đổi giao diện" aria-label="Đổi giao diện">☀️</button>
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
+    </div>
+  </header>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="app-layout">
     <!-- Sidebar -->
@@ -50,8 +63,32 @@
     </main>
   </div>
 
-  <!-- SOS Button -->
+  <!-- SOS Floating Button -->
   <button class="sos-btn" id="sos-btn" title="Lời nhắc ngay lập tức" aria-label="SOS">💡</button>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <div class="mobile-nav-item active" data-route="dashboard" onclick="App.Router.navigate('dashboard')">
+      <span class="mobile-nav-icon">📅</span>
+      <span class="mobile-nav-label">Lịch</span>
+    </div>
+    <div class="mobile-nav-item" data-route="astrology" onclick="App.Router.navigate('astrology')">
+      <span class="mobile-nav-icon">🔮</span>
+      <span class="mobile-nav-label">Tử Vi</span>
+    </div>
+    <div class="mobile-nav-item" data-route="finance" onclick="App.Router.navigate('finance')">
+      <span class="mobile-nav-icon">💰</span>
+      <span class="mobile-nav-label">Tài Chính</span>
+    </div>
+    <div class="mobile-nav-item" data-route="oracle" onclick="App.Router.navigate('oracle')">
+      <span class="mobile-nav-icon">🧭</span>
+      <span class="mobile-nav-label">Kỳ Môn</span>
+    </div>
+    <div class="mobile-nav-item" data-route="knowledge" onclick="App.Router.navigate('knowledge')">
+      <span class="mobile-nav-icon">📜</span>
+      <span class="mobile-nav-label">Tri Thức</span>
+    </div>
+  </nav>
 
   <!-- Data -->
   <script src="data/tuvi.js"></script>

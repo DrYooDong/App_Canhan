@@ -135,10 +135,20 @@
         this.currentRoute = route;
         State.set('currentRoute', route);
 
-        // Update nav active states
+        // Update nav active states (both sidebar and mobile bottom nav)
         document.querySelectorAll('.nav-item').forEach(item => {
           item.classList.toggle('active', item.dataset.route === route);
         });
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
+          item.classList.toggle('active', item.dataset.route === route);
+        });
+
+        // Close mobile drawer if open
+        document.querySelector('.sidebar')?.classList.remove('open');
+        document.getElementById('sidebar-overlay')?.classList.remove('active');
+
+        // Scroll to top on route change
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
         // Render the route
         const mainContent = document.getElementById('main-content');
@@ -429,6 +439,10 @@
       if (icon) {
         icon.textContent = targetTheme === 'dark' ? '☀️' : '🌙';
       }
+      const mobileThemeBtn = document.querySelector('#mobile-theme-toggle-btn');
+      if (mobileThemeBtn) {
+        mobileThemeBtn.textContent = targetTheme === 'dark' ? '☀️' : '🌙';
+      }
       const btn = document.querySelector('#theme-toggle-btn');
       if (btn) {
         btn.setAttribute('title', targetTheme === 'dark' ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối');
@@ -496,11 +510,16 @@
     // Init router
     Router.init();
 
-    // Mobile menu
+    // Mobile menu toggle
     const mobileBtn = document.getElementById('mobile-menu-btn');
     if (mobileBtn) {
       mobileBtn.addEventListener('click', () => {
-        document.querySelector('.sidebar')?.classList.toggle('open');
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const isOpen = sidebar?.classList.toggle('open');
+        if (overlay) {
+          overlay.classList.toggle('active', isOpen);
+        }
       });
     }
 
