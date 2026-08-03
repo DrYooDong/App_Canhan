@@ -7,12 +7,12 @@
   'use strict';
 
   const NAV_ITEMS = [
-    { route: 'dashboard', icon: '📅', label: 'Lịch Ngày Tốt & Ambient Hub' },
-    { route: 'astrology', icon: '🔮', label: 'Lá Số Tử Vi & Vận Hạn Hub' },
-    { route: 'finance',   icon: '💰', label: 'Tài Chính & Quản Trị LifeOS' },
+    { route: 'dashboard', icon: '📅', label: 'Lịch & Năng Lượng Ngày' },
+    { route: 'astrology', icon: '🔮', label: 'Lá Số & Vận Hạn' },
+    { route: 'finance',   icon: '💰', label: 'Tài Chính LifeOS' },
     { route: 'oracle',    icon: '🧭', label: 'Kỳ Môn & Quẻ Dịch' },
     { route: 'knowledge', icon: '📜', label: 'Tri Thức & Phản Tư', badge: true },
-    { route: 'search',    icon: '🔍', label: 'Tìm Kiếm Tri Thức' }
+    { route: 'search',    icon: '🔍', label: 'Tìm Kiếm' }
   ];
 
   function getLunarDateDisplay() {
@@ -64,6 +64,16 @@
       <div class="sidebar-date" title="Lịch Âm Dương Ngày Chi Tiết">
         <span class="date-icon">📅</span>
         <span class="date-text">${getLunarDateDisplay()}</span>
+      </div>
+
+      <!-- Profile Selector Pill -->
+      <div class="sidebar-profile-wrap" style="padding: 0 12px 12px 12px;">
+        <div style="display:flex; align-items:center; gap:8px; background: rgba(255,255,255,0.045); border: 1px solid var(--border-color); border-radius: 12px; padding: 6px 10px; transition: all 0.2s ease;" title="Chọn hồ sơ Tử Vi">
+          <span style="font-size:1rem; color:var(--accent-primary);">👤</span>
+          <select id="astrology-profile-select" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-family: var(--font-primary); font-size: 0.85rem; font-weight:600; cursor: pointer; width: 100%;">
+            <option value="default">Đang tải...</option>
+          </select>
+        </div>
       </div>
 
       <!-- Navigation -->
@@ -129,6 +139,36 @@
     }
 
     updateBadges();
+
+    // Populate Supabase Profiles
+    const profileSelect = document.getElementById('astrology-profile-select');
+    if (profileSelect && window.SupabaseManager) {
+      window.SupabaseManager.fetchProfiles().then(profiles => {
+        profileSelect.innerHTML = profiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        profileSelect.value = window.SupabaseManager.getCurrentProfileId();
+        
+        profileSelect.addEventListener('change', async (e) => {
+          const newProfileId = e.target.value;
+          window.SupabaseManager.setCurrentProfileId(newProfileId);
+          
+          // Re-load profile data
+          const success = await window.SupabaseManager.loadProfile(newProfileId);
+          if (success) {
+            window.App.Toast.show("Đã tải hồ sơ: " + profiles.find(p => p.id === newProfileId)?.name);
+            // Re-render current route to reflect new data
+            if (window.App.Router && window.App.Router.currentRoute) {
+              const currentRouteParts = window.App.Router.currentRoute.split('/');
+              const routeName = currentRouteParts[0];
+              if (window.App.Router.routes[routeName]) {
+                window.App.Router.routes[routeName](document.querySelector('.content-container'), currentRouteParts.slice(1));
+              }
+            }
+          } else {
+            window.App.Toast.show("Lỗi khi tải hồ sơ!");
+          }
+        });
+      });
+    }
   }
 
   function closeMobileSidebar() {

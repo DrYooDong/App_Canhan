@@ -115,45 +115,148 @@
 
   function renderDashboard(container, params) {
     if (params && params[0]) {
-      if (['command', 'morning', 'tasks', 'overview', 'main'].includes(params[0])) {
+      if (['command', 'morning', 'tasks', 'overview', 'scanner', 'main'].includes(params[0])) {
         if (params[0] === 'command') activeDashTab = 'command';
         else if (params[0] === 'morning') activeDashTab = 'morning';
         else if (params[0] === 'tasks') activeDashTab = 'tasks';
+        else if (params[0] === 'scanner') activeDashTab = 'scanner';
         else activeDashTab = 'overview';
       }
     }
 
+    const AL = window.AstrologyLogic;
+    const today = new Date();
+    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const todayInfo = getDailyIntegratedDetails(today, userProfile, 'GENERAL');
+
+    let fpSummary = '';
+    if (AL && AL.FourPillars && typeof AL.FourPillars.calculate === 'function') {
+      try {
+        const fp = AL.FourPillars.calculate(today);
+        fpSummary = `${fp.year.can} ${fp.year.chi} | ${fp.month.can} ${fp.month.chi} | ${fp.day.can} ${fp.day.chi}`;
+      } catch (e) {
+        fpSummary = `${todayInfo.canNgay} ${todayInfo.chiNgay}`;
+      }
+    } else {
+      fpSummary = `${todayInfo.canNgay} ${todayInfo.chiNgay}`;
+    }
+
+    const score = todayInfo.scoreResult ? todayInfo.scoreResult.score : 85;
+    const ratingText = todayInfo.scoreResult ? todayInfo.scoreResult.text : 'Đại Cát';
+    const scoreColor = score >= 80 ? 'var(--color-success)' : (score >= 60 ? 'var(--color-warning)' : 'var(--color-danger)');
+
     container.innerHTML = `
-      <div class="dashboard-hub animate-fade-in">
-        <div class="tabs-header" style="display:flex;gap:12px;margin-bottom:24px;border-bottom:1px solid var(--border-color);padding-bottom:12px;flex-wrap:wrap;">
-          <button class="btn btn-tab ${activeDashTab === 'command' ? 'active' : ''}" data-tab="command" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'command' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'command' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'command' ? 'var(--border-accent)' : 'transparent'};">
-            <span>📱</span> Ambient HUD
-          </button>
-          <button class="btn btn-tab ${activeDashTab === 'overview' ? 'active' : ''}" data-tab="overview" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'overview' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'overview' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'overview' ? 'var(--border-accent)' : 'transparent'};">
-            <span>☯</span> Tổng Quan & Lịch Ngày Tốt
-          </button>
-          <button class="btn btn-tab ${activeDashTab === 'tasks' ? 'active' : ''}" data-tab="tasks" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'tasks' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'tasks' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'tasks' ? 'var(--border-accent)' : 'transparent'};">
-            <span>🌱</span> Nhiệm Vụ Cải Mệnh
-          </button>
-          <button class="btn btn-tab ${activeDashTab === 'morning' ? 'active' : ''}" data-tab="morning" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeDashTab === 'morning' ? 'var(--accent-muted)' : 'transparent'};color:${activeDashTab === 'morning' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeDashTab === 'morning' ? 'var(--border-accent)' : 'transparent'};">
-            <span>☀️</span> Bản Tin Cải Mệnh Sáng
-          </button>
+      <div class="dashboard-hub animate-fade-in" style="display:flex; flex-direction:column; gap:24px;">
+        <!-- Option A: Today's Energy Brief Hero Card (Command Center) -->
+        <div class="cmd-hero">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span style="display:inline-flex; align-items:center; gap:6px; background: rgba(124, 58, 237, 0.2); border: 1px solid rgba(124, 58, 237, 0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight:700; color: var(--accent-primary); letter-spacing:0.1em; text-transform:uppercase;">
+                  <span>☯ NỘI TÂM COMMAND CENTER</span>
+                </span>
+                <span style="font-size:0.85rem; color: var(--text-secondary);">${todayInfo.lunarStr}</span>
+              </div>
+              <h1 style="font-family:'Cinzel', serif; font-size: 1.85rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">
+                Năng Lượng Ngày Hôm Nay
+              </h1>
+              <p style="margin:0; font-size:0.95rem; color:var(--text-secondary);">
+                Tứ Trụ Hôm Nay: <strong style="color:var(--accent-gold);">${fpSummary}</strong> — Hành <strong style="color:var(--text-primary);">${todayInfo.hanhNgay}</strong>
+              </p>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" id="btn-hero-copy-ai" title="Copy dữ liệu ngày hôm nay cho AI">
+                <span>📋</span> Copy Data AI
+              </button>
+              <button class="btn btn-primary btn-sm" id="btn-hero-tts" title="Đọc bản tin ngày" style="border-radius:24px; padding:8px 18px; font-weight:600;">
+                <span>🔊</span> Đọc Bản Tin Sáng
+              </button>
+            </div>
+          </div>
+
+          <!-- Hero Grid Quick Stats -->
+          <div class="cmd-hero-grid">
+            <div class="cmd-stat-box">
+              <div class="cmd-stat-icon" style="background: rgba(74, 222, 128, 0.12); color: ${scoreColor}; border: 1px solid ${scoreColor};">
+                <span>⭐</span>
+              </div>
+              <div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Điểm Cát Hung</div>
+                <div style="font-size:1.15rem; font-weight:700; color:${scoreColor};">${score} — ${ratingText}</div>
+              </div>
+            </div>
+
+            <div class="cmd-stat-box">
+              <div class="cmd-stat-icon" style="background: rgba(251, 191, 36, 0.12); color: var(--accent-gold);">
+                <span>${todayInfo.remedy.icon || '⚪'}</span>
+              </div>
+              <div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Y Phục & May Mắn</div>
+                <div style="font-size:1.05rem; font-weight:700; color:var(--text-primary);">${todayInfo.remedy.wardrobe.colors[0] || 'Trắng'} · ${todayInfo.remedy.element}</div>
+              </div>
+            </div>
+
+            <div class="cmd-stat-box">
+              <div class="cmd-stat-icon" style="background: rgba(124, 58, 237, 0.12); color: var(--accent-primary);">
+                <span>🧭</span>
+              </div>
+              <div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Quẻ Dịch Hôm Nay</div>
+                <div style="font-size:1.05rem; font-weight:700; color:var(--text-primary);">${todayInfo.queInfo.name}</div>
+              </div>
+            </div>
+
+            <div class="cmd-stat-box">
+              <div class="cmd-stat-icon" style="background: rgba(96, 165, 250, 0.12); color: var(--color-info);">
+                <span>🌊</span>
+              </div>
+              <div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Nhịp Sinh Học</div>
+                <div style="font-size:1.05rem; font-weight:700; color:var(--color-info);">${todayInfo.bio.statusTag || 'Bình Hòa'}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
+        <!-- Section Switcher Tabs -->
+        <div class="cmd-nav-tabs">
+          <button class="cmd-nav-btn ${activeDashTab === 'overview' ? 'active' : ''}" data-tab="overview"><span>📅</span> Lịch & Nhịp Ngày</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'scanner' ? 'active' : ''}" data-tab="scanner"><span>🎯</span> Quét Mục Tiêu Vàng</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'morning' ? 'active' : ''}" data-tab="morning"><span>☀️</span> Bản Tin & Thực Dưỡng</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'tasks' ? 'active' : ''}" data-tab="tasks"><span>🌱</span> Nhiệm Vụ Cải Mệnh</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'command' ? 'active' : ''}" data-tab="command"><span>📱</span> Ambient HUD</button>
+        </div>
+
+        <!-- Sub Content Area -->
         <div id="dashboard-sub-content"></div>
       </div>
     `;
 
     const subContent = container.querySelector('#dashboard-sub-content');
 
+    // Hero action buttons
+    const btnCopyAI = container.querySelector('#btn-hero-copy-ai');
+    if (btnCopyAI) {
+      btnCopyAI.addEventListener('click', () => {
+        const text = `=== NĂNG LƯỢNG NGÀY HÔM NAY ===\nNgày: ${today.toLocaleDateString('vi-VN')} (${todayInfo.lunarStr})\nCan Chi: ${todayInfo.canNgay} ${todayInfo.chiNgay} - Hành ${todayInfo.hanhNgay}\nTứ Trụ: ${fpSummary}\nĐiểm Cát Hung: ${score} (${ratingText})\nQuẻ Dịch: ${todayInfo.queInfo.name} - ${todayInfo.queInfo.advice}\nY Phục May Mắn: ${todayInfo.remedy.wardrobe.colors.join(', ')}`;
+        navigator.clipboard.writeText(text);
+        if (window.App?.Toast) window.App.Toast.show("Đã sao chép dữ liệu ngày hôm nay cho AI!", "success");
+      });
+    }
+
+    const btnHeroTTS = container.querySelector('#btn-hero-tts');
+    if (btnHeroTTS) {
+      btnHeroTTS.addEventListener('click', () => {
+        loadSubTab('morning');
+      });
+    }
+
     function loadSubTab(tab) {
       activeDashTab = tab;
-      container.querySelectorAll('.btn-tab').forEach(btn => {
+      container.querySelectorAll('.cmd-nav-btn').forEach(btn => {
         const isCurrent = btn.dataset.tab === tab;
         btn.classList.toggle('active', isCurrent);
-        btn.style.background = isCurrent ? 'var(--accent-muted)' : 'transparent';
-        btn.style.color = isCurrent ? 'var(--accent-primary)' : 'var(--text-secondary)';
-        btn.style.borderColor = isCurrent ? 'var(--border-accent)' : 'transparent';
       });
 
       subContent.innerHTML = '';
@@ -163,12 +266,14 @@
         window.renderMorning(subContent);
       } else if (tab === 'tasks' && window.renderTasks) {
         window.renderTasks(subContent);
+      } else if (tab === 'scanner') {
+        renderScannerTab(subContent);
       } else {
         renderMainDashboard(subContent);
       }
     }
 
-    container.querySelectorAll('.btn-tab').forEach(btn => {
+    container.querySelectorAll('.cmd-nav-btn').forEach(btn => {
       btn.addEventListener('click', () => loadSubTab(btn.dataset.tab));
     });
 
@@ -208,17 +313,9 @@
     const todayInfo = getDailyIntegratedDetails(currentCalDate, userProfile, currentTaskType);
 
     container.innerHTML = `
-      <!-- Master Header -->
-      <div class="animate-fade-in" style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--accent-primary); letter-spacing: 0.15em; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">
-              <span>☯ TRUNG TÂM ĐIỀU HÀNH TỬ VI & LỊCH NGÀY TỐT MASTER</span>
-            </div>
-            <h1 class="page-title" style="margin-bottom: 4px;">Xin chào Nguyễn Hữu Đông</h1>
-            <p class="page-subtitle" style="margin-bottom: 0;">Lịch Ngày Tốt Cá Nhân Hóa & Hệ Thống Năng Lượng 13-trong-1.</p>
-          </div>
-
+      <!-- Quick Date Filter Pills Bar -->
+      <div class="animate-fade-in" style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px;">
           <!-- Quick Date Filter Pills -->
           <div class="segmented-tabs" id="quick-date-filters">
             <button class="segmented-tab active" data-quick-date="today"><span>📅</span> Hôm Nay</button>
@@ -232,34 +329,6 @@
 
       <!-- Radar Cảnh Báo Sớm 7 Ngày (Early Warning Radar) -->
       <div id="early-warning-radar-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
-
-      <!-- Smart Target Scanner (Săn Ngày Thăng Tiến & Thi Cử) -->
-      <div class="stagger-item" style="margin-bottom: var(--space-xl);">
-        <div class="tuvi-card">
-          <div class="tuvi-card-header">
-            <div class="tuvi-card-title-group">
-              <div class="tuvi-card-icon">🎯</div>
-              <div>
-                <div class="tuvi-card-title">Smart Target Scanner — Quét Ngày Vàng Mục Tiêu</div>
-                <div class="tuvi-card-subtitle">Tự động chọn Top 3 Ngày Cát Tường 30 ngày tới cho Sự Nghiệp, Thi Cử & Hợp Đồng</div>
-              </div>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <select id="goal-scanner-type" class="form-select" style="max-width:210px; background:var(--bg-input); font-weight:600; padding:6px 32px 6px 12px; font-size:0.82rem;">
-                <option value="EXAM">🎓 Thi Cử / Bảo Vệ Luận Văn</option>
-                <option value="INTERVIEW">💼 Phỏng Vấn / Xin Việc</option>
-                <option value="PROMOTION">👑 Trình Sếp / Tăng Lương</option>
-                <option value="CONTRACT">✍️ Hợp Đồng / Đầu Tư</option>
-                <option value="PITCHING">🎤 Ra Mắt / Thuyết Trình</option>
-              </select>
-              <button class="btn btn-primary btn-sm" id="btn-run-goal-scan">🔍 Quét Top 3 Ngày Vàng</button>
-            </div>
-          </div>
-
-          <div id="goal-scan-results-container" style="display:none; margin-top:14px; padding:14px; background:var(--bg-tertiary); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          </div>
-        </div>
-      </div>
 
       <!-- Master Calendar Grid (Lịch Ngày Tốt Cá Nhân Hóa) -->
       <div class="stagger-item" style="margin-bottom: var(--space-xl);">
@@ -314,13 +383,6 @@
 
       <!-- BATCH 2: SOCIAL ENERGY MAP & MICRO-SPRINT 24H (#1 & #2) -->
       <div id="batch2-social-sprint-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
-
-      <div class="ornamental-divider">✦ ────── ❖ ────── ✦</div>
-
-      <!-- LIFE ENERGY BALANCE RADAR CHART (Bảng Cân Bằng Năng Lượng Sống 6 Trụ Cột) -->
-      <div class="stagger-item" style="margin-bottom: var(--space-xl);">
-        <div id="life-balance-radar-widget"></div>
-      </div>
 
       <!-- Daily Reminder -->
       ${todayReminder ? `
@@ -594,63 +656,99 @@
         renderCalendar(userProfile, currentTaskType);
       });
 
-      // Goal scanner run
-      const scanBtn = container.querySelector('#btn-run-goal-scan');
-      const scanSelect = container.querySelector('#goal-scanner-type');
-      const scanResultContainer = container.querySelector('#goal-scan-results-container');
+    }
+  }
 
-      if (scanBtn && scanSelect && scanResultContainer) {
-        scanBtn.addEventListener('click', () => {
-          const goalType = scanSelect.value;
-          const topDates = window.AstrologyLogic.scanGoalDates(new Date(), 30, goalType, userProfile);
+  function renderScannerTab(container) {
+    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
 
-          if (topDates.length === 0) return;
-
-          scanResultContainer.style.display = 'block';
-          scanResultContainer.innerHTML = `
-            <div style="font-weight:700; font-size:0.95em; color:var(--accent-primary); margin-bottom:10px;">
-              🌟 TOP 3 NGÀY VÀNG TỐI ƯU NHẤT — ${topDates[0].config.icon} ${topDates[0].config.label}
+    container.innerHTML = `
+      <!-- Smart Target Scanner -->
+      <div class="stagger-item animate-fade-in" style="margin-bottom: var(--space-xl);">
+        <div class="tuvi-card">
+          <div class="tuvi-card-header">
+            <div class="tuvi-card-title-group">
+              <div class="tuvi-card-icon">🎯</div>
+              <div>
+                <div class="tuvi-card-title">Smart Target Scanner — Quét Ngày Vàng Mục Tiêu</div>
+                <div class="tuvi-card-subtitle">Tự động chọn Top 3 Ngày Cát Tường 30 ngày tới cho Sự Nghiệp, Thi Cử & Hợp Đồng</div>
+              </div>
             </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
-              ${topDates.map((d, idx) => {
-                const [yStr, mStr, dStr] = d.dateStr.split('-');
-                const dateObj = new Date(yStr, mStr - 1, dStr);
-                const scenarios = window.AstrologyLogic.generateShortTermScenarios(dateObj, userProfile, goalType);
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select id="goal-scanner-type" class="form-select" style="max-width:210px; background:var(--bg-input); font-weight:600; padding:6px 32px 6px 12px; font-size:0.82rem;">
+                <option value="EXAM">🎓 Thi Cử / Bảo Vệ Luận Văn</option>
+                <option value="INTERVIEW">💼 Phỏng Vấn / Xin Việc</option>
+                <option value="PROMOTION">👑 Trình Sếp / Tăng Lương</option>
+                <option value="CONTRACT">✍️ Hợp Đồng / Đầu Tư</option>
+                <option value="PITCHING">🎤 Ra Mắt / Thuyết Trình</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="btn-run-goal-scan">🔍 Quét Top 3 Ngày Vàng</button>
+            </div>
+          </div>
 
-                return `
-                  <div class="card" style="padding:12px; border-left:4px solid ${idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309'}; cursor:pointer;" data-scan-date="${d.dateStr}">
-                    <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:0.9em;">
-                      <span>${idx === 0 ? '🥇 Rank #1' : idx === 1 ? '🥈 Rank #2' : '🥉 Rank #3'}: ${d.formattedDate}</span>
-                      <span style="color:var(--accent-primary); font-size:1.1em;">${d.goalScore}đ</span>
-                    </div>
-                    <div style="font-size:0.8em; color:var(--text-secondary); margin-top:4px;">
-                      Can Chi: ${d.canChi} (${d.rating})
-                    </div>
-                    <div style="font-size:0.78em; color:var(--color-success); font-weight:600; margin-top:4px;">
-                      ⌛ Giờ Vàng: ${d.bestHours.slice(0, 2).join(', ')}
-                    </div>
-                    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color); font-size:0.75rem; color:var(--text-tertiary);">
-                      <div style="font-weight:700; color:var(--accent-primary); margin-bottom:2px;">🔮 Kịch bản kích hoạt:</div>
-                      <div style="color:var(--color-success);">🟢 <strong>Thuận lợi:</strong> ${scenarios.favorable.activationCondition.substring(0, 50)}...</div>
-                    </div>
+          <div id="goal-scan-results-container" style="display:none; margin-top:14px; padding:14px; background:var(--bg-tertiary); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          </div>
+        </div>
+      </div>
+
+      <!-- Life Energy Balance Radar Chart -->
+      <div class="stagger-item animate-fade-in" style="margin-bottom: var(--space-xl);">
+        <div id="life-balance-radar-widget"></div>
+      </div>
+    `;
+
+    const scanBtn = container.querySelector('#btn-run-goal-scan');
+    const scanSelect = container.querySelector('#goal-scanner-type');
+    const scanResultContainer = container.querySelector('#goal-scan-results-container');
+
+    if (scanBtn && scanSelect && scanResultContainer && window.AstrologyLogic) {
+      scanBtn.addEventListener('click', () => {
+        const goalType = scanSelect.value;
+        const topDates = window.AstrologyLogic.scanGoalDates(new Date(), 30, goalType, userProfile);
+
+        if (topDates.length === 0) return;
+
+        scanResultContainer.style.display = 'block';
+        scanResultContainer.innerHTML = `
+          <div style="font-weight:700; font-size:0.95em; color:var(--accent-primary); margin-bottom:10px;">
+            🌟 TOP 3 NGÀY VÀNG TỐI ƯU NHẤT — ${topDates[0].config.icon} ${topDates[0].config.label}
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
+            ${topDates.map((d, idx) => {
+              const [yStr, mStr, dStr] = d.dateStr.split('-');
+              const dateObj = new Date(yStr, mStr - 1, dStr);
+              const scenarios = window.AstrologyLogic.generateShortTermScenarios(dateObj, userProfile, goalType);
+
+              return `
+                <div class="card" style="padding:12px; border-left:4px solid ${idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309'}; cursor:pointer;" data-scan-date="${d.dateStr}">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:0.9em;">
+                    <span>${idx === 0 ? '🥇 Rank #1' : idx === 1 ? '🥈 Rank #2' : '🥉 Rank #3'}: ${d.formattedDate}</span>
+                    <span style="color:var(--accent-primary); font-size:1.1em;">${d.goalScore}đ</span>
                   </div>
-                `;
-              }).join('')}
-            </div>
-          `;
+                  <div style="font-size:0.8em; color:var(--text-secondary); margin-top:4px;">
+                    Can Chi: ${d.canChi} (${d.rating})
+                  </div>
+                  <div style="font-size:0.78em; color:var(--color-success); font-weight:600; margin-top:4px;">
+                    ⌛ Giờ Vàng: ${d.bestHours.slice(0, 2).join(', ')}
+                  </div>
+                  <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color); font-size:0.75rem; color:var(--text-tertiary);">
+                    <div style="font-weight:700; color:var(--accent-primary); margin-bottom:2px;">🔮 Kịch bản kích hoạt:</div>
+                    <div style="color:var(--color-success);">🟢 <strong>Thuận lợi:</strong> ${scenarios.favorable.activationCondition.substring(0, 50)}...</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      });
 
-          scanResultContainer.querySelectorAll('[data-scan-date]').forEach(card => {
-            card.addEventListener('click', (e) => {
-              const dStr = e.currentTarget.dataset.scanDate;
-              const [y, m, d] = dStr.split('-');
-              const selectedD = new Date(y, m - 1, d);
-              renderHourlyRhythmWidget(selectedD, userProfile);
-              renderMasterDailyBoard(selectedD, userProfile, currentTaskType);
-              showDayDetail(selectedD, userProfile, currentTaskType);
-            });
-          });
-        });
-      }
+      // Run initial scan
+      scanBtn.click();
+    }
+
+    const radarContainer = container.querySelector('#life-balance-radar-widget');
+    if (radarContainer && window.renderLifeBalanceRadar) {
+      window.renderLifeBalanceRadar(radarContainer);
     }
   }
 
@@ -1039,7 +1137,10 @@
             </div>
           </div>
 
-          <div style="display:flex; align-items:center; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-tab btn-sm" id="btn-open-numerology-chip" style="background:var(--accent-muted); color:var(--accent-primary); border:1px solid var(--border-accent); font-weight:600; font-size:0.8rem;" title="Xem chi tiết Thần Số Học & Số Học Ngày Sinh">
+              🔢 Thần Số Học & Năm 2026 →
+            </button>
             <span style="font-family:var(--font-heading); font-size:1.6rem; font-weight:800; color:${scoreColor};">${info.scoreResult ? info.scoreResult.total_score : 80}đ</span>
             <button class="btn btn-primary btn-sm" id="btn-open-selected-detail">
               📋 Xem Modal Đa Tầng →
@@ -1181,6 +1282,15 @@
         showDayDetail(selectedDate, userProfile, taskType);
       });
     }
+
+    const numChipBtn = container.querySelector('#btn-open-numerology-chip');
+    if (numChipBtn) {
+      numChipBtn.addEventListener('click', () => {
+        if (window.App && window.App.Router) {
+          window.App.Router.navigate('astrology/numerology');
+        }
+      });
+    }
   }
 
   function renderLifeBalanceRadarWidget(selectedDate, userProfile) {
@@ -1237,7 +1347,7 @@
                 const astro = balanceData.astroPotentialScores[p.key] || 70;
                 return `
                   <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); font-size:0.75rem;">
-                    <div style="font-weight:700; color:var(--text-primary); margin-bottom:2px;">${p.label.split('(')[0]}</div>
+                    <div style="font-weight:700; color:var(--text-primary); margin-bottom:2px;">${(p.label || p.name || '').split('(')[0]}</div>
                     <div style="display:flex; justify-content:space-between; color:var(--text-tertiary);">
                       <span>Thực tế: <strong style="color:#10b981;">${real}%</strong></span>
                       <span>Tử Vi: <strong style="color:var(--accent-primary);">${astro}%</strong></span>

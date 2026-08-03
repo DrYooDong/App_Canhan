@@ -191,14 +191,14 @@
   --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
   --font-cinzel:  'Cinzel', serif;
 
-  --text-xs:   0.72rem;
-  --text-sm:   0.8125rem;
-  --text-base: 0.9375rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.375rem;
-  --text-2xl:  1.75rem;
-  --text-3xl:  2.25rem;
-  --text-4xl:  3rem;
+  --text-xs:   0.85rem;     /* ~13.6px */
+  --text-sm:   0.9375rem;   /* 15px */
+  --text-base: 1.0625rem;   /* 17px */
+  --text-lg:   1.25rem;     /* 20px */
+  --text-xl:   1.5rem;      /* 24px */
+  --text-2xl:  1.875rem;    /* 30px */
+  --text-3xl:  2.35rem;     /* ~37.6px */
+  --text-4xl:  3.1rem;
 
   --leading-tight:   1.25;
   --leading-normal:  1.6;
@@ -631,9 +631,52 @@ a:hover { color: var(--accent-hover); }
 
 .page-subtitle {
   font-size: var(--text-base);
-  color: var(--text-tertiary);
-  margin-bottom: var(--space-xl);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
   line-height: var(--leading-normal);
+}
+
+/* ── Unified Pill Sub-Tabs Header (Kỳ Môn Standard) ── */
+.tabs-header {
+  display: flex !important;
+  gap: 10px !important;
+  margin-bottom: 20px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding-bottom: 12px !important;
+  overflow-x: auto !important;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tabs-header::-webkit-scrollbar { display: none; }
+
+.btn-tab {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 18px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: var(--text-base) !important;
+  font-weight: 700 !important;
+  background: var(--bg-card) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  cursor: pointer;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.btn-tab:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.btn-tab.active {
+  background: var(--accent-muted) !important;
+  color: var(--accent-primary) !important;
+  border-color: var(--border-accent) !important;
+  box-shadow: 0 4px 14px rgba(var(--accent-primary-rgb), 0.22) !important;
 }
 
 .section-title {
@@ -2344,6 +2387,100 @@ body.theme-tho {
 }
 
 @media (max-width: 768px) {
+  /* ── Large Mobile Typography & Spacing Overrides (Kỳ Môn Style) ── */
+  :root {
+    --text-xs:   0.875rem;  /* 14px - Crisp labels & subtext */
+    --text-sm:   0.95rem;   /* 15.2px */
+    --text-base: 1.08rem;   /* 17.3px - Main body text */
+    --text-lg:   1.28rem;   /* 20.5px */
+    --text-xl:   1.55rem;   /* 24.8px */
+    --text-2xl:  1.9rem;    /* 30.4px */
+    --space-sm:  12px;
+    --space-md:  18px;
+    --space-lg:  24px;
+  }
+
+  body, p, span, label, input, button, select, textarea {
+    line-height: 1.65;
+    font-size: var(--text-base);
+  }
+
+  /* ── Force Minimum Legible Font Sizes across all components ── */
+  .card-title, .tuvi-card-title, .section-title {
+    font-size: var(--text-lg) !important;
+    font-weight: 700 !important;
+  }
+
+  .card-subtitle, .tuvi-card-subtitle, .page-subtitle {
+    font-size: var(--text-sm) !important;
+    line-height: 1.6 !important;
+  }
+
+  .btn, .btn-tab, .segmented-tab, .filter-chip {
+    font-size: var(--text-sm) !important;
+    font-weight: 600 !important;
+  }
+
+  .badge, .tag, .mobile-palace-badge {
+    font-size: var(--text-xs) !important;
+  }
+
+  /* ── Override inline small font-sizes in JS templates to match Kỳ Môn large text scale ── */
+  [style*="font-size:0.6"],
+  [style*="font-size: 0.6"],
+  [style*="font-size:0.65"],
+  [style*="font-size: 0.65"],
+  [style*="font-size:0.68"],
+  [style*="font-size: 0.68"],
+  [style*="font-size:0.7"],
+  [style*="font-size: 0.7"],
+  [style*="font-size:0.72"],
+  [style*="font-size: 0.72"],
+  [style*="font-size:0.75"],
+  [style*="font-size: 0.75"],
+  [style*="font-size:0.78"],
+  [style*="font-size: 0.78"],
+  [style*="font-size:0.8"],
+  [style*="font-size: 0.8"],
+  [style*="font-size:0.82"],
+  [style*="font-size: 0.82"],
+  [style*="font-size:0.85"],
+  [style*="font-size: 0.85"] {
+    font-size: var(--text-sm) !important;
+  }
+
+  [style*="font-size:0.88"],
+  [style*="font-size: 0.88"],
+  [style*="font-size:0.9"],
+  [style*="font-size: 0.9"],
+  [style*="font-size:0.95"],
+  [style*="font-size: 0.95"] {
+    font-size: var(--text-base) !important;
+  }
+
+  /* Parity with Kỳ Môn page header & sub-tabs */
+  .page-title {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+  }
+
+  .page-subtitle {
+    font-size: 1.05rem !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .btn-tab {
+    font-size: 1.02rem !important;
+    font-weight: 700 !important;
+    padding: 10px 18px !important;
+  }
+
+  /* ── Display Utility Classes ── */
+  .mobile-only { display: block !important; }
+  .desktop-only { display: none !important; }
+  div.mobile-only, section.mobile-only { display: flex !important; }
+
   /* ── Mobile Top Header Bar ── */
   .mobile-top-bar {
     display: flex;
@@ -2353,13 +2490,16 @@ body.theme-tho {
     top: 0;
     left: 0;
     right: 0;
-    height: 56px;
-    padding: 0 var(--space-md);
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
     background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border-glass);
-    z-index: 95;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 900;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
   .mobile-brand {
@@ -2370,21 +2510,21 @@ body.theme-tho {
   }
 
   .mobile-logo {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-teal));
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     color: #fff;
-    box-shadow: 0 2px 10px rgba(var(--accent-primary-rgb), 0.3);
+    box-shadow: 0 2px 12px rgba(var(--accent-primary-rgb), 0.4);
   }
 
   .mobile-title {
     font-family: var(--font-heading);
-    font-size: var(--text-lg);
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: 0.04em;
@@ -2393,26 +2533,27 @@ body.theme-tho {
   .mobile-top-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-xs);
+    gap: var(--space-sm);
   }
 
   .mobile-lunar-badge {
-    font-size: 0.72rem;
-    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
     background: var(--accent-muted);
-    border: 1px solid var(--border-color);
-    padding: 4px 10px;
+    border: 1px solid var(--border-accent);
+    padding: 5px 12px;
     border-radius: var(--radius-full);
     white-space: nowrap;
-    max-width: 160px;
+    max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .mobile-icon-btn,
   .mobile-menu-btn {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     display: flex !important;
     align-items: center;
     justify-content: center;
@@ -2493,9 +2634,9 @@ body.theme-tho {
   }
 
   .mobile-nav-label {
-    font-size: 0.68rem;
-    font-weight: 500;
-    line-height: 1;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.1;
   }
 
   .mobile-nav-item:active {
@@ -2532,7 +2673,8 @@ body.theme-tho {
   }
 
   /* ── Stacking Grid Layouts ── */
-  .grid-2, .grid-3, .grid-4, .feature-hub-grid {
+  .grid-2, .grid-3, .grid-4, .feature-hub-grid, .form-grid,
+  [style*="grid-template-columns"]:not(.tuvi-desktop-grid) {
     grid-template-columns: 1fr !important;
     gap: var(--space-md);
   }
@@ -2756,6 +2898,131 @@ body.theme-tho {
     font-size: var(--text-base);
   }
 
+  /* ── Dedicated Mobile 12 Cung Cards View ── */
+  .tuvi-mobile-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .cung-tab-bar {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .cung-tab-bar::-webkit-scrollbar { display: none; }
+
+  .cung-tab-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .cung-tab-btn.active {
+    background: var(--accent-muted);
+    color: var(--accent-primary);
+    border-color: var(--border-accent);
+    box-shadow: 0 2px 10px rgba(var(--accent-primary-rgb), 0.2);
+  }
+
+  .mobile-palace-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mobile-palace-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobile-palace-card:active {
+    transform: scale(0.985);
+    background: var(--bg-card-hover);
+  }
+
+  .mobile-palace-card.is-menh {
+    background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.15), var(--bg-card));
+    border-color: var(--border-accent);
+    box-shadow: 0 0 16px rgba(var(--accent-primary-rgb), 0.2);
+  }
+
+  .mobile-palace-card.is-than {
+    background: linear-gradient(135deg, rgba(var(--accent-gold-rgb), 0.15), var(--bg-card));
+    border-color: var(--border-gold);
+    box-shadow: 0 0 16px rgba(var(--accent-gold-rgb), 0.2);
+  }
+
+  .mobile-palace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .mobile-palace-title {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mobile-palace-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    background: var(--accent-muted);
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  .mobile-palace-chi {
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    background: var(--bg-tertiary);
+    color: var(--accent-gold);
+    border: 1px solid var(--border-gold);
+  }
+
+  .mobile-palace-star {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 6px 0;
+  }
+
+  .mobile-palace-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-glass);
+    font-size: 0.8125rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
   /* ── iOS-style Mobile Row-Style List Items ── */
   .mobile-list-item {
     display: flex;
@@ -2848,7 +3115,7 @@ body.theme-tho {
     align-items: center;
     justify-content: flex-end;
     gap: 4px;
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-bottom: var(--space-xs);
     padding-right: 2px;
@@ -2869,8 +3136,8 @@ body.theme-tho {
   }
 
   .scroll-dot {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--text-muted);
     transition: all var(--transition-fast);
@@ -2878,21 +3145,22 @@ body.theme-tho {
 
   .scroll-dot.active {
     background: var(--accent-primary);
-    width: 14px;
+    width: 16px;
     border-radius: 3px;
   }
 
-  /* ── Tags more compact ── */
+  /* ── Tags ── */
   .tags-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 6px;
     margin-top: var(--space-xs);
   }
 
   .tag {
-    font-size: 0.68rem;
-    padding: 3px 8px;
+    font-size: var(--text-xs);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
   }
 
   /* ── Segmented Tabs: full width ── */
@@ -2904,8 +3172,8 @@ body.theme-tho {
   .segmented-tab {
     flex: 1;
     justify-content: center;
-    font-size: 0.72rem;
-    padding: 6px var(--space-sm);
+    font-size: var(--text-sm);
+    padding: 8px var(--space-sm);
     white-space: nowrap;
   }
 
@@ -3044,6 +3312,7 @@ body.theme-tho {
 
   .mobile-title {
     font-size: var(--text-base);
+    font-weight: 700;
   }
 
   .mobile-lunar-badge {
@@ -3051,29 +3320,30 @@ body.theme-tho {
   }
 
   .mobile-bottom-nav {
-    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-nav-icon {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
   }
 
   .mobile-nav-label {
-    font-size: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
   }
 
   .main-content {
-    padding: var(--space-sm) var(--space-sm) calc(68px + env(safe-area-inset-bottom, 0px)) var(--space-sm);
+    padding: var(--space-sm) var(--space-sm) calc(72px + env(safe-area-inset-bottom, 0px)) var(--space-sm);
   }
 
   .card,
   .tuvi-card,
   .stat-card {
-    padding: var(--space-sm) var(--space-md);
+    padding: var(--space-md);
   }
 
   .page-title {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
   }
 
   .card-deck-mobile .card,
@@ -3146,3 +3416,315 @@ body.theme-tho {
     box-shadow: 0 0 8px rgba(109, 40, 217, 0.45);
   }
 }
+
+/* ============================================================
+   NỘI TÂM v2.5 — COMMAND CENTER & REDESIGN SYSTEM
+   "Tân Đông Phương Cosmic" — Premium Command UI & Layout Hierarchy
+   ============================================================ */
+
+/* ── Command Center Hero Card (Today's Energy Brief) ── */
+.cmd-hero {
+  position: relative;
+  background: linear-gradient(135deg, rgba(20, 26, 48, 0.92) 0%, rgba(13, 18, 36, 0.96) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: var(--radius-lg, 20px);
+  padding: 28px 32px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 36px rgba(124, 58, 237, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-hero:hover {
+  border-color: rgba(124, 58, 237, 0.55);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.65), 0 0 45px rgba(124, 58, 237, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.cmd-hero::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  right: -10%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Hero Grid for Quick Stats ── */
+.cmd-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
+}
+.cmd-stat-box {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+.cmd-stat-box:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(124, 58, 237, 0.4);
+  transform: translateY(-2px);
+}
+.cmd-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* ── Modern Clean Nav Switcher (Tabs) ── */
+.cmd-nav-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.cmd-nav-tabs::-webkit-scrollbar {
+  display: none;
+}
+.cmd-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-family: var(--font-primary, 'Space Grotesk', sans-serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmd-nav-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+.cmd-nav-btn.active {
+  color: var(--accent-primary);
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.45);
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.2);
+}
+
+/* ── Enhanced Icon-Rail Sidebar Active States & Tooltips ── */
+.sidebar-nav .nav-item {
+  position: relative;
+}
+.sidebar-nav .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 3px;
+  background: var(--accent-primary);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 12px var(--accent-primary);
+}
+
+/* ── App Top Header Bar (Desktop & Tablet) ── */
+.app-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: rgba(7, 9, 18, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 24px;
+  border-radius: 16px;
+}
+
+@media (max-width: 768px) {
+  .cmd-hero {
+    padding: 20px 18px;
+  }
+  .cmd-hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .app-top-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE VISIBILITY & TU VI 12 CUNG STYLES
+══════════════════════════════════════════════ */
+@media (min-width: 993px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Palace Cell Hover & Card Transitions */
+.palace-cell {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.palace-cell:hover {
+  transform: translateY(-3px) scale(1.01) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.25) !important;
+}
+
+/* Tu Vi Mobile Dedicated 12 Cung Card Deck & Tabs */
+.tuvi-mobile-view {
+  width: 100%;
+}
+
+.cung-tab-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 12px 2px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cung-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.cung-tab-btn {
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cung-tab-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--accent-muted);
+}
+
+.cung-tab-btn.active {
+  background: var(--accent-muted) !important;
+  color: var(--accent-primary) !important;
+  border-color: var(--border-accent) !important;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.25);
+}
+
+.mobile-palace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.mobile-palace-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-palace-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-palace-card.is-menh {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(124, 58, 237, 0.03)) !important;
+  border: 1.5px solid var(--accent-primary) !important;
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.15);
+}
+
+.mobile-palace-card.is-than {
+  border: 1.5px solid var(--accent-gold) !important;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
+}
+
+.mobile-palace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mobile-palace-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-palace-badge {
+  font-size: 0.72rem;
+  padding: 2px 9px;
+  border-radius: 12px;
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  font-weight: 700;
+  border: 1px solid var(--border-accent);
+}
+
+.mobile-palace-chi {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.mobile-palace-star {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 6px 0;
+  font-weight: 500;
+}
+
+.mobile-palace-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+

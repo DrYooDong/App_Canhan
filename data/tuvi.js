@@ -992,12 +992,17 @@ function deleteTuViReflection(itemId, noteId) {
 }
 
 // Export for use in other modules
+window.DEFAULT_TUVI_DATA = TUVI_DATA;
+window.DEFAULT_TUVI_SECTIONS = TUVI_SECTIONS;
+window.DEFAULT_TUVI_PALACES = TUVI_PALACES;
+window.DEFAULT_ANNUAL_DYNAMICS = ANNUAL_DYNAMICS;
+
 window.TUVI_DATA = TUVI_DATA;
 window.TUVI_SECTIONS = TUVI_SECTIONS;
 window.TUVI_PALACES = TUVI_PALACES;
 window.ANNUAL_DYNAMICS = ANNUAL_DYNAMICS;
+
 window.getDynamicTuViItemContent = getDynamicTuViItemContent;
 window.getTuViReflections = getTuViReflections;
 window.saveTuViReflection = saveTuViReflection;
 window.deleteTuViReflection = deleteTuViReflection;
-

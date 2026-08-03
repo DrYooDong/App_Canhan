@@ -143,6 +143,20 @@
           item.classList.toggle('active', item.dataset.route === route);
         });
 
+        // Update Mobile Top Bar Title
+        const routeTitles = {
+          'dashboard': 'LỊCH MASTER',
+          'astrology': 'TỬ VI MỆNH BÀN',
+          'finance': 'TÀI CHÍNH LIFEOS',
+          'oracle': 'KỲ MÔN & KINH DỊCH',
+          'knowledge': 'TRI THỨC & PHẢN TƯ',
+          'search': 'TÌM KIẾM'
+        };
+        const mobileTitle = document.querySelector('.mobile-title');
+        if (mobileTitle && routeTitles[route]) {
+          mobileTitle.textContent = routeTitles[route];
+        }
+
         // Close mobile drawer if open
         document.querySelector('.sidebar')?.classList.remove('open');
         document.getElementById('sidebar-overlay')?.classList.remove('active');
@@ -461,10 +475,15 @@
   };
 
   // ── App Initialization ──
-  function initApp() {
+  async function initApp() {
     Storage.init();
     Theme.init();
     Toast.init();
+
+    if (window.SupabaseManager) {
+      const currentProfileId = window.SupabaseManager.getCurrentProfileId();
+      await window.SupabaseManager.loadProfile(currentProfileId);
+    }
 
     // Áp dụng Theme theo Ngũ Hành ngày hôm nay
     function applyDynamicTheme() {

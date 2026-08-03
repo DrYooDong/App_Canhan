@@ -36,13 +36,9 @@
 
     container.innerHTML = `
       <div class="finance-hub animate-fade-in">
-        <div class="tabs-header" style="display:flex;gap:12px;margin-bottom:24px;border-bottom:1px solid var(--border-color);padding-bottom:12px;flex-wrap:wrap;">
-          <button class="btn btn-tab ${activeFinanceTab === 'timing' ? 'active' : ''}" data-tab="timing" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeFinanceTab === 'timing' ? 'var(--accent-muted)' : 'transparent'};color:${activeFinanceTab === 'timing' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeFinanceTab === 'timing' ? 'var(--border-accent)' : 'transparent'};">
-            <span>💰</span> Timing Đầu Tư Ngũ Hành
-          </button>
-          <button class="btn btn-tab ${activeFinanceTab === 'retroverify' ? 'active' : ''}" data-tab="retroverify" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-weight:600;background:${activeFinanceTab === 'retroverify' ? 'var(--accent-muted)' : 'transparent'};color:${activeFinanceTab === 'retroverify' ? 'var(--accent-primary)' : 'var(--text-secondary)'};border:1px solid ${activeFinanceTab === 'retroverify' ? 'var(--border-accent)' : 'transparent'};">
-            <span>📊</span> Đối Chiếu Dự Đoán vs Thực Tế
-          </button>
+        <div class="tabs-header">
+          <button class="btn btn-tab ${activeFinanceTab === 'timing' ? 'active' : ''}" data-tab="timing"><span>💰</span> Timing Đầu Tư Ngũ Hành</button>
+          <button class="btn btn-tab ${activeFinanceTab === 'retroverify' ? 'active' : ''}" data-tab="retroverify"><span>📊</span> Đối Chiếu Dự Đoán vs Thực Tế</button>
         </div>
 
         <div id="finance-sub-content"></div>

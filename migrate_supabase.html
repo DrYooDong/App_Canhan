@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Cập nhật Dữ liệu Tử Vi lên Supabase</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #121212; color: #fff; }
+    .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px; }
+    input, button { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+    button { background: #4CAF50; color: white; border: none; cursor: pointer; font-weight: bold; }
+    button:hover { background: #45a049; }
+    #log { margin-top: 20px; white-space: pre-wrap; background: #000; padding: 10px; border-radius: 4px; font-family: monospace; color: #0f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Công cụ Migrate Dữ Liệu Lá Số Lên Supabase</h2>
+    <p>Script này sẽ lấy dữ liệu cứng hiện tại từ <code>data/tuvi.js</code> và đẩy lên bảng <code>astrology_profiles</code> trên Supabase.</p>
+    
+    <label>Supabase URL:</label>
+    <input type="text" id="supabase-url" placeholder="https://xyzcompany.supabase.co">
+    
+    <label>Supabase Anon Key:</label>
+    <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    
+    <label>Tên Hồ Sơ (VD: Dương Nam):</label>
+    <input type="text" id="profile-name" value="Bản thân (Mặc định)">
+
+    <label>Giới tính:</label>
+    <input type="text" id="profile-gender" value="Dương Nam">
+    
+    <button id="btn-migrate">Tải Lên Supabase</button>
+    
+    <div id="log">Chờ thực hiện...</div>
+  </div>
+
+  <!-- Nạp cấu trúc dữ liệu -->
+  <script src="data/tuvi.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    function logMsg(msg) {
+      document.getElementById('log').innerText += '\n> ' + msg;
+    }
+
+    document.getElementById('btn-migrate').addEventListener('click', async () => {
+      const url = document.getElementById('supabase-url').value.trim();
+      const key = document.getElementById('supabase-key').value.trim();
+      const name = document.getElementById('profile-name').value.trim();
+      const gender = document.getElementById('profile-gender').value.trim();
+
+      if (!url || !key) {
+        alert("Vui lòng nhập Supabase URL và Key!");
+        return;
+      }
+
+      document.getElementById('log').innerText = 'Bắt đầu quá trình...';
+      
+      try {
+        const supabase = supabaseClient.createClient(url, key);
+        
+        logMsg("Đang kết nối Supabase...");
+        
+        const payload = {
+          name: name,
+          gender: gender,
+          tuvi_data: window.TUVI_DATA,
+          tuvi_palaces: window.TUVI_PALACES,
+          annual_dynamics: window.ANNUAL_DYNAMICS,
+          tuvi_sections: window.TUVI_SECTIONS
+        };
+        
+        logMsg("Đang đẩy dữ liệu lên bảng astrology_profiles...");
+        
+        const { data, error } = await supabase
+          .from('astrology_profiles')
+          .insert([payload])
+          .select();
+          
+        if (error) throw error;
+        
+        logMsg("✅ THÀNH CÔNG! Đã lưu hồ sơ với ID: " + data[0].id);
+        logMsg("Bây giờ bạn hãy copy URL và Key vào file data/supabase_client.js để ứng dụng có thể lấy được dữ liệu này.");
+        
+      } catch (err) {
+        logMsg("❌ LỖI: " + err.message);
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -634,11 +634,12 @@ window.AstrologyLogic = (function() {
     let lT_idx = CUNG_IDX[luuLocTonCung];
     let tM_idx = luuThienMaCung ? CUNG_IDX[luuThienMaCung] : -1;
     
-    if (lT_idx === userChart.menh_cung_idx || lT_idx === userChart.tai_bach_idx || lT_idx === userChart.quan_loc_idx) {
+    const chart = (userChart && userChart.tu_vi_chart) ? userChart.tu_vi_chart : (userChart || {});
+    if (lT_idx === chart.menh_cung_idx || lT_idx === chart.tai_bach_idx || lT_idx === chart.quan_loc_idx) {
       score += 25;
       highlights.push(`Lưu Lộc Tồn chiếu Tam hợp Mệnh/Tài/Quan`);
     }
-    if (tM_idx === userChart.thien_di_idx) {
+    if (tM_idx === chart.thien_di_idx) {
       score += 15;
       highlights.push(`Lưu Thiên Mã chiếu cung Thiên Di (Tốt đi xa)`);
     }
@@ -1860,6 +1861,902 @@ window.AstrologyLogic = (function() {
         return { phase: '🌗 Hạ Huyền (19 - 25)', title: 'Buông Bỏ & Tối Ưu', question: 'Gần đây điều gì đang làm kiệt sức mà tôi cần buông bỏ?' };
       } else {
         return { phase: '🌑 Hối (26 - 30)', title: 'Chiêm Nghiệm & Đúc Kết', question: 'Bài học đắt giá nhất tôi gặt hái được trong chu kỳ vừa qua là gì?' };
+      }
+    },
+
+    // ============================================
+    // --- MODULE THẦN SỐ HỌC (NUMEROLOGY) ---
+    // ============================================
+    Numerology: {
+      reduceNumber(num, preserveMaster = true) {
+        let n = parseInt(num) || 0;
+        while (n > 9) {
+          if (preserveMaster && (n === 11 || n === 22 || n === 33)) break;
+          n = n.toString().split('').reduce((sum, d) => sum + parseInt(d), 0);
+        }
+        return n;
+      },
+
+      calculateLifePath(day, month, year) {
+        const d = this.reduceNumber(day, true);
+        const m = this.reduceNumber(month, true);
+        const y = this.reduceNumber(year, true);
+        return this.reduceNumber(d + m + y, true);
+      },
+
+      calculateBirthdayNumber(day) {
+        return this.reduceNumber(day, true);
+      },
+
+      calculateAttitudeNumber(day, month) {
+        return this.reduceNumber(parseInt(day) + parseInt(month), false);
+      },
+
+      calculatePersonalYear(day, month, targetYear = 2026) {
+        const d = this.reduceNumber(day, false);
+        const m = this.reduceNumber(month, false);
+        const y = this.reduceNumber(targetYear, false);
+        return this.reduceNumber(d + m + y, false);
+      },
+
+      calculateBirthGrid(day, month, year) {
+        const str = `${day}${month}${year}`.replace(/\D/g, '');
+        const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+        for (let char of str) {
+          if (counts[char] !== undefined) counts[char]++;
+        }
+
+        const lines = [
+          { name: 'Mũi Tên Trí Tuệ (3-6-9)', has: counts[3] > 0 && counts[6] > 0 && counts[9] > 0, desc: 'Tư duy sắc bén, trí nhớ tốt và khả năng sáng tạo vượt trội.' },
+          { name: 'Mũi Tên Trải Nghiệm (1-4-7)', has: counts[1] > 0 && counts[4] > 0 && counts[7] > 0, desc: 'Thực tế, thích hành động và kiên trì rèn luyện từ trải nghiệm.' },
+          { name: 'Mũi Tên Cảm Xúc (2-5-8)', has: counts[2] > 0 && counts[5] > 0 && counts[8] > 0, desc: 'Cân bằng cảm xúc tốt, giàu tình cảm và trực giác nhạy bén.' },
+          { name: 'Mũi Tên Ý Chí (1-5-9)', has: counts[1] > 0 && counts[5] > 0 && counts[9] > 0, desc: 'Quyết đoán, kiên trì theo đuổi mục tiêu đến cùng.' },
+          { name: 'Mũi Tên Tâm Linh (3-5-7)', has: counts[3] > 0 && counts[5] > 0 && counts[7] > 0, desc: 'Thấu hiểu tâm linh, coi trọng trải nghiệm tri thức cuộc sống.' }
+        ];
+
+        return { counts, lines };
+      },
+
+      getNumerologyDict() {
+        return {
+          1: {
+            title: 'Số 1 — Nhà Lãnh Đạo Tiên Phong',
+            element: 'Dương Kim / Hỏa',
+            keyword: 'Độc lập, Quyết đoán, Tự chủ, Sáng tạo',
+            strengths: ['Khả năng tự chủ cao', 'Tự tin dẫn đầu', 'Tư duy độc lập'],
+            weaknesses: ['Dễ bảo thủ, độc đoán', 'Khó lắng nghe ý kiến người khác'],
+            advice: 'Rèn tính khiêm tốn, học cách lắng nghe và đồng hành cùng tập thể.',
+            personalYearMeaning: 'Năm bắt đầu chu kỳ 9 năm mới. Thời điểm lý tưởng để gieo hạt, khởi công dự án và định hình mục tiêu mới.'
+          },
+          2: {
+            title: 'Số 2 — Nhà Hòa Giải & Kết Nối',
+            element: 'Âm Mộc / Thủy',
+            keyword: 'Lắng nghe, Lắng dịu, Hòa hợp, Trực giác',
+            strengths: ['Tình cảm sâu sắc', 'Khả năng chữa lành', 'Hợp tác nhu hòa'],
+            weaknesses: ['Dễ bị tổn thương', 'Lệ thuộc cảm xúc vào môi trường'],
+            advice: 'Giữ vững ranh giới cá nhân, nuôi dưỡng sự tự tin nội tại.',
+            personalYearMeaning: 'Năm kết nối & kiên nhẫn. Tập trung củng cố mối quan hệ, lắng nghe cảm xúc và hợp tác thay vì vội vã.'
+          },
+          3: {
+            title: 'Số 3 — Nhà Truyền Cảm Hứng & Sáng Tạo',
+            element: 'Dương Mộc / Hỏa',
+            keyword: 'Giao tiếp, Hài hước, Sáng tạo, Tự do',
+            strengths: ['Năng lượng tích cực', 'Khả năng diễn đạt xuất sắc', 'Sáng tạo vô hạn'],
+            weaknesses: ['Hời hợt, dễ mất tập trung', 'Nhiệt tình lúc đầu nhưng mau nản'],
+            advice: 'Tập trung chuyên sâu vào 1-2 mục tiêu thay vì phân tán nguồn lực.',
+            personalYearMeaning: 'Năm học tập & thể hiện. Mở rộng tri thức, học thêm kỹ năng mới và tự do sáng tạo nghệ thuật/truyền thông.'
+          },
+          4: {
+            title: 'Số 4 — Nhà Kiến Tạo Kỷ Luật & Thực Năng',
+            element: 'Dương Thổ / Kim',
+            keyword: 'Kỷ luật, Cẩn trọng, Thực tế, Hệ thống',
+            strengths: ['Tổ chức bài bản', 'Trung thực, vững chãi', 'Chi tiết và tỉ mỉ'],
+            weaknesses: ['Cứng nhắc, ngần ngại thay đổi', 'Hay lo lắng quá mức'],
+            advice: 'Linh hoạt thích ứng với biến động, mở rộng góc nhìn mới.',
+            personalYearMeaning: 'Năm củng cố nền tảng & kỷ luật. Dọn dẹp tài chính, xây dựng thói quen lành mạnh và làm việc chăm chỉ.'
+          },
+          5: {
+            title: 'Số 5 — Nhà Khai Phá & Tự Do',
+            element: 'Dương Hỏa / Thủy',
+            keyword: 'Thích ứng, Trải nghiệm, Đột phá, Linh hoạt',
+            strengths: ['Thích ứng nhanh', 'Giàu năng lượng khám phá', 'Linh hoạt'],
+            weaknesses: ['Thiếu kiên nhẫn', 'Dễ sa đà vào sự vô kỷ luật'],
+            advice: 'Tự do trong khuôn khổ, duy trì cam kết lâu dài.',
+            personalYearMeaning: 'Năm thay đổi & đột phá. Đón nhận cơ hội mới, du lịch, mở rộng trải nghiệm và thay đổi tư duy.'
+          },
+          6: {
+            title: 'Số 6 — Nhà Trị Liệu & Phụng Sự Gia Đạo',
+            element: 'Âm Thổ / Mộc',
+            keyword: 'Trách nhiệm, Yêu thương, Phụng sự, Gia đình',
+            strengths: ['Giàu tình thương', 'Chăm sóc chu đáo', 'Thẩm mỹ cao'],
+            weaknesses: ['Hay ôm đồm công việc', 'Kiểm soát vì muốn tốt cho người khác'],
+            advice: 'Học cách yêu thương bản thân trước khi gánh vác cho người khác.',
+            personalYearMeaning: 'Năm của gia đình & tình thân. Trầm tĩnh chăm sóc tổ ấm, vun vén mối quan hệ và nhận trách nhiệm lớn.'
+          },
+          7: {
+            title: 'Số 7 — Nhà Triết Gia & Khai Sáng Tri Thức',
+            element: 'Dương Thủy / Kim',
+            keyword: 'Nghiên cứu, Trực giác, Chiêm nghiệm, Tri thức',
+            strengths: ['Phân tích sắc bén', 'Khai phá chân lý', 'Độc lập nội tâm'],
+            weaknesses: ['Dễ cô lập bản thân', 'Hay nghi ngờ và khép kín'],
+            advice: 'Chia sẻ góc nhìn tri thức ra bên ngoài, kết nối hòa đồng.',
+            personalYearMeaning: 'Năm quay vào bên trong & chiêm nghiệm. Tối ưu tri thức, thiền định và làm rõ mục đích sống.'
+          },
+          8: {
+            title: 'Số 8 — Nhà Điều Hành & Tạo Tác Tài Chính',
+            element: 'Dương Thổ / Kim',
+            keyword: 'Tài chính, Quản trị, Quyền lực, Cân bằng',
+            strengths: ['Tư duy chiến lược lớn', 'Quản lý tài chính giỏi', 'Nghị lực kiên cường'],
+            weaknesses: ['Thực dụng quá mức', 'Dễ căng thẳng công việc'],
+            advice: 'Cân bằng giữa thành tựu vật chất và sự bình an tâm linh.',
+            personalYearMeaning: 'Năm gặt hái tài chính & sự nghiệp. Thu hoạch kết quả từ sự kiên trì, khẳng định vị thế và quản trị nguồn lực.'
+          },
+          9: {
+            title: 'Số 9 — Nhà Nhân Đạo & Hoàn Thiện Chu Kỳ',
+            element: 'Dương Hỏa / Thủy',
+            keyword: 'Bao dung, Lý tưởng, Phụng sự xã hội, Dứt điểm',
+            strengths: ['Tầm nhìn rộng lớn', 'Lòng nhân ái bao la', 'Ước mơ cao đẹp'],
+            weaknesses: ['Dễ mơ mộng xa rời thực tế', 'Níu kéo quá khứ'],
+            advice: 'Buông bỏ những gì đã cũ để chuẩn bị cho chu kỳ khởi đầu mới.',
+            personalYearMeaning: 'Năm thanh lọc & hoàn thành. Buông bỏ mục tiêu đã cũ, dọn dẹp nội tâm, làm từ thiện và dứt điểm tồn đọng.'
+          },
+          11: {
+            title: 'Số 11/2 — Bậc Thầy Trực Giác & Sứ Giả Tâm Linh (Master)',
+            element: 'Hỏa Thủy Tương Tế',
+            keyword: 'Trực giác nhạy bén, Khai sáng, Nhạy cảm, Sứ mệnh',
+            strengths: ['Trực giác cực nhạy', 'Truyền cảm hứng mạnh mẽ', 'Tầm nhìn tâm linh'],
+            weaknesses: ['Áp lực nội tâm lớn', 'Dễ quá tải cảm xúc'],
+            advice: 'Thực hành thiền định, giữ tâm bình an trước biến động.',
+            personalYearMeaning: 'Năm bừng tỉnh tâm linh và nhận thức sâu sắc về bản thân.'
+          },
+          22: {
+            title: 'Số 22/4 — Bậc Thầy Kiến Tạo Tầm Vóc (Master Builder)',
+            element: 'Kim Thổ Vững Chãi',
+            keyword: 'Kiến tạo quy mô lớn, Tầm nhìn xa, Thực thi kỷ luật',
+            strengths: ['Khả năng biến ước mơ thành hiện thực lớn', 'Quản trị vĩ mô'],
+            weaknesses: ['Gánh nặng trách nhiệm quá lớn', 'Căng thẳng tột độ'],
+            advice: 'Phân chia công việc, tin tưởng vào cộng sự.',
+            personalYearMeaning: 'Năm đặt móng cho những công trình / sự nghiệp mang tầm vóc lâu dài.'
+          },
+          33: {
+            title: 'Số 33/6 — Bậc Thầy Chữa Lành & Yêu Thương Vô Điều Kiện',
+            element: 'Thổ Mộc Hòa Hợp',
+            keyword: 'Lòng từ bi, Chữa lành cộng đồng, Phụng sự nhân sinh',
+            strengths: ['Năng lượng yêu thương ấm áp', 'Khả năng cảm hóa lòng người'],
+            weaknesses: ['Hy sinh quên mình dẫn đến kiệt sức'],
+            advice: 'Yêu thương bản thân đúng cách để có năng lượng phụng sự bền vững.',
+          }
+        };
+      },
+
+      getEasternWesternSynergy(lifePathNum, userProfile = {}) {
+        const dict = this.getNumerologyDict();
+        const lpInfo = dict[lifePathNum] || dict[8];
+        const hanhMenh = userProfile.hanhMenh || 'Kim';
+        const canNam = userProfile.canNam || 'Canh';
+        const chiNam = userProfile.chiNam || 'Thìn';
+
+        return {
+          title: `Cộng Hưởng Năng Lượng: Mệnh ${hanhMenh} (${canNam} ${chiNam}) ☯ Số Chủ Đạo ${lifePathNum}`,
+          summary: `Lá số Tử Vi của bạn mang bản mệnh ${hanhMenh} (Canh Thìn - Đồng Âm cư Tý), khi kết hợp cùng năng lượng ${lpInfo.title.split('—')[1] || ''} tạo nên sự đan xen độc đáo giữa tính cách cảm xúc nội tâm và mục tiêu phát triển thực tế.`,
+          synergyAdvice: `Hãy tận dụng sự thấu hiểu từ Mệnh bàn Tử Vi kết hợp với ${lpInfo.keyword} của Số Chủ Đạo ${lifePathNum} để cải mệnh, tối ưu năng lượng mỗi ngày.`
+        };
+      }
+    },
+
+    // ============================================
+    // --- MODULE TỨ TRỤ BÁT TỰ & GIỜ MẶT TRỜI THỰC ---
+    // ============================================
+    FourPillars: {
+      // Bảng Tàng Can trong 12 Địa Chi
+      HIDDEN_STEMS: {
+        "Tý": ["Quý"],
+        "Sửu": ["Kỷ", "Quý", "Tân"],
+        "Dần": ["Giáp", "Bính", "Mậu"],
+        "Mão": ["Ất"],
+        "Thìn": ["Mậu", "Ất", "Quý"],
+        "Tỵ": ["Bính", "Mậu", "Canh"],
+        "Ngọ": ["Đinh", "Kỷ"],
+        "Mùi": ["Kỷ", "Đinh", "Ất"],
+        "Thân": ["Canh", "Nhâm", "Mậu"],
+        "Dậu": ["Tân"],
+        "Tuất": ["Mậu", "Tân", "Đinh"],
+        "Hợi": ["Nhâm", "Giáp"]
+      },
+
+      // Bảng Địa Danh Việt Nam & Quốc Tế
+      LOCATIONS: [
+        { name: 'Hà Nội, Việt Nam', lat: 21.0285, lng: 105.8333, tz: 7 },
+        { name: 'TP. Hồ Chí Minh, Việt Nam', lat: 10.8231, lng: 106.6297, tz: 7 },
+        { name: 'Đà Nẵng, Việt Nam', lat: 16.0544, lng: 108.2022, tz: 7 },
+        { name: 'Hải Phòng, Việt Nam', lat: 20.8449, lng: 106.6881, tz: 7 },
+        { name: 'Cần Thơ, Việt Nam', lat: 10.0452, lng: 105.7469, tz: 7 },
+        { name: 'Huế, Việt Nam', lat: 16.4637, lng: 107.5909, tz: 7 },
+        { name: 'Nha Trang, Khánh Hòa', lat: 12.2388, lng: 109.1967, tz: 7 },
+        { name: 'Đà Lạt, Lâm Đồng', lat: 11.9404, lng: 108.4583, tz: 7 },
+        { name: 'Vũng Tàu, Ba Rịa', lat: 10.3460, lng: 107.0843, tz: 7 },
+        { name: 'Quy Nhơn, Bình Định', lat: 13.7820, lng: 109.2194, tz: 7 },
+        { name: 'Buôn Ma Thuột, Đắk Lắk', lat: 12.6667, lng: 108.0333, tz: 7 },
+        { name: 'Thanh Hóa, Việt Nam', lat: 19.8067, lng: 105.7852, tz: 7 },
+        { name: 'Vinh, Nghệ An', lat: 18.6734, lng: 105.6813, tz: 7 },
+        { name: 'Hạ Long, Quảng Ninh', lat: 20.9505, lng: 107.0734, tz: 7 },
+        { name: 'Tokyo, Nhật Bản', lat: 35.6762, lng: 139.6503, tz: 9 },
+        { name: 'Seoul, Hàn Quốc', lat: 37.5665, lng: 126.9780, tz: 9 },
+        { name: 'Bắc Kinh, Trung Quốc', lat: 39.9042, lng: 116.4074, tz: 8 },
+        { name: 'Paris, Pháp', lat: 48.8566, lng: 2.3522, tz: 1 },
+        { name: 'London, Anh', lat: 51.5074, lng: -0.1278, tz: 0 },
+        { name: 'New York, Mỹ', lat: 40.7128, lng: -74.0060, tz: -5 },
+        { name: 'California, Mỹ', lat: 36.7783, lng: -119.4179, tz: -8 }
+      ],
+
+      // 1. Tính Phương Trình Thời Gian EoT (Equation of Time - Jean Meeus Algorithm)
+      calculateEquationOfTime(dateObj) {
+        const startOfYear = new Date(dateObj.getFullYear(), 0, 1);
+        const dayOfYear = Math.floor((dateObj - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
+        const B = (2 * Math.PI * (dayOfYear - 81)) / 365;
+        const eotMinutes = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+        return eotMinutes;
+      },
+
+      // 2. Tính Giờ Mặt Trời Thực (True Solar Time)
+      calculateTrueSolarTime(civilDateObj, lng = 105.8333, tz = 7) {
+        const stdMeridian = tz * 15;
+        const lngCorrectionMinutes = (lng - stdMeridian) * 4;
+        const eotMinutes = this.calculateEquationOfTime(civilDateObj);
+        const totalDeltaMinutes = lngCorrectionMinutes + eotMinutes;
+
+        const trueSolarDateObj = new Date(civilDateObj.getTime() + totalDeltaMinutes * 60000);
+        
+        // Tính giờ chính ngọ local (Local Noon)
+        const localNoonMinutes = 12 * 60 - totalDeltaMinutes;
+        const noonH = Math.floor(localNoonMinutes / 60);
+        const noonM = Math.round(localNoonMinutes % 60);
+        const noonStr = `${noonH.toString().padStart(2, '0')}:${noonM.toString().padStart(2, '0')}`;
+
+        return {
+          trueSolarDate: trueSolarDateObj,
+          deltaMinutes: Math.round(totalDeltaMinutes * 10) / 10,
+          noonStr
+        };
+      },
+
+      // 3. Tính Thập Thần (Ten Gods)
+      getTenGod(dayMasterCan, otherCan) {
+        if (!dayMasterCan || !otherCan) return '';
+
+        const CAN_HANH = {
+          "Giáp": { hanh: "Mộc", amDuong: "Dương" }, "Ất": { hanh: "Mộc", amDuong: "Âm" },
+          "Bính": { hanh: "Hỏa", amDuong: "Dương" }, "Đinh": { hanh: "Hỏa", amDuong: "Âm" },
+          "Mậu": { hanh: "Thổ", amDuong: "Dương" }, "Kỷ": { hanh: "Thổ", amDuong: "Âm" },
+          "Canh": { hanh: "Kim", amDuong: "Dương" }, "Tân": { hanh: "Kim", amDuong: "Âm" },
+          "Nhâm": { hanh: "Thủy", amDuong: "Dương" }, "Quý": { hanh: "Thủy", amDuong: "Âm" }
+        };
+
+        const SINH = { "Mộc": "Hỏa", "Hỏa": "Thổ", "Thổ": "Kim", "Kim": "Thủy", "Thủy": "Mộc" };
+        const KHAC = { "Mộc": "Thổ", "Thổ": "Thủy", "Thủy": "Hỏa", "Hỏa": "Kim", "Kim": "Mộc" };
+
+        const dm = CAN_HANH[dayMasterCan];
+        const ot = CAN_HANH[otherCan];
+        if (!dm || !ot) return '';
+
+        const samePolarity = dm.amDuong === ot.amDuong;
+
+        if (dm.hanh === ot.hanh) {
+          return samePolarity ? "Tỷ Kiên" : "Kiếp Tài";
+        } else if (SINH[dm.hanh] === ot.hanh) {
+          return samePolarity ? "Thực Thần" : "Thương Quan";
+        } else if (KHAC[dm.hanh] === ot.hanh) {
+          return samePolarity ? "Thiên Tài" : "Chính Tài";
+        } else if (KHAC[ot.hanh] === dm.hanh) {
+          return samePolarity ? "Thất Sát" : "Chính Quan";
+        } else if (SINH[ot.hanh] === dm.hanh) {
+          return samePolarity ? "Thiên Ấn" : "Chính Ấn";
+        }
+        return '';
+      },
+
+      // 4. Tính Tứ Trụ Bát Tự Đầy Đủ
+      calculateFourPillars(dateObj, lng = 105.8333, tz = 7) {
+        const { trueSolarDate, deltaMinutes, noonStr } = this.calculateTrueSolarTime(dateObj, lng, tz);
+
+        let canNam = "Canh", chiNam = "Thìn";
+        let canThang = "Bính", chiThang = "Thìn";
+        let canNgay = "Giáp", chiNgay = "Tuất";
+        let canGio = "Canh", chiGio = "Tuất";
+
+        if (typeof Lunar !== 'undefined') {
+          try {
+            const lunar = Lunar.fromDate(trueSolarDate);
+            const AL = window.AstrologyLogic;
+            canNam = AL.CAN[lunar.getYearGanIndex()] || "Canh";
+            chiNam = AL.CUNG[lunar.getYearZhiIndex()] || "Thìn";
+
+            canThang = AL.CAN[lunar.getMonthGanIndex()] || "Bính";
+            chiThang = AL.CUNG[lunar.getMonthZhiIndex()] || "Thìn";
+
+            canNgay = AL.CAN[lunar.getDayGanIndex()] || "Giáp";
+            chiNgay = AL.CUNG[lunar.getDayZhiIndex()] || "Tuất";
+
+            // Giờ Chi
+            const h = trueSolarDate.getHours();
+            const zhiIndex = Math.floor((h + 1) / 2) % 12;
+            chiGio = AL.CUNG[zhiIndex] || "Tý";
+
+            // Giờ Can: Ngũ Tử Hoàn
+            const dayGanIdx = lunar.getDayGanIndex();
+            const ganIndex = (dayGanIdx * 2 + zhiIndex) % 10;
+            canGio = AL.CAN[ganIndex] || "Giáp";
+          } catch (e) {
+            console.error("Lunar conversion error in FourPillars:", e);
+          }
+        }
+
+        const dayMaster = canNgay; // Nhật Nguyên (Thiên Can Ngày)
+
+        // Tính Thập Thần cho từng Can & Tàng Can
+        const getPillarDetail = (can, chi) => {
+          const tenGod = can === dayMaster ? "Nhật Nguyên" : this.getTenGod(dayMaster, can);
+          const hidden = (this.HIDDEN_STEMS[chi] || []).map(stem => ({
+            stem,
+            tenGod: this.getTenGod(dayMaster, stem)
+          }));
+          return { can, chi, tenGod, hidden };
+        };
+
+        const yearPillar = getPillarDetail(canNam, chiNam);
+        const monthPillar = getPillarDetail(canThang, chiThang);
+        const dayPillar = getPillarDetail(canNgay, chiNgay);
+        let lunarDay = dateObj.getDate();
+        let lunarMonth = dateObj.getMonth() + 1;
+        if (typeof Lunar !== 'undefined') {
+          try {
+            const l = Lunar.fromDate(trueSolarDate);
+            lunarDay = l.getDay();
+            lunarMonth = l.getMonth();
+          } catch(e) {}
+        }
+
+        return {
+          civilDate: dateObj,
+          trueSolarDate,
+          deltaMinutes,
+          noonStr,
+          dayMaster,
+          lunarDay,
+          lunarMonth,
+          pillars: {
+            year: yearPillar,
+            month: monthPillar,
+            day: dayPillar,
+            hour: hourPillar
+          }
+        };
+      }
+    },
+
+    // ============================================
+    // 4. TU VI ENGINE (Tử Vi Đẩu Số Việt Nam)
+    // ============================================
+    TuViEngine: {
+      CUNG_NAMES: ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"],
+      CAN_NAMES: ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"],
+      PALACE_IDS: ["menh", "huynh-de", "phu-the", "tu-tuc", "tai-bach", "tat-ach", "thien-di", "no-boc", "quan-loc", "dien-trach", "phuc-duc", "phu-mau"],
+      PALACE_TITLES: ["Mệnh Bàn", "Huynh Đệ", "Phu Thê", "Tử Tức", "Tài Bạch", "Tật Ách", "Thiên Di", "Nô Bộc", "Quan Lộc", "Điền Trạch", "Phúc Đức", "Phụ Mẫu"],
+
+      // Vị trí cố định 12 Địa Chi trên lưới 4x4 Bàn Số Tử Vi truyền thống
+      POS_MAP: [
+        'grid-column:3;grid-row:4;', // 0: Tý
+        'grid-column:2;grid-row:4;', // 1: Sửu
+        'grid-column:1;grid-row:4;', // 2: Dần
+        'grid-column:1;grid-row:3;', // 3: Mão
+        'grid-column:1;grid-row:2;', // 4: Thìn
+        'grid-column:1;grid-row:1;', // 5: Tỵ
+        'grid-column:2;grid-row:1;', // 6: Ngọ
+        'grid-column:3;grid-row:1;', // 7: Mùi
+        'grid-column:4;grid-row:1;', // 8: Thân
+        'grid-column:4;grid-row:2;', // 9: Dậu
+        'grid-column:4;grid-row:3;', // 10: Tuất
+        'grid-column:4;grid-row:4;'  // 11: Hợi
+      ],
+
+      // Từ điển độ sáng 14 Chính Tinh trên 12 cung Tý (0) -> Hợi (11)
+      BRIGHTNESS_TABLE: {
+        "Tử Vi":      ["B", "Đ", "M", "B", "V", "M", "M", "Đ", "M", "B", "V", "B"],
+        "Thiên Cơ":   ["Đ", "Đ", "H", "V", "B", "B", "Đ", "Đ", "H", "V", "B", "B"],
+        "Thái Dương": ["H", "H", "V", "V", "V", "V", "M", "Đ", "B", "H", "H", "H"],
+        "Vũ Khúc":    ["V", "M", "V", "Đ", "M", "B", "V", "M", "V", "Đ", "M", "B"],
+        "Thiên Đồng": ["V", "H", "M", "Đ", "H", "M", "H", "H", "M", "B", "H", "Đ"],
+        "Liêm Trinh": ["B", "Đ", "M", "H", "V", "H", "B", "Đ", "M", "H", "V", "H"],
+        "Thiên Phủ":  ["M", "M", "M", "B", "M", "Đ", "V", "M", "M", "B", "M", "Đ"],
+        "Thái Âm":    ["V", "Đ", "H", "H", "H", "H", "H", "B", "Đ", "V", "V", "M"],
+        "Tham Lang":  ["H", "M", "Đ", "H", "V", "H", "H", "M", "Đ", "H", "V", "H"],
+        "Cự Môn":     ["V", "H", "M", "M", "H", "B", "V", "H", "M", "M", "H", "B"],
+        "Thiên Tướng":["V", "Đ", "M", "H", "V", "Đ", "V", "Đ", "M", "H", "V", "Đ"],
+        "Thiên Lương":["M", "Đ", "V", "V", "M", "H", "M", "Đ", "V", "Đ", "M", "H"],
+        "Thất Sát":   ["M", "Đ", "M", "H", "Đ", "B", "M", "Đ", "M", "H", "Đ", "B"],
+        "Phá Quân":   ["M", "V", "H", "H", "B", "Đ", "M", "V", "H", "H", "B", "Đ"]
+      },
+
+      // Tứ Hóa theo Can năm sinh
+      TU_HOA_TABLE: {
+        "Giáp": { "Liêm Trinh": "Lộc", "Phá Quân": "Quyền", "Vũ Khúc": "Khoa", "Thái Dương": "Kỵ" },
+        "Ất":   { "Thiên Cơ": "Lộc", "Thiên Lương": "Quyền", "Tử Vi": "Khoa", "Thái Âm": "Kỵ" },
+        "Bính": { "Thiên Đồng": "Lộc", "Thiên Cơ": "Quyền", "Văn Xương": "Khoa", "Liêm Trinh": "Kỵ" },
+        "Đinh": { "Thái Âm": "Lộc", "Thiên Đồng": "Quyền", "Thiên Cơ": "Khoa", "Cự Môn": "Kỵ" },
+        "Mậu":  { "Tham Lang": "Lộc", "Thái Âm": "Quyền", "Hữu Bật": "Khoa", "Thiên Cơ": "Kỵ" },
+        "Kỷ":   { "Vũ Khúc": "Lộc", "Tham Lang": "Quyền", "Thiên Lương": "Khoa", "Văn Khúc": "Kỵ" },
+        "Canh": { "Thái Dương": "Lộc", "Vũ Khúc": "Quyền", "Thái Âm": "Khoa", "Thiên Đồng": "Kỵ" },
+        "Tân":  { "Cự Môn": "Lộc", "Thái Dương": "Quyền", "Văn Khúc": "Khoa", "Văn Xương": "Kỵ" },
+        "Nhâm": { "Thiên Lương": "Lộc", "Tử Vi": "Quyền", "Tả Phù": "Khoa", "Vũ Khúc": "Kỵ" },
+        "Quý":  { "Phá Quân": "Lộc", "Cự Môn": "Quyền", "Thái Âm": "Khoa", "Tham Lang": "Kỵ" }
+      },
+
+      // Tính số Cục và tên Cục theo Can Cung Mệnh & Chi Cung Mệnh
+      tinhCuc(canMenhIdx, menhChiIdx) {
+        const canGroup = Math.floor(canMenhIdx / 2) + 1; // 1..5
+        const chiGroup = Math.floor(menhChiIdx / 2) % 3; // 0, 1, 2
+        let sum = canGroup + chiGroup;
+        if (sum > 5) sum -= 5;
+        // 1=Kim(4), 2=Thủy(2), 3=Hỏa(6), 4=Thổ(5), 5=Mộc(3)
+        const map = {
+          1: { name: "Kim Tứ Cục", value: 4, hanh: "Kim" },
+          2: { name: "Thủy Nhị Cục", value: 2, hanh: "Thủy" },
+          3: { name: "Hỏa Lục Cục", value: 6, hanh: "Hỏa" },
+          4: { name: "Thổ Ngũ Cục", value: 5, hanh: "Thổ" },
+          5: { name: "Mộc Tam Cục", value: 3, hanh: "Mộc" }
+        };
+        return map[sum] || map[2];
+      },
+
+      // Tìm cung an Tử Vi từ ngày âm và số cục
+      tinhCungTuVi(ngayAm, cucValue) {
+        let X = 0;
+        while ((ngayAm + X) % cucValue !== 0) {
+          X++;
+        }
+        const Q = (ngayAm + X) / cucValue;
+        let cungIdx = (2 + Q - 1) % 12; // Khởi từ Dần (2)
+        if (X % 2 === 1) {
+          cungIdx = (cungIdx - X + 12 * 5) % 12; // Lẻ lùi X
+        } else if (X > 0) {
+          cungIdx = (cungIdx + X) % 12; // Chẵn tiến X
+        }
+        return cungIdx;
+      },
+
+      // Hàm tổng hợp an lá số Tử Vi trọn vẹn (14 Chính Tinh, Tứ Hóa, Vòng Lộc Tồn, Thái Tuế, Tuần/Triệt)
+      calculateTuViChart(configParams) {
+        const {
+          day = 3, month = 8, year = 2000,
+          hour = 21, minute = 24, gender = "Nam",
+          canNam = "Canh", chiNam = "Thìn",
+          lunarDay = 4, lunarMonth = 7
+        } = configParams || {};
+
+        const canNamIdx = Math.max(0, this.CAN_NAMES.indexOf(canNam));
+        const chiNamIdx = Math.max(0, this.CUNG_NAMES.indexOf(chiNam));
+        const gioSinhIdx = Math.floor((hour + 1) / 2) % 12; // 23h-1h là Tý (0), 1-3h Sửu (1)...
+        const thangAm = Math.max(1, Math.min(12, lunarMonth || 1));
+        const ngayAm = Math.max(1, Math.min(30, lunarDay || 1));
+
+        // 1. Tính Cung Mệnh & Cung Thân
+        const menhChiIdx = (2 + (thangAm - 1) - gioSinhIdx + 12 * 5) % 12;
+        const thanChiIdx = (2 + (thangAm - 1) + gioSinhIdx) % 12;
+
+        // 2. Tính Can Cung Mệnh theo Ngũ Hổ Độn & Ngũ Hành Cục
+        const khoiDanCanIdx = ((canNamIdx % 5) * 2 + 2) % 10;
+        const canMenhIdx = (khoiDanCanIdx + (menhChiIdx - 2 + 12) % 12) % 10;
+        const cucObj = this.tinhCuc(canMenhIdx, menhChiIdx);
+
+        // 3. Âm Dương Thuận/Nghịch Lý & Mệnh Cục Tương Quan
+        const isDuongsTuoi = (canNamIdx % 2 === 0);
+        const isDuongsMenh = (menhChiIdx % 2 === 0);
+        const amDuongLy = (isDuongsTuoi === isDuongsMenh) ? "Âm Dương Thuận Lý" : "Âm Dương Nghịch Lý";
+
+        const NGU_HANH_TUOI = {
+          "Tý": "Thủy", "Sửu": "Thổ", "Dần": "Mộc", "Mão": "Mộc", "Thìn": "Thổ", "Tỵ": "Hỏa",
+          "Ngọ": "Hỏa", "Mùi": "Thổ", "Thân": "Kim", "Dậu": "Kim", "Tuất": "Thổ", "Hợi": "Thủy"
+        };
+        const menhHanh = NGU_HANH_TUOI[chiNam] || "Kim";
+        let menhCucRel = "Mệnh Cục bình hòa (Ổn định, tự lực thành công)";
+        const SINH = { "Kim":"Thủy", "Thủy":"Mộc", "Mộc":"Hỏa", "Hỏa":"Thổ", "Thổ":"Kim" };
+        const KHAC = { "Kim":"Mộc", "Mộc":"Thổ", "Thổ":"Thủy", "Thủy":"Hỏa", "Hỏa":"Kim" };
+        if (SINH[cucObj.hanh] === menhHanh) menhCucRel = "Cục sinh Mệnh (Rất thuận lợi, được môi trường ưu ái)";
+        else if (SINH[menhHanh] === cucObj.hanh) menhCucRel = "Mệnh sinh Cục (Hào tâm, cống hiến cho xã hội)";
+        else if (KHAC[menhHanh] === cucObj.hanh) menhCucRel = "Mệnh khắc Cục (Kiên cường, vượt qua thử thách)";
+        else if (KHAC[cucObj.hanh] === menhHanh) menhCucRel = "Cục khắc Mệnh (Gian nan rèn luyện chí lớn)";
+
+        // 4. Khởi tạo mảng sao cho 12 cung Tý (0) -> Hợi (11)
+        const starsChart = Array.from({ length: 12 }, () => ({
+          mainStars: [],
+          subStars: [],
+          tuHoa: [],
+          tuanTriet: []
+        }));
+
+        const tuHoaMap = this.TU_HOA_TABLE[canNam] || {};
+
+        const addMainStar = (cungIdx, name) => {
+          const bright = (this.BRIGHTNESS_TABLE[name] || [])[cungIdx] || "B";
+          let badge = `[${bright}]`;
+          let hoa = "";
+          if (tuHoaMap[name]) {
+            hoa = tuHoaMap[name];
+            badge += ` [${hoa}]`;
+          }
+          starsChart[cungIdx].mainStars.push({ name, bright, badge, hoa });
+          if (hoa) starsChart[cungIdx].tuHoa.push(hoa);
+        };
+
+        const addSubStar = (cungIdx, name, type = "sub") => {
+          let hoa = "";
+          if (tuHoaMap[name]) {
+            hoa = tuHoaMap[name];
+            starsChart[cungIdx].tuHoa.push(hoa);
+          }
+          starsChart[cungIdx].subStars.push({ name, type, hoa });
+        };
+
+        // 5. An 14 Chính Tinh
+        const tuViIdx = this.tinhCungTuVi(ngayAm, cucObj.value);
+        const thienPhuIdx = (4 - tuViIdx + 12) % 12;
+
+        // Chòm Tử Vi (ngược chiều kim đồng hồ)
+        addMainStar(tuViIdx, "Tử Vi");
+        addMainStar((tuViIdx - 1 + 12) % 12, "Thiên Cơ");
+        addMainStar((tuViIdx - 3 + 12) % 12, "Thái Dương");
+        addMainStar((tuViIdx - 4 + 12) % 12, "Vũ Khúc");
+        addMainStar((tuViIdx - 5 + 12) % 12, "Thiên Đồng");
+        addMainStar((tuViIdx - 8 + 12) % 12, "Liêm Trinh");
+
+        // Chòm Thiên Phủ (thuận chiều kim đồng hồ)
+        addMainStar(thienPhuIdx, "Thiên Phủ");
+        addMainStar((thienPhuIdx + 1) % 12, "Thái Âm");
+        addMainStar((thienPhuIdx + 2) % 12, "Tham Lang");
+        addMainStar((thienPhuIdx + 3) % 12, "Cự Môn");
+        addMainStar((thienPhuIdx + 4) % 12, "Thiên Tướng");
+        addMainStar((thienPhuIdx + 5) % 12, "Thiên Lương");
+        addMainStar((thienPhuIdx + 6) % 12, "Thất Sát");
+        addMainStar((thienPhuIdx + 10) % 12, "Phá Quân");
+
+        // 6. An Vòng Lộc Tồn & Vòng Thái Tuế & Tuần/Triệt
+        const LOC_TON_MAP = { "Giáp": 2, "Ất": 3, "Bính": 5, "Mậu": 5, "Đinh": 6, "Kỷ": 6, "Canh": 8, "Tân": 9, "Nhâm": 11, "Quý": 0 };
+        const locTonIdx = LOC_TON_MAP[canNam] ?? 2;
+        addSubStar(locTonIdx, "Lộc Tồn", "loc-ton");
+        addSubStar((locTonIdx + 1) % 12, "Kình Dương", "sat-tinh");
+        addSubStar((locTonIdx - 1 + 12) % 12, "Đà La", "sat-tinh");
+
+        // Vòng Thái Tuế
+        addSubStar(chiNamIdx, "Thái Tuế", "thai-tue");
+        addSubStar((chiNamIdx + 2) % 12, "Tang Môn", "sat-tinh");
+        addSubStar((chiNamIdx + 6) % 12, "Tuế Phá", "sat-tinh");
+        addSubStar((chiNamIdx + 6) % 12, "Bạch Hổ", "sat-tinh");
+        addSubStar((chiNamIdx + 4) % 12, "Quan Phù", "thai-tue");
+        addSubStar((chiNamIdx + 8) % 12, "Long Đức", "phuc-tinh");
+        addSubStar((chiNamIdx + 10) % 12, "Phúc Đức", "phuc-tinh");
+
+        // Tả Phù - Hữu Bật, Văn Xương - Văn Khúc
+        addSubStar((4 + (thangAm - 1)) % 12, "Tả Phù", "phuc-tinh");
+        addSubStar((10 - (thangAm - 1) + 12) % 12, "Hữu Bật", "phuc-tinh");
+        addSubStar((4 + gioSinhIdx) % 12, "Văn Khúc", "phuc-tinh");
+        addSubStar((10 - gioSinhIdx + 12) % 12, "Văn Xương", "phuc-tinh");
+
+        // Tuần - Triệt
+        const TRIET_MAP = { 0: [8,9], 1: [6,7], 2: [4,5], 3: [2,3], 4: [0,1], 5: [8,9], 6: [6,7], 7: [4,5], 8: [2,3], 9: [0,1] };
+        const trietArr = TRIET_MAP[canNamIdx] || [8,9];
+        trietArr.forEach(idx => starsChart[idx].tuanTriet.push("Triệt"));
+
+        const tuanStart = (chiNamIdx - canNamIdx + 12) % 12;
+        const tuan1 = (tuanStart - 2 + 12) % 12;
+        const tuan2 = (tuanStart - 1 + 12) % 12;
+        starsChart[tuan1].tuanTriet.push("Tuần");
+        starsChart[tuan2].tuanTriet.push("Tuần");
+
+        // 7. Tính Cung Can & Đại Hạn 10 Năm cho 12 cung
+        // Dương Nam Nữ Âm đếm thuận, Âm Nam Nữ Dương đếm nghịch
+        const isThuanDaXian = (isDuongsTuoi && gender === "Nam") || (!isDuongsTuoi && gender !== "Nam");
+        const daXianMap = {};
+        for (let k = 0; k < 12; k++) {
+          const pBranch = isThuanDaXian ? (menhChiIdx + k) % 12 : (menhChiIdx - k + 12) % 12;
+          const startAge = cucObj.value + k * 10;
+          const endAge = startAge + 9;
+          daXianMap[pBranch] = { startAge, endAge, dxIdx: k };
+        }
+
+        // Xây dựng cấu trúc 12 Cung (theo thứ tự 0..11 Tý..Hợi để render lưới 4x4)
+        const palaces = Array.from({ length: 12 }, (_, chiIdx) => {
+          const cungFuncIdx = (menhChiIdx - chiIdx + 12) % 12;
+          const id = this.PALACE_IDS[cungFuncIdx];
+          const baseTitle = this.PALACE_TITLES[cungFuncIdx];
+          const isMenh = (cungFuncIdx === 0);
+          const isThan = (chiIdx === thanChiIdx);
+          const name = isThan && !isMenh ? `${baseTitle} (Thân)` : baseTitle;
+
+          // Cung Can (khởi Dần từ khoiDanCanIdx)
+          const stemIdx = (khoiDanCanIdx + (chiIdx - 2 + 12) % 12) % 10;
+          const stem = this.CAN_NAMES[stemIdx];
+
+          const st = starsChart[chiIdx];
+          const mainStarStr = st.mainStars.length > 0
+            ? st.mainStars.map(s => `${s.name} ${s.badge}`).join(", ")
+            : "Vô Chính Diệu";
+
+          const dxInfo = daXianMap[chiIdx] || { startAge: 0, endAge: 0, dxIdx: 0 };
+
+          return {
+            id,
+            name,
+            chi: this.CUNG_NAMES[chiIdx],
+            chiIdx,
+            branch: chiIdx,
+            stem,
+            stemIdx,
+            isMenh,
+            isThan,
+            mainStar: mainStarStr,
+            mainStarsList: st.mainStars,
+            subStarsList: st.subStars,
+            tuHoaList: st.tuHoa,
+            tuanTrietStr: st.tuanTriet.join(", "),
+            daXianAge: [dxInfo.startAge, dxInfo.endAge],
+            pos: this.POS_MAP[chiIdx]
+          };
+        });
+
+        // 8. Định vị cung Thân thuộc cung chức năng nào
+        const thanPalaceId = this.PALACE_IDS[(menhChiIdx - thanChiIdx + 12) % 12];
+
+        // 9. Danh sách Đại Hạn sắp xếp theo tuổi
+        const daXians = palaces.map(p => ({
+          startAge: p.daXianAge[0],
+          endAge: p.daXianAge[1],
+          branch: p.chiIdx,
+          name: p.name,
+          stem: p.stem,
+          stemIdx: p.stemIdx
+        })).sort((a, b) => a.startAge - b.startAge);
+
+        const currentYear = new Date().getFullYear();
+        const currentAge = currentYear - year + 1; // Tuổi âm (tuổi mụ)
+
+        return {
+          thienBan: {
+            cucName: cucObj.name,
+            cucValue: cucObj.value,
+            menhChi: this.CUNG_NAMES[menhChiIdx],
+            thanChi: this.CUNG_NAMES[thanChiIdx],
+            canNam,
+            canNamIdx,
+            chiNam,
+            chiNamIdx,
+            thanPalaceId,
+            amDuongLy,
+            menhCucRel,
+            currentAge
+          },
+          mingGongBranch: menhChiIdx,
+          shenGongBranch: thanChiIdx,
+          palaces,
+          daXians
+        };
+      },
+
+      // Helper Tứ Hóa
+      getSiHuaByStem(stemOrIdx) {
+        let stemName = stemOrIdx;
+        if (typeof stemOrIdx === 'number') {
+          stemName = this.CAN_NAMES[stemOrIdx % 10];
+        }
+        return this.TU_HOA_TABLE[stemName] || {};
+      },
+
+      getLiuNianSiHua(year) {
+        const stemIdx = ((year - 4) % 10 + 10) % 10;
+        return {
+          year,
+          stemIndex: stemIdx,
+          stemName: this.CAN_NAMES[stemIdx],
+          tuHoaMap: this.getSiHuaByStem(stemIdx)
+        };
+      },
+
+      getLiuYueSiHua(yearStemIdx, month) {
+        // Ngũ Hổ Độn: Tháng 1 (寅月) khởi Thiên Can
+        const startStemOfYin = { 0: 2, 5: 2, 1: 4, 6: 4, 2: 6, 7: 6, 3: 8, 8: 8, 4: 0, 9: 0 };
+        const yinStem = startStemOfYin[yearStemIdx % 10] ?? 0;
+        const stemIdx = (yinStem + ((month - 1) % 12) + 10) % 10;
+        return {
+          month,
+          stemIndex: stemIdx,
+          stemName: this.CAN_NAMES[stemIdx],
+          tuHoaMap: this.getSiHuaByStem(stemIdx)
+        };
+      },
+
+      buildSiHuaOverlay(stemOrIdx) {
+        const map = this.getSiHuaByStem(stemOrIdx);
+        // Chuyển sang định dạng starName -> 'Lộc' | 'Quyền' | 'Khoa' | 'Kỵ'
+        const overlay = {};
+        Object.entries(map).forEach(([star, hoa]) => {
+          overlay[star] = hoa;
+        });
+        return overlay;
+      }
+    },
+
+    Numerology: {
+      reduceNumber: function(num, keepMaster = true) {
+        if (keepMaster && (num === 11 || num === 22 || num === 33)) return num;
+        let sum = num;
+        while (sum > 9) {
+          if (keepMaster && (sum === 11 || sum === 22 || sum === 33)) break;
+          sum = sum.toString().split('').reduce((a, b) => a + parseInt(b, 10), 0);
+        }
+        return sum;
+      },
+
+      calculateLifePath: function(day, month, year) {
+        const redDay = this.reduceNumber(day, true);
+        const redMonth = this.reduceNumber(month, true);
+        const redYearStr = year.toString().split('').reduce((a, b) => a + parseInt(b, 10), 0);
+        const redYear = this.reduceNumber(redYearStr, true);
+        const total = redDay + redMonth + redYear;
+        return this.reduceNumber(total, true);
+      },
+
+      calculateBirthdayNumber: function(day) {
+        return this.reduceNumber(day, true);
+      },
+
+      calculateAttitudeNumber: function(day, month) {
+        return this.reduceNumber(day + month, true);
+      },
+
+      calculatePersonalYear: function(day, month, targetYear = 2026) {
+        const redDay = this.reduceNumber(day, false);
+        const redMonth = this.reduceNumber(month, false);
+        const redYear = this.reduceNumber(targetYear, false);
+        return this.reduceNumber(redDay + redMonth + redYear, false);
+      },
+
+      calculateBirthGrid: function(day, month, year) {
+        const dateStr = `${day.toString().padStart(2, '0')}${month.toString().padStart(2, '0')}${year}`;
+        const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+        for (const ch of dateStr) {
+          const d = parseInt(ch, 10);
+          if (d >= 1 && d <= 9) counts[d] = (counts[d] || 0) + 1;
+        }
+
+        const arrowDefs = [
+          { key: '1-2-3', name: 'Mũi tên Kế Hoạch (1-2-3)', nums: [1, 2, 3] },
+          { key: '4-5-6', name: 'Mũi tên Ý Chí (4-5-6)', nums: [4, 5, 6] },
+          { key: '7-8-9', name: 'Mũi tên Hoạt Động (7-8-9)', nums: [7, 8, 9] },
+          { key: '1-4-7', name: 'Mũi tên Thực Tế (1-4-7)', nums: [1, 4, 7] },
+          { key: '2-5-8', name: 'Mũi tên Cân Bằng Cảm Xúc (2-5-8)', nums: [2, 5, 8] },
+          { key: '3-6-9', name: 'Mũi tên Trí Tuệ (3-6-9)', nums: [3, 6, 9] },
+          { key: '1-5-9', name: 'Mũi tên Quyết Tâm (1-5-9)', nums: [1, 5, 9] },
+          { key: '3-5-7', name: 'Mũi tên Nhạy Cảm Tâm Linh (3-5-7)', nums: [3, 5, 7] }
+        ];
+
+        const lines = arrowDefs.map(def => {
+          const has = def.nums.every(n => (counts[n] || 0) > 0);
+          return { name: def.name, has };
+        });
+
+        return { counts, lines };
+      },
+
+      getNumerologyDict: function() {
+        return {
+          2: {
+            title: "Số Chủ Đạo 2 — Người Hòa Giải & Kết Nối Sâu Sắc",
+            element: "Thủy / Mộc",
+            keyword: "Nhạy cảm, Lắng nghe, Ngoại giao, Hòa giải, Thấu cảm",
+            strengths: ["Lắng nghe tuyệt vời", "Tác phong hòa nhã", "Trực giác nhạy bén", "Xây dựng sự hợp tác"],
+            advice: "Hãy học cách thiết lập ranh giới cá nhân rõ ràng, tránh để cảm xúc của người khác chi phối tinh thần.",
+            personalYearMeaning: "Năm học cách kiên nhẫn, vun đắp các mối quan hệ và lắng nghe trực giác bên trong."
+          },
+          3: {
+            title: "Số Chủ Đạo 3 — Nhà Sáng Tạo & Truyền Cảm Hứng",
+            element: "Hỏa / Mộc",
+            keyword: "Sáng tạo, Giao tiếp, Hài hước, Tự do biểu đạt, Nhiệt huyết",
+            strengths: ["Kỹ năng giao tiếp tự nhiên", "Tư duy sáng tạo", "Mang lại niềm vui", "Truyền cảm hứng tích cực"],
+            advice: "Tập trung năng lượng vào một mục tiêu thay vì phân tán sức lực vào quá nhiều dự án cùng lúc.",
+            personalYearMeaning: "Năm bùng nổ ý tưởng, mở rộng mạng lưới giao thiệp và tự tin thể hiện bản thân."
+          },
+          4: {
+            title: "Số Chủ Đạo 4 — Người Xây Dựng Kỷ Luật & Thực Tế",
+            element: "Thổ / Kim",
+            keyword: "Kỷ luật, Thực tế, Hệ thống, Trung thành, Tổ chức",
+            strengths: ["Cẩn trọng & tỉ mỉ", "Tư duy quy trình tốt", "Đáng tin cậy cao", "Khả năng thực thi kiên trì"],
+            advice: "Tránh sự cứng nhắc quá mức; cởi mở hơn với những phương pháp mới và sự thay đổi linh hoạt.",
+            personalYearMeaning: "Năm củng cố nền tảng tài chính, làm việc chăm chỉ và thiết lập quy trình vững chắc."
+          },
+          5: {
+            title: "Số Chủ Đạo 5 — Tiên Phong Khám Phá & Tự Do",
+            element: "Mộc / Hỏa",
+            keyword: "Tự do, Trải nghiệm, Thích ứng, Khám phá, Linh hoạt",
+            strengths: ["Dễ dàng ứng biến", "Đam mê trải nghiệm", "Dũng cảm thay đổi", "Năng lượng dồi dào"],
+            advice: "Tự do luôn đi kèm với trách nhiệm; tránh đưa ra các quyết định ngẫu hứng thiếu tính toán dài hạn.",
+            personalYearMeaning: "Năm bứt phá khỏi vùng an toàn, chào đón cơ hội mới và những chuyến đi mở rộng tầm nhìn."
+          },
+          6: {
+            title: "Số Chủ Đạo 6 — Người Phụng Sự & Trái Tim Yêu Thương",
+            element: "Thổ / Thủy",
+            keyword: "Gia đình, Chăm sóc, Phụng sự, Trách nhiệm, Nghệ thuật",
+            strengths: ["Giao cảm sâu sắc", "Yêu thương gia đình", "Tinh thần trách nhiệm", "Thẩm mỹ tốt"],
+            advice: "Đừng gánh vác trách nhiệm của người khác quá mức dẫn đến kiệt sức; hãy học cách tự chăm sóc bản thân.",
+            personalYearMeaning: "Năm tập trung chăm sóc gia đình, vun đắp mái ấm và tìm kiếm sự cân bằng nội tâm."
+          },
+          7: {
+            title: "Số Chủ Đạo 7 — Nhà Triết Học & Tìm Kiếm Chân Lý",
+            element: "Kim / Thủy",
+            keyword: "Phân tích, Trực giác, Chiêm nghiệm, Độc lập, Trí tuệ",
+            strengths: ["Tư duy phân tích sâu", "Ham học hỏi", "Khả năng quan sát tinh tế", "Tính độc lập cao"],
+            advice: "Tránh khép kín bản thân; chia sẻ tri thức và mở lòng kết nối với thế giới xung quanh nhiều hơn.",
+            personalYearMeaning: "Năm quay vào bên trong, học tập chuyên sâu, thiền định và thanh lọc tâm trí."
+          },
+          8: {
+            title: "Số Chủ Đạo 8 — Nhà Điều Hành & Tự Chủ Tài Chính",
+            element: "Thổ / Kim",
+            keyword: "Quyền lực, Quản lý tài chính, Kỷ luật, Thành công vật chất",
+            strengths: ["Tầm nhìn chiến lược", "Quản lý dòng tiền", "Quyết đoán cao", "Năng lực lãnh đạo"],
+            advice: "Cân bằng giữa thành công vật chất và giá trị tinh thần; ứng xử mềm mỏng để giữ gìn nhân tâm.",
+            personalYearMeaning: "Năm gặt hái thành quả công việc, nâng cao thu nhập và khẳng định vị thế cá nhân."
+          },
+          9: {
+            title: "Số Chủ Đạo 9 — Trái Tim Năng Lượng Lực Lượng Nhân Đạo",
+            element: "Hỏa / Thủy",
+            keyword: "Nhân đạo, Cống hiến, Lý tưởng, Ước mơ, Hoàn thiện",
+            strengths: ["Lý tưởng sống cao đẹp", "Trái tim vị tha", "Tầm nhìn rộng mở", "Khả năng cảm hóa"],
+            advice: "Hãy buông bỏ những điều thuộc về quá khứ để sẵn sàng bước vào chu kỳ phát triển mới.",
+            personalYearMeaning: "Năm dọn dẹp, kết thúc những gì không còn phù hợp và chuẩn bị cho một chương mới."
+          },
+          10: {
+            title: "Số Chủ Đạo 10 (1) — Nhà Lãnh Đạo Tự Lực & Linh Hoạt",
+            element: "Kim / Hỏa",
+            keyword: "Độc lập, Tiên phong, Linh hoạt, Tự tin, Quyết đoán",
+            strengths: ["Thích nghi nhanh chóng", "Tinh thần chủ động", "Dễ thu hút người khác", "Dũng cảm"],
+            advice: "Giữ vững sự khiêm tốn, tránh cái tôi quá lớn làm rạn nứt sự đồng thuận của tập thể.",
+            personalYearMeaning: "Năm khởi đầu chu kỳ 9 năm mới; thời điểm vàng để bắt đầu dự án hoặc định hướng mới."
+          },
+          11: {
+            title: "Số Chủ Đạo 11 (Master) — Ngọn Đuốc Trực Giác & Tâm Linh",
+            element: "Thủy / Mộc",
+            keyword: "Trực giác siêu việt, Sáng tạo đỉnh cao, Thấu cảm, Nhạy cảm",
+            strengths: ["Trực giác tâm linh mạnh", "Khả năng truyền cảm hứng", "Ý tưởng đột phá", "Cảm nhận tinh tế"],
+            advice: "Thực hành tĩnh tâm và củng cố năng lượng tinh thần để không bị quá tải trước áp lực môi trường.",
+            personalYearMeaning: "Năm đánh thức tiềm năng tâm linh, phát triển trực giác và khai sáng bản thân."
+          },
+          22: {
+            title: "Số Chủ Đạo 22/4 (Master Builder) — Kiến Trúc Sư Tầm Vóc Thế Giới",
+            element: "Thổ / Kim",
+            keyword: "Kiến tạo tầm vóc, Thực thi phi thường, Tầm nhìn lớn, Hệ thống vững chắc",
+            strengths: ["Biến ý tưởng thành thực tế", "Kỹ năng tổ chức quy mô lớn", "Năng lực thực thi vượt trội"],
+            advice: "Kiên nhẫn với từng bước đi nhỏ; giữ gìn sức khỏe và tránh tự gây áp lực quá tải.",
+            personalYearMeaning: "Năm thực hiện các đại kế hoạch, đặt nền móng cho thành công quy mô lớn dài hạn."
+          },
+          33: {
+            title: "Số Chủ Đạo 33/6 (Master Teacher) — Người Thầy Chữa Lành Vũ Trụ",
+            element: "Hỏa / Thủy",
+            keyword: "Chữa lành, Trái tim đại từ bi, Phụng sự vô điều kiện, Nghệ thuật",
+            strengths: ["Năng lượng chữa lành cao", "Lòng từ bi bao la", "Kỹ năng nuôi dưỡng & giảng dạy"],
+            advice: "Học cách cân bằng giữa việc hi sinh vì cộng đồng và duy trì cuộc sống cá nhân hạnh phúc.",
+            personalYearMeaning: "Năm cống hiến, chữa lành và lan tỏa tình yêu thương đến cộng đồng."
+          }
+        };
+      },
+
+      getEasternWesternSynergy: function(lifePath, easternInfo = {}) {
+        const hanh = easternInfo.hanhMenh || 'Kim';
+        const can = easternInfo.canNam || 'Canh';
+        const chi = easternInfo.chiNam || 'Thìn';
+
+        return {
+          title: `Giao Thoa Số Chủ Đạo ${lifePath} & Bản Mệnh ${can} ${chi} (${hanh})`,
+          summary: `Sự kết hợp giữa Con Số Chủ Đạo ${lifePath} (phát triển tư duy Tây Phương) và Năng Lượng Can Chi ${can} ${chi} thuộc hành ${hanh} tạo nên sự cộng hưởng đặc biệt. Bạn sở hữu sự linh hoạt của tần số Số ${lifePath} kết hợp với sự bền bỉ của trụ mệnh Đông Phương.`,
+          synergyAdvice: `Hãy lấy thế mạnh của Số ${lifePath} làm đòn bẩy trong công việc, đồng thời nương theo nhịp vận của hành ${hanh} để chọn thời điểm hành động đại sự thích hợp nhất.`
+        };
       }
     }
   };
