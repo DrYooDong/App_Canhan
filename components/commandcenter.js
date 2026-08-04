@@ -8,7 +8,7 @@
 
   function renderCommandCenter(container) {
     const AL = window.AstrologyLogic;
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
     const today = new Date();
 
     let intel = null;
@@ -17,8 +17,8 @@
     }
 
     const dateStr = today.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const score = intel ? intel.scoreResult.score : 85;
-    const ratingText = intel ? intel.scoreResult.text : 'Đại Cát';
+    const score = intel && intel.scoreResult ? (intel.scoreResult.total_score ?? intel.scoreResult.totalScore ?? intel.scoreResult.score ?? 85) : 85;
+    const ratingText = intel && intel.scoreResult ? (intel.scoreResult.rating ?? intel.scoreResult.text ?? 'Đại Cát') : 'Đại Cát';
     const canNgay = intel ? intel.canNgay : 'Giáp';
     const chiNgay = intel ? intel.chiNgay : 'Tý';
     const hanhNgay = intel ? intel.hanhNgay : 'Kim';

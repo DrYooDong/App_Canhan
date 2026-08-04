@@ -68,45 +68,44 @@
 
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-    <div class="mobile-nav-item active" data-route="dashboard" onclick="App.Router.navigate('dashboard')">
+    <div class="mobile-nav-item active" data-route="tuvi" onclick="App.Router.navigate('tuvi')">
+      <span class="mobile-nav-icon">🔮</span>
+      <span class="mobile-nav-label">Lá Số</span>
+    </div>
+    <div class="mobile-nav-item" data-route="dashboard" onclick="App.Router.navigate('dashboard')">
       <span class="mobile-nav-icon">📅</span>
-      <span class="mobile-nav-label">Lịch</span>
+      <span class="mobile-nav-label">Nhật Lịch</span>
     </div>
     <div class="mobile-nav-item" data-route="astrology" onclick="App.Router.navigate('astrology')">
-      <span class="mobile-nav-icon">🔮</span>
+      <span class="mobile-nav-icon">🌌</span>
       <span class="mobile-nav-label">Tử Vi</span>
-    </div>
-    <div class="mobile-nav-item" data-route="finance" onclick="App.Router.navigate('finance')">
-      <span class="mobile-nav-icon">💰</span>
-      <span class="mobile-nav-label">Tài Chính</span>
     </div>
     <div class="mobile-nav-item" data-route="oracle" onclick="App.Router.navigate('oracle')">
       <span class="mobile-nav-icon">🧭</span>
       <span class="mobile-nav-label">Kỳ Môn</span>
     </div>
     <div class="mobile-nav-item" data-route="knowledge" onclick="App.Router.navigate('knowledge')">
-      <span class="mobile-nav-icon">📜</span>
-      <span class="mobile-nav-label">Tri Thức</span>
+      <span class="mobile-nav-icon">📖</span>
+      <span class="mobile-nav-label">Nhật Ký</span>
     </div>
   </nav>
 
   <!-- Data -->
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/tuvi.js"></script>
   <script src="data/supabase_client.js"></script>
   <script src="data/sample.js"></script>
-  <script src="data/astrology_logic.js"></script>
+  <script src="data/astrology_logic.js?v=20260804_v2"></script>
   <script src="data/ziwei_patterns.js"></script>
   <script src="data/ziwei_star_knowledge.js"></script>
   <script src="data/ziwei_marriage_knowledge.js"></script>
   <script src="data/ziwei_famous.js"></script>
   <script src="data/ziwei_classics.js"></script>
-
+  <script src="data/ziwei_dictionary.js"></script>
   <!-- Thư viện Lịch Âm -->
   <script src="https://unpkg.com/lunar-javascript/lunar.js"></script>
 
   <!-- Sub-components & Specialized Modules -->
+  <script src="components/onboarding.js"></script>
   <script src="components/sidebar.js"></script>
   <script src="components/overview.js"></script>
   <script src="components/lessons.js"></script>
@@ -114,6 +113,7 @@
   <script src="components/reminders.js"></script>
   <script src="components/library.js"></script>
   <script src="components/journal.js"></script>
+  <script src="components/dictionary.js"></script>
   <script src="components/search.js"></script>
   <script src="components/health.js"></script>
   <script src="components/compass.js"></script>
@@ -125,13 +125,14 @@
   <script src="components/numerology.js"></script>
 
   <!-- Core Consolidated Module Hubs -->
-  <script src="components/dashboard.js"></script>
-  <script src="components/astrology.js"></script>
+  <script src="components/tuvi_home.js?v=20260804_v3"></script>
+  <script src="components/dashboard.js?v=20260804_v3"></script>
+  <script src="components/astrology.js?v=20260804_v3"></script>
   <script src="components/oracle.js"></script>
   <script src="components/knowledge.js"></script>
 
   <!-- Breakthrough Feature Components -->
-  <script src="components/commandcenter.js"></script>
+  <script src="components/commandcenter.js?v=20260804_v3"></script>
   <script src="components/finance.js"></script>
   <script src="components/meditation.js"></script>
   <script src="components/retroverify.js"></script>

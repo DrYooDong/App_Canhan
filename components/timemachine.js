@@ -39,7 +39,7 @@
       return;
     }
 
-    const userProfile = {
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : {
       birthYear: 1995,
       currentAge: 31,
       canNam: 'Ất',

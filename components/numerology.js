@@ -9,14 +9,21 @@
     const { Utils, Toast } = App;
     const AL = window.AstrologyLogic;
 
-    // Load saved birthdate or fallback to chart config / default 20/04/2000
     let savedDob = null;
     try {
-      savedDob = JSON.parse(localStorage.getItem('noitam_user_dob'));
+      if (AL && typeof AL.getUserProfile === 'function') {
+        const p = AL.getUserProfile();
+        if (p && p.birthDay) {
+          savedDob = { day: parseInt(p.birthDay, 10), month: parseInt(p.birthMonth, 10), year: parseInt(p.birthYear, 10) };
+        }
+      }
       if (!savedDob) {
-        const chartConfig = JSON.parse(localStorage.getItem('noitam_chart_config'));
-        if (chartConfig && chartConfig.day) {
-          savedDob = { day: parseInt(chartConfig.day, 10), month: parseInt(chartConfig.month, 10), year: parseInt(chartConfig.year, 10) };
+        savedDob = JSON.parse(localStorage.getItem('noitam_user_dob'));
+        if (!savedDob) {
+          const chartConfig = JSON.parse(localStorage.getItem('noitam_chart_config'));
+          if (chartConfig && chartConfig.day) {
+            savedDob = { day: parseInt(chartConfig.day, 10), month: parseInt(chartConfig.month, 10), year: parseInt(chartConfig.year, 10) };
+          }
         }
       }
     } catch (e) {}
@@ -32,7 +39,8 @@
       const personalYear = numEngine.calculatePersonalYear(d, m, 2026);
       const birthGrid = numEngine.calculateBirthGrid(d, m, y);
       const dict = numEngine.getNumerologyDict();
-      const synergy = numEngine.getEasternWesternSynergy(lifePath, { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' });
+      const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+      const synergy = numEngine.getEasternWesternSynergy(lifePath, userProfile);
 
       return {
         lifePath,

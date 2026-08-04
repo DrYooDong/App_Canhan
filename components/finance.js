@@ -74,16 +74,80 @@
 
   function renderTimingContent(container) {
     const AL = window.AstrologyLogic;
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
     const today = new Date();
 
-    const wealthEval = (AL && typeof AL.evaluateWealthDay === 'function') ? AL.evaluateWealthDay(today, userProfile) : {
+    let dailyTransit = null;
+    let dailyRemedy = null;
+    if (AL && typeof AL.calculateDailyTransit === 'function') {
+        dailyTransit = AL.calculateDailyTransit(today, userProfile);
+        dailyRemedy = AL.getDailyRemedy(dailyTransit, userProfile);
+    }
+
+    let wealthEval = (AL && typeof AL.evaluateWealthDay === 'function') ? AL.evaluateWealthDay(today, userProfile) : {
       score: 88,
       rating: 'Đại Cát',
       wealthDirection: 'Đông Nam',
-      star: 'Thần Tài Giáp Wood',
-      recommendation: 'Ngày vượng lộc phát tài. Rất tốt cho ký kết hợp đồng và đầu tư.'
+      star: 'Thần Tài',
+      recommendation: 'Cơ hội đầu tư thuận lợi, cần nắm bắt thời cơ.'
     };
+    wealthEval.wealthDirection = (dailyRemedy && dailyRemedy.direction) ? dailyRemedy.direction : (wealthEval.wealthDirection || 'Đông Nam');
+    wealthEval.star = wealthEval.star || 'Thần Tài';
+    wealthEval.recommendation = (dailyRemedy && dailyRemedy.isBadDay) ? dailyRemedy.alertMsg : (wealthEval.recommendation || wealthEval.message || 'Cơ hội đầu tư thuận lợi, cần nắm bắt thời cơ.');
+    
+    if (dailyRemedy && dailyRemedy.isBadDay) {
+        wealthEval.rating = 'Cảnh Báo Đỏ';
+        wealthEval.score = Math.min(wealthEval.score, 30);
+    }
+
+    // Ziwei Wealth & Career Analysis Engine
+    let ziweiWealth = {
+      taiBachPalace: 'Thân',
+      quanLocPalace: 'Thìn',
+      wealthStars: 'Vũ Khúc, Thiên Tướng',
+      careerStars: 'Tử Vi, Thiên Phủ',
+      patterns: [],
+      strategyMode: 'Tấn Công & Tích Lũy',
+      riskScore: 'Thấp',
+      advice: 'Cung Tài Bạch vượng khí, thuận lợi giải ngân đầu tư trung & dài hạn.'
+    };
+
+    if (AL && AL.TuViEngine) {
+      try {
+        const tuViChart = AL.TuViEngine.calculateTuViChart({
+          day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+          gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+        });
+        if (tuViChart && tuViChart.palaces) {
+          const taiPalace = tuViChart.palaces.find(p => p.id === 'tai-bach' || p.name === 'Tài Bạch');
+          const quanPalace = tuViChart.palaces.find(p => p.id === 'quan-loc' || p.name === 'Quan Lộc');
+          if (taiPalace) {
+            ziweiWealth.taiBachPalace = taiPalace.chi || 'Thân';
+            if (taiPalace.mainStars && taiPalace.mainStars.length > 0) {
+              ziweiWealth.wealthStars = taiPalace.mainStars.join(', ');
+            }
+          }
+          if (quanPalace) {
+            ziweiWealth.quanLocPalace = quanPalace.chi || 'Thìn';
+            if (quanPalace.mainStars && quanPalace.mainStars.length > 0) {
+              ziweiWealth.careerStars = quanPalace.mainStars.join(', ');
+            }
+          }
+        }
+        if (window.ZiweiPatterns && tuViChart) {
+          const detected = window.ZiweiPatterns.detectPatterns(tuViChart);
+          if (detected && detected.length > 0) {
+            ziweiWealth.patterns = detected.filter(p => 
+              p.name.includes('Tài') || p.name.includes('Lộc') || p.name.includes('Phú') || 
+              p.name.includes('Quyền') || p.name.includes('Tham') || p.level === 'excellent' || p.level === 'good'
+            );
+            if (ziweiWealth.patterns.length === 0) ziweiWealth.patterns = detected;
+          }
+        }
+      } catch (err) {
+        console.warn("Finance Ziwei Wealth calculation error:", err);
+      }
+    }
 
     let txs = getStoredTransactions();
 
@@ -108,7 +172,7 @@
                 <div style="display:flex; align-items:center; gap:8px;">
                   <span style="font-size:1.8rem;">💰</span>
                   <div>
-                    <h2 style="font-family:'Cinzel',serif; margin:0; color:var(--accent-primary); font-size:1.5rem;">
+                    <h2 style="font-family:'Cinzel', var(--font-body); margin:0; color:var(--accent-primary); font-size:1.5rem;">
                       Quản Trị Tài Chính Ngũ Hành & Timing Đầu Tư
                     </h2>
                     <p style="margin:4px 0 0 0; color:var(--text-secondary); font-size:0.9rem;">
@@ -122,6 +186,54 @@
                 <span class="badge" style="background:var(--accent-muted); color:var(--accent-primary); border:1px solid var(--border-accent); padding:6px 14px; border-radius:20px; font-weight:600;">
                   Hướng Tài Thần Hôm Nay: ${wealthEval.wealthDirection}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Widget Phân Tích Cát Hung Tử Vi Tài Bạch & Quan Lộc -->
+          <div class="card tuvi-card" style="padding:20px; border-radius:16px; background:linear-gradient(135deg, var(--bg-card), var(--bg-surface)); border:1px solid var(--border-accent);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.4rem;">🔮</span>
+                <div>
+                  <h3 style="font-family:'Cinzel', var(--font-body); margin:0; color:var(--accent-primary); font-size:1.15rem;">
+                    Cát Hung Tử Vi Tài Bạch & Chiến Lược Đầu Tư (Ni Hải Hạ)
+                  </h3>
+                  <p style="margin:2px 0 0 0; color:var(--text-tertiary); font-size:0.82rem;">
+                    Soi chiếu cung Tài Bạch (cư ${ziweiWealth.taiBachPalace}) & Quan Lộc (cư ${ziweiWealth.quanLocPalace}) để điều phối dòng tiền
+                  </p>
+                </div>
+              </div>
+              <button class="btn btn-tab btn-sm" onclick="App.Router.navigate('astrology')" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid var(--border-accent);">
+                🔮 Xem Lá Số Tử Vi ➔
+              </button>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+              <div style="padding:12px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border-color);">
+                <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Cung Tài Bạch (Tài Sản)</div>
+                <div style="font-weight:700; font-size:0.95rem; color:var(--accent-gold); margin:4px 0;">Cư <span class="palace-name" style="cursor:pointer; text-decoration:underline dashed;">${ziweiWealth.taiBachPalace}</span> · <span class="main-star" style="cursor:pointer; text-decoration:underline dashed;">${ziweiWealth.wealthStars}</span></div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">Trực tiếp quyết định sức hút tài lộc</div>
+              </div>
+
+              <div style="padding:12px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border-color);">
+                <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Cung Quan Lộc (Sự Nghiệp)</div>
+                <div style="font-weight:700; font-size:0.95rem; color:var(--accent-primary); margin:4px 0;">Cư <span class="palace-name" style="cursor:pointer; text-decoration:underline dashed;">${ziweiWealth.quanLocPalace}</span> · <span class="main-star" style="cursor:pointer; text-decoration:underline dashed;">${ziweiWealth.careerStars}</span></div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">Quyết định quy mô kinh doanh & vị thế</div>
+              </div>
+
+              <div style="padding:12px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border-color);">
+                <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Thống Kê Cách Cục Tài Chính</div>
+                <div style="font-weight:700; font-size:0.95rem; color:#10b981; margin:4px 0;">
+                  ${ziweiWealth.patterns.length > 0 ? ziweiWealth.patterns[0].name : 'Cơ Nguyệt Đồng Lương Vượng Lộc'}
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${ziweiWealth.patterns.length > 1 ? `Hội tụ +${ziweiWealth.patterns.length - 1} cát cách hỗ trợ` : 'Cách cục tài chính chủ đạo'}</div>
+              </div>
+
+              <div style="padding:12px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border-color);">
+                <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Chế Độ Quản Trị Vốn</div>
+                <div style="font-weight:700; font-size:0.95rem; color:var(--accent-gold); margin:4px 0;">${ziweiWealth.strategyMode}</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${ziweiWealth.advice}</div>
               </div>
             </div>
           </div>
@@ -152,7 +264,7 @@
             
             <!-- Element Spend Breakdown -->
             <div class="card" style="padding:20px; border-radius:16px; background:var(--bg-surface); border:1px solid var(--border-color);">
-              <h3 style="margin-top:0; font-family:'Cinzel',serif; color:var(--accent-primary); font-size:1.1rem;">
+              <h3 style="margin-top:0; font-family:'Cinzel', var(--font-body); color:var(--accent-primary); font-size:1.1rem;">
                 ⚖️ Phân Bổ Chi Tiêu Ngũ Hành
               </h3>
               
@@ -183,7 +295,7 @@
 
             <!-- Recent Transactions List -->
             <div class="card" style="padding:20px; border-radius:16px; background:var(--bg-surface); border:1px solid var(--border-color);">
-              <h3 style="margin-top:0; font-family:'Cinzel',serif; color:var(--accent-primary); font-size:1.1rem;">
+              <h3 style="margin-top:0; font-family:'Cinzel', var(--font-body); color:var(--accent-primary); font-size:1.1rem;">
                 📋 Lịch Sử Thu Chi Gần Đây
               </h3>
 

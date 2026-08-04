@@ -5,84 +5,91 @@
 (function () {
   'use strict';
 
-  // ── 64 Quẻ Dịch Data (Simplified — key quẻ) ──
+  // ── 64 Quẻ Dịch Data (Đầy đủ & Chính xác) ──
   const BAT_QUAI = [
-    { id: 1, name: 'Càn',  hanh: 'Kim',  symbol: '☰' },
-    { id: 2, name: 'Đoài', hanh: 'Kim',  symbol: '☱' },
-    { id: 3, name: 'Ly',   hanh: 'Hỏa',  symbol: '☲' },
-    { id: 4, name: 'Chấn', hanh: 'Mộc',  symbol: '☳' },
-    { id: 5, name: 'Tốn',  hanh: 'Mộc',  symbol: '☴' },
-    { id: 6, name: 'Khảm', hanh: 'Thủy', symbol: '☵' },
-    { id: 7, name: 'Cấn',  hanh: 'Thổ',  symbol: '☶' },
-    { id: 8, name: 'Khôn', hanh: 'Thổ',  symbol: '☷' },
+    { id: 1, name: 'Càn',  hanh: 'Kim',  symbol: '☰', lines: [1, 1, 1] },
+    { id: 2, name: 'Đoài', hanh: 'Kim',  symbol: '☱', lines: [1, 1, 0] },
+    { id: 3, name: 'Ly',   hanh: 'Hỏa',  symbol: '☲', lines: [1, 0, 1] },
+    { id: 4, name: 'Chấn', hanh: 'Mộc',  symbol: '☳', lines: [1, 0, 0] },
+    { id: 5, name: 'Tốn',  hanh: 'Mộc',  symbol: '☴', lines: [0, 1, 1] },
+    { id: 6, name: 'Khảm', hanh: 'Thủy', symbol: '☵', lines: [0, 1, 0] },
+    { id: 7, name: 'Cấn',  hanh: 'Thổ',  symbol: '☶', lines: [0, 0, 1] },
+    { id: 8, name: 'Khôn', hanh: 'Thổ',  symbol: '☷', lines: [0, 0, 0] },
   ];
 
-  // Quẻ kết hợp: key = "upper-lower" (1-indexed BAT_QUAI)
+  // Quẻ kết hợp: key = "upper-lower" (1-indexed BAT_QUAI: 1-Càn, 2-Đoài, 3-Ly, 4-Chấn, 5-Tốn, 6-Khảm, 7-Cấn, 8-Khôn)
   const QUE_DATA = {
-    '1-1': { id: 1,  name: 'Thuần Càn',        meaning: 'Sức mạnh, lãnh đạo, thành công', advice: 'Kiên cường tiến lên, thời cơ chín muồi để hành động lớn.', type: 'CAT' },
-    '2-2': { id: 2,  name: 'Thuần Khôn',        meaning: 'Nhu thuận, bền chí, hợp tác', advice: 'Không nên dẫn đầu, hãy đi sau hỗ trợ. Kiên nhẫn chờ thời.', type: 'CAT' },
-    '6-4': { id: 3,  name: 'Thủy Lôi Truân',    meaning: 'Khởi đầu gian nan, chưa nên vội', advice: 'Mới khởi sự gặp trở ngại là bình thường. Chờ đợi và xây nền vững.', type: 'HUNG' },
-    '7-6': { id: 4,  name: 'Sơn Thủy Mông',     meaning: 'Ấu trĩ, cần học hỏi thêm', advice: '겸허히 cầu học, không nên vội vàng quyết đoán.', type: 'TRUNG' },
-    '6-1': { id: 5,  name: 'Thủy Thiên Nhu',    meaning: 'Chờ đợi, dưỡng sức', advice: 'Chờ đúng thời điểm. Dưỡng thân tích lực là thượng sách.', type: 'TRUNG' },
-    '1-6': { id: 6,  name: 'Thiên Thủy Tụng',   meaning: 'Tranh tụng, kiện cáo', advice: 'Tránh tranh chấp. Nhượng bộ để bảo toàn tổng thể.', type: 'HUNG' },
-    '6-8': { id: 7,  name: 'Địa Thủy Sư',       meaning: 'Chiến lược, chỉ huy', advice: 'Cần lãnh đạo mạnh và kỷ luật. Đây là lúc chứng tỏ năng lực.', type: 'TRUNG' },
-    '8-6': { id: 8,  name: 'Thủy Địa Tỷ',       meaning: 'Đoàn kết, liên minh', advice: 'Liên kết với người đồng chí. Sự hợp tác mang lại thành công.', type: 'CAT' },
-    '1-5': { id: 9,  name: 'Phong Thiên Tiểu Súc', meaning: 'Tích lũy nhỏ, chờ thời', advice: 'Tích lũy từng bước nhỏ. Chưa phải lúc ra đòn lớn.', type: 'TRUNG' },
-    '1-2': { id: 10, name: 'Thiên Trạch Lý',    meaning: 'Hành xử đúng đắn, cẩn trọng', advice: 'Dẫm trên đuôi hổ mà không bị cắn — hãy khéo léo và cẩn trọng.', type: 'CAT' },
-    '8-1': { id: 11, name: 'Địa Thiên Thái',    meaning: 'Thái bình, thuận lợi', advice: 'Thời kỳ thịnh vượng. Mọi việc hanh thông, hãy tận dụng.', type: 'DAI_CAT' },
-    '1-8': { id: 12, name: 'Thiên Địa Bĩ',      meaning: 'Bế tắc, trở ngại', advice: 'Thời kỳ đình trệ. Nên ẩn nhẫn chờ đợi, không nên hành động lớn.', type: 'HUNG' },
-    '3-1': { id: 13, name: 'Thiên Hỏa Đồng Nhân', meaning: 'Đoàn kết, hợp tác', advice: 'Hợp tác với người khác để đạt mục tiêu chung. Sức mạnh tập thể.', type: 'CAT' },
-    '1-3': { id: 14, name: 'Hỏa Thiên Đại Hữu', meaning: 'Đại thành, sung túc', advice: 'Thời kỳ đại thịnh. Giữ sự khiêm tốn để bảo toàn phúc lộc.', type: 'DAI_CAT' },
-    '8-7': { id: 15, name: 'Địa Sơn Khiêm',     meaning: 'Khiêm tốn, nhún nhường', advice: 'Khiêm tốn là đức tính cao quý nhất lúc này. Thành công bền vững.', type: 'CAT' },
-    '4-8': { id: 16, name: 'Lôi Địa Dự',        meaning: 'Vui vẻ, phấn chấn', advice: 'Thời điểm hành động với tinh thần hứng khởi. Tổ chức, vận động.', type: 'CAT' },
-    '2-8': { id: 17, name: 'Trạch Lôi Tùy',     meaning: 'Đi theo, thuận thời', advice: 'Đi theo xu thế, không cưỡng cầu. Linh hoạt thích nghi.', type: 'CAT' },
-    '7-5': { id: 18, name: 'Sơn Phong Cổ',      meaning: 'Cải cách, chấn chỉnh', advice: 'Cần mạnh dạn cải cách những gì đã cũ kỹ, sai lầm.', type: 'TRUNG' },
-    '8-2': { id: 19, name: 'Địa Trạch Lâm',     meaning: 'Tiến lên, cơ hội đến', advice: 'Cơ hội đến gần. Hãy tiến tới với sự tự tin và cẩn trọng.', type: 'CAT' },
-    '5-8': { id: 20, name: 'Phong Địa Quan',     meaning: 'Quan sát, suy ngẫm', advice: 'Quan sát toàn cục trước khi hành động. Tư duy chiến lược.', type: 'TRUNG' },
-    '3-4': { id: 21, name: 'Hỏa Lôi Phệ Hạp',   meaning: 'Trừng phạt, công lý', advice: 'Xử lý dứt điểm vấn đề tồn đọng. Cần quyết đoán và công minh.', type: 'TRUNG' },
-    '4-3': { id: 22, name: 'Sơn Hỏa Bí',        meaning: 'Trang sức, vẻ ngoài', advice: 'Chú ý hình thức nhưng đừng quên thực chất bên trong.', type: 'TRUNG' },
-    '7-8': { id: 23, name: 'Sơn Địa Bác',        meaning: 'Suy thoái, bóc vỏ', advice: 'Thời điểm khó khăn. Hãy ẩn nhẫn, đừng hành động vội.', type: 'HUNG' },
-    '8-4': { id: 24, name: 'Địa Lôi Phục',       meaning: 'Phục hồi, quay trở lại', advice: 'Sau khó khăn, sức mạnh đang phục hồi. Hãy kiên nhẫn thêm.', type: 'CAT' },
-    '1-4': { id: 25, name: 'Thiên Lôi Vô Vọng',  meaning: 'Vô cầu, tự nhiên', advice: 'Hành động theo bản năng thuần khiết, không toan tính quá nhiều.', type: 'CAT' },
-    '4-1': { id: 26, name: 'Sơn Thiên Đại Súc',  meaning: 'Tích lũy lớn, dưỡng sức', advice: 'Đây là lúc tích lũy năng lực. Thời cơ lớn đang đến.', type: 'CAT' },
-    '7-4': { id: 27, name: 'Sơn Lôi Di',         meaning: 'Dưỡng sinh, nuôi dưỡng', advice: 'Chú ý dinh dưỡng, sức khỏe. Nuôi dưỡng bản thân và người xung quanh.', type: 'TRUNG' },
-    '2-5': { id: 28, name: 'Trạch Phong Đại Quá', meaning: 'Quá mức, gánh nặng', advice: 'Gánh quá nặng. Cần chia sẻ, giảm tải, không cô độc một mình.', type: 'HUNG' },
-    '6-6': { id: 29, name: 'Thuần Khảm',         meaning: 'Nguy hiểm, hiểm trở', advice: 'Lâm vào nơi hiểm. Giữ tâm vững, kiên định, không hoảng loạn.', type: 'HUNG' },
-    '3-3': { id: 30, name: 'Thuần Ly',            meaning: 'Ánh sáng, phụ thuộc', advice: 'Tỏa sáng và bám vào điều tốt đẹp. Sự rõ ràng và văn minh.', type: 'CAT' },
-    '2-7': { id: 31, name: 'Trạch Sơn Hàm',      meaning: 'Cảm ứng, tình cảm', advice: 'Kết nối cảm xúc tốt. Tình yêu và quan hệ nở rộ.', type: 'CAT' },
-    '4-5': { id: 32, name: 'Lôi Phong Hằng',     meaning: 'Bền vững, lâu dài', advice: 'Kiên trì là chìa khóa. Không thay đổi quá nhiều, giữ vững lập trường.', type: 'CAT' },
-    '1-7': { id: 33, name: 'Thiên Sơn Độn',      meaning: 'Lui ẩn, tránh né', advice: 'Lui bước chiến lược là khôn ngoan. Không phải nhút nhát.', type: 'TRUNG' },
-    '4-1': { id: 34, name: 'Lôi Thiên Đại Tráng', meaning: 'Mạnh mẽ, hùng tráng', advice: 'Sức mạnh dồi dào nhưng cẩn thận không lạm dụng. Đức trị mới bền.', type: 'CAT' },
-    '3-8': { id: 35, name: 'Hỏa Địa Tấn',        meaning: 'Tiến bộ, thăng tiến', advice: 'Thời cơ thăng tiến. Mọi nỗ lực được ghi nhận và đền đáp.', type: 'DAI_CAT' },
-    '8-3': { id: 36, name: 'Địa Hỏa Minh Di',    meaning: 'Ánh sáng bị che khuất', advice: 'Tạm thời lép vế. Hãy ẩn tài, chờ thời cơ. Đừng để lộ điểm yếu.', type: 'HUNG' },
-    '5-3': { id: 37, name: 'Phong Hỏa Gia Nhân',  meaning: 'Gia đình, nội bộ', advice: 'Gia đình hòa thuận là cơ sở vững chắc. Chú ý quan hệ nội bộ.', type: 'CAT' },
-    '3-2': { id: 38, name: 'Hỏa Trạch Khuê',     meaning: 'Bất đồng, xa cách', advice: 'Tuy có bất đồng nhưng vẫn có thể tìm điểm chung. Kiên nhẫn thương lượng.', type: 'HUNG' },
-    '6-7': { id: 39, name: 'Thủy Sơn Kiển',      meaning: 'Trở ngại, khó khăn', advice: 'Đường đi gặp trở ngại. Nên tìm trợ giúp, không nên một mình.', type: 'HUNG' },
-    '4-6': { id: 40, name: 'Lôi Thủy Giải',      meaning: 'Giải phóng, tháo gỡ', advice: 'Áp lực được giải tỏa. Hành động nhanh để nắm bắt cơ hội.', type: 'CAT' },
-    '7-2': { id: 41, name: 'Sơn Trạch Tổn',      meaning: 'Giảm, hy sinh', advice: 'Cần hy sinh cái nhỏ để được cái lớn. Lòng thành mang lại phúc lành.', type: 'TRUNG' },
-    '5-4': { id: 42, name: 'Phong Lôi Ích',       meaning: 'Tăng ích, lợi lộc', advice: 'Thời kỳ tăng trưởng. Hành động quyết đoán mang lại lợi nhuận.', type: 'DAI_CAT' },
-    '2-1': { id: 43, name: 'Trạch Thiên Quải',   meaning: 'Quyết đoán, loại bỏ', advice: 'Cương quyết loại bỏ điều tiêu cực. Cần quyết tâm và minh bạch.', type: 'TRUNG' },
-    '1-5': { id: 44, name: 'Thiên Phong Cấu',    meaning: 'Gặp gỡ, cơ hội bất ngờ', advice: 'Có người/việc tốt đến bất ngờ. Hãy tỉnh táo phân biệt cơ hội thật.', type: 'TRUNG' },
-    '2-7': { id: 45, name: 'Trạch Địa Tụy',      meaning: 'Tụ họp, hội tụ', advice: 'Thời điểm tốt để tập hợp, huy động lực lượng. Kết nối cộng đồng.', type: 'CAT' },
-    '5-8': { id: 46, name: 'Địa Phong Thăng',    meaning: 'Thăng tiến, leo lên', advice: 'Từng bước leo lên vị trí cao hơn. Kiên trì nhất định thành công.', type: 'CAT' },
-    '2-6': { id: 47, name: 'Trạch Thủy Khốn',    meaning: 'Khốn cùng, thiếu thốn', advice: 'Lúc túng thiếu vẫn giữ vững đạo đức và tâm an. Khó khăn sẽ qua.', type: 'HUNG' },
-    '6-5': { id: 48, name: 'Thủy Phong Tỉnh',    meaning: 'Giếng nước, nguồn gốc', advice: 'Quay về nguồn cội, giữ gìn tài nguyên tinh thần. Bền bỉ phục vụ.', type: 'TRUNG' },
-    '3-2': { id: 49, name: 'Trạch Hỏa Cách',     meaning: 'Cách mạng, thay đổi', advice: 'Thời điểm thay đổi lớn. Cải cách táo bạo sẽ thành công.', type: 'CAT' },
-    '4-3': { id: 50, name: 'Hỏa Phong Đỉnh',     meaning: 'Đỉnh cao, thành đạt', advice: 'Đạt đỉnh cao sự nghiệp và tri thức. Thời điểm thu hoạch thành quả.', type: 'DAI_CAT' },
-    '4-4': { id: 51, name: 'Thuần Chấn',          meaning: 'Chấn động, sấm sét', advice: 'Biến cố bất ngờ nhưng sẽ qua. Giữ bình tĩnh, đừng hoảng loạn.', type: 'HUNG' },
-    '7-7': { id: 52, name: 'Thuần Cấn',           meaning: 'Tĩnh lặng, dừng lại', advice: 'Dừng lại đúng lúc là trí tuệ. Không nhất thiết phải tiến.', type: 'TRUNG' },
-    '7-5': { id: 53, name: 'Phong Sơn Tiệm',      meaning: 'Từ từ, tuần tự', advice: 'Tiến dần từng bước, không vội vàng. Sự kiên trì dẫn đến thành công.', type: 'CAT' },
-    '4-2': { id: 54, name: 'Lôi Trạch Quy Muội',  meaning: 'Hôn nhân, theo đuổi', advice: 'Cẩn trọng trong quan hệ tình cảm. Hành động theo đúng lễ nghi.', type: 'TRUNG' },
-    '4-3': { id: 55, name: 'Lôi Hỏa Phong',       meaning: 'Phong phú, đỉnh thịnh', advice: 'Thời kỳ hoàng kim. Hãy tận dụng và chia sẻ thịnh vượng.', type: 'DAI_CAT' },
-    '3-7': { id: 56, name: 'Hỏa Sơn Lữ',         meaning: 'Khách lữ hành, xa quê', advice: 'Đi xa, xa lạ. Hành xử nhẹ nhàng, tránh xung đột ở đất khách.', type: 'TRUNG' },
-    '5-5': { id: 57, name: 'Thuần Tốn',           meaning: 'Khiêm nhu, thâm nhập', advice: 'Dùng sự mềm mại để thâm nhập. Kiên trì theo cùng một hướng.', type: 'TRUNG' },
-    '2-2': { id: 58, name: 'Thuần Đoài',          meaning: 'Vui vẻ, hòa hợp', advice: 'Niềm vui và sự hòa hợp lan tỏa. Thời gian tốt cho quan hệ xã hội.', type: 'CAT' },
-    '6-5': { id: 59, name: 'Phong Thủy Hoán',     meaning: 'Tan rã, phân tán', advice: 'Khắc phục sự chia rẽ. Kết nối lại những điều bị tan vỡ.', type: 'TRUNG' },
-    '6-2': { id: 60, name: 'Thủy Trạch Tiết',    meaning: 'Tiết chế, điều độ', advice: 'Cần có giới hạn và kỷ luật. Tự nguyện tiết chế để bảo tồn lâu dài.', type: 'TRUNG' },
-    '5-6': { id: 61, name: 'Phong Trạch Trung Phu', meaning: 'Lòng thành tín', advice: 'Lòng thành thực là sức mạnh. Tin tưởng và được tin tưởng.', type: 'CAT' },
-    '4-7': { id: 62, name: 'Lôi Sơn Tiểu Quá',   meaning: 'Nhỏ vượt quá, thái quá nhỏ', advice: 'Chú ý tiểu tiết. Việc nhỏ làm cẩn thận, không làm việc lớn.', type: 'TRUNG' },
-    '6-3': { id: 63, name: 'Thủy Hỏa Ký Tế',     meaning: 'Đã hoàn thành, cẩn trọng', advice: 'Đã hoàn thành nhưng đừng lơ là. Cẩn thận giữ gìn thành quả.', type: 'CAT' },
-    '3-6': { id: 64, name: 'Hỏa Thủy Vị Tế',     meaning: 'Chưa hoàn thành', advice: 'Việc chưa xong. Còn nhiều chặng đường phía trước. Không bỏ cuộc.', type: 'TRUNG' },
+    '1-1': { id: 1,  name: 'Thuần Càn',        meaning: 'Sức mạnh, lãnh đạo, thành công rực rỡ', advice: 'Kiên cường tiến lên, thời cơ chín muồi để hành động lớn.', type: 'DAI_CAT' },
+    '1-2': { id: 10, name: 'Thiên Trạch Lý',    meaning: 'Hành xử đúng đắn, khéo léo cẩn trọng', advice: 'Dẫm trên đuôi hổ mà không bị cắn — hãy khéo léo và cẩn trọng.', type: 'CAT' },
+    '1-3': { id: 13, name: 'Thiên Hỏa Đồng Nhân', meaning: 'Đoàn kết, hợp tác cùng mục tiêu', advice: 'Hợp tác với người khác để đạt mục tiêu chung. Sức mạnh tập thể.', type: 'CAT' },
+    '1-4': { id: 25, name: 'Thiên Lôi Vô Vọng',  meaning: 'Hành động chân thật, tự nhiên vô cầu', advice: 'Hành động theo bản năng thuần khiết, không toan tính mưu lợi.', type: 'TRUNG' },
+    '1-5': { id: 44, name: 'Thiên Phong Cấu',    meaning: 'Gặp gỡ bất ngờ, đề phòng cám dỗ', advice: 'Có cơ hội hoặc duyên gặp bất ngờ. Tỉnh táo phân biệt thật giả.', type: 'TRUNG' },
+    '1-6': { id: 6,  name: 'Thiên Thủy Tụng',   meaning: 'Tranh chấp kiện tụng, bất đồng', advice: 'Tránh xung đột tranh chấp. Nhượng bộ để bảo toàn tổng thể.', type: 'HUNG' },
+    '1-7': { id: 33, name: 'Thiên Sơn Độn',      meaning: 'Lui ẩn chiến lược, bảo toàn lực', advice: 'Lui bước chiến lược là khôn ngoan. Không phải nhút nhát.', type: 'TRUNG' },
+    '1-8': { id: 12, name: 'Thiên Địa Bĩ',      meaning: 'Bế tắc trở ngại, thời vận xấu', advice: 'Thời kỳ đình trệ. Nên ẩn nhẫn chờ đợi, không nên hành động lớn.', type: 'HUNG' },
+
+    '2-1': { id: 43, name: 'Trạch Thiên Quải',   meaning: 'Quyết đoán loại bỏ điều tiêu cực', advice: 'Cương quyết loại bỏ rủi ro. Cần quyết tâm và minh bạch.', type: 'TRUNG' },
+    '2-2': { id: 58, name: 'Thuần Đoài',          meaning: 'Vui vẻ hòa hợp, lan tỏa niềm vui', advice: 'Niềm vui và sự hòa hợp lan tỏa. Thời gian tốt cho quan hệ xã hội.', type: 'CAT' },
+    '2-3': { id: 49, name: 'Trạch Hỏa Cách',     meaning: 'Thay đổi cải cách, đổi mới táo bạo', advice: 'Thời điểm thay đổi lớn. Cải cách táo bạo sẽ thành công.', type: 'CAT' },
+    '2-4': { id: 17, name: 'Trạch Lôi Tùy',     meaning: 'Đi theo xu thế, thuận thời ứng biến', advice: 'Đi theo xu thế, không cưỡng cầu. Linh hoạt thích nghi.', type: 'CAT' },
+    '2-5': { id: 28, name: 'Trạch Phong Đại Quá', meaning: 'Gánh nặng quá tải, áp lực cực lớn', advice: 'Gánh quá nặng. Cần chia sẻ, giảm tải, không cô độc chịu đựng.', type: 'HUNG' },
+    '2-6': { id: 47, name: 'Trạch Thủy Khốn',    meaning: 'Khốn cùng gian nan, thiếu thốn', advice: 'Lúc túng thiếu vẫn giữ vững đạo đức và tâm an. Khó khăn sẽ qua.', type: 'HUNG' },
+    '2-7': { id: 31, name: 'Trạch Sơn Hàm',      meaning: 'Cảm ứng tình cảm, kết nối chân thành', advice: 'Kết nối cảm xúc tốt. Tình yêu và quan hệ nở rộ.', type: 'CAT' },
+    '2-8': { id: 45, name: 'Trạch Địa Tụy',      meaning: 'Tụ họp đông vui, tập hợp lực lượng', advice: 'Thời điểm tốt để tập hợp, huy động lực lượng. Kết nối cộng đồng.', type: 'CAT' },
+
+    '3-1': { id: 14, name: 'Hỏa Thiên Đại Hữu', meaning: 'Đại thành sung túc, tài lộc dồi dào', advice: 'Thời kỳ đại thịnh. Giữ sự khiêm tốn để bảo toàn phúc lộc.', type: 'DAI_CAT' },
+    '3-2': { id: 38, name: 'Hỏa Trạch Khuê',     meaning: 'Bất đồng mâu thuẫn, xa cách', advice: 'Tuy có bất đồng nhưng vẫn có thể tìm điểm chung. Kiên nhẫn thương lượng.', type: 'HUNG' },
+    '3-3': { id: 30, name: 'Thuần Ly',            meaning: 'Tỏa sáng rực rỡ, bám vào chính nghĩa', advice: 'Tỏa sáng và bám vào điều tốt đẹp. Sự rõ ràng và văn minh.', type: 'CAT' },
+    '3-4': { id: 21, name: 'Hỏa Lôi Phệ Hạp',   meaning: 'Trừng phạt công lý, xử lý dứt điểm', advice: 'Xử lý dứt điểm vấn đề tồn đọng. Cần quyết đoán và công minh.', type: 'TRUNG' },
+    '3-5': { id: 50, name: 'Hỏa Phong Đỉnh',     meaning: 'Đỉnh cao thành đạt, đổi mới vĩ đại', advice: 'Đạt đỉnh cao sự nghiệp và tri thức. Thời điểm thu hoạch thành quả.', type: 'DAI_CAT' },
+    '3-6': { id: 64, name: 'Hỏa Thủy Vị Tế',     meaning: 'Chưa hoàn thành, tiền đồ còn dài', advice: 'Việc chưa xong. Còn nhiều chặng đường phía trước. Không bỏ cuộc.', type: 'TRUNG' },
+    '3-7': { id: 56, name: 'Hỏa Sơn Lữ',         meaning: 'Hành trình xa quê, bất ổn xứ người', advice: 'Đi xa, xa lạ. Hành xử nhẹ nhàng, tránh xung đột ở đất khách.', type: 'TRUNG' },
+    '3-8': { id: 35, name: 'Hỏa Địa Tấn',        meaning: 'Tiến bộ vượt bậc, thăng tiến nhanh', advice: 'Thời cơ thăng tiến. Mọi nỗ lực được ghi nhận và đền đáp.', type: 'DAI_CAT' },
+
+    '4-1': { id: 34, name: 'Lôi Thiên Đại Tráng', meaning: 'Sức mạnh dồi dào, tránh lạm quyền', advice: 'Sức mạnh dồi dào nhưng cẩn thận không lạm dụng. Đức trị mới bền.', type: 'CAT' },
+    '4-2': { id: 54, name: 'Lôi Trạch Quy Muội',  meaning: 'Quan hệ tình cảm, cần đúng lễ nghi', advice: 'Cẩn trọng trong quan hệ tình cảm. Hành động theo đúng lễ nghi.', type: 'TRUNG' },
+    '4-3': { id: 55, name: 'Lôi Hỏa Phong',       meaning: 'Thịnh vượng dồi dào, thời kỳ hoàng kim', advice: 'Thời kỳ hoàng kim. Hãy tận dụng và chia sẻ thịnh vượng.', type: 'DAI_CAT' },
+    '4-4': { id: 51, name: 'Thuần Chấn',          meaning: 'Biến cố sấm sét, chấn động bất ngờ', advice: 'Biến cố bất ngờ nhưng sẽ qua. Giữ bình tĩnh, đừng hoảng loạn.', type: 'HUNG' },
+    '4-5': { id: 32, name: 'Lôi Phong Hằng',     meaning: 'Bền vững lâu dài, kiên trì lập trường', advice: 'Kiên trì là chìa khóa. Không thay đổi quá nhiều, giữ vững lập trường.', type: 'CAT' },
+    '4-6': { id: 40, name: 'Lôi Thủy Giải',      meaning: 'Giải tỏa áp lực, tháo gỡ vướng mắc', advice: 'Áp lực được giải tỏa. Hành động nhanh để nắm bắt cơ hội.', type: 'CAT' },
+    '4-7': { id: 62, name: 'Lôi Sơn Tiểu Quá',   meaning: 'Thận trọng tiểu tiết, chu đáo việc nhỏ', advice: 'Chú ý tiểu tiết. Việc nhỏ làm cẩn thận, không làm việc lớn.', type: 'TRUNG' },
+    '4-8': { id: 16, name: 'Lôi Địa Dự',        meaning: 'Hứng khởi phấn chấn, chuẩn bị lớn', advice: 'Thời điểm hành động với tinh thần hứng khởi. Tổ chức, vận động.', type: 'CAT' },
+
+    '5-1': { id: 9,  name: 'Phong Thiên Tiểu Súc', meaning: 'Tích lũy từng bước, tích tiểu thành đại', advice: 'Tích lũy từng bước nhỏ. Chưa phải lúc ra đòn lớn.', type: 'TRUNG' },
+    '5-2': { id: 61, name: 'Phong Trạch Trung Phu', meaning: 'Lòng thành tín, sự tin tưởng tuyệt đối', advice: 'Lòng thành thực là sức mạnh. Tin tưởng và được tin tưởng.', type: 'CAT' },
+    '5-3': { id: 37, name: 'Phong Hỏa Gia Nhân',  meaning: 'Gia đình hòa thuận, củng cố nội bộ', advice: 'Gia đình hòa thuận là cơ sở vững chắc. Chú ý quan hệ nội bộ.', type: 'CAT' },
+    '5-4': { id: 42, name: 'Phong Lôi Ích',       meaning: 'Tăng trưởng mạnh mẽ, mở rộng lộc tài', advice: 'Thời kỳ tăng trưởng. Hành động quyết đoán mang lại lợi nhuận.', type: 'DAI_CAT' },
+    '5-5': { id: 57, name: 'Thuần Tốn',           meaning: 'Khiêm nhu thâm nhập, kiên trì bền bỉ', advice: 'Dùng sự mềm mại để thâm nhập. Kiên trì theo cùng một hướng.', type: 'TRUNG' },
+    '5-6': { id: 59, name: 'Phong Thủy Hoán',     meaning: 'Hóa giải chia rẽ, giải tỏa ngưng trệ', advice: 'Khắc phục sự chia rẽ. Kết nối lại những điều bị tan vỡ.', type: 'TRUNG' },
+    '5-7': { id: 53, name: 'Phong Sơn Tiệm',      meaning: 'Tiến triển tuần tự, từng bước vững chắc', advice: 'Tiến dần từng bước, không vội vàng. Sự kiên trì dẫn đến thành công.', type: 'CAT' },
+    '5-8': { id: 20, name: 'Phong Địa Quan',     meaning: 'Quan sát suy ngẫm, tư duy chiến lược', advice: 'Quan sát toàn cục trước khi hành động. Tư duy chiến lược.', type: 'TRUNG' },
+
+    '6-1': { id: 5,  name: 'Thủy Thiên Nhu',    meaning: 'Kiên nhẫn chờ thời, dưỡng sức tích lực', advice: 'Chờ đúng thời điểm. Dưỡng thân tích lực là thượng sách.', type: 'TRUNG' },
+    '6-2': { id: 60, name: 'Thủy Trạch Tiết',    meaning: 'Tiết chế điều độ, kỷ luật bản thân', advice: 'Cần có giới hạn và kỷ luật. Tự nguyện tiết chế để bảo tồn lâu dài.', type: 'TRUNG' },
+    '6-3': { id: 63, name: 'Thủy Hỏa Ký Tế',     meaning: 'Đã hoàn thành, cẩn trọng giữ thành quả', advice: 'Đã hoàn thành nhưng đừng lơ là. Cẩn thận giữ gìn thành quả.', type: 'CAT' },
+    '6-4': { id: 3,  name: 'Thủy Lôi Truân',    meaning: 'Khởi đầu gian nan, kiên trì xây nền', advice: 'Mới khởi sự gặp trở ngại là bình thường. Chờ đợi và xây nền vững.', type: 'HUNG' },
+    '6-5': { id: 48, name: 'Thủy Phong Tỉnh',    meaning: 'Nguồn giếng tri thức, cống hiến bền bỉ', advice: 'Quay về nguồn cội, giữ gìn tài nguyên tinh thần. Bền bỉ phục vụ.', type: 'TRUNG' },
+    '6-6': { id: 29, name: 'Thuần Khảm',         meaning: 'Trở ngại hiểm trở, kiên tâm vượt khó', advice: 'Lâm vào nơi hiểm. Giữ tâm vững, kiên định, không hoảng loạn.', type: 'HUNG' },
+    '6-7': { id: 39, name: 'Thủy Sơn Kiển',      meaning: 'Đường đi gian trắc, nên tìm sự trợ giúp', advice: 'Đường đi gặp trở ngại. Nên tìm trợ giúp, không nên một mình.', type: 'HUNG' },
+    '6-8': { id: 8,  name: 'Thủy Địa Tỷ',       meaning: 'Đoàn kết liên minh, hỗ trợ lẫn nhau', advice: 'Liên kết với người đồng chí. Sự hợp tác mang lại thành công.', type: 'CAT' },
+
+    '7-1': { id: 26, name: 'Sơn Thiên Đại Súc',  meaning: 'Tích lũy tài năng lớn, thời cơ đang đến', advice: 'Đây là lúc tích lũy năng lực. Thời cơ lớn đang đến.', type: 'CAT' },
+    '7-2': { id: 41, name: 'Sơn Trạch Tổn',      meaning: 'Hy sinh cái nhỏ vì mục tiêu cao cả', advice: 'Cần hy sinh cái nhỏ để được cái lớn. Lòng thành mang lại phúc lành.', type: 'TRUNG' },
+    '7-3': { id: 22, name: 'Sơn Hỏa Bí',        meaning: 'Trang trí hình thức, tôn trọng thực chất', advice: 'Chú ý hình thức nhưng đừng quên thực chất bên trong.', type: 'TRUNG' },
+    '7-4': { id: 27, name: 'Sơn Lôi Di',         meaning: 'Nuôi dưỡng bản thân và chăm sóc người khác', advice: 'Chú ý dinh dưỡng, sức khỏe. Nuôi dưỡng bản thân và người xung quanh.', type: 'TRUNG' },
+    '7-5': { id: 18, name: 'Sơn Phong Cổ',      meaning: 'Sửa chữa sai lầm, chấn chỉnh nếp cũ', advice: 'Cần mạnh dạn cải cách những gì đã cũ kỹ, sai lầm.', type: 'TRUNG' },
+    '7-6': { id: 4,  name: 'Sơn Thủy Mông',     meaning: 'Ấu trĩ khiêm nhường, học hỏi thêm', advice: 'Khiêm tốn cầu học, không nên vội vàng quyết đoán.', type: 'TRUNG' },
+    '7-7': { id: 52, name: 'Thuần Cấn',           meaning: 'Dừng lại tĩnh lặng, suy ngẫm lắng đọng', advice: 'Dừng lại đúng lúc là trí tuệ. Không nhất thiết phải tiến.', type: 'TRUNG' },
+    '7-8': { id: 23, name: 'Sơn Địa Bác',        meaning: 'Suy thoái bóc mòn, cẩn trọng ẩn nhẫn', advice: 'Thời điểm khó khăn. Hãy ẩn nhẫn, đừng hành động vội.', type: 'HUNG' },
+
+    '8-1': { id: 11, name: 'Địa Thiên Thái',    meaning: 'Thái bình hanh thông, thời kỳ thịnh vượng', advice: 'Thời kỳ thịnh vượng. Mọi việc hanh thông, hãy tận dụng.', type: 'DAI_CAT' },
+    '8-2': { id: 19, name: 'Địa Trạch Lâm',     meaning: 'Tiến lên tự tin, cơ hội lớn đến gần', advice: 'Cơ hội đến gần. Hãy tiến tới với sự tự tin và cẩn trọng.', type: 'CAT' },
+    '8-3': { id: 36, name: 'Địa Hỏa Minh Di',    meaning: 'Ánh sáng bị che khuất, giấu tài chờ thời', advice: 'Tạm thời lép vế. Hãy ẩn tài, chờ thời cơ. Đừng để lộ điểm yếu.', type: 'HUNG' },
+    '8-4': { id: 24, name: 'Địa Lôi Phục',       meaning: 'Phục hồi sinh khí, quay về chính đạo', advice: 'Sau khó khăn, sức mạnh đang phục hồi. Hãy kiên nhẫn thêm.', type: 'CAT' },
+    '8-5': { id: 46, name: 'Địa Phong Thăng',    meaning: 'Thăng tiến từng bước, leo lên vị trí cao', advice: 'Từng bước leo lên vị trí cao hơn. Kiên trì nhất định thành công.', type: 'CAT' },
+    '8-6': { id: 7,  name: 'Địa Thủy Sư',       meaning: 'Kỷ luật lãnh đạo, chiến lược quân sự', advice: 'Cần lãnh đạo mạnh và kỷ luật. Đây là lúc chứng tỏ năng lực.', type: 'TRUNG' },
+    '8-7': { id: 15, name: 'Địa Sơn Khiêm',     meaning: 'Khiêm tốn nhún nhường, đức cao bền vững', advice: 'Khiêm tốn là đức tính cao quý nhất lúc này. Thành công bền vững.', type: 'CAT' },
+    '8-8': { id: 2,  name: 'Thuần Khôn',        meaning: 'Nhu thuận bền chí, hợp tác đi sau', advice: 'Không nên dẫn đầu, hãy đi sau hỗ trợ. Kiên nhẫn chờ thời.', type: 'CAT' },
   };
 
   const HANH_SINH_KHAC = {
@@ -134,7 +141,7 @@
     try {
       if (typeof Lunar !== 'undefined') {
         const lunar = Lunar.fromDate(new Date());
-        const canNamIdx = lunar.getYearGanIndex ? lunar.getYearGanIndex() : 3;
+        const canNamIdx = typeof lunar.getYearGanIndexByLiChun === 'function' ? lunar.getYearGanIndexByLiChun() : (typeof lunar.getYearGanIndexExact === 'function' ? lunar.getYearGanIndexExact() : (lunar.getYear() - 4 + 1000) % 10);
         nam = (canNamIdx % 10) + 1;
         thangAm = Math.abs(lunar.getMonth());
         ngayAm = lunar.getDay();
@@ -143,25 +150,21 @@
     return calcMaiHoa(nam, thangAm, ngayAm, 0);
   }
 
-  // Vẽ 6 Hào
+  // Vẽ 6 Hào theo đúng mảng Nhị phân của Bát Quái (Hào 1-3 Hạ Quái, Hào 4-6 Thượng Quái)
   function renderHaoLines(queResult, isAnimated) {
-    const { thuongQue, haQue, haoDong, relation } = queResult;
+    const { thuongQue, haQue, haoDong } = queResult;
     const allHao = [
-      ...Array(3).fill(0).map((_, i) => ({ quai: haQue, idx: i + 1 })),
-      ...Array(3).fill(0).map((_, i) => ({ quai: thuongQue, idx: i + 4 })),
+      ...haQue.lines.map((val, i) => ({ quai: haQue, idx: i + 1, isYang: val === 1 })),
+      ...thuongQue.lines.map((val, i) => ({ quai: thuongQue, idx: i + 4, isYang: val === 1 })),
     ];
 
     return `<div style="display:flex;flex-direction:column-reverse;gap:6px;align-items:center;width:100%;">
-      ${allHao.map(({ quai, idx }) => {
+      ${allHao.map(({ idx, isYang }) => {
         const isDong = idx === haoDong;
-        const isYang = quai.name !== 'Khôn' && quai.name !== 'Đoài' && quai.name !== 'Khảm' && quai.name !== 'Cấn'; // Dương quẻ
-        // Randomize yin/yang per position for visual variety
-        const seed = (quai.id * 7 + idx * 3) % 2;
-        const yang = seed === 0;
 
         return `<div style="display:flex;align-items:center;gap:10px;width:100%;justify-content:center;${isDong ? 'filter:brightness(1.5);' : ''}">
           <div style="font-size:0.7em;color:${isDong ? '#fbbf24' : 'var(--text-muted)'};min-width:16px;text-align:right;">${idx}</div>
-          ${yang
+          ${isYang
             ? `<div style="height:8px;width:90px;background:${isDong ? '#fbbf24' : 'var(--text-secondary)'};border-radius:4px;${isAnimated && isDong ? 'animation:pulse 1.5s infinite;' : ''}"></div>`
             : `<div style="display:flex;gap:8px;">
                 <div style="height:8px;width:40px;background:${isDong ? '#fbbf24' : 'var(--text-muted)'};border-radius:4px;"></div>

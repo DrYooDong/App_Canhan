@@ -189,7 +189,7 @@
   --font-heading: 'Space Grotesk', 'Cinzel', -apple-system, sans-serif;
   --font-body:    'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
-  --font-cinzel:  'Cinzel', serif;
+  --font-cinzel:  'Cinzel', var(--font-body), sans-serif;
 
   --text-xs:   0.85rem;     /* ~13.6px */
   --text-sm:   0.9375rem;   /* 15px */
@@ -3728,3 +3728,156 @@ body.theme-tho {
   font-weight: 600;
 }
 
+/* ============================================
+   PERSONAL-FIRST REDESIGN — Additions
+   Nav Highlight, Tuvi Home, Profile Card
+   ============================================ */
+
+/* ── Nav Item Highlight (Lá Số — Home first) ── */
+.nav-item-highlight {
+  background: linear-gradient(135deg, rgba(120, 60, 200, 0.2), rgba(80, 40, 160, 0.12)) !important;
+  border: 1px solid rgba(140, 80, 240, 0.35) !important;
+  color: var(--accent-hover) !important;
+}
+.nav-item-highlight .nav-item-icon {
+  background: linear-gradient(135deg, rgba(120,60,200,0.3), rgba(80,40,160,0.2));
+  border-radius: 8px;
+}
+.nav-item-highlight:hover {
+  background: linear-gradient(135deg, rgba(140, 80, 220, 0.3), rgba(100, 50, 180, 0.2)) !important;
+  color: #a78bfa !important;
+}
+.nav-item-highlight.active {
+  background: linear-gradient(135deg, rgba(120, 60, 200, 0.35), rgba(80, 40, 160, 0.25)) !important;
+  border-color: rgba(140, 80, 240, 0.6) !important;
+  color: var(--accent-hover) !important;
+}
+
+/* ── Sidebar Profile Card Hover ── */
+.sidebar-profile-wrap > div {
+  transition: all 0.2s ease;
+}
+.sidebar-profile-wrap > div:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(120, 60, 200, 0.2);
+}
+
+/* ── Tool Cards in Tuvi Home ── */
+.tool-card {
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.tool-card:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(var(--accent-primary-rgb), 0.15);
+}
+
+/* ── Tuvi Banner min-height ── */
+.tuvi-home .tuvi-banner {
+  min-height: 160px;
+}
+
+/* Hide redundant page header when chart is rendered inside tuvi-home */
+.tuvi-home .header-section {
+  display: none !important;
+}
+
+/* ── Onboarding responsive tweaks ── */
+@media (max-width: 480px) {
+  #onboarding-overlay .ob-container {
+    padding: 28px 20px !important;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   REACTION CHAIN (LIFEOS WORKFLOW)
+══════════════════════════════════════════════ */
+.reaction-chain-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  padding-left: 20px;
+}
+
+.reaction-chain-container::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 31px;
+  width: 2px;
+  background: var(--border-color);
+  z-index: 0;
+}
+
+.reaction-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.reaction-step-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  margin-top: 14px;
+  box-shadow: 0 0 10px var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.reaction-step-content {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.25s ease;
+}
+
+.reaction-step-content:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.reaction-step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 10px;
+}
+
+.reaction-step-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.reaction-step-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  padding: 4px 10px;
+  border-radius: 12px;
+}

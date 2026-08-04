@@ -63,6 +63,69 @@ window.ZiweiPatterns = (function() {
   // CÁC CÁCH CỤC CỤ THỂ (DETECTORS)
   // ============================================
 
+  const PATTERN_LIST = [
+    {
+      id: 'quan-than-khanh-hui',
+      name: 'Quân Thần Khánh Hội',
+      description: 'Tử Vi tọa thủ Mệnh, Tả Phù Hữu Bật đồng hội. Đế vương được hiền thần phò tá, chủ về đại phú đại quý, uy quyền thống trị. Cả đời quý nhân giúp đỡ, thích hợp làm lãnh đạo cao cấp, doanh nhân chính trị.',
+      source: '《Tử Vi Đẩu Số Toàn Thư · Quân Thần Khánh Hội Cách》'
+    },
+    {
+      id: 'tu-phu-dong-cung',
+      name: 'Tử Phủ Đồng Cung',
+      description: 'Tử Vi Thiên Phủ cùng vào Cung Mệnh (ở Dần hoặc Thân), Đế Tướng song hành. Phẩm hạnh đoan chính, y thực vô ưu, tài năng quản lý xuất chúng, nắm giữ trọng trách.',
+      source: '《Tử Vi Toàn Thư · Tử Phủ Đồng Cung Cách》'
+    },
+    {
+      id: 'phu-tuong-trieu-vien',
+      name: 'Phủ Tướng Triều Viên',
+      description: 'Thiên Phủ Thiên Tướng phân thủ Tam Phương Tứ Chính của Mệnh, văn võ song toàn, quyền ấn song huy. Cả đời y thực phong túc, địa vị cao sang, thích hợp quản lý doanh nghiệp hoặc chính giới.',
+      source: '《Tử Vi Toàn Thư · Phủ Tướng Triều Viên Cách》'
+    },
+    {
+      id: 'duong-luong-xuong-loc',
+      name: 'Dương Lương Xương Lộc',
+      description: 'Bốn sao Thái Dương, Thiên Lương, Văn Xương, Lộc Tồn tề hội Tam Phương Mệnh. Được mệnh danh là "Khoa Bảng Chi Tinh", thi cử đỗ đạt cao, danh tiếng lẫy lừng, rất tốt cho con đường học thuật, nghiên cứu, chuyên gia.',
+      source: '《Tử Vi Toàn Thư · Dương Lương Xương Lộc Cách》'
+    },
+    {
+      id: 'huo-ling-tan',
+      name: 'Hỏa / Linh Tham Cách',
+      description: 'Tham Lang gặp Hỏa Tinh hoặc Linh Tinh hội Mệnh, chủ về BẠO PHÁT HẰNG TÀI - phát đạt bất ngờ, nắm bắt thời cơ xuất sắc. Cổ ngữ: "Tham Lang ngộ Hỏa Linh, tất phát hoành tài".',
+      source: '《Cốt Tủy Phú · Hỏa Tham Linh Tham Cách》'
+    },
+    {
+      id: 'vu-tham',
+      name: 'Vũ Tham Cách',
+      description: 'Vũ Khúc tài tinh hội Tham Lang dục vọng tinh. Cổ thư viết "Vũ Tham bất phát thiếu niên nhân" — trước 30 tuổi bôn ba vất vả, sau 30 tuổi tích lũy bùng nổ tài lộc đại phú đại quý.',
+      source: '《Cốt Tủy Phú · Vũ Tham Bất Phát Thiếu Niên Nhân》'
+    },
+    {
+      id: 'sat-po-lang',
+      name: 'Sát Phá Lang',
+      description: 'Ba sao Thất Sát, Phá Quân, Tham Lang luôn tam hợp với nhau. Chủ về cuộc đời giàu tính khai sáng, dám nghĩ dám làm, biến động mạnh mẽ, không chịu an phận thủ thường.',
+      source: '《Tử Vi Toàn Thư · Sát Phá Lang Cách》'
+    },
+    {
+      id: 'ri-yue-bing-ming',
+      name: 'Nhật Nguyệt Tịnh Minh',
+      description: 'Thái Dương cư vị trí ban ngày rạng rỡ, Thái Âm cư vị trí ban đêm trong sáng. Hai sao Âm Dương miếu vượng chiếu Mệnh, tâm địa quang minh, tiền đồ rộng mở, đại quý đại hiền.',
+      source: '《Tử Vi Toàn Thư · Nhật Nguyệt Tịnh Minh Cách》'
+    },
+    {
+      id: 'qi-sha-chao-dou',
+      name: 'Thất Sát Triều Đấu',
+      description: 'Thất Sát tọa Mệnh tại Dần/Thân/Tý/Ngọ. Tướng tinh đắc địa, chí khí anh hùng, có khả năng độc lập tác chiến và uy phong trấn áp. Thích hợp nghiệp quân sự, lãnh đạo, quản lý dự án lớn.',
+      source: '《Cốt Tủy Phú · Thất Sát Triều Đấu Cách》'
+    },
+    {
+      id: 'ming-wu-zheng-di',
+      name: 'Mệnh Vô Chính Diệu',
+      description: 'Cung Mệnh không có sao Chính Tinh tọa thủ. Tính cách linh hoạt, dễ thích nghi môi trường, cần mượn chính tinh Cung Thiên Di chiếu sang để định hình sự nghiệp.',
+      source: '《Tử Vi Đẩu Số Toàn Thư》'
+    }
+  ];
+
   // 1. Quân Thần Khánh Hội
   function detectJunChenQingHui(chart, ming, patterns) {
     if (!hasStarInPalace(ming, 'Tử Vi')) return;
@@ -318,6 +381,7 @@ window.ZiweiPatterns = (function() {
   }
 
   return {
-    detectPatterns
+    detectPatterns,
+    PATTERN_LIST
   };
 })();

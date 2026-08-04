@@ -1,82 +1,46 @@
 // ============================================
-// NỘI TÂM — Supabase Client cho Lá Số Tử Vi
+// NỘI TÂM — Local Profile Manager (replaces Supabase)
+// All data stored locally in localStorage
 // ============================================
 
-const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+const PROFILE_STORAGE_KEY = 'noitam_user_profile';
 
-let supabase = null;
-
-if (window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_URL_HERE') {
-  // We use supabase-js library via CDN which exposes 'supabase' on window
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
+// Legacy SupabaseManager kept for backward compatibility
 const SupabaseManager = {
-  isConfigured: () => {
-    return supabase !== null;
-  },
+  isConfigured: () => false,
 
   fetchProfiles: async () => {
-    if (!SupabaseManager.isConfigured()) {
-      return [{ id: 'default', name: 'Mặc định (Local)' }];
+    const p = _getLocalProfile();
+    if (p && p.name) {
+      return [{ id: 'local', name: p.name }];
     }
-
-    try {
-      const { data, error } = await supabase
-        .from('astrology_profiles')
-        .select('id, name, gender, dob');
-      
-      if (error) throw error;
-      
-      return data && data.length > 0 ? data : [{ id: 'default', name: 'Mặc định (Local)' }];
-    } catch (e) {
-      console.error("Error fetching profiles:", e);
-      return [{ id: 'default', name: 'Mặc định (Local)' }];
-    }
+    return [{ id: 'default', name: 'Hồ Sơ Cá Nhân (Local)' }];
   },
 
   loadProfile: async (profileId) => {
-    if (!SupabaseManager.isConfigured() || profileId === 'default') {
-      // Fallback to the hardcoded default data (already loaded from tuvi.js)
-      // We assume window.DEFAULT_TUVI_DATA etc are available or we just don't overwrite if it's already there.
-      if (window.DEFAULT_TUVI_DATA) window.TUVI_DATA = window.DEFAULT_TUVI_DATA;
-      if (window.DEFAULT_TUVI_PALACES) window.TUVI_PALACES = window.DEFAULT_TUVI_PALACES;
-      if (window.DEFAULT_ANNUAL_DYNAMICS) window.ANNUAL_DYNAMICS = window.DEFAULT_ANNUAL_DYNAMICS;
-      if (window.DEFAULT_TUVI_SECTIONS) window.TUVI_SECTIONS = window.DEFAULT_TUVI_SECTIONS;
-      return true;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('astrology_profiles')
-        .select('*')
-        .eq('id', profileId)
-        .single();
-      
-      if (error) throw error;
-
-      if (data) {
-        if (data.tuvi_data) window.TUVI_DATA = data.tuvi_data;
-        if (data.tuvi_palaces) window.TUVI_PALACES = data.tuvi_palaces;
-        if (data.annual_dynamics) window.ANNUAL_DYNAMICS = data.annual_dynamics;
-        if (data.tuvi_sections) window.TUVI_SECTIONS = data.tuvi_sections;
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("Error loading profile:", e);
-      return false;
-    }
+    // With local storage, data is always available via Onboarding.getProfile()
+    // Legacy compatibility: expose default tuvi data
+    if (window.DEFAULT_TUVI_DATA) window.TUVI_DATA = window.DEFAULT_TUVI_DATA;
+    if (window.DEFAULT_TUVI_PALACES) window.TUVI_PALACES = window.DEFAULT_TUVI_PALACES;
+    if (window.DEFAULT_ANNUAL_DYNAMICS) window.ANNUAL_DYNAMICS = window.DEFAULT_ANNUAL_DYNAMICS;
+    if (window.DEFAULT_TUVI_SECTIONS) window.TUVI_SECTIONS = window.DEFAULT_TUVI_SECTIONS;
+    return true;
   },
 
   getCurrentProfileId: () => {
-    return localStorage.getItem('active_astrology_profile_id') || 'default';
+    return 'local';
   },
 
   setCurrentProfileId: (profileId) => {
-    localStorage.setItem('active_astrology_profile_id', profileId);
+    // no-op for local mode
   }
 };
+
+function _getLocalProfile() {
+  try {
+    const d = localStorage.getItem(PROFILE_STORAGE_KEY);
+    return d ? JSON.parse(d) : null;
+  } catch { return null; }
+}
 
 window.SupabaseManager = SupabaseManager;

@@ -5,18 +5,19 @@
 (function () {
   'use strict';
 
-  let activeTab = 'journal'; // 'journal' | 'lessons' | 'rules' | 'reminders'
+  let activeTab = 'journal'; // 'journal' | 'lessons' | 'rules' | 'reminders' | 'dictionary'
 
   function renderKnowledge(container, params) {
     if (params && params[0]) {
-      if (['journal', 'lessons', 'rules', 'reminders'].includes(params[0])) {
+      if (['journal', 'lessons', 'rules', 'reminders', 'dictionary'].includes(params[0])) {
         activeTab = params[0];
       }
     }
 
     container.innerHTML = `
-      <div class="knowledge-container animate-fade-in">
-        <div class="tabs-header">
+      <div class="knowledge-container animate-fade-in" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="tabs-header" style="flex-shrink: 0; overflow-x: auto;">
+          <button class="btn btn-tab ${activeTab === 'dictionary' ? 'active' : ''}" data-tab="dictionary"><span>📚</span> Tàng Kinh Các</button>
           <button class="btn btn-tab ${activeTab === 'journal' ? 'active' : ''}" data-tab="journal"><span>📓</span> Nhật Ký Phản Tư</button>
           <button class="btn btn-tab ${activeTab === 'lessons' ? 'active' : ''}" data-tab="lessons"><span>📖</span> Bài Học Đúc Kết</button>
           <button class="btn btn-tab ${activeTab === 'rules' ? 'active' : ''}" data-tab="rules"><span>⚖️</span> Quy Luật Cuộc Sống</button>
@@ -24,7 +25,7 @@
         </div>
 
         <!-- Sub-module Content Container -->
-        <div id="knowledge-sub-content"></div>
+        <div id="knowledge-sub-content" style="flex: 1; min-height: 0;"></div>
       </div>
     `;
 
@@ -41,7 +42,9 @@
       });
 
       subContent.innerHTML = '';
-      if (tab === 'journal' && window.renderJournal) {
+      if (tab === 'dictionary' && window.renderDictionary) {
+        window.renderDictionary(subContent);
+      } else if (tab === 'journal' && window.renderJournal) {
         window.renderJournal(subContent);
       } else if (tab === 'lessons' && window.renderLessons) {
         window.renderLessons(subContent);
@@ -56,6 +59,8 @@
     container.querySelectorAll('.btn-tab').forEach(btn => {
       btn.addEventListener('click', () => {
         loadSubTab(btn.dataset.tab);
+        // Update URL state
+        window.history.pushState({}, '', \`#knowledge/\${btn.dataset.tab}\`);
       });
     });
 

@@ -1,17 +1,19 @@
 // ============================================
-// NỘI TÂM — Sidebar Component v2.0
-// Icon Rail — Cosmic Eastern Design
+// NỘI TÂM — Sidebar Component v3.0
+// Personal-First Navigation
 // ============================================
 
 (function() {
   'use strict';
 
+  // Navigation: Lá Số first as home
   const NAV_ITEMS = [
-    { route: 'dashboard', icon: '📅', label: 'Lịch & Năng Lượng Ngày' },
-    { route: 'astrology', icon: '🔮', label: 'Lá Số & Vận Hạn' },
-    { route: 'finance',   icon: '💰', label: 'Tài Chính LifeOS' },
-    { route: 'oracle',    icon: '🧭', label: 'Kỳ Môn & Quẻ Dịch' },
-    { route: 'knowledge', icon: '📜', label: 'Tri Thức & Phản Tư', badge: true },
+    { route: 'tuvi',      icon: '🔮', label: 'Lá Số Của Tôi', highlight: true },
+    { route: 'dashboard', icon: '📅', label: 'Nhật Lịch & Ngày Tốt' },
+    { route: 'astrology', icon: '🌌', label: 'Tử Vi Chuyên Sâu' },
+    { route: 'finance',   icon: '💰', label: 'Tài Chính & Đầu Tư' },
+    { route: 'oracle',    icon: '🧭', label: 'Kỳ Môn & Kinh Dịch' },
+    { route: 'knowledge', icon: '📖', label: 'Nhật Ký & Tri Thức', badge: true },
     { route: 'search',    icon: '🔍', label: 'Tìm Kiếm' }
   ];
 
@@ -50,13 +52,41 @@
       ? window.App.Theme.get()
       : (localStorage.getItem('noitam_theme')?.includes('dark') ? 'dark' : 'light');
 
+    // Get user profile for display
+    const profile = window.Onboarding ? window.Onboarding.getProfile() : null;
+    const userName = profile ? profile.name : 'Chưa có hồ sơ';
+    const userSubtitle = profile ? `${profile.day}/${profile.month}/${profile.year} • ${profile.gender}` : 'Nhấn ⚙️ để thiết lập';
+
     sidebar.innerHTML = `
       <!-- Brand -->
-      <div class="sidebar-logo-wrap">
-        <div class="sidebar-logo" title="Nội Tâm — Cosmic Eastern">☯</div>
+      <div class="sidebar-logo-wrap" style="cursor:pointer;" onclick="App.Router.navigate('tuvi'); document.querySelector('.sidebar')?.classList.remove('open');">
+        <div class="sidebar-logo" title="Nội Tâm">☯</div>
         <div class="sidebar-brand-text">
           <div class="sidebar-title">NỘI TÂM</div>
-          <div class="sidebar-subtitle">Tử Vi & Tri Thức</div>
+          <div class="sidebar-subtitle">Lá Số Cá Nhân</div>
+        </div>
+      </div>
+
+      <!-- Personal Profile Card -->
+      <div class="sidebar-profile-wrap" style="padding: 0 12px 12px 12px;">
+        <div style="
+          display:flex; align-items:center; gap:10px;
+          background: linear-gradient(135deg, rgba(120,60,200,0.15), rgba(80,40,160,0.1));
+          border: 1px solid rgba(120,80,220,0.3);
+          border-radius: 14px; padding: 10px 12px;
+          cursor:pointer; transition: all 0.2s ease;
+        " onclick="App.Router.navigate('tuvi'); document.querySelector('.sidebar')?.classList.remove('open');" title="Lá Số Của Tôi">
+          <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#7b3fe4,#9b59f5); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">☯</div>
+          <div style="min-width:0; flex:1;">
+            <div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${userName}</div>
+            <div style="font-size:0.72rem; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${userSubtitle}</div>
+          </div>
+          <button id="sidebar-settings-btn" style="
+            background:none; border:none; cursor:pointer;
+            color:var(--text-tertiary); font-size:0.9rem;
+            padding:4px; border-radius:6px;
+            transition: color 0.2s;
+          " title="Chỉnh sửa hồ sơ" onclick="event.stopPropagation(); window._sidebarEditProfile();">⚙️</button>
         </div>
       </div>
 
@@ -66,21 +96,11 @@
         <span class="date-text">${getLunarDateDisplay()}</span>
       </div>
 
-      <!-- Profile Selector Pill -->
-      <div class="sidebar-profile-wrap" style="padding: 0 12px 12px 12px;">
-        <div style="display:flex; align-items:center; gap:8px; background: rgba(255,255,255,0.045); border: 1px solid var(--border-color); border-radius: 12px; padding: 6px 10px; transition: all 0.2s ease;" title="Chọn hồ sơ Tử Vi">
-          <span style="font-size:1rem; color:var(--accent-primary);">👤</span>
-          <select id="astrology-profile-select" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-family: var(--font-primary); font-size: 0.85rem; font-weight:600; cursor: pointer; width: 100%;">
-            <option value="default">Đang tải...</option>
-          </select>
-        </div>
-      </div>
-
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <div class="nav-section-label">✦ ĐIỀU HƯỚNG ✦</div>
         ${NAV_ITEMS.map(item => `
-          <div class="nav-item" data-route="${item.route}"
+          <div class="nav-item ${item.highlight ? 'nav-item-highlight' : ''}" data-route="${item.route}"
             onclick="App.Router.navigate('${item.route}'); document.querySelector('.sidebar')?.classList.remove('open');"
             title="${item.label}">
             <span class="nav-item-icon">${item.icon}</span>
@@ -100,6 +120,19 @@
         </button>
       </div>
     `;
+
+    // Settings edit profile
+    window._sidebarEditProfile = () => {
+      if (window.Onboarding) {
+        const currentProfile = window.Onboarding.getProfile();
+        window.Onboarding.showProfileEditor(currentProfile, (newProfile) => {
+          renderSidebar(); // Re-render sidebar with new name
+          if (window.App && window.App.Router && window.App.Router.currentRoute === 'tuvi') {
+            window.App.Router.navigate('tuvi');
+          }
+        });
+      }
+    };
 
     const themeBtn = sidebar.querySelector('#theme-toggle-btn');
     if (themeBtn) {
@@ -140,35 +173,8 @@
 
     updateBadges();
 
-    // Populate Supabase Profiles
-    const profileSelect = document.getElementById('astrology-profile-select');
-    if (profileSelect && window.SupabaseManager) {
-      window.SupabaseManager.fetchProfiles().then(profiles => {
-        profileSelect.innerHTML = profiles.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-        profileSelect.value = window.SupabaseManager.getCurrentProfileId();
-        
-        profileSelect.addEventListener('change', async (e) => {
-          const newProfileId = e.target.value;
-          window.SupabaseManager.setCurrentProfileId(newProfileId);
-          
-          // Re-load profile data
-          const success = await window.SupabaseManager.loadProfile(newProfileId);
-          if (success) {
-            window.App.Toast.show("Đã tải hồ sơ: " + profiles.find(p => p.id === newProfileId)?.name);
-            // Re-render current route to reflect new data
-            if (window.App.Router && window.App.Router.currentRoute) {
-              const currentRouteParts = window.App.Router.currentRoute.split('/');
-              const routeName = currentRouteParts[0];
-              if (window.App.Router.routes[routeName]) {
-                window.App.Router.routes[routeName](document.querySelector('.content-container'), currentRouteParts.slice(1));
-              }
-            }
-          } else {
-            window.App.Toast.show("Lỗi khi tải hồ sơ!");
-          }
-        });
-      });
-    }
+    // Remove Supabase profile loading - now using local profile
+    // Profile is shown in the sidebar card above
   }
 
   function closeMobileSidebar() {

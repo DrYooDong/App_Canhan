@@ -539,35 +539,94 @@ window.AstrologyLogic = (function() {
     return { level: "Không xác định", type: "", desc: "" };
   }
 
-  // --- THUẬT TOÁN TRẠCH NHẬT CÁ NHÂN HÓA ĐA TẦNG (4 LAYERS) ---
+  // --- THUẬT TOÁN TRẠCH NHẬT CÁ NHÂN HÓA ĐA TẦNG (6 LAYERS) ---
 
   // Tầng 1: Lọc Nền Thiên Văn & Lịch Cổ Điển
-  function calculateLayer1_Global(lunarDay, lunarMonth, canNgay, chiNgay) {
+  function calculateLayer1_Global(lunar, canNgay, chiNgay) {
     let score = 50; // Base score
     let highlights = [];
     let isHardStop = false;
+    const lunarDay = lunar.getDay();
 
-    // Ngày xấu cơ bản
+    // 1. Ngày xấu cơ bản
     const tamNuong = [3, 7, 13, 18, 22, 27];
     const nguyetKy = [5, 14, 23];
     
     if (tamNuong.includes(lunarDay)) {
       score -= 30;
-      highlights.push("Ngày Tam Nương (Xấu)");
+      highlights.push("Ngày Tam Nương (Đại Hung)");
       isHardStop = true;
     }
     if (nguyetKy.includes(lunarDay)) {
       score -= 30;
-      highlights.push("Ngày Nguyệt Kỵ (Xấu)");
+      highlights.push("Ngày Nguyệt Kỵ (Đại Hung)");
       isHardStop = true;
     }
     if (canNgay === "Quý" && chiNgay === "Hợi") {
       score -= 20;
-      highlights.push("Ngày Cùng Cực Quý Hợi");
+      highlights.push("Ngày Cùng Cực (Quý Hợi)");
     }
 
-    // Tạm giả lập điểm Trực trung bình nếu không get được (hoặc giả sử getZhiXing)
-    score += 10; 
+    // 2. Thập Nhị Kiến Trừ (12 Trực)
+    if (typeof lunar.getZhiXing === 'function') {
+      const trucMap = {'建':'Kiến', '除':'Trừ', '满':'Mãn', '平':'Bình', '定':'Định', '执':'Chấp', '破':'Phá', '危':'Nguy', '成':'Thành', '收':'Thâu', '开':'Khai', '闭':'Bế'};
+      const truc = lunar.getZhiXing(); 
+      const trucVn = trucMap[truc] || truc;
+      if (['Khai', 'Thành', 'Mãn', 'Định'].includes(trucVn)) {
+        score += 15;
+        highlights.push(`Trực ${trucVn} (Đại Cát)`);
+      } else if (['Bình', 'Trừ'].includes(trucVn)) {
+        score += 5;
+        highlights.push(`Trực ${trucVn} (Tiểu Cát)`);
+      } else if (['Phá', 'Nguy', 'Bế', 'Chấp'].includes(trucVn)) {
+        score -= 15;
+        highlights.push(`Trực ${trucVn} (Đại Hung)`);
+      } else {
+        highlights.push(`Trực ${trucVn} (Bình Hòa)`);
+      }
+    } else {
+      score += 10;
+    }
+
+    // 3. Nhị Thập Bát Tú (28 Sao)
+    if (typeof lunar.getXiu === 'function') {
+      const xiuMap = {
+        '角':'Giác', '亢':'Cang', '氐':'Đê', '房':'Phòng', '心':'Tâm', '尾':'Vĩ', '箕':'Cơ',
+        '斗':'Đẩu', '牛':'Ngưu', '女':'Nữ', '虚':'Hư', '危':'Nguy', '室':'Thất', '壁':'Bích',
+        '奎':'Khuê', '娄':'Lâu', '胃':'Vị', '昴':'Mão', '毕':'Tất', '觜':'Chủy', '参':'Sâm',
+        '井':'Tỉnh', '鬼':'Quỷ', '柳':'Liễu', '星':'Tinh', '张':'Trương', '翼':'Dực', '轸':'Chẩn'
+      };
+      const sao = lunar.getXiu();
+      const saoVn = xiuMap[sao] || sao;
+      const saoCat = ['Giác', 'Phòng', 'Vĩ', 'Đẩu', 'Thất', 'Bích', 'Lâu', 'Vị', 'Tất', 'Sâm', 'Tỉnh', 'Trương', 'Dực', 'Chẩn'];
+      const saoHung = ['Cang', 'Đê', 'Tâm', 'Ngưu', 'Nữ', 'Hư', 'Nguy', 'Khuê', 'Mão', 'Chủy', 'Quỷ', 'Liễu', 'Tinh'];
+      if (saoCat.includes(saoVn)) {
+        score += 10;
+        highlights.push(`Sao ${saoVn} (Tú Tốt)`);
+      } else if (saoHung.includes(saoVn)) {
+        score -= 10;
+        highlights.push(`Sao ${saoVn} (Tú Xấu)`);
+      }
+    }
+
+    // 4. Lục Diệu - Hoàng Đạo / Hắc Đạo
+    if (typeof lunar.getDayTianShen === 'function') {
+      const tianShenMap = {
+        '青龙':'Thanh Long', '明堂':'Minh Đường', '天刑':'Thiên Hình', '朱雀':'Chu Tước',
+        '金匮':'Kim Quỹ', '天德':'Thiên Đức', '白虎':'Bạch Hổ', '玉堂':'Ngọc Đường',
+        '天牢':'Thiên Lao', '玄武':'Huyền Vũ', '司命':'Tư Mệnh', '勾陈':'Câu Trận'
+      };
+      const tianShen = lunar.getDayTianShen();
+      const tianShenVn = tianShenMap[tianShen] || tianShen;
+      const tianShenType = typeof lunar.getDayTianShenType === 'function' ? lunar.getDayTianShenType() : '';
+      if (tianShenType === '黄道' || tianShenType === 'Hoàng Đạo') {
+        score += 15;
+        highlights.push(`${tianShenVn} (Hoàng Đạo)`);
+      } else if (tianShenType === '黑道' || tianShenType === 'Hắc Đạo') {
+        score -= 15;
+        highlights.push(`${tianShenVn} (Hắc Đạo)`);
+      }
+    }
 
     return { score: Math.max(0, Math.min(100, score)), highlights, isHardStop };
   }
@@ -599,25 +658,33 @@ window.AstrologyLogic = (function() {
     let isTamHop = tamHop.some(group => group.includes(chiNgay) && group.includes(chiNam));
     if (isTamHop || nhiHop[chiNgay] === chiNam) {
       score += 20;
-      highlights.push(`Địa Chi hòa hợp (${chiNgay} - ${chiNam})`);
+      highlights.push(`Địa Chi hòa hợp (${chiNgay} hợp ${chiNam})`);
     } else if (lucXung[chiNgay] === chiNam) {
-      score -= 30;
-      highlights.push(`Lục Xung Tuổi (${chiNgay} xung ${chiNam})`);
+      score -= 40;
+      highlights.push(`Lục Xung Tuổi (${chiNgay} xung ${chiNam}) - ĐẠI KỴ`);
     }
 
-    // Mệnh
-    if (HanhSinhKhac.sinh[hanhNgay] === hanhMenh) {
+    // Ngũ Hành
+    const hanhSinh = { "Kim": "Thủy", "Thủy": "Mộc", "Mộc": "Hỏa", "Hỏa": "Thổ", "Thổ": "Kim" };
+    const hanhKhac = { "Kim": "Mộc", "Mộc": "Thổ", "Thổ": "Thủy", "Thủy": "Hỏa", "Hỏa": "Kim" };
+
+    if (hanhSinh[hanhNgay] === hanhMenh) {
       score += 10;
-      highlights.push(`Ngũ hành Ngày sinh Mệnh (+10)`);
-    } else if (HanhSinhKhac.khac[hanhNgay] === hanhMenh) {
-      score -= 15;
-      highlights.push(`Ngũ hành Ngày khắc Mệnh (-15)`);
+      highlights.push(`Ngày sinh Mệnh (${hanhNgay} sinh ${hanhMenh})`);
+    } else if (hanhSinh[hanhMenh] === hanhNgay) {
+      score += 5;
+      highlights.push(`Mệnh sinh Ngày (${hanhMenh} sinh ${hanhNgay})`);
+    } else if (hanhKhac[hanhNgay] === hanhMenh) {
+      score -= 10;
+      highlights.push(`Ngày khắc Mệnh (${hanhNgay} khắc ${hanhMenh})`);
+    } else if (hanhNgay === hanhMenh) {
+      score += 5;
     }
 
     return { score: Math.max(0, Math.min(100, score)), highlights };
   }
 
-  // Tầng 3: Ma Trận Lưu Sao Tử Vi Cá Nhân
+  // Tầng 3: Tứ Hóa & Lưu Sao Tử Vi
   function calculateLayer3_ZiWei(canNgay, chiNgay, userChart) {
     let score = 50;
     let highlights = [];
@@ -671,23 +738,23 @@ window.AstrologyLogic = (function() {
         highlights.push("Kỵ Ký hợp đồng (Có Hung/Xung tinh)");
       }
     } else if (taskType === "TRAVEL") {
-      if (allHighlights.includes("Thiên Mã")) {
+      if (allHighlights.includes("Thiên Mã") || allHighlights.includes("Hoàng Đạo")) {
         score += 20;
-        highlights.push("Tuyệt vời để Xuất hành (Có Thiên Mã)");
+        highlights.push("Tuyệt vời để Xuất hành (Thiên Mã / Hoàng Đạo)");
       }
     } else if (taskType === "MARRIAGE") {
       if (allHighlights.includes("hòa hợp")) {
         score += 15;
         highlights.push("Thuận lợi cho Gia đạo (Hòa hợp Can Chi)");
       }
-      if (allHighlights.includes("Nguyệt Kỵ") || allHighlights.includes("Tam Nương")) {
+      if (allHighlights.includes("Nguyệt Kỵ") || allHighlights.includes("Tam Nương") || allHighlights.includes("Hắc Đạo")) {
         score -= 25;
         highlights.push("Đại kỵ Cưới hỏi (Ngày xấu)");
       }
     } else if (taskType === "HEALTH") {
-       if (allHighlights.includes("Hóa Kị")) {
+       if (allHighlights.includes("Hóa Kị") || allHighlights.includes("Đại Hung")) {
          score -= 20;
-         highlights.push("Bất lợi cho Chữa bệnh (Hóa Kị chiếu)");
+         highlights.push("Bất lợi cho Chữa bệnh (Cảnh báo Hung tinh)");
        }
     } else {
       score = 70; // GENERAL default
@@ -696,11 +763,78 @@ window.AstrologyLogic = (function() {
     return { score: Math.max(0, Math.min(100, score)), highlights };
   }
 
+  // Tầng 5: Năng Lượng Quẻ Dịch (I-Ching)
+  function calculateLayer5_IChing(lunarYear, lunarMonth, lunarDay) {
+    const upperIdx = ((lunarYear + lunarMonth + lunarDay) % 8) || 8;
+    const lowerIdx = ((lunarYear + lunarMonth + lunarDay + 1) % 8) || 8;
+    const batQuaiNames = ['', 'Càn (Thiên)', 'Đoài (Trạch)', 'Ly (Hỏa)', 'Chấn (Lôi)', 'Tốn (Phong)', 'Khảm (Thủy)', 'Cấn (Sơn)', 'Khôn (Địa)'];
+    const hexKey = `${upperIdx}-${lowerIdx}`;
+    
+    // Mở rộng data Quẻ Dịch và thêm điểm bonus
+    const queSimpleData = {
+      '1-1': { name: 'Thuần Càn', advice: 'Sức mạnh & Lãnh đạo. Thời cơ thuận lợi tiến lên.', scoreBonus: 10 },
+      '8-8': { name: 'Thuần Khôn', advice: 'Nhu thuận & Bền chí. Hợp tác, kiên nhẫn chờ thời.', scoreBonus: 10 },
+      '8-1': { name: 'Địa Thiên Thái', advice: 'Thái bình hanh thông. Mọi sự thuận lợi.', scoreBonus: 15 },
+      '1-8': { name: 'Thiên Địa Bĩ', advice: 'Bế tắc trở ngại. Nên ẩn nhẫn chờ thời.', scoreBonus: -15 },
+      '1-3': { name: 'Hỏa Thiên Đại Hữu', advice: 'Đại thành sung túc. Giữ sự khiêm tốn.', scoreBonus: 15 },
+      '3-1': { name: 'Thiên Hỏa Đồng Nhân', advice: 'Đoàn kết hợp tác. Sức mạnh tập thể.', scoreBonus: 10 },
+      '6-4': { name: 'Thủy Lôi Truân', advice: 'Khởi đầu gian nan. Chưa nên vội vã.', scoreBonus: -10 },
+      '2-8': { name: 'Trạch Lôi Tùy', advice: 'Thuận thời thích nghi. Không cưỡng cầu.', scoreBonus: 5 },
+      '7-3': { name: 'Sơn Hỏa Bí', advice: 'Trang sức, bề ngoài rực rỡ. Hợp nghệ thuật.', scoreBonus: 5 },
+      '2-6': { name: 'Trạch Thủy Khốn', advice: 'Cùng khốn, nguy hiểm. Rất cẩn trọng.', scoreBonus: -15 },
+      '6-5': { name: 'Thủy Phong Tỉnh', advice: 'Nguồn nuôi dưỡng, giếng nước vô tận.', scoreBonus: 10 },
+      '4-5': { name: 'Lôi Phong Hằng', advice: 'Lâu dài, bền vững. Phù hợp duy trì.', scoreBonus: 10 }
+    };
+    
+    const queInfo = queSimpleData[hexKey] || {
+      name: `${batQuaiNames[upperIdx]} / ${batQuaiNames[lowerIdx]}`,
+      advice: 'Giữ tâm bình thản, kiên nhẫn hành động theo thời cơ.',
+      scoreBonus: 0
+    };
+
+    let highlights = [];
+    if (queInfo.scoreBonus > 0) {
+      highlights.push(`Quẻ ${queInfo.name} (Tốt): ${queInfo.advice}`);
+    } else if (queInfo.scoreBonus < 0) {
+      highlights.push(`Quẻ ${queInfo.name} (Xấu): ${queInfo.advice}`);
+    }
+
+    return { scoreBonus: queInfo.scoreBonus, highlights, queInfo };
+  }
+
+  // Tầng 6: Nhịp Sinh Học Biorhythm
+  function calculateLayer6_Biorhythm(dateObj, userProfile) {
+    if (!userProfile || !userProfile.birth_date_solar) return { scoreBonus: 0, highlights: [] };
+    const dBirth = new Date(userProfile.birth_date_solar);
+    const diffTime = Math.abs(dateObj - dBirth);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    const physical = Math.round(Math.sin((2 * Math.PI * diffDays) / 23) * 100);
+    const emotional = Math.round(Math.sin((2 * Math.PI * diffDays) / 28) * 100);
+    const intellectual = Math.round(Math.sin((2 * Math.PI * diffDays) / 33) * 100);
+    
+    let scoreBonus = 0;
+    let highlights = [];
+    if (physical > 60 && emotional > 60 && intellectual > 60) {
+      scoreBonus = 10;
+      highlights.push("Sóng Sinh Học: Golden Synergy (Thăng hoa)");
+    } else if (physical < -50 && emotional < -50 && intellectual < -50) {
+      scoreBonus = -10;
+      highlights.push("Sóng Sinh Học: Red Alert (Cơ thể cạn kiệt)");
+    } else if (Math.abs(physical) < 10 || Math.abs(emotional) < 10 || Math.abs(intellectual) < 10) {
+      scoreBonus = -5;
+      highlights.push("Sóng Sinh Học: Critical Day (Bất ổn định)");
+    }
+    
+    return { scoreBonus, highlights, physical, emotional, intellectual };
+  }
+
   // Hàm Tổng Trạch Nhật Cá Nhân Hóa Đa Tầng
   function evaluatePersonalizedDay(dateObj, userProfile, taskType = "GENERAL") {
     if (typeof Lunar === 'undefined') return null;
     const lunar = Lunar.fromDate(dateObj);
     
+    const lunarYear = lunar.getYear();
     const lunarDay = lunar.getDay();
     const lunarMonth = Math.abs(lunar.getMonth());
     const canNgayIdx = lunar.getDayGanIndex();
@@ -709,17 +843,25 @@ window.AstrologyLogic = (function() {
     const chiNgay = CHI[chiNgayIdx];
     const hanhNgay = NGU_HANH_CAN[canNgay];
 
-    const l1 = calculateLayer1_Global(lunarDay, lunarMonth, canNgay, chiNgay);
+    const l1 = calculateLayer1_Global(lunar, canNgay, chiNgay);
     const l2 = calculateLayer2_CanChi(canNgay, chiNgay, hanhNgay, userProfile);
     const l3 = calculateLayer3_ZiWei(canNgay, chiNgay, userProfile.tu_vi_chart);
     
     const layerData = { layer1: l1, layer2: l2, layer3: l3 };
     const l4 = calculateLayer4_Task(taskType, layerData);
+    
+    // Tích hợp Tầng 5 - Quẻ Dịch
+    const l5 = calculateLayer5_IChing(lunarYear, lunarMonth, lunarDay);
 
-    const W1 = 0.20, W2 = 0.30, W3 = 0.35, W4 = 0.15;
+    // Tích hợp Tầng 6 - Nhịp Sinh Học
+    const l6 = calculateLayer6_Biorhythm(dateObj, userProfile);
+
+    // Cân bằng trọng số (Tổng 100%)
+    const W1 = 0.20, W2 = 0.25, W3 = 0.35, W4 = 0.20; 
     let P_HardStop = l1.isHardStop || layerData.layer2.highlights.some(h => h.includes("Lục Xung Tuổi")) ? 50 : 0;
     
-    let S = (W1 * l1.score) + (W2 * l2.score) + (W3 * l3.score) + (W4 * l4.score) - P_HardStop;
+    // Tổng hợp điểm: S = W1*L1 + W2*L2 + W3*L3 + W4*L4 + L5_Bonus + L6_Bonus - HardStop
+    let S = (W1 * l1.score) + (W2 * l2.score) + (W3 * l3.score) + (W4 * l4.score) + l5.scoreBonus + l6.scoreBonus - P_HardStop;
     S = Math.round(Math.max(0, Math.min(100, S)));
 
     let rating = "ĐẠI HUNG";
@@ -741,16 +883,21 @@ window.AstrologyLogic = (function() {
         layer1_global_score: l1.score,
         layer2_can_chi_score: l2.score,
         layer3_tu_vi_score: l3.score,
-        layer4_task_score: l4.score
+        layer4_task_score: l4.score,
+        layer5_iching_bonus: l5.scoreBonus,
+        layer6_biorhythm_bonus: l6.scoreBonus
       },
       hard_stop_flags: P_HardStop > 0 ? ["Phạm ngày Đại Hung hoặc Xung Tuổi"] : [],
       key_highlights: [
         ...l1.highlights,
         ...l2.highlights,
         ...l3.highlights,
-        ...l4.highlights
+        ...l4.highlights,
+        ...l5.highlights,
+        ...l6.highlights
       ],
-      best_hours: tinhGioHoangDao(chiNgay)
+      best_hours: tinhGioHoangDao(chiNgay),
+      iching_info: l5.queInfo
     };
   }
 
@@ -1134,26 +1281,10 @@ window.AstrologyLogic = (function() {
     };
     const thanCat = thanCatDB[canNgay] || thanCatDB['Giáp'];
 
-    const upperIdx = ((lunarYear + lunarMonth + lunarDay) % 8) || 8;
-    const lowerIdx = ((lunarYear + lunarMonth + lunarDay + 1) % 8) || 8;
+    const l5 = calculateLayer5_IChing(lunarYear, lunarMonth, lunarDay);
+    const hexKey = `${((lunarYear + lunarMonth + lunarDay) % 8) || 8}-${((lunarYear + lunarMonth + lunarDay + 1) % 8) || 8}`;
     const movingLine = ((lunarYear + lunarMonth + lunarDay + 1) % 6) || 6;
-    const batQuaiNames = ['', 'Càn (Thiên)', 'Đoài (Trạch)', 'Ly (Hỏa)', 'Chấn (Lôi)', 'Tốn (Phong)', 'Khảm (Thủy)', 'Cấn (Sơn)', 'Khôn (Địa)'];
-    const hexKey = `${upperIdx}-${lowerIdx}`;
-    
-    const queSimpleData = {
-      '1-1': { name: 'Thuần Càn', advice: 'Sức mạnh & Lãnh đạo. Thời cơ thuận lợi tiến lên.' },
-      '8-8': { name: 'Thuần Khôn', advice: 'Nhu thuận & Bền chí. Hợp tác, kiên nhẫn chờ thời.' },
-      '8-1': { name: 'Địa Thiên Thái', advice: 'Thái bình hanh thông. Mọi sự thuận lợi.' },
-      '1-8': { name: 'Thiên Địa Bĩ', advice: 'Bế tắc trở ngại. Nên ẩn nhẫn chờ thời.' },
-      '1-3': { name: 'Hỏa Thiên Đại Hữu', advice: 'Đại thành sung túc. Giữ sự khiêm tốn.' },
-      '3-1': { name: 'Thiên Hỏa Đồng Nhân', advice: 'Đoàn kết hợp tác. Sức mạnh tập thể.' },
-      '6-4': { name: 'Thủy Lôi Truân', advice: 'Khởi đầu gian nan. Chưa nên vội vã.' },
-      '2-8': { name: 'Trạch Lôi Tùy', advice: 'Thuận thời thích nghi. Không cưỡng cầu.' }
-    };
-    const queInfo = queSimpleData[hexKey] || {
-      name: `${batQuaiNames[upperIdx]} / ${batQuaiNames[lowerIdx]}`,
-      advice: 'Giữ tâm bình thản, kiên nhẫn hành động theo thời cơ.'
-    };
+    const queInfo = l5.queInfo;
 
     const healthWarnings = [
       { organ: 'Dạ dày & Tiêu hóa', warning: 'Tiêu hóa nhạy cảm. Tránh đồ ăn quá lạnh hoặc kích ứng.' },
@@ -1574,7 +1705,76 @@ window.AstrologyLogic = (function() {
     };
   }
 
+  function getUserProfile() {
+    let profile = null;
+    try {
+      if (window.Onboarding && typeof window.Onboarding.getProfile === 'function') {
+        profile = window.Onboarding.getProfile();
+      } else {
+        const d = localStorage.getItem('noitam_user_profile');
+        if (d) profile = JSON.parse(d);
+      }
+    } catch(e) {}
+
+    if (!profile || !profile.year) {
+      try {
+        const cfg = JSON.parse(localStorage.getItem('noitam_chart_config'));
+        if (cfg && cfg.year) profile = cfg;
+      } catch(e) {}
+    }
+
+    if (!profile || !profile.year) {
+      profile = { year: 2000, month: 4, day: 20, hour: 21, minute: 0, gender: 'Nam', name: 'Mặc định (Local)' };
+    }
+
+    const year = parseInt(profile.year) || 2000;
+    const month = parseInt(profile.month) || 4;
+    const day = parseInt(profile.day) || 20;
+    const hour = (profile.hour !== undefined && profile.hour !== null && !isNaN(parseInt(profile.hour))) ? parseInt(profile.hour) : 21;
+    const minute = parseInt(profile.minute) || 0;
+    const gender = profile.gender || 'Nam';
+    const name = profile.name || 'Người dùng';
+    const locationName = profile.locationName || 'Hà Nội, Việt Nam';
+    const lat = profile.lat || 21.0285;
+    const lng = profile.lng || 105.8333;
+    const tz = profile.tz || 7;
+
+    const canIdx = (year - 4) % 10;
+    const chiIdx = (year - 4) % 12;
+    const canNam = CAN[(canIdx + 10) % 10] || 'Canh';
+    const chiNam = CUNG[(chiIdx + 12) % 12] || 'Thìn';
+
+    const canChiStr = `${canNam} ${chiNam}`;
+    let hanhMenh = NGU_HANH_CAN[canNam] || 'Kim';
+
+    const currentAge = new Date().getFullYear() - year + 1;
+
+    return {
+      name,
+      birthYear: year,
+      birthMonth: month,
+      birthDay: day,
+      birthHour: hour,
+      birthMinute: minute,
+      gender,
+      locationName,
+      lat,
+      lng,
+      tz,
+      canNam,
+      chiNam,
+      hanhMenh,
+      currentAge,
+      year,
+      month,
+      day,
+      hour,
+      minute
+    };
+  }
+
   return {
+    getUserProfile,
     CUNG,
     CAN,
     CHI,
@@ -1718,6 +1918,101 @@ window.AstrologyLogic = (function() {
         dex: Math.min(100, scores[5] + bonus), // Tri Thức
         totalPower: scores.reduce((a, b) => a + b, 0) + bonus * 6,
         phucDucPoints
+      };
+    },
+
+    // --- 4.5 Time Machine Engine ---
+    getUserProfile() {
+      if (window.Onboarding && typeof window.Onboarding.getProfile === 'function') {
+         return window.Onboarding.getProfile();
+      }
+      try { 
+        let profile = JSON.parse(localStorage.getItem('noitam_user_profile')); 
+        if (profile && profile.year) return profile;
+      } catch (e) {}
+      
+      try {
+        let config = JSON.parse(localStorage.getItem('noitam_chart_config'));
+        if (config && config.year) return config;
+      } catch (e) {}
+
+      return {
+        year: 1995, month: 1, day: 1, hour: 12, minute: 0, gender: 'Nam',
+        canNam: 'Ất', chiNam: 'Hợi', hanhMenh: 'Hỏa', currentAge: 30
+      };
+    },
+
+    calculateLifeTimeline(userProfile) {
+      const birthYear = userProfile.year || 1990;
+      const currentAge = new Date().getFullYear() - birthYear + 1;
+      
+      let tuViChart = null;
+      if (this.TuViEngine) {
+        try {
+          tuViChart = this.TuViEngine.calculateTuViChart({
+            day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990,
+            hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0, gender: userProfile.gender || 'Nam',
+            canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Ngọ'
+          });
+        } catch (e) { console.warn("TuVi Engine error:", e); }
+      }
+
+      const CAN_LIST = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"];
+      const CHI_LIST = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"];
+
+      let yearlyData = [];
+      for (let age = 20; age <= 80; age++) {
+        let calendarYear = birthYear + age - 1;
+        let canChiIdx = (calendarYear - 4) % 60;
+        if (canChiIdx < 0) canChiIdx += 60;
+        let can = CAN_LIST[canChiIdx % 10];
+        let chi = CHI_LIST[canChiIdx % 12];
+        let canChi = `${can} ${chi}`;
+
+        let daxian = null;
+        let stars = [];
+        let pName = "";
+        if (tuViChart && tuViChart.daXians) {
+          daxian = tuViChart.daXians.find(d => age >= d.startAge && age <= d.endAge);
+          if (daxian && tuViChart.palaces) {
+             let p = tuViChart.palaces[daxian.palaceIndex];
+             pName = p ? p.name : "";
+             stars = p ? (p.mainStars || []) : [];
+          }
+        }
+
+        // Đánh giá dựa trên lá số thực hoặc ngẫu nhiên có tính chất deterministic
+        let baseScore = 60 + ((age * 7 + birthYear) % 40); // 60 to 100
+        if (stars.includes("Tử Vi") || stars.includes("Thiên Phủ") || stars.includes("Thái Dương") || stars.includes("Thái Âm")) baseScore += 15;
+        if (stars.includes("Thất Sát") || stars.includes("Phá Quân") || stars.includes("Tham Lang")) baseScore -= 10;
+        if (stars.includes("Cự Môn") || stars.includes("Đà La") || stars.includes("Kình Dương")) baseScore -= 15;
+        let lesScore = Math.floor(Math.min(100, Math.max(30, baseScore)));
+
+        let statusFlag = lesScore >= 80 ? "Tấn Công" : (lesScore >= 55 ? "Bình Hòa" : "Phòng Thủ");
+        
+        let career = Math.floor(Math.min(100, Math.max(20, lesScore + ((age * 3) % 20) - 10)));
+        let finance = Math.floor(Math.min(100, Math.max(20, lesScore + ((age * 5) % 20) - 10)));
+        let health = Math.floor(Math.min(100, Math.max(20, 95 - (age/2) + ((age * 2) % 15))));
+        let relationship = Math.floor(Math.min(100, Math.max(20, lesScore + ((age * 7) % 20) - 10)));
+
+        yearlyData.push({
+          age,
+          calendarYear,
+          canChi,
+          isCurrentAge: age === currentAge,
+          lesScore,
+          statusFlag,
+          decadeRange: daxian ? `${daxian.startAge}-${daxian.endAge}` : `${Math.floor(age/10)*10}-${Math.floor(age/10)*10+9}`,
+          decadePalace: pName || "Chưa rõ",
+          stars: stars.length > 0 ? stars : ["Thiên Đồng"], // fallback
+          fourPillars: { career, finance, health, relationship }
+        });
+      }
+
+      return {
+        birthYear,
+        currentAge,
+        yearlyData
       };
     },
 
@@ -2064,29 +2359,128 @@ window.AstrologyLogic = (function() {
         "Hợi": ["Nhâm", "Giáp"]
       },
 
-      // Bảng Địa Danh Việt Nam & Quốc Tế
+      // Bảng Địa Danh Việt Nam & Quốc Tế mở rộng
       LOCATIONS: [
+        // --- MIỀN BẮC ---
         { name: 'Hà Nội, Việt Nam', lat: 21.0285, lng: 105.8333, tz: 7 },
-        { name: 'TP. Hồ Chí Minh, Việt Nam', lat: 10.8231, lng: 106.6297, tz: 7 },
-        { name: 'Đà Nẵng, Việt Nam', lat: 16.0544, lng: 108.2022, tz: 7 },
         { name: 'Hải Phòng, Việt Nam', lat: 20.8449, lng: 106.6881, tz: 7 },
-        { name: 'Cần Thơ, Việt Nam', lat: 10.0452, lng: 105.7469, tz: 7 },
-        { name: 'Huế, Việt Nam', lat: 16.4637, lng: 107.5909, tz: 7 },
-        { name: 'Nha Trang, Khánh Hòa', lat: 12.2388, lng: 109.1967, tz: 7 },
-        { name: 'Đà Lạt, Lâm Đồng', lat: 11.9404, lng: 108.4583, tz: 7 },
-        { name: 'Vũng Tàu, Ba Rịa', lat: 10.3460, lng: 107.0843, tz: 7 },
-        { name: 'Quy Nhơn, Bình Định', lat: 13.7820, lng: 109.2194, tz: 7 },
-        { name: 'Buôn Ma Thuột, Đắk Lắk', lat: 12.6667, lng: 108.0333, tz: 7 },
+        { name: 'Hạ Long, Quảng Ninh', lat: 20.9505, lng: 107.0734, tz: 7 },
+        { name: 'Bắc Ninh, Việt Nam', lat: 21.1861, lng: 106.0763, tz: 7 },
+        { name: 'Bắc Giang, Việt Nam', lat: 21.2731, lng: 106.1946, tz: 7 },
+        { name: 'Hải Dương, Việt Nam', lat: 20.9400, lng: 106.3330, tz: 7 },
+        { name: 'Hưng Yên, Việt Nam', lat: 20.6464, lng: 106.0511, tz: 7 },
+        { name: 'Nam Định, Việt Nam', lat: 20.4167, lng: 106.1667, tz: 7 },
+        { name: 'Thái Bình, Việt Nam', lat: 20.4464, lng: 106.3364, tz: 7 },
+        { name: 'Ninh Bình, Việt Nam', lat: 20.2506, lng: 105.9745, tz: 7 },
+        { name: 'Vĩnh Yên, Vĩnh Phúc', lat: 21.3089, lng: 105.6048, tz: 7 },
+        { name: 'Phủ Lý, Hà Nam', lat: 20.5453, lng: 105.9122, tz: 7 },
+        { name: 'Việt Trì, Phú Thọ', lat: 21.3000, lng: 105.4333, tz: 7 },
+        { name: 'Thái Nguyên, Việt Nam', lat: 21.5928, lng: 105.8442, tz: 7 },
+        { name: 'Lạng Sơn, Việt Nam', lat: 21.8475, lng: 106.7597, tz: 7 },
+        { name: 'Cao Bằng, Việt Nam', lat: 22.6657, lng: 106.2570, tz: 7 },
+        { name: 'Hà Giang, Việt Nam', lat: 22.8233, lng: 104.9839, tz: 7 },
+        { name: 'Tuyên Quang, Việt Nam', lat: 21.8242, lng: 105.2158, tz: 7 },
+        { name: 'Lào Cai / Sa Pa', lat: 22.3364, lng: 103.8438, tz: 7 },
+        { name: 'Yên Bái, Việt Nam', lat: 21.7051, lng: 104.8986, tz: 7 },
+        { name: 'Sơn La, Việt Nam', lat: 21.3257, lng: 103.9188, tz: 7 },
+        { name: 'Điện Biên Phủ', lat: 21.3854, lng: 103.0188, tz: 7 },
+        { name: 'Hòa Bình, Việt Nam', lat: 20.8171, lng: 105.3377, tz: 7 },
+        { name: 'Lai Châu, Việt Nam', lat: 22.3963, lng: 103.4582, tz: 7 },
+
+        // --- MIỀN TRUNG & TÂY NGUYÊN ---
         { name: 'Thanh Hóa, Việt Nam', lat: 19.8067, lng: 105.7852, tz: 7 },
         { name: 'Vinh, Nghệ An', lat: 18.6734, lng: 105.6813, tz: 7 },
-        { name: 'Hạ Long, Quảng Ninh', lat: 20.9505, lng: 107.0734, tz: 7 },
+        { name: 'Hà Tĩnh, Việt Nam', lat: 18.3436, lng: 105.9056, tz: 7 },
+        { name: 'Đồng Hới, Quảng Bình', lat: 17.4761, lng: 106.6000, tz: 7 },
+        { name: 'Đông Hà, Quảng Trị', lat: 16.8183, lng: 107.1006, tz: 7 },
+        { name: 'Huế, Việt Nam', lat: 16.4637, lng: 107.5909, tz: 7 },
+        { name: 'Đà Nẵng, Việt Nam', lat: 16.0544, lng: 108.2022, tz: 7 },
+        { name: 'Hội An / Quảng Nam', lat: 15.8801, lng: 108.3380, tz: 7 },
+        { name: 'Tam Kỳ, Quảng Nam', lat: 15.5647, lng: 108.4808, tz: 7 },
+        { name: 'Quảng Ngãi, Việt Nam', lat: 15.1205, lng: 108.7924, tz: 7 },
+        { name: 'Quy Nhơn, Bình Định', lat: 13.7820, lng: 109.2194, tz: 7 },
+        { name: 'Tuy Hòa, Phú Yên', lat: 13.0882, lng: 109.3142, tz: 7 },
+        { name: 'Nha Trang, Khánh Hòa', lat: 12.2388, lng: 109.1967, tz: 7 },
+        { name: 'Phan Rang, Ninh Thuận', lat: 11.5658, lng: 108.9882, tz: 7 },
+        { name: 'Phan Thiết, Bình Thuận', lat: 10.9333, lng: 108.1000, tz: 7 },
+        { name: 'Đà Lạt, Lâm Đồng', lat: 11.9404, lng: 108.4583, tz: 7 },
+        { name: 'Buôn Ma Thuột, Đắk Lắk', lat: 12.6667, lng: 108.0333, tz: 7 },
+        { name: 'Pleiku, Gia Lai', lat: 13.9833, lng: 108.0000, tz: 7 },
+        { name: 'Kon Tum, Việt Nam', lat: 14.3504, lng: 108.0047, tz: 7 },
+        { name: 'Gia Nghĩa, Đắk Nông', lat: 12.0042, lng: 107.6897, tz: 7 },
+
+        // --- MIỀN NAM ---
+        { name: 'TP. Hồ Chí Minh, Việt Nam', lat: 10.8231, lng: 106.6297, tz: 7 },
+        { name: 'Thủ Dầu Một, Bình Dương', lat: 10.9804, lng: 106.6519, tz: 7 },
+        { name: 'Biên Hòa, Đồng Nai', lat: 10.9574, lng: 106.8426, tz: 7 },
+        { name: 'Vũng Tàu, Ba Rịa', lat: 10.3460, lng: 107.0843, tz: 7 },
+        { name: 'Tây Ninh, Việt Nam', lat: 11.3102, lng: 106.0984, tz: 7 },
+        { name: 'Đồng Xoài, Bình Phước', lat: 11.5333, lng: 106.9000, tz: 7 },
+        { name: 'Tân An, Long An', lat: 10.5362, lng: 106.4107, tz: 7 },
+        { name: 'Mỹ Tho, Tiền Giang', lat: 10.3600, lng: 106.3600, tz: 7 },
+        { name: 'Bến Tre, Việt Nam', lat: 10.2415, lng: 106.3756, tz: 7 },
+        { name: 'Trà Vinh, Việt Nam', lat: 9.9348, lng: 106.3458, tz: 7 },
+        { name: 'Vĩnh Long, Việt Nam', lat: 10.2537, lng: 105.9722, tz: 7 },
+        { name: 'Cao Lãnh, Đồng Tháp', lat: 10.4578, lng: 105.6324, tz: 7 },
+        { name: 'Long Xuyên, An Giang', lat: 10.3800, lng: 105.4300, tz: 7 },
+        { name: 'Cần Thơ, Việt Nam', lat: 10.0452, lng: 105.7469, tz: 7 },
+        { name: 'Vị Thanh, Hậu Giang', lat: 9.7844, lng: 105.4701, tz: 7 },
+        { name: 'Rạch Giá, Kiên Giang', lat: 10.0125, lng: 105.0809, tz: 7 },
+        { name: 'Phú Quốc, Kiên Giang', lat: 10.2899, lng: 103.9840, tz: 7 },
+        { name: 'Sóc Trăng, Việt Nam', lat: 9.6033, lng: 105.9800, tz: 7 },
+        { name: 'Bạc Liêu, Việt Nam', lat: 9.2941, lng: 105.7244, tz: 7 },
+        { name: 'Cà Mau, Việt Nam', lat: 9.1769, lng: 105.1524, tz: 7 },
+
+        // --- CHÂU Á & ĐÔNG NAM Á ---
         { name: 'Tokyo, Nhật Bản', lat: 35.6762, lng: 139.6503, tz: 9 },
+        { name: 'Osaka, Nhật Bản', lat: 34.6937, lng: 135.5023, tz: 9 },
+        { name: 'Fukuoka, Nhật Bản', lat: 33.5902, lng: 130.4017, tz: 9 },
         { name: 'Seoul, Hàn Quốc', lat: 37.5665, lng: 126.9780, tz: 9 },
+        { name: 'Busan, Hàn Quốc', lat: 35.1796, lng: 129.0756, tz: 9 },
         { name: 'Bắc Kinh, Trung Quốc', lat: 39.9042, lng: 116.4074, tz: 8 },
-        { name: 'Paris, Pháp', lat: 48.8566, lng: 2.3522, tz: 1 },
+        { name: 'Thượng Hải, Trung Quốc', lat: 31.2304, lng: 121.4737, tz: 8 },
+        { name: 'Quảng Châu, Trung Quốc', lat: 23.1291, lng: 113.2644, tz: 8 },
+        { name: 'Đài Bắc, Đài Loan', lat: 25.0330, lng: 121.5654, tz: 8 },
+        { name: 'Hồng Kông', lat: 22.3193, lng: 114.1694, tz: 8 },
+        { name: 'Bangkok, Thái Lan', lat: 13.7563, lng: 100.5018, tz: 7 },
+        { name: 'Singapore', lat: 1.3521, lng: 103.8198, tz: 8 },
+        { name: 'Kuala Lumpur, Malaysia', lat: 3.1390, lng: 101.6869, tz: 8 },
+        { name: 'Jakarta, Indonesia', lat: -6.2088, lng: 106.8456, tz: 7 },
+        { name: 'Manila, Philippines', lat: 14.5995, lng: 120.9842, tz: 8 },
+
+        // --- CHÂU ÚC & CHÂU ÂU ---
+        { name: 'Sydney, Úc', lat: -33.8688, lng: 151.2093, tz: 10 },
+        { name: 'Melbourne, Úc', lat: -37.8136, lng: 144.9631, tz: 10 },
+        { name: 'Brisbane, Úc', lat: -27.4698, lng: 153.0251, tz: 10 },
+        { name: 'Auckland, New Zealand', lat: -36.8485, lng: 174.7633, tz: 12 },
         { name: 'London, Anh', lat: 51.5074, lng: -0.1278, tz: 0 },
+        { name: 'Paris, Pháp', lat: 48.8566, lng: 2.3522, tz: 1 },
+        { name: 'Berlin, Đức', lat: 52.5200, lng: 13.4050, tz: 1 },
+        { name: 'Frankfurt, Đức', lat: 50.1109, lng: 8.6821, tz: 1 },
+        { name: 'München, Đức', lat: 48.1351, lng: 11.5820, tz: 1 },
+        { name: 'Praha, Cộng hòa Séc', lat: 50.0755, lng: 14.4378, tz: 1 },
+        { name: 'Warsaw, Ba Lan', lat: 52.2297, lng: 21.0122, tz: 1 },
+        { name: 'Moscow, Nga', lat: 55.7558, lng: 37.6173, tz: 3 },
+        { name: 'Amsterdam, Hà Lan', lat: 52.3676, lng: 4.9041, tz: 1 },
+        { name: 'Brussels, Bỉ', lat: 50.8503, lng: 4.3517, tz: 1 },
+        { name: 'Rome, Ý', lat: 41.9028, lng: 12.4964, tz: 1 },
+
+        // --- CHÂU MỸ ---
         { name: 'New York, Mỹ', lat: 40.7128, lng: -74.0060, tz: -5 },
-        { name: 'California, Mỹ', lat: 36.7783, lng: -119.4179, tz: -8 }
+        { name: 'California, Mỹ', lat: 36.7783, lng: -119.4179, tz: -8 },
+        { name: 'Los Angeles, Mỹ', lat: 34.0522, lng: -118.2437, tz: -8 },
+        { name: 'San Jose, Mỹ', lat: 37.3382, lng: -121.8863, tz: -8 },
+        { name: 'San Francisco, Mỹ', lat: 37.7749, lng: -122.4194, tz: -8 },
+        { name: 'Houston, Texas, Mỹ', lat: 29.7604, lng: -95.3698, tz: -6 },
+        { name: 'Dallas, Texas, Mỹ', lat: 32.7767, lng: -96.7970, tz: -6 },
+        { name: 'Chicago, Mỹ', lat: 41.8781, lng: -87.6298, tz: -6 },
+        { name: 'Seattle, Mỹ', lat: 47.6062, lng: -122.3321, tz: -8 },
+        { name: 'Washington D.C., Mỹ', lat: 38.9072, lng: -77.0369, tz: -5 },
+        { name: 'Toronto, Canada', lat: 43.6532, lng: -79.3832, tz: -5 },
+        { name: 'Vancouver, Canada', lat: 49.2827, lng: -123.1207, tz: -8 },
+
+        // --- TÙY CHỈNH THỦ CÔNG ---
+        { name: '📍 Khác (Nhập tọa độ thủ công...)', lat: 0, lng: 0, tz: 7, isCustom: true }
       ],
 
       // 1. Tính Phương Trình Thời Gian EoT (Equation of Time - Jean Meeus Algorithm)
@@ -2168,14 +2562,22 @@ window.AstrologyLogic = (function() {
           try {
             const lunar = Lunar.fromDate(trueSolarDate);
             const AL = window.AstrologyLogic;
-            canNam = AL.CAN[lunar.getYearGanIndex()] || "Canh";
-            chiNam = AL.CUNG[lunar.getYearZhiIndex()] || "Thìn";
 
-            canThang = AL.CAN[lunar.getMonthGanIndex()] || "Bính";
-            chiThang = AL.CUNG[lunar.getMonthZhiIndex()] || "Thìn";
+            const yearGanIdx = typeof lunar.getYearGanIndexByLiChun === 'function' ? lunar.getYearGanIndexByLiChun() : (typeof lunar.getYearGanIndexExact === 'function' ? lunar.getYearGanIndexExact() : (typeof lunar.getYearGanIndex === 'function' ? lunar.getYearGanIndex() : (lunar.getYear() - 4 + 1000) % 10));
+            const yearZhiIdx = typeof lunar.getYearZhiIndexByLiChun === 'function' ? lunar.getYearZhiIndexByLiChun() : (typeof lunar.getYearZhiIndexExact === 'function' ? lunar.getYearZhiIndexExact() : (typeof lunar.getYearZhiIndex === 'function' ? lunar.getYearZhiIndex() : (lunar.getYear() - 4 + 1000) % 12));
+            const monthGanIdx = typeof lunar.getMonthGanIndexExact === 'function' ? lunar.getMonthGanIndexExact() : (typeof lunar.getMonthGanIndex === 'function' ? lunar.getMonthGanIndex() : 0);
+            const monthZhiIdx = typeof lunar.getMonthZhiIndexExact === 'function' ? lunar.getMonthZhiIndexExact() : (typeof lunar.getMonthZhiIndex === 'function' ? lunar.getMonthZhiIndex() : 0);
+            const dayGanIdx = typeof lunar.getDayGanIndexExact === 'function' ? lunar.getDayGanIndexExact() : (typeof lunar.getDayGanIndex === 'function' ? lunar.getDayGanIndex() : 0);
+            const dayZhiIdx = typeof lunar.getDayZhiIndexExact === 'function' ? lunar.getDayZhiIndexExact() : (typeof lunar.getDayZhiIndex === 'function' ? lunar.getDayZhiIndex() : 0);
 
-            canNgay = AL.CAN[lunar.getDayGanIndex()] || "Giáp";
-            chiNgay = AL.CUNG[lunar.getDayZhiIndex()] || "Tuất";
+            canNam = AL.CAN[yearGanIdx] || "Canh";
+            chiNam = AL.CUNG[yearZhiIdx] || "Thìn";
+
+            canThang = AL.CAN[monthGanIdx] || "Bính";
+            chiThang = AL.CUNG[monthZhiIdx] || "Thìn";
+
+            canNgay = AL.CAN[dayGanIdx] || "Giáp";
+            chiNgay = AL.CUNG[dayZhiIdx] || "Tuất";
 
             // Giờ Chi
             const h = trueSolarDate.getHours();
@@ -2183,7 +2585,6 @@ window.AstrologyLogic = (function() {
             chiGio = AL.CUNG[zhiIndex] || "Tý";
 
             // Giờ Can: Ngũ Tử Hoàn
-            const dayGanIdx = lunar.getDayGanIndex();
             const ganIndex = (dayGanIdx * 2 + zhiIndex) % 10;
             canGio = AL.CAN[ganIndex] || "Giáp";
           } catch (e) {
@@ -2206,6 +2607,7 @@ window.AstrologyLogic = (function() {
         const yearPillar = getPillarDetail(canNam, chiNam);
         const monthPillar = getPillarDetail(canThang, chiThang);
         const dayPillar = getPillarDetail(canNgay, chiNgay);
+        const hourPillar = getPillarDetail(canGio, chiGio);
         let lunarDay = dateObj.getDate();
         let lunarMonth = dateObj.getMonth() + 1;
         if (typeof Lunar !== 'undefined') {
@@ -2289,6 +2691,26 @@ window.AstrologyLogic = (function() {
         "Tân":  { "Cự Môn": "Lộc", "Thái Dương": "Quyền", "Văn Khúc": "Khoa", "Văn Xương": "Kỵ" },
         "Nhâm": { "Thiên Lương": "Lộc", "Tử Vi": "Quyền", "Tả Phù": "Khoa", "Vũ Khúc": "Kỵ" },
         "Quý":  { "Phá Quân": "Lộc", "Cự Môn": "Quyền", "Thái Âm": "Khoa", "Tham Lang": "Kỵ" }
+      },
+
+      // Xây dựng ma trận Tứ Hóa cho Can bất kỳ (theo Tên Can hoặc Chỉ số Can 0..9)
+      buildSiHuaOverlay(canInput) {
+        let canName = canInput;
+        if (typeof canInput === 'number') {
+          canName = this.CAN_NAMES[((canInput % 10) + 10) % 10];
+        }
+        return this.TU_HOA_TABLE[canName] || {};
+      },
+
+      // Lấy danh sách 4 sao nhận Phi Tinh Tứ Hóa từ 1 Thiên Can
+      getFlyingSiHua(canInput) {
+        const overlay = this.buildSiHuaOverlay(canInput);
+        const res = [];
+        const colors = { "Lộc": "#10b981", "Quyền": "#f59e0b", "Khoa": "#3b82f6", "Kỵ": "#ef4444" };
+        for (const [star, type] of Object.entries(overlay)) {
+          res.push({ star, type, color: colors[type] || "#3b82f6" });
+        }
+        return res;
       },
 
       // Tính số Cục và tên Cục theo Can Cung Mệnh & Chi Cung Mệnh
@@ -2419,12 +2841,28 @@ window.AstrologyLogic = (function() {
         addMainStar((thienPhuIdx + 6) % 12, "Thất Sát");
         addMainStar((thienPhuIdx + 10) % 12, "Phá Quân");
 
-        // 6. An Vòng Lộc Tồn & Vòng Thái Tuế & Tuần/Triệt
+        // 6. An Vòng Lộc Tồn & Vòng Thái Tuế & Tuần/Triệt & Các Phụ Tinh Trọng Điểm
         const LOC_TON_MAP = { "Giáp": 2, "Ất": 3, "Bính": 5, "Mậu": 5, "Đinh": 6, "Kỷ": 6, "Canh": 8, "Tân": 9, "Nhâm": 11, "Quý": 0 };
         const locTonIdx = LOC_TON_MAP[canNam] ?? 2;
         addSubStar(locTonIdx, "Lộc Tồn", "loc-ton");
         addSubStar((locTonIdx + 1) % 12, "Kình Dương", "sat-tinh");
         addSubStar((locTonIdx - 1 + 12) % 12, "Đà La", "sat-tinh");
+
+        // Vòng Bác Sĩ (12 sao) khởi từ Lộc Tồn (Dương Nam / Âm Nữ đếm thuận, Âm Nam / Dương Nữ đếm nghịch)
+        const isThuanBacSi = (isDuongsTuoi && gender === "Nam") || (!isDuongsTuoi && gender !== "Nam");
+        const bacSiStars = [
+          { name: "Bác Sĩ", type: "phuc-tinh" }, { name: "Lực Sĩ", type: "phuc-tinh" },
+          { name: "Thanh Long", type: "phuc-tinh" }, { name: "Tiểu Hao", type: "sat-tinh" },
+          { name: "Tướng Quân", type: "phuc-tinh" }, { name: "Tấu Thư", type: "phuc-tinh" },
+          { name: "Phi Liêm", type: "sat-tinh" }, { name: "Hỷ Thần", type: "phuc-tinh" },
+          { name: "Bệnh Phù", type: "sat-tinh" }, { name: "Đại Hao", type: "sat-tinh" },
+          { name: "Phục Binh", type: "sat-tinh" }, { name: "Quan Phủ", type: "sat-tinh" }
+        ];
+        bacSiStars.forEach((bs, idx) => {
+          const bsIdx = isThuanBacSi ? (locTonIdx + idx) % 12 : (locTonIdx - idx + 12) % 12;
+          // Tránh trùng Lộc Tồn đã an
+          if (bs.name !== "Bác Sĩ") addSubStar(bsIdx, bs.name, bs.type);
+        });
 
         // Vòng Thái Tuế
         addSubStar(chiNamIdx, "Thái Tuế", "thai-tue");
@@ -2440,6 +2878,52 @@ window.AstrologyLogic = (function() {
         addSubStar((10 - (thangAm - 1) + 12) % 12, "Hữu Bật", "phuc-tinh");
         addSubStar((4 + gioSinhIdx) % 12, "Văn Khúc", "phuc-tinh");
         addSubStar((10 - gioSinhIdx + 12) % 12, "Văn Xương", "phuc-tinh");
+
+        // Bộ Đào Hoa - Hồng Loan - Thiên Hỷ
+        const daoHoaMap = { 5:6, 9:6, 1:6, 11:0, 3:0, 7:0, 8:9, 0:9, 4:9, 2:3, 6:3, 10:3 };
+        const daoHoaIdx = daoHoaMap[chiNamIdx] ?? 6;
+        addSubStar(daoHoaIdx, "Đào Hoa", "dao-hoa");
+
+        const hongLoanIdx = (3 - chiNamIdx + 12) % 12;
+        addSubStar(hongLoanIdx, "Hồng Loan", "dao-hoa");
+        addSubStar((hongLoanIdx + 6) % 12, "Thiên Hỷ", "dao-hoa");
+
+        // Thiên Mã
+        const thienMaMap = { 5:11, 9:11, 1:11, 11:5, 3:5, 7:5, 8:2, 0:2, 4:2, 2:8, 6:8, 10:8 };
+        const thienMaIdx = thienMaMap[chiNamIdx] ?? 2;
+        addSubStar(thienMaIdx, "Thiên Mã", "thien-ma");
+
+        // Giải Thần - Thiên Giải - Địa Giải
+        const phuongCacIdx = (10 - (thangAm - 1) + 12) % 12;
+        addSubStar(phuongCacIdx, "Giải Thần", "giai-than");
+        addSubStar((8 + (thangAm - 1)) % 12, "Thiên Giải", "giai-than");
+        addSubStar((7 + (thangAm - 1)) % 12, "Địa Giải", "giai-than");
+
+        // Địa Không - Địa Kiếp (khởi Hợi an theo giờ sinh)
+        addSubStar((11 + gioSinhIdx) % 12, "Địa Kiếp", "sat-tinh");
+        addSubStar((11 - gioSinhIdx + 12) % 12, "Địa Không", "sat-tinh");
+
+        // Hỏa Tinh - Linh Tinh (an theo Chi năm + Giờ sinh)
+        let hoaStart = 1, linhStart = 3;
+        if ([2, 6, 10].includes(chiNamIdx)) { hoaStart = 1; linhStart = 3; } // Dần Ngọ Tuất
+        else if ([8, 0, 4].includes(chiNamIdx)) { hoaStart = 2; linhStart = 10; } // Thân Tý Thìn
+        else if ([5, 9, 1].includes(chiNamIdx)) { hoaStart = 3; linhStart = 10; } // Tỵ Dậu Sửu
+        else { hoaStart = 9; linhStart = 10; } // Hợi Mão Mùi
+
+        const isThuanHoaLinh = isDuongsTuoi;
+        const hoaIdx = isThuanHoaLinh ? (hoaStart + gioSinhIdx) % 12 : (hoaStart - gioSinhIdx + 12) % 12;
+        const linhIdx = isThuanHoaLinh ? (linhStart + gioSinhIdx) % 12 : (linhStart - gioSinhIdx + 12) % 12;
+        addSubStar(hoaIdx, "Hỏa Tinh", "sat-tinh");
+        addSubStar(linhIdx, "Linh Tinh", "sat-tinh");
+
+        // Hoa Cái, Cô Thần, Quả Tú, Kiếp Sát, Thiên Không
+        const hoaCaiMap = { 5:1, 9:1, 1:1, 11:7, 3:7, 7:7, 8:4, 0:4, 4:4, 2:10, 6:10, 10:10 };
+        addSubStar(hoaCaiMap[chiNamIdx] ?? 1, "Hoa Cái", "phuc-tinh");
+
+        const coThanMap = { 2:5, 3:5, 4:5, 5:8, 6:8, 7:8, 8:11, 9:11, 10:11, 11:2, 0:2, 1:2 };
+        const coThanIdx = coThanMap[chiNamIdx] ?? 5;
+        addSubStar(coThanIdx, "Cô Thần", "sat-tinh");
+        addSubStar((coThanIdx - 4 + 12) % 12, "Quả Tú", "sat-tinh");
 
         // Tuần - Triệt
         const TRIET_MAP = { 0: [8,9], 1: [6,7], 2: [4,5], 3: [2,3], 4: [0,1], 5: [8,9], 6: [6,7], 7: [4,5], 8: [2,3], 9: [0,1] };
@@ -2519,12 +3003,25 @@ window.AstrologyLogic = (function() {
         const currentYear = new Date().getFullYear();
         const currentAge = currentYear - year + 1; // Tuổi âm (tuổi mụ)
 
+        const MENH_CHU_MAP = {
+          "Tý": "Tham Lang", "Sửu": "Cự Môn", "Dần": "Lộc Tồn", "Mão": "Văn Xương",
+          "Thìn": "Liêm Trinh", "Tỵ": "Vũ Khúc", "Ngọ": "Phá Quân", "Mùi": "Vũ Khúc",
+          "Thân": "Liêm Trinh", "Dậu": "Văn Xương", "Tuất": "Lộc Tồn", "Hợi": "Cự Môn"
+        };
+        const THAN_CHU_MAP = {
+          "Tý": "Hỏa Tinh", "Sửu": "Thiên Tướng", "Dần": "Thiên Lương", "Mão": "Thiên Đồng",
+          "Thìn": "Văn Xương", "Tỵ": "Linh Tinh", "Ngọ": "Hỏa Tinh", "Mùi": "Thiên Tướng",
+          "Thân": "Thiên Lương", "Dậu": "Thiên Đồng", "Tuất": "Văn Xương", "Hợi": "Linh Tinh"
+        };
+
         return {
           thienBan: {
             cucName: cucObj.name,
             cucValue: cucObj.value,
             menhChi: this.CUNG_NAMES[menhChiIdx],
             thanChi: this.CUNG_NAMES[thanChiIdx],
+            menhChu: MENH_CHU_MAP[chiNam] || '',
+            thanChu: THAN_CHU_MAP[chiNam] || '',
             canNam,
             canNamIdx,
             chiNam,
@@ -2756,6 +3253,409 @@ window.AstrologyLogic = (function() {
           title: `Giao Thoa Số Chủ Đạo ${lifePath} & Bản Mệnh ${can} ${chi} (${hanh})`,
           summary: `Sự kết hợp giữa Con Số Chủ Đạo ${lifePath} (phát triển tư duy Tây Phương) và Năng Lượng Can Chi ${can} ${chi} thuộc hành ${hanh} tạo nên sự cộng hưởng đặc biệt. Bạn sở hữu sự linh hoạt của tần số Số ${lifePath} kết hợp với sự bền bỉ của trụ mệnh Đông Phương.`,
           synergyAdvice: `Hãy lấy thế mạnh của Số ${lifePath} làm đòn bẩy trong công việc, đồng thời nương theo nhịp vận của hành ${hanh} để chọn thời điểm hành động đại sự thích hợp nhất.`
+        };
+      },
+
+      getUserTuViChart: function(customProfile) {
+        let p = customProfile;
+        if (!p && window.Onboarding && typeof window.Onboarding.getProfile === 'function') {
+          p = window.Onboarding.getProfile();
+        }
+        if (!p) {
+          try { p = JSON.parse(localStorage.getItem('noitam_user_profile')); } catch {}
+        }
+        if (!p) {
+          try { p = JSON.parse(localStorage.getItem('noitam_chart_config')); } catch {}
+        }
+        if (!p) {
+          p = { gender: 'Nam', year: 2000, month: 4, day: 20, hour: 21, minute: 0, locationName: 'Hà Nội', lat: 21.03, lng: 105.85, tz: 7 };
+        }
+
+        const gender = p.gender || 'Nam';
+        const year = p.year || 2000;
+        const month = p.month || 4;
+        const day = p.day || 20;
+        const hour = (p.hour !== undefined && p.hour !== null ? p.hour : 21);
+        const minute = p.minute || 0;
+        const lng = p.lng || 105.85;
+        const tz = p.tz || 7;
+
+        let fp = null;
+        if (this.FourPillars && typeof this.FourPillars.calculateFourPillars === 'function') {
+          const civilDate = new Date(year, month - 1, day, hour, minute);
+          fp = this.FourPillars.calculateFourPillars(civilDate, lng, tz);
+        }
+        const pillars = fp ? fp.pillars : null;
+
+        if (this.TuViEngine && typeof this.TuViEngine.calculateTuViChart === 'function' && pillars) {
+          return this.TuViEngine.calculateTuViChart({
+            day: day, month: month, year: year,
+            hour: hour, minute: minute, gender: gender,
+            canNam: pillars.year.can, chiNam: pillars.year.chi,
+            lunarDay: fp.lunarDay, lunarMonth: fp.lunarMonth
+          });
+        }
+        return null;
+      },
+
+      getUserProfile: function() {
+        let p1 = null, p2 = null;
+        if (window.Onboarding && typeof window.Onboarding.getProfile === 'function') {
+          p1 = window.Onboarding.getProfile();
+        }
+        if (!p1) {
+          try { p1 = JSON.parse(localStorage.getItem('noitam_user_profile')); } catch {}
+        }
+        try { p2 = JSON.parse(localStorage.getItem('noitam_chart_config')); } catch {}
+        let p = { ...(p1 || {}), ...(p2 || {}) };
+        if (!p || !p.year) {
+          p = { gender: 'Nam', year: 2000, month: 8, day: 2, hour: 0, minute: 15, locationName: 'Vĩnh Long, Việt Nam', lat: 10.25, lng: 105.97, tz: 7 };
+        }
+        p.hour = (p.hour !== undefined && p.hour !== null) ? (parseInt(p.hour, 10) % 24) : 0;
+        if (isNaN(p.hour)) p.hour = 0;
+        return p;
+      },
+
+      calculateCharacterStats: function(userProfile, phucDucPts = 120) {
+        const chart = this.getUserTuViChart(userProfile);
+        let vit = 75, intVal = 75, cha = 75, wis = 75, str = 75, dex = 75;
+
+        if (chart && chart.palaces) {
+          const ming = chart.palaces.find(p => p.isMenh);
+          const quan = chart.palaces.find(p => p.name && p.name.includes('Quan Lộc'));
+          const phuThue = chart.palaces.find(p => p.name && p.name.includes('Phu Thê'));
+          const di = chart.palaces.find(p => p.name && p.name.includes('Thiên Di'));
+          const tai = chart.palaces.find(p => p.name && p.name.includes('Tài Bạch'));
+          const phuc = chart.palaces.find(p => p.name && p.name.includes('Phúc Đức'));
+
+          const getStarsBonus = (palace) => {
+            if (!palace) return 0;
+            const mainCount = (palace.mainStarsList || []).length;
+            const hasGoodSub = (palace.subStarsList || []).some(s => ['Tả Phù', 'Hữu Bật', 'Văn Xương', 'Văn Khúc', 'Thiên Khôi', 'Thiên Việt', 'Lộc Tồn'].includes(s.name));
+            return (mainCount * 4) + (hasGoodSub ? 7 : 0);
+          };
+
+          vit += getStarsBonus(ming);
+          intVal += getStarsBonus(quan);
+          cha += getStarsBonus(phuThue);
+          wis += getStarsBonus(di);
+          str += getStarsBonus(tai);
+          dex += getStarsBonus(phuc);
+        }
+
+        vit = Math.min(100, Math.max(50, vit));
+        intVal = Math.min(100, Math.max(50, intVal));
+        cha = Math.min(100, Math.max(50, cha));
+        wis = Math.min(100, Math.max(50, wis));
+        str = Math.min(100, Math.max(50, str));
+        dex = Math.min(100, Math.max(50, dex));
+
+        const totalPower = vit + intVal + cha + wis + str + dex;
+
+        return {
+          vit, int: intVal, cha, wis, str, dex,
+          totalPower,
+          phucDucPoints: phucDucPts
+        };
+      },
+
+      evaluateWealthDay: function(dateStr, userProfile) {
+        if (!userProfile) return { score: 50, rating: 'Bình Hòa', message: 'Không có dữ liệu bản mệnh' };
+        let score = 70;
+        const AL = window.AstrologyLogic;
+        
+        // 1. Phân tích tương tác ngũ hành ngày và bản mệnh
+        const hanhMenh = userProfile.hanhMenh || 'Kim';
+        const HanhSinhKhac = {
+          sinh: { 'Kim': 'Thủy', 'Thủy': 'Mộc', 'Mộc': 'Hỏa', 'Hỏa': 'Thổ', 'Thổ': 'Kim' },
+          khac: { 'Kim': 'Mộc', 'Mộc': 'Thổ', 'Thổ': 'Thủy', 'Thủy': 'Hỏa', 'Hỏa': 'Kim' }
+        };
+        try {
+          if (typeof Lunar !== 'undefined') {
+            const lunar = Lunar.fromDate(new Date(dateStr));
+            const canNgay = AL.CAN[lunar.getDayGanIndex()];
+            const hanhNgay = AL.NGU_HANH_CAN[canNgay];
+            
+            if (HanhSinhKhac.sinh[hanhNgay] === hanhMenh) score += 20;
+            else if (HanhSinhKhac.khac[hanhNgay] === hanhMenh) score -= 15;
+            else if (hanhNgay === hanhMenh) score += 10;
+          }
+        } catch (e) {}
+
+        // 2. Soi Cung Tài Bạch trên lá số
+        if (AL && AL.TuViEngine) {
+          try {
+            const tuViChart = AL.TuViEngine.calculateTuViChart({
+              day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+              gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+            });
+            const taiBach = tuViChart.palaces.find(p => p.id === 'tai-bach' || p.name === 'Tài Bạch');
+            if (taiBach) {
+              const wealthStars = ['Vũ Khúc', 'Thiên Phủ', 'Thái Âm', 'Lộc Tồn', 'Hóa Lộc'];
+              const badStars = ['Đại Hao', 'Tiểu Hao', 'Địa Không', 'Địa Kiếp', 'Hóa Kỵ'];
+              const goodCount = (taiBach.mainStars||[]).concat(taiBach.minorStars||[]).filter(s => wealthStars.includes(s)).length;
+              const badCount = (taiBach.mainStars||[]).concat(taiBach.minorStars||[]).filter(s => badStars.includes(s)).length;
+              score = score + (goodCount * 10) - (badCount * 10);
+            }
+          } catch(e) {}
+        }
+        
+        score = Math.max(0, Math.min(100, score));
+        let rating = 'Bình Hòa';
+        if (score >= 80) rating = 'Đại Cát';
+        else if (score >= 60) rating = 'Tiểu Cát';
+        else if (score < 40) rating = 'Cẩn Trọng';
+
+        return { score, rating, message: 'Phân tích từ tương quan Hành ngày và Cung Tài Bạch.' };
+      },
+
+      calculateRetroAccuracy: function(logs) {
+        if (!logs || logs.length === 0) return { accuracyPct: 0, correlationLevel: 'Chưa đủ dữ liệu', insight: 'Vui lòng check-in để AI bắt đầu phân tích.' };
+        let totalError = 0;
+        let count = 0;
+        
+        logs.forEach(log => {
+           // log.predictedScore: 0-100, log.actualScore: 1-5 (convert to 0-100 scale: 1=20, 2=40, 3=60, 4=80, 5=100)
+           if (log.predictedScore != null && log.actualScore != null) {
+              const actualScaled = log.actualScore * 20;
+              const diff = Math.abs(log.predictedScore - actualScaled);
+              totalError += diff;
+              count++;
+           }
+        });
+
+        if (count === 0) return { accuracyPct: 0, correlationLevel: 'Chưa đủ dữ liệu', insight: 'Vui lòng check-in.' };
+        
+        const avgError = totalError / count;
+        // 0 error = 100% accuracy, 100 error = 0% accuracy
+        const accuracyPct = Math.max(0, Math.round(100 - avgError));
+        let correlationLevel = 'Trung Bình';
+        if (accuracyPct >= 80) correlationLevel = 'Rất Cao';
+        else if (accuracyPct >= 65) correlationLevel = 'Khá';
+        else if (accuracyPct < 50) correlationLevel = 'Thấp';
+
+        return {
+          accuracyPct,
+          correlationLevel,
+          insight: \`Hệ thống đã học từ \${count} mẫu chiêm nghiệm. Độ tương quan hiện tại đạt \${accuracyPct}%.\`
+        };
+      },
+
+      calculateDailyTransit: function(dateStr, userProfile) {
+        const AL = window.AstrologyLogic;
+        if (!AL || !AL.TuViEngine) return null;
+        
+        // 1. Calculate Base Chart
+        const baseChart = AL.TuViEngine.calculateTuViChart({
+          day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+          gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+        });
+        if (!baseChart || !baseChart.palaces) return null;
+
+        // 2. Lấy Thiên Can ngày hôm nay (dùng cho Tứ Hóa)
+        let canNgay = 'Giáp';
+        let chiNgay = 'Tý';
+        let hanhNgay = 'Kim';
+        try {
+          if (typeof Lunar !== 'undefined') {
+            const lunar = Lunar.fromDate(new Date(dateStr));
+            canNgay = AL.CAN[lunar.getDayGanIndex()];
+            chiNgay = AL.CUNG[lunar.getDayZhiIndex()];
+            hanhNgay = AL.NGU_HANH_CAN[canNgay];
+          }
+        } catch(e) {}
+
+        // Tứ Hóa theo Can
+        const TU_HOA_MAP = {
+          'Giáp': { loc: 'Liêm Trinh', quyen: 'Phá Quân', khoa: 'Vũ Khúc', ky: 'Thái Dương' },
+          'Ất': { loc: 'Thiên Cơ', quyen: 'Thiên Lương', khoa: 'Tử Vi', ky: 'Thái Âm' },
+          'Bính': { loc: 'Thiên Đồng', quyen: 'Thiên Cơ', khoa: 'Văn Xương', ky: 'Liêm Trinh' },
+          'Đinh': { loc: 'Thái Âm', quyen: 'Thiên Đồng', khoa: 'Thiên Cơ', ky: 'Cự Môn' },
+          'Mậu': { loc: 'Tham Lang', quyen: 'Thái Âm', khoa: 'Hữu Bật', ky: 'Thiên Cơ' },
+          'Kỷ': { loc: 'Vũ Khúc', quyen: 'Tham Lang', khoa: 'Thiên Lương', ky: 'Văn Khúc' },
+          'Canh': { loc: 'Thái Dương', quyen: 'Vũ Khúc', khoa: 'Thái Âm', ky: 'Thiên Đồng' },
+          'Tân': { loc: 'Cự Môn', quyen: 'Thái Dương', khoa: 'Văn Khúc', ky: 'Văn Xương' },
+          'Nhâm': { loc: 'Thiên Lương', quyen: 'Tử Vi', khoa: 'Tả Phù', ky: 'Vũ Khúc' },
+          'Quý': { loc: 'Phá Quân', quyen: 'Cự Môn', khoa: 'Thái Âm', ky: 'Tham Lang' }
+        };
+        const tuHoa = TU_HOA_MAP[canNgay] || TU_HOA_MAP['Giáp'];
+
+        // 3. Xác định Cung Lưu Nhật
+        let luuNhatChiIndex = 2; // Dần
+        try {
+          if (typeof Lunar !== 'undefined') {
+            const lunar = Lunar.fromDate(new Date(dateStr));
+            const month = Math.abs(lunar.getMonth());
+            const day = lunar.getDay();
+            luuNhatChiIndex = (2 + (month - 1) + (day - 1)) % 12;
+          }
+        } catch(e) {}
+        const CHI_ARRAY = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
+        const luuNhatChi = CHI_ARRAY[luuNhatChiIndex];
+
+        // Xác định vị trí các Hóa
+        let locPalace = null, kyPalace = null, quyenPalace = null;
+        baseChart.palaces.forEach(p => {
+          const stars = (p.mainStars||[]).concat(p.minorStars||[]);
+          if (stars.includes(tuHoa.loc)) locPalace = p;
+          if (stars.includes(tuHoa.ky)) kyPalace = p;
+          if (stars.includes(tuHoa.quyen)) quyenPalace = p;
+        });
+
+        const luuNhatPalace = baseChart.palaces.find(p => p.chi === luuNhatChi);
+
+        return {
+          baseChart,
+          canNgay, chiNgay, hanhNgay,
+          tuHoa,
+          luuNhatChi,
+          luuNhatPalace,
+          locPalace, kyPalace, quyenPalace
+        };
+      },
+
+      getDailyRemedy: function(transitData, userProfile) {
+        if (!transitData || !userProfile) return null;
+        
+        const { tuHoa, luuNhatPalace, locPalace, kyPalace, hanhNgay } = transitData;
+        const hanhMenh = userProfile.hanhMenh || 'Kim';
+
+        // 1. Phân tích Action Mode (Động / Tĩnh)
+        let isBadDay = false;
+        let alertMsg = '';
+        if (kyPalace && luuNhatPalace && kyPalace.chi === luuNhatPalace.chi) {
+          isBadDay = true;
+          alertMsg = `CẢNH BÁO ĐỎ: Cung Mệnh của ngày hôm nay trực tiếp gặp Hóa Kỵ (${tuHoa.ky}). Tránh kích động, không đầu tư lớn.`;
+        } else if (kyPalace && (kyPalace.id === 'tai-bach' || kyPalace.name === 'Tài Bạch')) {
+          isBadDay = true;
+          alertMsg = `CẢNH BÁO ĐỎ: Cung Tài Bạch gốc bị Hóa Kỵ (${tuHoa.ky}) xung phá hôm nay. Nguy cơ hao tài tốn của rất cao.`;
+        }
+
+        const actionMode = isBadDay ? 'TĨNH (Thủ thế, nhẫn nhịn, tránh quyết định lớn)' : 'ĐỘNG (Chủ động, nắm bắt cơ hội, tấn công)';
+        
+        // 2. Y phục / Vật phẩm (Wardrobe)
+        const HanhSinhKhac = {
+          sinh: { 'Kim': 'Thủy', 'Thủy': 'Mộc', 'Mộc': 'Hỏa', 'Hỏa': 'Thổ', 'Thổ': 'Kim' },
+          khac: { 'Kim': 'Mộc', 'Mộc': 'Thổ', 'Thổ': 'Thủy', 'Thủy': 'Hỏa', 'Hỏa': 'Kim' }
+        };
+        const COLOR_MAP = {
+          'Kim': 'Trắng, Bạc, Ghi',
+          'Mộc': 'Xanh lá, Xanh rêu',
+          'Thủy': 'Đen, Xanh biển',
+          'Hỏa': 'Đỏ, Hồng, Tím',
+          'Thổ': 'Vàng, Nâu đất'
+        };
+
+        let dungThan = hanhMenh;
+        if (HanhSinhKhac.khac[hanhNgay] === hanhMenh) {
+           dungThan = Object.keys(HanhSinhKhac.sinh).find(k => HanhSinhKhac.sinh[k] === hanhMenh && HanhSinhKhac.khac[hanhNgay] !== k) || hanhMenh;
+        } else if (HanhSinhKhac.khac[hanhMenh] === hanhNgay) {
+           dungThan = Object.keys(HanhSinhKhac.sinh).find(k => HanhSinhKhac.sinh[k] === hanhMenh) || hanhMenh;
+        }
+
+        const wardrobe = `Ưu tiên trang phục/phụ kiện màu ${COLOR_MAP[dungThan]} (Hành ${dungThan}) để cân bằng trường khí.`;
+
+        // 3. Phương vị xuất hành
+        const BRANCH_DIR = {
+            'Tý': 'Bắc', 'Sửu': 'Đông Bắc', 'Dần': 'Đông Bắc', 'Mão': 'Đông',
+            'Thìn': 'Đông Nam', 'Tỵ': 'Đông Nam', 'Ngọ': 'Nam', 'Mùi': 'Tây Nam',
+            'Thân': 'Tây Nam', 'Dậu': 'Tây', 'Tuất': 'Tây Bắc', 'Hợi': 'Tây Bắc'
+        };
+        let direction = 'Trung Cung (Tại chỗ)';
+        if (locPalace) {
+          direction = `${BRANCH_DIR[locPalace.chi]} (Đón Hóa Lộc tại cung ${locPalace.name})`;
+        } else if (quyenPalace) {
+          direction = `${BRANCH_DIR[quyenPalace.chi]} (Đón Hóa Quyền tại cung ${quyenPalace.name})`;
+        }
+
+        return {
+          isBadDay,
+          alertMsg,
+          actionMode,
+          wardrobe,
+          direction,
+          dungThan
+        };
+      },
+
+      getSkillTreeData: function() {
+        return [
+          {
+            name: 'Thân Tâm (VIT)',
+            icon: '🧘',
+            color: '#10b981',
+            skills: [
+              { name: 'Thiền Định Tốc Độ', desc: 'Quan sát suy nghĩ và làm chủ cảm xúc', level: 4, maxLevel: 5 },
+              { name: 'Rèn Luyện Thể Lực', desc: 'Duy trì năng lượng sinh học ổn định', level: 3, maxLevel: 5 }
+            ]
+          },
+          {
+            name: 'Sự Nghiệp (INT)',
+            icon: '👑',
+            color: '#3b82f6',
+            skills: [
+              { name: 'Tư Duy Hệ Thống', desc: 'Phân tích & hoạch định chiến lược dài hạn', level: 5, maxLevel: 5 },
+              { name: 'Tối Ưu Vận Hành', desc: 'Tối đa hóa hiệu suất làm việc cá nhân', level: 4, maxLevel: 5 }
+            ]
+          },
+          {
+            name: 'Tài Chính (STR)',
+            icon: '💰',
+            color: '#f59e0b',
+            skills: [
+              { name: 'Tích Lũy Lộc Tồn', desc: 'Quản trị rủi ro & duy trì dòng tiền', level: 4, maxLevel: 5 },
+              { name: 'Đầu Tư Tăng Trưởng', desc: 'Gia tăng tài sản bền vững theo thời gian', level: 3, maxLevel: 5 }
+            ]
+          },
+          {
+            name: 'Tri Thức (DEX)',
+            icon: '📚',
+            color: '#06b6d4',
+            skills: [
+              { name: 'Ứng Dụng Cổ Tịch', desc: 'Vận dụng Tử Vi & Kinh Dịch vào thực tế', level: 5, maxLevel: 5 },
+              { name: 'Phản Tư Nhật Ký', desc: 'Đúc kết bài học sau mỗi trải nghiệm cuộc sống', level: 5, maxLevel: 5 }
+            ]
+          }
+          }
+        ];
+      },
+
+      calculateLifeTimeline: function(userProfile) {
+        const currentYear = new Date().getFullYear();
+        const birthYear = userProfile.birthYear || userProfile.year || 1995;
+        const currentAge = currentYear - birthYear + 1;
+        
+        let yearlyData = [];
+        for (let age = 20; age <= 80; age++) {
+          const calendarYear = birthYear + age - 1;
+          const canIdx = (calendarYear - 4) % 10;
+          const chiIdx = (calendarYear - 4) % 12;
+          const can = typeof CAN !== 'undefined' ? CAN[(canIdx + 10) % 10] : '';
+          const chi = typeof CUNG !== 'undefined' ? CUNG[(chiIdx + 12) % 12] : '';
+          
+          // Basic mock score calculation
+          let lesScore = 65; 
+          if ((chiIdx + 12) % 12 === 4 || (chiIdx + 12) % 12 === 10) lesScore -= 20; // Thai Tui / Tue Pha mock
+          else if (age % 10 === 5) lesScore += 25;
+          lesScore = Math.max(30, Math.min(95, lesScore));
+
+          let statusFlag = 'Bình Hòa';
+          if (lesScore >= 80) statusFlag = 'Tấn Công';
+          else if (lesScore < 50) statusFlag = 'Phòng Thủ';
+          
+          yearlyData.push({
+            age: age,
+            calendarYear: calendarYear,
+            canChi: `${can} ${chi}`,
+            lesScore: lesScore,
+            statusFlag: statusFlag,
+            isCurrentAge: age === currentAge
+          });
+        }
+        
+        return {
+          currentAge: currentAge,
+          yearlyData: yearlyData
         };
       }
     }

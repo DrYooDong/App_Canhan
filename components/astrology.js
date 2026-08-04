@@ -107,6 +107,15 @@
   // --- HELPER FUNCTIONS FOR FOUR PILLARS & CHART CONFIG ---
   function getStoredChartConfig() {
     try {
+      if (window.AstrologyLogic && typeof window.AstrologyLogic.getUserProfile === 'function') {
+        const p = window.AstrologyLogic.getUserProfile();
+        if (p && p.year) {
+          p.hour = (p.hour !== undefined && p.hour !== null) ? (parseInt(p.hour, 10) % 24) : 12;
+          return p;
+        }
+      }
+    } catch(e) {}
+    try {
       const saved = JSON.parse(localStorage.getItem('noitam_chart_config'));
       if (saved) return saved;
     } catch(e) {}
@@ -116,7 +125,7 @@
       month: 4,
       day: 20,
       hour: 21,
-      minute: 24,
+      minute: 0,
       locationName: 'Hà Nội, Việt Nam',
       lat: 21.0285,
       lng: 105.8333,
@@ -180,10 +189,31 @@
             <select id="cfg-location-select" class="form-input" style="width:100%; margin-bottom:8px;">
               ${locations.map(loc => `
                 <option value="${loc.name}" ${loc.name === config.locationName ? 'selected' : ''}>
-                  📍 ${loc.name} (${loc.lng}°E, GMT+${loc.tz})
+                  ${loc.isCustom ? loc.name : `📍 ${loc.name} (${loc.lng}°E, GMT+${loc.tz})`}
                 </option>
               `).join('')}
+              ${(!locations.some(l => l.name === config.locationName) && config.locationName) ? `<option value="${config.locationName}" selected>📍 ${config.locationName} (Tùy chỉnh: ${config.lng}°E, GMT+${config.tz})</option>` : ''}
             </select>
+          </div>
+
+          <!-- Tọa độ tùy chỉnh (hiển thị khi chọn Khác/Tùy chỉnh) -->
+          <div id="cfg-custom-coords-wrap" style="display:none; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap:8px; margin-bottom:12px; background:var(--bg-card); padding:10px; border-radius:8px; border:1px dashed var(--border-accent);">
+            <div>
+              <span style="font-size:0.72rem; color:var(--text-tertiary);">Tên Địa Danh</span>
+              <input type="text" id="cfg-custom-name" value="${config.locationName || 'Tùy chỉnh'}" class="form-input" style="width:100%; font-size:0.82rem;" placeholder="Nhập tên nơi sinh">
+            </div>
+            <div>
+              <span style="font-size:0.72rem; color:var(--text-tertiary);">Vĩ Độ (Lat)</span>
+              <input type="number" step="0.0001" id="cfg-custom-lat" value="${config.lat || 21.03}" class="form-input" style="width:100%; text-align:center; font-size:0.82rem;">
+            </div>
+            <div>
+              <span style="font-size:0.72rem; color:var(--text-tertiary);">Kinh Độ (Lng)</span>
+              <input type="number" step="0.0001" id="cfg-custom-lng" value="${config.lng || 105.85}" class="form-input" style="width:100%; text-align:center; font-size:0.82rem;">
+            </div>
+            <div>
+              <span style="font-size:0.72rem; color:var(--text-tertiary);">Múi Giờ (UTC)</span>
+              <input type="number" step="1" id="cfg-custom-tz" value="${config.tz ?? 7}" class="form-input" style="width:100%; text-align:center; font-size:0.82rem;">
+            </div>
           </div>
 
           <!-- Preview Giờ Mặt Trời Thực -->
@@ -206,22 +236,48 @@
             const minute = parseInt(document.getElementById('cfg-minute').value) || 24;
 
             const locName = document.getElementById('cfg-location-select').value;
-            const selectedLoc = locations.find(l => l.name === locName) || locations[0];
+            const selectedLoc = locations.find(l => l.name === locName);
 
+            let finalLocName = locName;
+            let lat = 21.03;
+            let lng = 105.85;
+            let tz = 7;
+
+            if (selectedLoc && !selectedLoc.isCustom) {
+              finalLocName = selectedLoc.name;
+              lat = selectedLoc.lat;
+              lng = selectedLoc.lng;
+              tz = selectedLoc.tz;
+            } else {
+              // Read custom inputs
+              finalLocName = document.getElementById('cfg-custom-name')?.value.trim() || 'Tùy chỉnh';
+              lat = parseFloat(document.getElementById('cfg-custom-lat')?.value) || 21.03;
+              lng = parseFloat(document.getElementById('cfg-custom-lng')?.value) || 105.85;
+              tz = parseInt(document.getElementById('cfg-custom-tz')?.value) ?? 7;
+            }
+
+            const normalizedHour = (hour !== undefined && hour !== null) ? (parseInt(hour, 10) % 24) : 0;
+            const currentProf = (window.Onboarding && typeof window.Onboarding.getProfile === 'function') ? (window.Onboarding.getProfile() || {}) : {};
             const newConfig = {
+              ...currentProf,
               gender,
               year,
               month,
               day,
-              hour,
+              hour: normalizedHour,
               minute,
-              locationName: selectedLoc.name,
-              lat: selectedLoc.lat,
-              lng: selectedLoc.lng,
-              tz: selectedLoc.tz
+              locationName: finalLocName,
+              lat,
+              lng,
+              tz,
+              updatedAt: new Date().toISOString()
             };
 
             localStorage.setItem('noitam_chart_config', JSON.stringify(newConfig));
+            localStorage.setItem('noitam_user_profile', JSON.stringify(newConfig));
+            if (window.Onboarding && typeof window.Onboarding.saveProfile === 'function') {
+              window.Onboarding.saveProfile(newConfig);
+            }
             Toast.show('Đã cập nhật lá số & Giờ Mặt Trời Thực!');
             if (onSaveCallback) onSaveCallback();
           }
@@ -239,17 +295,41 @@
       const hour = parseInt(modalEl.querySelector('#cfg-hour')?.value) || 21;
       const minute = parseInt(modalEl.querySelector('#cfg-minute')?.value) || 24;
       const locName = modalEl.querySelector('#cfg-location-select')?.value;
-      const loc = locations.find(l => l.name === locName) || locations[0];
+      const selectedLoc = locations.find(l => l.name === locName);
+
+      const customWrap = modalEl.querySelector('#cfg-custom-coords-wrap');
+      const isCustom = !selectedLoc || selectedLoc.isCustom;
+
+      if (customWrap) {
+        customWrap.style.display = isCustom ? 'grid' : 'none';
+      }
+
+      let lat = 21.03;
+      let lng = 105.85;
+      let tz = 7;
+      let displayName = locName;
+
+      if (selectedLoc && !selectedLoc.isCustom) {
+        lat = selectedLoc.lat;
+        lng = selectedLoc.lng;
+        tz = selectedLoc.tz;
+        displayName = selectedLoc.name;
+      } else {
+        displayName = modalEl.querySelector('#cfg-custom-name')?.value.trim() || 'Tùy chỉnh';
+        lat = parseFloat(modalEl.querySelector('#cfg-custom-lat')?.value) || 21.03;
+        lng = parseFloat(modalEl.querySelector('#cfg-custom-lng')?.value) || 105.85;
+        tz = parseInt(modalEl.querySelector('#cfg-custom-tz')?.value) ?? 7;
+      }
 
       if (AL && AL.FourPillars) {
         const civilDate = new Date(year, month - 1, day, hour, minute);
-        const tstInfo = AL.FourPillars.calculateTrueSolarTime(civilDate, loc.lng, loc.tz);
+        const tstInfo = AL.FourPillars.calculateTrueSolarTime(civilDate, lng, tz);
         const previewEl = modalEl.querySelector('#cfg-tst-preview');
         if (previewEl) {
           const sign = tstInfo.deltaMinutes >= 0 ? '+' : '';
           previewEl.innerHTML = `
             <div style="font-weight:700; color:var(--accent-primary); margin-bottom:2px;">☀️ Giờ Mặt Trời Thực: ${tstInfo.trueSolarDate.getHours().toString().padStart(2,'0')}:${tstInfo.trueSolarDate.getMinutes().toString().padStart(2,'0')} (Độ lệch: ${sign}${tstInfo.deltaMinutes} phút)</div>
-            <div style="color:var(--text-secondary); font-size:0.8rem;">📍 ${loc.name} (${loc.lng}°E) • Local Noon (Chính ngọ): ${tstInfo.noonStr}</div>
+            <div style="color:var(--text-secondary); font-size:0.8rem;">📍 ${displayName} (${lng}°E, GMT+${tz}) • Local Noon (Chính ngọ): ${tstInfo.noonStr}</div>
           `;
         }
       }
@@ -360,9 +440,11 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
     // Active view & famous chart state
     let activeFamousId = null; // null for user chart, or famous person ID string
-    let timeView = 'mingpan'; // 'mingpan' | 'daxian' | 'liunian'
+    let timeView = 'mingpan'; // 'mingpan' | 'daxian' | 'liunian' | 'liuyue'
     let currentLiunianYear = new Date().getFullYear();
+    let currentLiuyueMonth = new Date().getMonth() + 1;
     let selectedPalaceBranch = 0;
+    let activeFlyingBranch = null; // null or branch index 0..11 for Phi Tinh Tứ Hóa
 
     const openClassicsReaderModal = () => {
       const { Modal } = App;
@@ -559,7 +641,7 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
       });
     };
 
-    const formatPalaceStarsHtml = (pItem, isMobile = false, overlaySiHua = {}) => {
+    const formatPalaceStarsHtml = (pItem, isMobile = false, overlaySiHua = {}, flyingSiHuaMap = {}) => {
       let mainStarsHtml = pItem.mainStarsList && pItem.mainStarsList.length > 0
         ? pItem.mainStarsList.map(s => {
             let badgeColor = 'var(--text-secondary)';
@@ -569,23 +651,49 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
             
             const activeHoa = timeView === 'mingpan' ? s.hoa : (overlaySiHua[s.name] || s.hoa);
             const hoaBadge = getTuHoaBadge(activeHoa);
-            return `<span class="star-item-clickable" data-star="${s.name}" style="font-weight:700;color:${badgeColor};cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;" title="Bấm xem luận giải chi tiết sao ${s.name}">${s.name} <small style="opacity:0.85;">[${s.bright}]</small></span>${hoaBadge}`;
+
+            // Kiểm tra Phi Tinh Tứ Hóa tương tác
+            let flyingBadge = '';
+            if (flyingSiHuaMap && flyingSiHuaMap[s.name]) {
+              const fly = flyingSiHuaMap[s.name];
+              flyingBadge = `<span style="background:${fly.color}30;color:${fly.color};border:1px solid ${fly.color};font-size:0.68rem;padding:1px 5px;border-radius:4px;font-weight:900;margin-left:3px;box-shadow:0 0 6px ${fly.color}50;display:inline-block;" title="Phi Tinh: Hóa ${fly.type} từ Cung ${fly.fromPalace}">[Phi ${fly.type}]</span>`;
+            }
+
+            return `<span class="star-item-clickable" data-star="${s.name}" style="font-weight:800;color:${badgeColor};cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;" title="Bấm xem luận giải chi tiết sao ${s.name}">${s.name} <small style="font-weight:700;opacity:0.9;">[${s.bright}]</small></span>${hoaBadge}${flyingBadge}`;
           }).join(isMobile ? ', ' : '<br>')
         : `<span style="color:var(--text-tertiary);font-style:italic;">Vô Chính Diệu</span>`;
 
       let subStarsHtml = '';
       if (pItem.subStarsList && pItem.subStarsList.length > 0) {
         const subNames = pItem.subStarsList.map(ss => {
-          let col = 'var(--text-tertiary)';
-          if (ss.type === 'loc-ton') col = '#10b981';
-          else if (ss.type === 'thai-tue') col = 'var(--accent-primary)';
-          else if (ss.type === 'sat-tinh') col = '#ef4444';
+          let styleAttr = 'color:var(--text-tertiary);font-size:0.72rem;';
+          
+          if (ss.name === 'Lộc Tồn') {
+            styleAttr = 'background:rgba(16,185,129,0.18);color:#10b981;border:1px solid rgba(16,185,129,0.35);font-size:0.72rem;font-weight:800;padding:1px 5px;border-radius:4px;display:inline-block;margin:1px 0;';
+          } else if (['Đào Hoa', 'Hồng Loan', 'Thiên Hỷ'].includes(ss.name)) {
+            styleAttr = 'background:rgba(236,72,153,0.18);color:#ec4899;border:1px solid rgba(236,72,153,0.35);font-size:0.72rem;font-weight:800;padding:1px 5px;border-radius:4px;display:inline-block;margin:1px 0;';
+          } else if (['Giải Thần', 'Thiên Giải', 'Địa Giải'].includes(ss.name)) {
+            styleAttr = 'background:rgba(6,182,212,0.18);color:#06b6d4;border:1px solid rgba(6,182,212,0.35);font-size:0.72rem;font-weight:800;padding:1px 5px;border-radius:4px;display:inline-block;margin:1px 0;';
+          } else if (ss.name === 'Thiên Mã') {
+            styleAttr = 'background:rgba(139,92,246,0.18);color:#8b5cf6;border:1px solid rgba(139,92,246,0.35);font-size:0.72rem;font-weight:800;padding:1px 5px;border-radius:4px;display:inline-block;margin:1px 0;';
+          } else if (ss.type === 'sat-tinh' || ['Kình Dương', 'Đà La', 'Địa Không', 'Địa Kiếp', 'Hỏa Tinh', 'Linh Tinh', 'Tuế Phá', 'Tang Môn', 'Bạch Hổ'].includes(ss.name)) {
+            styleAttr = 'color:#ef4444;font-size:0.72rem;font-weight:700;';
+          } else if (ss.type === 'thai-tue' || ss.type === 'phuc-tinh') {
+            styleAttr = 'color:var(--text-secondary);font-size:0.72rem;font-weight:600;';
+          }
 
           const activeHoa = timeView === 'mingpan' ? ss.hoa : (overlaySiHua[ss.name] || ss.hoa);
           const hoaBadge = getTuHoaBadge(activeHoa);
-          return `<span style="color:${col};font-size:0.72rem;">${ss.name}</span>${hoaBadge}`;
+
+          let flyingBadge = '';
+          if (flyingSiHuaMap && flyingSiHuaMap[ss.name]) {
+            const fly = flyingSiHuaMap[ss.name];
+            flyingBadge = `<span style="background:${fly.color}30;color:${fly.color};border:1px solid ${fly.color};font-size:0.68rem;padding:1px 5px;border-radius:4px;font-weight:900;margin-left:3px;box-shadow:0 0 6px ${fly.color}50;display:inline-block;" title="Phi Tinh: Hóa ${fly.type} từ Cung ${fly.fromPalace}">[Phi ${fly.type}]</span>`;
+          }
+
+          return `<span style="${styleAttr}">${ss.name}</span>${hoaBadge}${flyingBadge}`;
         }).join(', ');
-        subStarsHtml = `<div style="margin-top:4px;line-height:1.25;">${subNames}</div>`;
+        subStarsHtml = `<div style="margin-top:4px;line-height:1.35;">${subNames}</div>`;
       }
 
       let tuanTrietBadge = pItem.tuanTrietStr
@@ -601,8 +709,9 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
     // Render Marriage Analysis Widget
     const renderMarriageWidgetHtml = () => {
-      if (!window.ZiweiMarriageKnowledge || !tuViChart) return '';
-      const mInfo = window.ZiweiMarriageKnowledge.analyzeMarriage(tuViChart);
+      const targetChart = (window.AstrologyLogic && typeof window.AstrologyLogic.getUserTuViChart === 'function') ? window.AstrologyLogic.getUserTuViChart() : null;
+      if (!window.ZiweiMarriageKnowledge || !targetChart) return '';
+      const mInfo = window.ZiweiMarriageKnowledge.analyzeMarriage(targetChart);
       if (!mInfo) return '';
 
       const detail = mInfo.starDetail;
@@ -752,8 +861,9 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
     // Render Pattern Recognition Cards
     const renderPatternsHtml = () => {
-      if (!window.ZiweiPatterns || !tuViChart) return '';
-      const patterns = window.ZiweiPatterns.detectPatterns(tuViChart);
+      const targetChart = (window.AstrologyLogic && typeof window.AstrologyLogic.getUserTuViChart === 'function') ? window.AstrologyLogic.getUserTuViChart() : null;
+      if (!window.ZiweiPatterns || !targetChart) return '';
+      const patterns = window.ZiweiPatterns.detectPatterns(targetChart);
       if (!patterns || patterns.length === 0) return '';
 
       return `
@@ -847,12 +957,40 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
     };
 
     const renderChartBoardContent = () => {
-      let activeTuViChart = tuViChart;
+      let activeTuViChart = null;
+
+      let fpCalc = null;
+      let pCalc = null;
+      if (AL && AL.FourPillars) {
+        try {
+          const civilDate = new Date(config.year, config.month - 1, config.day, config.hour, config.minute);
+          fpCalc = AL.FourPillars.calculateFourPillars(civilDate, config.lng, config.tz);
+          pCalc = fpCalc ? fpCalc.pillars : null;
+        } catch(e) { console.warn('FourPillars calc error:', e); }
+      }
+
       if (activeFamousId && window.ZiweiFamous) {
         const famousRes = window.ZiweiFamous.generateFamousTuViChart(activeFamousId);
         if (famousRes && famousRes.chart) activeTuViChart = famousRes.chart;
       }
+      if (!activeTuViChart && window.AstrologyLogic && typeof window.AstrologyLogic.getUserTuViChart === 'function') {
+        activeTuViChart = window.AstrologyLogic.getUserTuViChart();
+      }
+      if (!activeTuViChart && AL && AL.TuViEngine) {
+        try {
+          if (pCalc) {
+            activeTuViChart = AL.TuViEngine.calculateTuViChart({
+              day: config.day, month: config.month, year: config.year,
+              hour: config.hour, minute: config.minute, gender: config.gender,
+              canNam: pCalc.year.can, chiNam: pCalc.year.chi,
+              lunarDay: fpCalc.lunarDay, lunarMonth: fpCalc.lunarMonth
+            });
+          }
+        } catch (e) { console.warn('Direct chart compute fallback error:', e); }
+      }
+
       const palacesData = activeTuViChart ? activeTuViChart.palaces : [];
+      const tb = activeTuViChart ? activeTuViChart.thienBan : null;
 
       const overlaySiHua = getOverlaySiHua();
       const sanFangBranches = getSanFangSiZhengBranches(selectedPalaceBranch);
@@ -860,6 +998,53 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
       const curAge = tb ? (tb.currentAge || 25) : 25;
       const curDx = (activeTuViChart && activeTuViChart.daXians) ? (activeTuViChart.daXians.find(d => curAge >= d.startAge && curAge <= d.endAge) || activeTuViChart.daXians[0]) : null;
+
+      let flyingSiHuaMap = {};
+      let flyingPalaceName = '';
+      let flyingStemName = '';
+      if (activeFlyingBranch !== null) {
+        const fPalace = palacesData.find(p => p.chiIdx === activeFlyingBranch);
+        if (fPalace && fPalace.stem) {
+          flyingPalaceName = fPalace.name;
+          flyingStemName = fPalace.stem;
+          const fList = AL.TuViEngine.getFlyingSiHua(fPalace.stem);
+          fList.forEach(item => {
+            flyingSiHuaMap[item.star] = { type: item.type, color: item.color, fromPalace: fPalace.name };
+          });
+        }
+      }
+
+      const flyingSiHuaBannerHtml = activeFlyingBranch !== null && flyingPalaceName ? `
+        <div class="animate-fade-in" style="background:linear-gradient(135deg, rgba(16,185,129,0.15), rgba(239,68,68,0.15)); border:1px solid var(--border-accent); border-radius:10px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-weight:800; font-size:0.88rem; color:var(--accent-primary);">💫 PHI TINH TỨ HÓA CAN [${flyingStemName}] (Cung ${flyingPalaceName}):</span>
+            ${Object.entries(flyingSiHuaMap).map(([star, f]) => `
+              <span style="background:${f.color}25; color:${f.color}; border:1px solid ${f.color}60; padding:3px 9px; border-radius:12px; font-weight:800; font-size:0.78rem;">
+                ${star} ➔ Hóa ${f.type}
+              </span>
+            `).join('')}
+          </div>
+          <button class="btn btn-sm btn-tab" id="btn-close-flying" style="background:rgba(0,0,0,0.25); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:3px 10px; border-radius:12px; cursor:pointer;">
+            ✖ Tắt Phi Hóa
+          </button>
+        </div>
+      ` : '';
+
+      const getDynamicPalaceTitle = (pItem) => {
+        if (timeView === 'mingpan') return '';
+        if (timeView === 'daxian' && curDx) {
+          const offset = (pItem.chiIdx - curDx.branch + 12) % 12;
+          const titles = ['Mệnh ĐH', 'Phụ ĐH', 'Phúc ĐH', 'Điền ĐH', 'Quan ĐH', 'Nô ĐH', 'Di ĐH', 'Tật ĐH', 'Tài ĐH', 'Tử ĐH', 'Phu ĐH', 'Huynh ĐH'];
+          return `<span style="font-size:0.68rem; background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.35); border-radius:4px; padding:1px 4px; font-weight:700;">[${titles[offset]}]</span>`;
+        }
+        if (timeView === 'liunian' || timeView === 'liuyue') {
+          const yearBranch = ((currentLiunianYear - 4) % 12 + 12) % 12;
+          const offset = (pItem.chiIdx - yearBranch + 12) % 12;
+          const titles = ['Mệnh LN', 'Phụ LN', 'Phúc LN', 'Điền LN', 'Quan LN', 'Nô LN', 'Di LN', 'Tật LN', 'Tài LN', 'Tử LN', 'Phu LN', 'Huynh LN'];
+          return `<span style="font-size:0.68rem; background:rgba(59,130,246,0.2); color:#3b82f6; border:1px solid rgba(59,130,246,0.35); border-radius:4px; padding:1px 4px; font-weight:700;">[${titles[offset]}]</span>`;
+        }
+        return '';
+      };
 
       container.innerHTML = `
         <div class="header-section animate-fade-in" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
@@ -870,14 +1055,13 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
           <p class="page-subtitle" style="margin-bottom: 0;">Tra cứu Bàn Số 12 Cung, Tứ Trụ Bát Tự 10 Thần và Hiệu chỉnh Giờ Mặt Trời Thực.</p>
         </div>
 
-        <!-- 12 Palaces Interactive Chart Card -->
         <div class="tuvi-card animate-fade-in mb-lg" style="margin-bottom:24px;">
           <div class="tuvi-card-header" style="flex-wrap:wrap; gap:12px;">
             <div class="tuvi-card-title-group">
               <div class="tuvi-card-icon">🔮</div>
               <div>
                 <div class="tuvi-card-title">Bàn Số 12 Cung Interactive</div>
-                <div class="tuvi-card-subtitle">Chọn 1 Cung bất kỳ để tự động xem Tam Phương Tứ Chính & Luận Giải</div>
+                <div class="tuvi-card-subtitle">Chọn 1 Cung xem Tam Phương Tứ Chính • Click nút 💫 để xem Phi Tinh Tứ Hóa</div>
               </div>
             </div>
 
@@ -892,7 +1076,6 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
             </div>
           </div>
 
-          <!-- TIME NAVIGATION BAR (Bản Mệnh / Đại Hạn / Lưu Niên) -->
           <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg-surface); padding:8px 12px; border-radius:10px; border:1px solid var(--border-color); margin-bottom:12px; flex-wrap:wrap;">
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn btn-sm ${timeView === 'mingpan' ? 'btn-primary' : 'btn-tab'}" id="tv-btn-mingpan">
@@ -908,21 +1091,29 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
                 <button id="tv-year-prev" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:0.9rem; padding:2px 4px;">‹</button>
                 <button id="tv-year-next" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:0.9rem; padding:2px 4px;">›</button>
               </div>
+              <div style="display:flex; align-items:center; gap:4px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:0 6px;">
+                <button class="btn btn-sm" id="tv-btn-liuyue" style="background:none; border:none; padding:4px 6px; font-weight:600; color:${timeView === 'liuyue' ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
+                  🌙 Lưu Nguyệt T${currentLiuyueMonth}
+                </button>
+                <button id="tv-month-prev" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:0.9rem; padding:2px 4px;">‹</button>
+                <button id="tv-month-next" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:0.9rem; padding:2px 4px;">›</button>
+              </div>
             </div>
 
-            <!-- Tứ Hóa Info Banner -->
             <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">
-              ${timeView === 'mingpan' ? '✨ Tứ Hóa Nguồn: Theo Thiên Can NĂM SINH' :
-                timeView === 'daxian' ? `✨ Tứ Hóa Đại Hạn: Theo Thiên Can [${curDx ? curDx.stem : ''}] Cung ${curDx ? curDx.name : ''}` :
+              ${timeView === 'mingpan' ? '✨ Tứ Hóa Nguồn: Theo Can NĂM SINH' :
+                timeView === 'daxian' ? `✨ Tứ Hóa Đại Hạn: Theo Can [${curDx ? curDx.stem : ''}] Cung ${curDx ? curDx.name : ''}` :
+                timeView === 'liuyue' ? `✨ Tứ Hóa Lưu Nguyệt T${currentLiuyueMonth}/${currentLiunianYear}` :
                 `✨ Tứ Hóa Lưu Niên ${currentLiunianYear}: Theo Can [${AL.TuViEngine.CAN_NAMES[((currentLiunianYear-4)%10+10)%10]}]`}
             </div>
           </div>
 
-          <!-- Central Four Pillars Summary Box (Tứ Trụ Bát Tự + True Solar Time) -->
+          ${flyingSiHuaBannerHtml}
+
           <div style="background:linear-gradient(135deg, var(--bg-card), var(--bg-secondary)); border:1px dashed var(--border-accent); border-radius:var(--radius-md); padding:16px; box-shadow:var(--shadow-sm); margin-bottom:14px;">
             <div style="text-align:center; margin-bottom:12px;">
               <div style="font-family:var(--font-heading); font-weight:700; font-size:1.15rem; color:var(--accent-primary); letter-spacing:0.05em;">
-                ${config.gender === 'Nam' ? 'DƯƠNG NAM' : 'ÂM NỮ'} ${p ? `${p.year.can} ${p.year.chi}`.toUpperCase() : 'CANH THÌN'}
+                ${config.gender === 'Nam' ? 'DƯƠNG NAM' : 'ÂM NỮ'} ${pCalc ? `${pCalc.year.can} ${pCalc.year.chi}`.toUpperCase() : 'CANH THÌN'}
               </div>
               <div style="font-size:0.875rem; color:var(--text-primary); font-weight:600; margin:2px 0;">
                 ${tb ? `${tb.cucName} — ${tb.amDuongLy}` : 'Bạch Lạp Kim — Hỏa Lục Cục'}
@@ -931,69 +1122,52 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
                 ${tb ? `🔮 ${tb.menhCucRel} • Mệnh cư ${tb.menhChi}, Thân cư ${tb.thanChi}` : ''}
               </div>
               <div style="font-size:0.78rem; color:var(--text-tertiary);">
-                📍 ${config.locationName} (${config.lng}°E) • Giờ Mặt Trời Thực: <strong>${fp ? fp.trueSolarDate.getHours() : config.hour}:${fp ? fp.trueSolarDate.getMinutes().toString().padStart(2,'0') : config.minute}</strong> (${fp && fp.deltaMinutes >= 0 ? '+' : ''}${fp ? fp.deltaMinutes : 0}m) • Chính Ngọ: ${fp ? fp.noonStr : '12:00'}
+                📍 ${config.locationName} (${config.lng}°E) • Giờ Mặt Trời Thực: <strong>${fpCalc ? fpCalc.trueSolarDate.getHours() : config.hour}:${fpCalc ? fpCalc.trueSolarDate.getMinutes().toString().padStart(2,'0') : config.minute}</strong> (${fpCalc && fpCalc.deltaMinutes >= 0 ? '+' : ''}${fpCalc ? fpCalc.deltaMinutes : 0}m) • Chính Ngọ: ${fpCalc ? fpCalc.noonStr : '12:00'}
               </div>
             </div>
 
-            <!-- Four Pillars Matrix Grid -->
             <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; background:var(--bg-surface); padding:10px; border-radius:8px; border:1px solid var(--border-color); text-align:center;">
-              <!-- Year -->
               <div style="padding:6px; background:var(--bg-card); border-radius:6px; border:1px solid var(--border-color);">
                 <div style="font-size:0.7rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">TRỤ NĂM</div>
                 <div style="font-weight:700; font-size:0.95rem; color:var(--accent-primary); margin:2px 0;">${p ? p.year.can : 'Canh'} ${p ? p.year.chi : 'Thìn'}</div>
                 <div style="font-size:0.72rem; color:#22c55e; font-weight:600;">${p ? p.year.tenGod : 'Thất Sát'}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">Tàng: ${p ? p.year.hidden.map(h => h.stem).join(',') : 'Mậu,Ất,Quý'}</div>
               </div>
-
-              <!-- Month -->
               <div style="padding:6px; background:var(--bg-card); border-radius:6px; border:1px solid var(--border-color);">
                 <div style="font-size:0.7rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">TRỤ THÁNG</div>
                 <div style="font-weight:700; font-size:0.95rem; color:var(--accent-primary); margin:2px 0;">${p ? p.month.can : 'Bính'} ${p ? p.month.chi : 'Thìn'}</div>
                 <div style="font-size:0.72rem; color:#3b82f6; font-weight:600;">${p ? p.month.tenGod : 'Thực Thần'}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">Tàng: ${p ? p.month.hidden.map(h => h.stem).join(',') : 'Mậu,Ất,Quý'}</div>
               </div>
-
-              <!-- Day (Nhật Nguyên) -->
               <div style="padding:6px; background:var(--accent-muted); border-radius:6px; border:1px solid var(--border-accent);">
-                <div style="font-size:0.7rem; font-weight:700; color:var(--accent-primary); text-transform:uppercase;">TRỤ NGÀY</div>
+                <div style="font-size:0.7rem; font-weight:700; color:var(--accent-primary); text-transform:uppercase;">NGÀY</div>
                 <div style="font-weight:800; font-size:0.95rem; color:var(--accent-primary); margin:2px 0;">${p ? p.day.can : 'Giáp'} ${p ? p.day.chi : 'Tuất'}</div>
                 <div style="font-size:0.72rem; color:var(--accent-primary); font-weight:700;">★ Nhật Nguyên</div>
-                <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">Tàng: ${p ? p.day.hidden.map(h => h.stem).join(',') : 'Mậu,Tân,Đinh'}</div>
               </div>
-
-              <!-- Hour -->
               <div style="padding:6px; background:var(--bg-card); border-radius:6px; border:1px solid var(--border-color);">
                 <div style="font-size:0.7rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase;">TRỤ GIỜ</div>
                 <div style="font-weight:700; font-size:0.95rem; color:var(--accent-primary); margin:2px 0;">${p ? p.hour.can : 'Canh'} ${p ? p.hour.chi : 'Tuất'}</div>
                 <div style="font-size:0.72rem; color:#ef4444; font-weight:600;">${p ? p.hour.tenGod : 'Thất Sát'}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">Tàng: ${p ? p.hour.hidden.map(h => h.stem).join(',') : 'Mậu,Tân,Đinh'}</div>
               </div>
             </div>
           </div>
 
-          <!-- Desktop 4x4 Grid View With SVG Tam Phương Tứ Chính Layer -->
           <div style="position:relative;">
-            <div class="tuvi-desktop-grid desktop-only" style="display:grid;grid-template-columns:repeat(4, 1fr);grid-template-rows:repeat(4, minmax(80px, auto));gap:10px;background:var(--bg-tertiary);padding:12px;border-radius:var(--radius-lg);border:1px solid var(--border-color);position:relative;">
+            <div class="tuvi-desktop-grid desktop-only" style="display:grid;grid-template-columns:repeat(4, 1fr);grid-template-rows:repeat(4, minmax(130px, auto));gap:10px;background:var(--bg-tertiary);padding:14px;border-radius:var(--radius-lg);border:1px solid var(--border-color);position:relative;">
               
-              <!-- SVG Layer for Tam Phương Tứ Chính Lines -->
               <svg style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5;">
                 ${(() => {
-                  const p0 = BRANCH_SVG_POS[sanFangBranches[0]]; // Selected
-                  const p1 = BRANCH_SVG_POS[sanFangBranches[1]]; // Opposite
-                  const p2 = BRANCH_SVG_POS[sanFangBranches[2]]; // Trine 1
-                  const p3 = BRANCH_SVG_POS[sanFangBranches[3]]; // Trine 2
+                  const p0 = BRANCH_SVG_POS[sanFangBranches[0]];
+                  const p1 = BRANCH_SVG_POS[sanFangBranches[1]];
+                  const p2 = BRANCH_SVG_POS[sanFangBranches[2]];
+                  const p3 = BRANCH_SVG_POS[sanFangBranches[3]];
                   const stroke = "rgba(59, 130, 246, 0.65)";
                   const sw = "2";
                   const dash = "6,4";
 
                   return `
-                    <!-- Line to Opposite -->
                     <line x1="${p0[0]}%" y1="${p0[1]}%" x2="${p1[0]}%" y2="${p1[1]}%" stroke="${stroke}" stroke-width="${sw}" stroke-dasharray="${dash}" />
-                    <!-- Trine Triangle -->
                     <line x1="${p0[0]}%" y1="${p0[1]}%" x2="${p2[0]}%" y2="${p2[1]}%" stroke="${stroke}" stroke-width="${sw}" stroke-dasharray="${dash}" />
                     <line x1="${p2[0]}%" y1="${p2[1]}%" x2="${p3[0]}%" y2="${p3[1]}%" stroke="${stroke}" stroke-width="${sw}" stroke-dasharray="${dash}" />
                     <line x1="${p3[0]}%" y1="${p3[1]}%" x2="${p0[0]}%" y2="${p0[1]}%" stroke="${stroke}" stroke-width="${sw}" stroke-dasharray="${dash}" />
-                    <!-- Dots -->
                     ${[p0, p1, p2, p3].map((pt, i) => `
                       <circle cx="${pt[0]}%" cy="${pt[1]}%" r="${i===0 ? 5 : 4}" fill="${i===0 ? 'var(--accent-primary)' : 'rgba(59, 130, 246, 0.8)'}" />
                     `).join('')}
@@ -1001,16 +1175,64 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
                 })()}
               </svg>
 
+              <div class="tuvi-center-cell" style="grid-column: 2 / span 2; grid-row: 2 / span 2; background: linear-gradient(135deg, var(--bg-card), var(--bg-surface)); border: 2px solid var(--border-accent); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                <div style="text-align: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; margin-bottom: 6px;">
+                  <div style="font-family: var(--font-heading); font-weight: 800; font-size: 1.1rem; color: var(--accent-primary); letter-spacing: 0.08em; text-transform: uppercase;">
+                    ☯ THIÊN BÀN TỬ VI
+                  </div>
+                  <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); margin-top: 2px;">
+                    ${config.gender === 'Nam' ? 'DƯƠNG NAM' : 'ÂM NỮ'} • ${p ? `${p.year.can} ${p.year.chi}`.toUpperCase() : ''} (${tb ? tb.cucName : ''})
+                  </div>
+                  <div style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 600; margin-top: 2px;">
+                    ${tb ? `🔮 ${tb.menhCucRel}` : ''}
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.72rem; background: var(--bg-surface); padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 6px;">
+                  <div>📍 Mệnh: <strong>Cung ${tb ? tb.menhChi : ''}</strong></div>
+                  <div>📍 Thân: <strong>Cung ${tb ? tb.thanChi : ''}</strong></div>
+                  <div>👑 Mệnh chủ: <strong>${tb ? tb.menhChu : ''}</strong></div>
+                  <div>🌟 Thân chủ: <strong>${tb ? tb.thanChu : ''}</strong></div>
+                </div>
+
+                <div style="background:var(--bg-surface); padding:8px; border-radius:8px; border:1px solid var(--border-accent); margin-bottom:6px;">
+                  <div style="font-size:0.68rem; font-weight:800; color:var(--accent-primary); text-transform:uppercase; margin-bottom:4px; text-align:center; letter-spacing:0.05em;">
+                    🎮 BỘ ĐIỀU KHIỂN VẬN HẠN ĐỘNG (IZTRO CONTROL)
+                  </div>
+                  <div style="display:flex; justify-content:center; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:2px 4px;">
+                      <button id="ctrl-yr-prev" style="background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:800; font-size:0.85rem; padding:1px 4px;">‹</button>
+                      <span style="font-size:0.75rem; font-weight:700; color:var(--text-primary); min-width:68px; text-align:center;">Năm ${currentLiunianYear}</span>
+                      <button id="ctrl-yr-next" style="background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:800; font-size:0.85rem; padding:1px 4px;">›</button>
+                    </div>
+                    <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:2px 4px;">
+                      <button id="ctrl-mo-prev" style="background:none; border:none; color:var(--accent-primary); cursor:pointer; font-weight:800; font-size:0.85rem; padding:1px 4px;">‹</button>
+                      <span style="font-size:0.75rem; font-weight:700; color:var(--text-primary); min-width:64px; text-align:center;">Tháng ${currentLiuyueMonth}</span>
+                      <button id="ctrl-mo-next" style="background:none; border:none; color:var(--accent-primary); cursor:pointer; font-size:0.85rem; padding:1px 4px;">›</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="font-size: 0.68rem; color: var(--text-tertiary); text-align: center;">
+                  📍 ${config.locationName} (${config.lng}°E) • MT Thực: <strong>${fp ? fp.trueSolarDate.getHours() : config.hour}:${fp ? fp.trueSolarDate.getMinutes().toString().padStart(2,'0') : config.minute}</strong>
+                </div>
+              </div>
+
               ${palacesData.map(pItem => {
                 const count = (window.TUVI_DATA || []).filter(d => d.palace === pItem.id).length;
                 const isMenh = pItem.isMenh;
                 const isThan = pItem.isThan;
                 const isSelected = pItem.chiIdx === selectedPalaceBranch;
                 const isSanFang = sfSet.has(pItem.chiIdx) && !isSelected;
+                const isFlyingSource = activeFlyingBranch === pItem.chiIdx;
+                const dynamicTitle = getDynamicPalaceTitle(pItem);
 
                 let borderStyle = '1px solid var(--border-color)';
                 let bgStyle = 'var(--bg-card)';
-                if (isSelected) {
+                if (isFlyingSource) {
+                  borderStyle = '2px solid #10b981';
+                  bgStyle = 'rgba(16, 185, 129, 0.12)';
+                } else if (isSelected) {
                   borderStyle = '2px solid var(--accent-primary)';
                   bgStyle = 'var(--accent-muted)';
                 } else if (isSanFang) {
@@ -1023,18 +1245,20 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
                 return `
                   <div class="palace-cell" data-branch="${pItem.chiIdx}" data-palace-id="${pItem.id}" style="${pItem.pos}background:${bgStyle};border:${borderStyle};border-radius:var(--radius-md);padding:10px;cursor:pointer;transition:all 0.2s ease;display:flex;flex-direction:column;justify-content:space-between;min-height:115px;position:relative;z-index:10;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                      <span style="font-family:var(--font-heading);font-weight:700;font-size:0.88rem;color:${isSelected || isMenh ? 'var(--accent-primary)' : 'var(--text-primary)'};">
-                        ${pItem.name} ${isThan && !isMenh ? '<span style="color:var(--accent-gold);font-size:0.75rem;">(Thân)</span>' : ''}
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+                      <span style="font-family:var(--font-heading);font-weight:800;font-size:0.88rem;color:${isSelected || isMenh ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+                        ${pItem.name} ${isThan && !isMenh ? '<span style="color:var(--accent-gold);font-size:0.72rem;">(Thân)</span>' : ''} ${dynamicTitle}
                       </span>
-                      <span style="font-size:0.75rem;color:var(--text-tertiary);font-weight:600;">[${pItem.stem || ''} ${pItem.chi}]</span>
+                      <button class="btn-trigger-flying" data-branch="${pItem.chiIdx}" style="background:var(--accent-muted);border:1px solid var(--border-accent);color:var(--accent-primary);border-radius:4px;padding:1px 4px;font-size:0.68rem;font-weight:700;cursor:pointer;" title="Bấm để Phi Tinh Tứ Hóa từ Can ${pItem.stem}">
+                        💫 [${pItem.stem||''}${pItem.chi}]
+                      </button>
                     </div>
                     <div style="font-size:0.8125rem;color:var(--text-secondary);margin:6px 0;line-height:1.3;">
-                      ${formatPalaceStarsHtml(pItem, false, overlaySiHua)}
+                      ${formatPalaceStarsHtml(pItem, false, overlaySiHua, flyingSiHuaMap)}
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;color:var(--accent-primary);font-weight:600;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:var(--accent-primary);font-weight:600;">
                       <span>${count} mục</span>
-                      <span>${isSelected ? '🎯 Tam Phương' : '🔍'}</span>
+                      <span>${isSelected ? '🎯 Tam Phương' : isFlyingSource ? '🟢 Nguồn Phi Hóa' : '🔍 Bấm chọn'}</span>
                     </div>
                   </div>
                 `;
@@ -1042,8 +1266,31 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
             </div>
           </div>
 
-          <!-- Mobile Dedicated 12 Cung Card Deck & Filter -->
           <div class="tuvi-mobile-view mobile-only">
+            <div class="card" style="margin-bottom:14px; padding:14px; background:linear-gradient(135deg, var(--bg-card), var(--bg-surface)); border:1px solid var(--border-accent);">
+              <div style="font-family:var(--font-heading); font-weight:800; font-size:1rem; color:var(--accent-primary); text-transform:uppercase; text-align:center; margin-bottom:6px;">
+                ☯ THIÊN BÀN TỬ VI (Ô GIỮA)
+              </div>
+              <div style="text-align:center; font-size:0.85rem; color:var(--text-primary); font-weight:700; margin-bottom:4px;">
+                ${config.gender === 'Nam' ? 'DƯƠNG NAM' : 'ÂM NỮ'} • ${pCalc ? `${pCalc.year.can} ${pCalc.year.chi}`.toUpperCase() : ''} (${tb ? tb.cucName : ''})
+              </div>
+              <div style="text-align:center; font-size:0.75rem; color:var(--accent-primary); margin-bottom:10px;">
+                ${tb ? `🔮 Mệnh: Cung ${tb.menhChi} • Thân: Cung ${tb.thanChi} • ${tb.menhCucRel}` : ''}
+              </div>
+              <div style="display:flex; justify-content:center; gap:8px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; padding:2px 8px;">
+                  <button id="mob-yr-prev" style="background:none; border:none; color:var(--accent-primary); font-weight:800;">‹</button>
+                  <span style="font-size:0.8rem; font-weight:700; padding:0 6px;">Năm ${currentLiunianYear}</span>
+                  <button id="mob-yr-next" style="background:none; border:none; color:var(--accent-primary); font-weight:800;">›</button>
+                </div>
+                <div style="display:flex; align-items:center; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; padding:2px 8px;">
+                  <button id="mob-mo-prev" style="background:none; border:none; color:var(--accent-primary); font-weight:800;">‹</button>
+                  <span style="font-size:0.8rem; font-weight:700; padding:0 6px;">Tháng ${currentLiuyueMonth}</span>
+                  <button id="mob-mo-next" style="background:none; border:none; color:var(--accent-primary); font-weight:800;">›</button>
+                </div>
+              </div>
+            </div>
+
             <div class="cung-tab-bar" id="mobile-cung-tabs">
               <button class="cung-tab-btn active" data-filter="all">Tất Cả 12 Cung</button>
               <button class="cung-tab-btn" data-filter="menh-tai-quan">Mệnh - Tài - Quan</button>
@@ -1067,13 +1314,15 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
                   <div class="mobile-palace-card palace-cell ${isMenh ? 'is-menh' : ''} ${isThan ? 'is-than' : ''}" data-group="${groupClass}" data-palace-id="${pItem.id}" data-branch="${pItem.chiIdx}">
                     <div class="mobile-palace-header">
                       <div class="mobile-palace-title">
-                        ${pItem.name}
+                        ${pItem.name} ${getDynamicPalaceTitle(pItem)}
                         ${isMenh ? '<span class="mobile-palace-badge">Mệnh Bàn</span>' : ''}
                         ${isThan ? '<span class="mobile-palace-badge" style="background:var(--accent-gold-muted);color:var(--accent-gold);">Thân Cư</span>' : ''}
                       </div>
-                      <div class="mobile-palace-chi">[Can ${pItem.stem || ''} - Chi ${pItem.chi}]</div>
+                      <button class="btn-trigger-flying" data-branch="${pItem.chiIdx}" style="background:var(--accent-muted);border:1px solid var(--border-accent);color:var(--accent-primary);border-radius:4px;padding:2px 6px;font-size:0.7rem;font-weight:700;">
+                        💫 Phi Hóa Can [${pItem.stem}]
+                      </button>
                     </div>
-                    <div class="mobile-palace-star">✨ Sao Chủ: <div style="margin-top:4px;">${formatPalaceStarsHtml(pItem, true, overlaySiHua)}</div></div>
+                    <div class="mobile-palace-star">✨ Sao Chủ: <div style="margin-top:4px;">${formatPalaceStarsHtml(pItem, true, overlaySiHua, flyingSiHuaMap)}</div></div>
                     <div class="mobile-palace-footer">
                       <span>📚 ${count} bài luận giải</span>
                       <span>Xem Chi Tiết ➔</span>
@@ -1085,19 +1334,11 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
           </div>
         </div>
 
-        <!-- Pattern Recognition Panel (Phán Đoán 1100+ Cách Cục) -->
         ${renderPatternsHtml()}
-
-        <!-- Famous Person Chart Switcher & Comparison Widget -->
         ${renderFamousPersonWidgetHtml()}
-
-        <!-- Marriage & Synastry Analysis Panel (Phân Tích Hôn Nhân & Gia Đạo) -->
         ${renderMarriageWidgetHtml()}
-
-        <!-- AI 6-Topic Consultation Panel (Tư Vấn AI Theo Chủ Đề) -->
         ${renderAITopicConsultationPanelHtml()}
 
-        <!-- Overview Summary Panel (Tổng Quan Lá Số) -->
         <div class="card animate-fade-in" style="margin-bottom:24px; padding:18px; border:1px solid var(--border-color);">
           <div style="font-size:0.78rem; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
             <span>ℹ️</span> TỔNG QUAN LÁ SỐ TỬ VI & TỨ TRỤ
@@ -1135,7 +1376,6 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
         <div id="astrology-content" class="animate-slide-up" style="animation-delay: 0.1s"></div>
       `;
 
-      // Event Listeners Re-binding
       container.querySelector('#btn-open-chart-config')?.addEventListener('click', () => {
         openChartConfigModal(() => renderAstrologyChart(container));
       });
@@ -1263,7 +1503,8 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
     renderChartBoardContent();
   }
-  }
+
+  window.renderAstrologyChartStandalone = renderAstrologyChart;
 
 
   function renderVanHanForm(container) {
@@ -1522,5 +1763,6 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
 
   // Export
   window.renderAstrology = renderAstrology;
+  window.renderAstrologyChartStandalone = renderAstrologyChart;
 
 })();

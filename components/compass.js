@@ -107,10 +107,60 @@
     const bestDir = batMonDay.find(m => m.type === 'THUONG_CAT' || m.type === 'DAI_CAT');
     const worstDir = batMonDay.find(m => m.type === 'DAI_HUNG');
 
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : null;
+    let ziweiDirMapping = [];
+    if (AL && AL.TuViEngine && userProfile) {
+      try {
+        const tuViChart = AL.TuViEngine.calculateTuViChart({
+          day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+          gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+        });
+        if (tuViChart && tuViChart.palaces) {
+          const branchDirMap = {
+            'Tý': { dir: 'Bắc (0°)', icon: '❄️' },
+            'Sửu': { dir: 'Đông Bắc (30°)', icon: '🏔️' },
+            'Dần': { dir: 'Đông Bắc (60°)', icon: '🌿' },
+            'Mão': { dir: 'Đông (90°)', icon: '☀️' },
+            'Thìn': { dir: 'Đông Nam (120°)', icon: '🌤️' },
+            'Tỵ': { dir: 'Đông Nam (150°)', icon: '🔥' },
+            'Ngọ': { dir: 'Nam (180°)', icon: '☀️' },
+            'Mùi': { dir: 'Tây Nam (210°)', icon: '🪵' },
+            'Thân': { dir: 'Tây Nam (240°)', icon: '🪙' },
+            'Dậu': { dir: 'Tây (270°)', icon: '🌙' },
+            'Tuất': { dir: 'Tây Bắc (300°)', icon: '⛰️' },
+            'Hợi': { dir: 'Tây Bắc (330°)', icon: '🌊' }
+          };
+
+          ziweiDirMapping = tuViChart.palaces.map(p => {
+            const mapped = branchDirMap[p.chi] || { dir: 'Trung Cung', icon: '☯' };
+            let starsStr = p.mainStars && p.mainStars.length ? p.mainStars.map(s => `<span class="main-star" style="cursor:pointer; text-decoration:underline dashed;">${s}</span>`).join(', ') : 'Vô Chính Diệu';
+            let aura = 'Bình Hòa';
+            let color = 'var(--text-primary)';
+            if (p.isMenh) { aura = 'Mệnh Bàn ★'; color = 'var(--accent-gold)'; }
+            else if (p.isThan) { aura = 'Thân Cư ✨'; color = 'var(--accent-primary)'; }
+            else if (p.id === 'thien-di') { aura = 'Thiên Di (Cát Khí Xuất Hành)'; color = '#10b981'; }
+            else if (p.id === 'tai-bach') { aura = 'Tài Bạch (Tụ Tài)'; color = '#f59e0b'; }
+
+            return {
+              palaceName: p.name,
+              chi: p.chi,
+              direction: mapped.dir,
+              icon: mapped.icon,
+              stars: starsStr,
+              aura,
+              color
+            };
+          });
+        }
+      } catch (err) {
+        console.warn("Compass Ziwei mapping calculation error:", err);
+      }
+    }
+
     container.innerHTML = `
     <div class="animate-fade-in">
       <div style="margin-bottom:20px;">
-        <h1 class="page-title" style="margin-bottom:5px;">🧭 La Bàn Kỳ Môn Độn Giáp</h1>
+        <h1 class="page-title" style="margin-bottom:5px;">🧭 La Bàn Kỳ Môn Độn Giáp & Tử Vi Phương Vị</h1>
         <p class="page-subtitle">${lunarStr || 'Hướng xuất hành cát hung hôm nay'} • <span id="compass-mode-badge" style="color:#f59e0b;">⚡ Đang tải cảm biến...</span></p>
       </div>
 
@@ -160,6 +210,39 @@
               <div>👑 <strong>Quý Nhân:</strong> Hướng ${thanCat.quyNhan}</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Widget Chiếu Phương Vị Cát Hung Tử Vi Bản Mệnh -->
+      <div class="card tuvi-card animate-fade-in" style="padding:20px; border-radius:16px; background:linear-gradient(135deg, var(--bg-card), var(--bg-surface)); border:1px solid var(--border-accent); margin-top:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.4rem;">🔮</span>
+            <div>
+              <h3 style="font-family:'Cinzel',serif; margin:0; color:var(--accent-primary); font-size:1.1rem;">
+                Chiếu Phương Vị Cát Hung Theo Lá Số Tử Vi Bản Mệnh (Ni Hải Hạ)
+              </h3>
+              <p style="margin:2px 0 0 0; color:var(--text-tertiary); font-size:0.82rem;">
+                Đồng bộ 12 Cung vị Tử Vi ứng với các phương vị La Bàn để tối ưu hóa hướng xuất hành
+              </p>
+            </div>
+          </div>
+          <button class="btn btn-tab btn-sm" onclick="App.Router.navigate('astrology')" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid var(--border-accent);">
+            🔮 Xem Bàn Tử Vi ➔
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
+          ${ziweiDirMapping.length === 0 ? `<p style="color:var(--text-muted);">Đang kết nối engine Tử Vi...</p>` : ziweiDirMapping.map(item => `
+            <div style="padding:10px; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border-color);">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-tertiary);">
+                <span>${item.icon} ${item.direction}</span>
+                <span style="font-weight:700; color:${item.color};">${item.aura}</span>
+              </div>
+              <div style="font-weight:700; font-size:0.92rem; color:var(--accent-primary); margin:3px 0;">Cung <span class="palace-name" style="cursor:pointer; text-decoration:underline dashed;">${item.palaceName}</span> [Chi ${item.chi}]</div>
+              <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.3;">✨ ${item.stars}</div>
+            </div>
+          `).join('')}
         </div>
       </div>
     </div>

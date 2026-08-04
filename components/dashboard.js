@@ -95,6 +95,50 @@
     ];
     const healthFocus = healthWarnings[dateObj.getDate() % healthWarnings.length];
 
+    // 7. Tử Vi & Cách Cục (Ni Hải Hạ Engine)
+    let ziweiInsight = {
+      menhChi: 'Tý',
+      cucName: 'Hỏa Lục Cục',
+      patterns: [],
+      topPatternName: 'Chưa quét cách cục',
+      adviceText: 'Giữ tâm thái kiên định, phát huy tối đa năng lượng bản mệnh.'
+    };
+    if (AL && AL.TuViEngine) {
+      try {
+        const tuViChart = AL.TuViEngine.calculateTuViChart({
+          day: userProfile?.day || 1,
+          month: userProfile?.month || 1,
+          year: userProfile?.year || 1990,
+          hour: (userProfile?.hour !== undefined && userProfile?.hour !== null ? userProfile.hour : 12),
+          minute: userProfile?.minute || 0,
+          gender: userProfile?.gender || 'Nam',
+          canNam: userProfile?.canNam || 'Canh',
+          chiNam: userProfile?.chiNam || 'Thìn'
+        });
+        if (tuViChart && tuViChart.thienBan) {
+          ziweiInsight.menhChi = tuViChart.thienBan.menhChi || 'Tý';
+          ziweiInsight.cucName = tuViChart.thienBan.cucName || 'Hỏa Lục Cục';
+        }
+        if (window.ZiweiPatterns && tuViChart) {
+          const detected = window.ZiweiPatterns.detectPatterns(tuViChart);
+          if (detected && detected.length > 0) {
+            ziweiInsight.patterns = detected;
+            ziweiInsight.topPatternName = detected[0].name;
+            ziweiInsight.adviceText = detected[0].description || ziweiInsight.adviceText;
+          }
+        }
+      } catch (err) {
+        console.warn("Dashboard Ziwei Insight calculation error:", err);
+      }
+    }
+
+    let dailyTransit = null;
+    let dailyRemedy = null;
+    if (AL && typeof AL.calculateDailyTransit === 'function') {
+        dailyTransit = AL.calculateDailyTransit(dateObj, userProfile);
+        dailyRemedy = AL.getDailyRemedy(dailyTransit, userProfile);
+    }
+
     return {
       dateObj,
       lunarStr,
@@ -109,24 +153,28 @@
       lowerName: batQuaiNames[lowerIdx],
       movingLine,
       healthFocus,
-      bio
+      bio,
+      ziweiInsight,
+      dailyTransit,
+      dailyRemedy
     };
   }
 
   function renderDashboard(container, params) {
     if (params && params[0]) {
-      if (['command', 'morning', 'tasks', 'overview', 'scanner', 'main'].includes(params[0])) {
+      if (['command', 'morning', 'tasks', 'overview', 'scanner', 'main', 'reaction'].includes(params[0])) {
         if (params[0] === 'command') activeDashTab = 'command';
         else if (params[0] === 'morning') activeDashTab = 'morning';
         else if (params[0] === 'tasks') activeDashTab = 'tasks';
         else if (params[0] === 'scanner') activeDashTab = 'scanner';
+        else if (params[0] === 'reaction') activeDashTab = 'reaction';
         else activeDashTab = 'overview';
       }
     }
 
     const AL = window.AstrologyLogic;
     const today = new Date();
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
     const todayInfo = getDailyIntegratedDetails(today, userProfile, 'GENERAL');
 
     let fpSummary = '';
@@ -141,8 +189,8 @@
       fpSummary = `${todayInfo.canNgay} ${todayInfo.chiNgay}`;
     }
 
-    const score = todayInfo.scoreResult ? todayInfo.scoreResult.score : 85;
-    const ratingText = todayInfo.scoreResult ? todayInfo.scoreResult.text : 'Đại Cát';
+    const score = todayInfo.scoreResult ? (todayInfo.scoreResult.total_score ?? todayInfo.scoreResult.totalScore ?? todayInfo.scoreResult.score ?? 85) : 85;
+    const ratingText = todayInfo.scoreResult ? (todayInfo.scoreResult.rating ?? todayInfo.scoreResult.text ?? 'Đại Cát') : 'Đại Cát';
     const scoreColor = score >= 80 ? 'var(--color-success)' : (score >= 60 ? 'var(--color-warning)' : 'var(--color-danger)');
 
     container.innerHTML = `
@@ -207,6 +255,16 @@
               </div>
             </div>
 
+            <div class="cmd-stat-box" style="cursor:pointer;" onclick="App.Router.navigate('astrology')" title="Bấm để mở Hub Tử Vi">
+              <div class="cmd-stat-icon" style="background: rgba(212, 168, 67, 0.12); color: var(--accent-gold); border:1px solid rgba(212, 168, 67, 0.3);">
+                <span>🔮</span>
+              </div>
+              <div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Tử Vi & Cách Cục</div>
+                <div style="font-size:1.05rem; font-weight:700; color:var(--accent-gold);">${todayInfo.ziweiInsight.topPatternName}</div>
+              </div>
+            </div>
+
             <div class="cmd-stat-box">
               <div class="cmd-stat-icon" style="background: rgba(96, 165, 250, 0.12); color: var(--color-info);">
                 <span>🌊</span>
@@ -222,6 +280,7 @@
         <!-- Section Switcher Tabs -->
         <div class="cmd-nav-tabs">
           <button class="cmd-nav-btn ${activeDashTab === 'overview' ? 'active' : ''}" data-tab="overview"><span>📅</span> Lịch & Nhịp Ngày</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'reaction' ? 'active' : ''}" data-tab="reaction"><span>⚡</span> Chuỗi Phản Ứng</button>
           <button class="cmd-nav-btn ${activeDashTab === 'scanner' ? 'active' : ''}" data-tab="scanner"><span>🎯</span> Quét Mục Tiêu Vàng</button>
           <button class="cmd-nav-btn ${activeDashTab === 'morning' ? 'active' : ''}" data-tab="morning"><span>☀️</span> Bản Tin & Thực Dưỡng</button>
           <button class="cmd-nav-btn ${activeDashTab === 'tasks' ? 'active' : ''}" data-tab="tasks"><span>🌱</span> Nhiệm Vụ Cải Mệnh</button>
@@ -239,7 +298,7 @@
     const btnCopyAI = container.querySelector('#btn-hero-copy-ai');
     if (btnCopyAI) {
       btnCopyAI.addEventListener('click', () => {
-        const text = `=== NĂNG LƯỢNG NGÀY HÔM NAY ===\nNgày: ${today.toLocaleDateString('vi-VN')} (${todayInfo.lunarStr})\nCan Chi: ${todayInfo.canNgay} ${todayInfo.chiNgay} - Hành ${todayInfo.hanhNgay}\nTứ Trụ: ${fpSummary}\nĐiểm Cát Hung: ${score} (${ratingText})\nQuẻ Dịch: ${todayInfo.queInfo.name} - ${todayInfo.queInfo.advice}\nY Phục May Mắn: ${todayInfo.remedy.wardrobe.colors.join(', ')}`;
+        const text = `=== NĂNG LƯỢNG NGÀY HÔM NAY & TỬ VI BẢN MỆNH ===\nNgày: ${today.toLocaleDateString('vi-VN')} (${todayInfo.lunarStr})\nCan Chi: ${todayInfo.canNgay} ${todayInfo.chiNgay} - Hành ${todayInfo.hanhNgay}\nTứ Trụ: ${fpSummary}\nĐiểm Cát Hung: ${score} (${ratingText})\nTử Vi Bản Mệnh: Mệnh cư ${todayInfo.ziweiInsight.menhChi} (${todayInfo.ziweiInsight.cucName})\nCách Cục Tử Vi: ${todayInfo.ziweiInsight.topPatternName}\nQuẻ Dịch: ${todayInfo.queInfo.name} - ${todayInfo.queInfo.advice}\nY Phục May Mắn: ${todayInfo.remedy.wardrobe.colors.join(', ')}`;
         navigator.clipboard.writeText(text);
         if (window.App?.Toast) window.App.Toast.show("Đã sao chép dữ liệu ngày hôm nay cho AI!", "success");
       });
@@ -268,6 +327,8 @@
         window.renderTasks(subContent);
       } else if (tab === 'scanner') {
         renderScannerTab(subContent);
+      } else if (tab === 'reaction') {
+        renderReactionChain(subContent, todayInfo);
       } else {
         renderMainDashboard(subContent);
       }
@@ -294,7 +355,7 @@
     const allWeaknesses = [...new Set(TUVI_DATA.flatMap(d => d.weaknesses || []))];
 
     // Thông tin tử vi cá nhân hóa Nguyễn Hữu Đông
-    const userProfile = {
+    const userProfile = (window.AstrologyLogic && typeof window.AstrologyLogic.getUserProfile === 'function') ? window.AstrologyLogic.getUserProfile() : {
       canNam: 'Canh',
       chiNam: 'Thìn',
       hanhMenh: 'Kim',
@@ -326,6 +387,88 @@
           </div>
         </div>
       </div>
+
+      <!-- Widget Phân Tích Tử Vi & Cách Cục Bản Mệnh (Ni Hải Hạ Engine) -->
+      <div class="stagger-item animate-fade-in" style="margin-bottom: var(--space-xl);">
+        <div class="tuvi-card" style="border:1px solid var(--border-accent); background:linear-gradient(135deg, var(--bg-card), var(--bg-surface)); padding:18px;">
+          <div class="tuvi-card-header" style="border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div class="tuvi-card-title-group" style="display:flex; align-items:center; gap:10px;">
+              <div class="tuvi-card-icon" style="background:rgba(212, 168, 67, 0.15); color:var(--accent-gold); font-size:1.2rem; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;">🔮</div>
+              <div>
+                <div class="tuvi-card-title" style="color:var(--accent-primary); font-weight:700; font-size:1rem;">Góc Nhìn Tử Vi & Đại Hạn Bản Mệnh</div>
+                <div class="tuvi-card-subtitle" style="font-size:0.78rem; color:var(--text-tertiary);">Soi chiếu cách cục Ni Hải Hạ & nhịp vận hạn 10 năm</div>
+              </div>
+            </div>
+            <button class="btn btn-tab btn-sm" onclick="App.Router.navigate('astrology')" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:6px 16px; border:1px solid var(--border-accent);">
+              ✨ Mở Bàn Tử Vi Chi Tiết ➔
+            </button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div style="padding:12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Cung Mệnh & Ngũ Hành Cục</div>
+              <div style="font-weight:700; font-size:1.05rem; color:var(--accent-gold); margin:4px 0;">Mệnh Cư <span class="palace-name" style="cursor:pointer; text-decoration:underline dashed;">${todayInfo.ziweiInsight.menhChi}</span> · ${todayInfo.ziweiInsight.cucName}</div>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">Trường phái 倪海厦 (Ni Hải Hạ - Thiên Kỷ)</div>
+            </div>
+
+            <div style="padding:12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Cách Cục Nổi Bật Phát Hiện</div>
+              <div style="font-weight:700; font-size:1.05rem; color:var(--accent-primary); margin:4px 0;">${todayInfo.ziweiInsight.topPatternName}</div>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">${todayInfo.ziweiInsight.patterns.length > 1 ? `+${todayInfo.ziweiInsight.patterns.length - 1} cách cục phụ hội tụ` : 'Cách cục chủ đạo'}</div>
+            </div>
+
+            <div style="padding:12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Định Hướng Hành Động Tử Vi</div>
+              <div style="font-size:0.8rem; color:var(--text-primary); margin-top:4px; line-height:1.4;">${todayInfo.ziweiInsight.adviceText}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      ${todayInfo.dailyRemedy ? `
+      <!-- Widget Giải Pháp Cải Mệnh (Daily Remedy) -->
+      <div class="stagger-item" style="margin-bottom: var(--space-xl);">
+        <div class="card tuvi-card" style="padding:20px; border-radius:16px; background:linear-gradient(135deg, rgba(20,25,40,0.95), rgba(15,20,30,0.95)); border:1px solid ${todayInfo.dailyRemedy.isBadDay ? '#ef4444' : 'var(--border-accent)'};">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.6rem;">${todayInfo.dailyRemedy.isBadDay ? '🚨' : '🛡️'}</span>
+              <div>
+                <h3 style="font-family:'Cinzel',serif; margin:0; color:${todayInfo.dailyRemedy.isBadDay ? '#ef4444' : 'var(--accent-primary)'}; font-size:1.2rem;">
+                  Chiến Thuật Hành Động & Cải Mệnh Hôm Nay
+                </h3>
+                <p style="margin:2px 0 0 0; color:var(--text-secondary); font-size:0.85rem;">
+                  Dựa trên Lưu Nhật Tứ Hóa & Ngũ Hành Sinh Khắc
+                </p>
+              </div>
+            </div>
+            ${todayInfo.dailyRemedy.isBadDay ? `
+            <div style="animation: pulse 2s infinite; background:rgba(239, 68, 68, 0.15); border:1px solid #ef4444; color:#ef4444; padding:6px 12px; border-radius:8px; font-weight:bold; font-size:0.85rem;">
+              RED ALERT: ${todayInfo.dailyRemedy.alertMsg}
+            </div>` : ''}
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+            <!-- Hành Vi (Action Mode) -->
+            <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:12px; border-left:3px solid ${todayInfo.dailyRemedy.isBadDay ? '#ef4444' : '#10b981'};">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Chế Độ Hành Động</div>
+              <div style="font-weight:600; color:var(--text-primary);">${todayInfo.dailyRemedy.actionMode}</div>
+            </div>
+
+            <!-- Y Phục (Wardrobe) -->
+            <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:12px; border-left:3px solid #3b82f6;">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Màu Sắc May Mắn (Dụng Thần ${todayInfo.dailyRemedy.dungThan})</div>
+              <div style="font-weight:600; color:var(--text-primary);">${todayInfo.dailyRemedy.wardrobe}</div>
+            </div>
+
+            <!-- Phương Vị (Direction) -->
+            <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:12px; border-left:3px solid #f59e0b;">
+              <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Hướng Xuất Hành / Ngồi Đàm Phán</div>
+              <div style="font-weight:600; color:var(--text-primary);">${todayInfo.dailyRemedy.direction}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
 
       <!-- Radar Cảnh Báo Sớm 7 Ngày (Early Warning Radar) -->
       <div id="early-warning-radar-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
@@ -660,7 +803,7 @@
   }
 
   function renderScannerTab(container) {
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (window.AstrologyLogic && typeof window.AstrologyLogic.getUserProfile === 'function') ? window.AstrologyLogic.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
 
     container.innerHTML = `
       <!-- Smart Target Scanner -->
@@ -781,7 +924,7 @@
       
       const dayName = i === 0 ? 'Hôm nay' : (i === 1 ? 'Ngày mai' : d.toLocaleDateString('vi-VN', { weekday: 'short' }));
       const dateNum = `${d.getDate()}/${d.getMonth() + 1}`;
-      const score = dayIntel?.scoreResult?.totalScore || 70;
+      const score = dayIntel?.scoreResult?.total_score ?? dayIntel?.scoreResult?.totalScore ?? dayIntel?.scoreResult?.score ?? 70;
       const isXau = dayIntel?.scoreResult?.badDayInfo?.isXau;
       const canNgay = dayIntel?.canNgay || '';
       const chiNgay = dayIntel?.chiNgay || '';
@@ -1867,8 +2010,8 @@
     const streakContainer = document.getElementById('batch2-adaptive-streak-widget');
     const sprintContainer = document.getElementById('batch2-social-sprint-widget');
 
-    const scoreResult = AL.evaluatePersonalizedDay ? AL.evaluatePersonalizedDay(selectedDate, userProfile, 'GENERAL') : { score: 80 };
-    const todayScore = scoreResult.score || 80;
+    const scoreResult = AL.evaluatePersonalizedDay ? AL.evaluatePersonalizedDay(selectedDate, userProfile, 'GENERAL') : { total_score: 80 };
+    const todayScore = scoreResult.total_score ?? scoreResult.totalScore ?? scoreResult.score ?? 80;
 
     const streakInfo = AL.getAdaptiveStreakStatus ? AL.getAdaptiveStreakStatus([], todayScore) : null;
     const sprints = AL.generateMicroSprintSchedule ? AL.generateMicroSprintSchedule(selectedDate, userProfile) : [];
@@ -1941,6 +2084,197 @@
           </div>
         </div>
       `;
+    }
+  }
+
+  function renderReactionChain(container, todayInfo) {
+    const AL = window.AstrologyLogic;
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : null;
+    let personalYear = '';
+    let destinyNum = '';
+    if (userProfile && AL && AL.Numerology) {
+       destinyNum = AL.Numerology.calculateLifePath(userProfile.day, userProfile.month, userProfile.year);
+       personalYear = AL.Numerology.calculatePersonalYear(userProfile.day, userProfile.month, new Date().getFullYear());
+    }
+
+    container.innerHTML = \`
+      <div class="animate-fade-in" style="margin-bottom:24px;">
+        <h2 style="font-family:'Cinzel', serif; font-size: 1.6rem; color:var(--accent-primary); margin-bottom:8px;">⚡ Chuỗi Phản Ứng Hành Động (LifeOS Reaction Chain)</h2>
+        <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:24px;">Quy trình 4 bước khép kín: Nhận thức Năng Lượng -> Định hướng Không Gian -> Ra Quyết Định -> Hành Động.</p>
+
+        <div class="reaction-chain-container">
+          
+          <!-- BƯỚC 1: THIÊN THỜI -->
+          <div class="reaction-step">
+            <div class="reaction-step-icon">1</div>
+            <div class="reaction-step-content">
+              <div class="reaction-step-header">
+                <h3 class="reaction-step-title">Thiên Thời (Nhận thức)</h3>
+                <span class="reaction-step-badge">Tử Vi & Thần Số</span>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div style="background:var(--bg-surface); padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+                  <div style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Năng Lượng Ngày</div>
+                  <div style="font-weight:700; font-size:1.1rem; color:var(--text-primary); margin-top:4px;">\${todayInfo.scoreResult.rating ?? 'Đại Cát'} (\${todayInfo.scoreResult.score ?? 85} điểm)</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary);">Hành \${todayInfo.hanhNgay} - \${todayInfo.canNgay} \${todayInfo.chiNgay}</div>
+                </div>
+                <div style="background:var(--bg-surface); padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+                  <div style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Chỉ Số Biorhythm</div>
+                  <div style="font-weight:700; font-size:1.1rem; color:var(--color-info); margin-top:4px;">\${todayInfo.bio.statusTag || 'Bình Hòa'}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary);">Sức mạnh tự nhiên của cơ thể</div>
+                </div>
+                <div style="background:var(--bg-surface); padding:12px; border-radius:12px; border:1px solid var(--border-color);">
+                  <div style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Thần Số Học Hỗ Trợ</div>
+                  <div style="font-weight:700; font-size:1.1rem; color:var(--accent-gold); margin-top:4px;">Đường Đời: \${destinyNum} | Năm CN: \${personalYear}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary);">Tần số dao động cá nhân</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BƯỚC 2: ĐỊA LỢI -->
+          <div class="reaction-step">
+            <div class="reaction-step-icon">2</div>
+            <div class="reaction-step-content">
+              <div class="reaction-step-header">
+                <h3 class="reaction-step-title">Địa Lợi (Không gian)</h3>
+                <span class="reaction-step-badge">Kỳ Môn Độn Giáp</span>
+              </div>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">Định vị phương hướng sinh vượng khí cho công việc hôm nay.</p>
+              <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <span style="background:rgba(251,191,36,0.15); color:var(--accent-gold); padding:6px 12px; border-radius:8px; border:1px solid var(--border-gold); font-weight:600; font-size:0.85rem;">💰 Tài Thần: \${todayInfo.thanCat.taiThan}</span>
+                <span style="background:rgba(236,72,153,0.15); color:#ec4899; padding:6px 12px; border-radius:8px; border:1px solid #ec489950; font-weight:600; font-size:0.85rem;">❤️ Hỷ Thần: \${todayInfo.thanCat.hyThan}</span>
+                <span style="background:rgba(16,185,129,0.15); color:#10b981; padding:6px 12px; border-radius:8px; border:1px solid #10b98150; font-weight:600; font-size:0.85rem;">🛡️ Quý Nhân: \${todayInfo.thanCat.quyNhan}</span>
+              </div>
+              <div style="margin-top:16px;">
+                <button class="btn btn-secondary btn-sm" onclick="App.Router.navigate('oracle', 'compass')">🧭 Mở La Bàn Vi Mô</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- BƯỚC 3: NHÂN HÒA -->
+          <div class="reaction-step">
+            <div class="reaction-step-icon">3</div>
+            <div class="reaction-step-content">
+              <div class="reaction-step-header">
+                <h3 class="reaction-step-title">Nhân Hòa (Quyết định)</h3>
+                <span class="reaction-step-badge">Kinh Dịch Mai Hoa</span>
+              </div>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">Nếu bạn đang phân vân trước một sự việc, hãy gieo một quẻ nhanh.</p>
+              
+              <div id="quick-oracle-result" style="display:none; background:var(--bg-surface); padding:16px; border-radius:12px; border:1px solid var(--border-accent); margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                  <div style="font-size:2rem;">☯</div>
+                  <div>
+                    <div style="font-weight:700; font-size:1.1rem; color:var(--text-primary);" id="quick-oracle-name">Quẻ...</div>
+                    <div style="font-size:0.85rem; color:var(--text-secondary);" id="quick-oracle-desc">Lời khuyên...</div>
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-sm" id="btn-quick-oracle" style="font-weight:700;">☯ Gieo Quẻ Mai Hoa Nhanh</button>
+            </div>
+          </div>
+
+          <!-- BƯỚC 4: HÀNH ĐỘNG -->
+          <div class="reaction-step">
+            <div class="reaction-step-icon" style="background:var(--accent-primary); color:white; box-shadow:0 0 16px var(--accent-primary);">4</div>
+            <div class="reaction-step-content" style="border-color:var(--accent-primary);">
+              <div class="reaction-step-header">
+                <h3 class="reaction-step-title" style="color:var(--text-primary);">Thực Thi & Ghi Nhận</h3>
+                <span class="reaction-step-badge" style="background:var(--accent-primary); color:white;">Tài Chính Ngũ Hành</span>
+              </div>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">Ghi chép lại dòng tiền sau khi đã xem xét Thiên - Địa - Nhân.</p>
+              
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:400px; margin-bottom:12px;">
+                <div>
+                  <label style="font-size:0.75rem; color:var(--text-tertiary); display:block; margin-bottom:4px;">Loại</label>
+                  <select id="rc-tx-type" class="form-select" style="width:100%; font-size:0.85rem; padding:8px;">
+                    <option value="EXPENSE">Chi Tiêu (-)</option>
+                    <option value="INCOME">Thu Nhập (+)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:0.75rem; color:var(--text-tertiary); display:block; margin-bottom:4px;">Số Tiền (VNĐ)</label>
+                  <input type="number" id="rc-tx-amount" class="form-input" placeholder="0" style="width:100%; font-size:0.85rem; padding:8px;">
+                </div>
+                <div style="grid-column: span 2;">
+                  <label style="font-size:0.75rem; color:var(--text-tertiary); display:block; margin-bottom:4px;">Ngũ Hành Tương Ứng</label>
+                  <select id="rc-tx-element" class="form-select" style="width:100%; font-size:0.85rem; padding:8px;">
+                    <option value="Kim">Kim (Công nghệ, Ngân hàng, Trang sức)</option>
+                    <option value="Mộc">Mộc (Giáo dục, Y tế, Cây trồng)</option>
+                    <option value="Thủy">Thủy (Giao thông, Du lịch, Nước giải khát)</option>
+                    <option value="Hỏa">Hỏa (Truyền thông, Điện tử, Năng lượng)</option>
+                    <option value="Thổ">Thổ (Bất động sản, Tích lũy tài sản)</option>
+                  </select>
+                </div>
+                <div style="grid-column: span 2;">
+                  <label style="font-size:0.75rem; color:var(--text-tertiary); display:block; margin-bottom:4px;">Ghi Chú</label>
+                  <input type="text" id="rc-tx-note" class="form-input" placeholder="Lý do xuất/thu tiền..." style="width:100%; font-size:0.85rem; padding:8px;">
+                </div>
+              </div>
+              
+              <button class="btn btn-primary" id="btn-rc-save-tx" style="padding:10px 24px; font-weight:700; font-size:0.9rem;">💾 Lưu Giao Dịch</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    \`;
+
+    // Script Gieo Quẻ Nhanh
+    const btnOracle = container.querySelector('#btn-quick-oracle');
+    const resOracle = container.querySelector('#quick-oracle-result');
+    const nameOracle = container.querySelector('#quick-oracle-name');
+    const descOracle = container.querySelector('#quick-oracle-desc');
+    
+    if (btnOracle) {
+      btnOracle.addEventListener('click', () => {
+        // Simple Oracle Simulation based on time (like Mai Hoa real time)
+        const d = new Date();
+        const hexIdx = (d.getTime() % 64) + 1;
+        nameOracle.textContent = 'Quẻ Số ' + hexIdx;
+        descOracle.textContent = 'Quẻ Dịch gieo theo thời gian thực (Mai Hoa Dịch Số). Bấm vào Kỳ Môn & Kinh Dịch để luận giải chi tiết.';
+        resOracle.style.display = 'block';
+        btnOracle.textContent = '☯ Gieo Quẻ Lại';
+      });
+    }
+
+    // Script Lưu Giao Dịch
+    const btnSaveTx = container.querySelector('#btn-rc-save-tx');
+    if (btnSaveTx) {
+      btnSaveTx.addEventListener('click', () => {
+        const type = container.querySelector('#rc-tx-type').value;
+        const amt = parseFloat(container.querySelector('#rc-tx-amount').value) || 0;
+        const el = container.querySelector('#rc-tx-element').value;
+        const note = container.querySelector('#rc-tx-note').value || 'Giao dịch nhanh';
+
+        if (amt <= 0) {
+          if (App && App.Toast) App.Toast.show('Vui lòng nhập số tiền', 'error');
+          return;
+        }
+
+        try {
+          const stored = localStorage.getItem('noitam_finance_txs');
+          let txs = stored ? JSON.parse(stored) : [];
+          txs.unshift({
+            id: Date.now(),
+            type,
+            amount: amt,
+            element: el,
+            category: note,
+            date: new Date().toISOString().split('T')[0],
+            note
+          });
+          localStorage.setItem('noitam_finance_txs', JSON.stringify(txs));
+          if (App && App.Toast) App.Toast.show('Lưu thành công!', 'success');
+          
+          container.querySelector('#rc-tx-amount').value = '';
+          container.querySelector('#rc-tx-note').value = '';
+        } catch (e) {
+          console.error(e);
+        }
+      });
     }
   }
 

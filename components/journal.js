@@ -12,12 +12,42 @@
       const journals = CRUD.getAll('journals');
       const dailyPrompt = Utils.getDailyItem(JOURNAL_PROMPTS);
 
+      const AL = window.AstrologyLogic;
+      let luuNienInfo = {
+        luuNienYear: 2026,
+        canChiYear: 'Bính Thìn',
+        luuPalaceName: 'Thiên Di',
+        luuChi: 'Ngọ',
+        siHuaList: 'Bính Đồng Cơ Xương Liêm (Đồng Hóa Lộc, Cơ Hóa Quyền, Xương Hóa Khoa, Liêm Hóa Kỵ)',
+        reflectionPrompt: 'Năm 2026 Lưu Niên cư Thiên Di gặp Hóa Lộc: Thích hợp ngoại giao, dịch chuyển và mở rộng mạng lưới liên kết.'
+      };
+
+      if (AL && AL.TuViEngine) {
+        try {
+          const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : null;
+          const tuViChart = userProfile ? AL.TuViEngine.calculateTuViChart({
+            day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+            gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+          }) : AL.TuViEngine.calculateTuViChart({
+            day: new Date().getDate(), month: new Date().getMonth() + 1, year: new Date().getFullYear(), hour: 10, minute: 0,
+            gender: 'Nam', canNam: 'Canh', chiNam: 'Thìn'
+          });
+          if (tuViChart && tuViChart.palaces) {
+            const thienDi = tuViChart.palaces.find(p => p.id === 'thien-di' || p.name === 'Thiên Di');
+            if (thienDi) {
+              luuNienInfo.luuPalaceName = thienDi.name;
+              luuNienInfo.luuChi = thienDi.chi;
+            }
+          }
+        } catch (e) {}
+      }
+
       container.innerHTML = `
         <div class="animate-fade-in">
           <div class="page-toolbar">
             <div>
-              <h1 class="page-title">Nhật ký Năng lượng</h1>
-              <p class="page-subtitle" style="margin-bottom:0;">Ghi lại trải nghiệm và cảm xúc theo Ngũ Hành</p>
+              <h1 class="page-title">Nhật ký Năng lượng & Phản Tư Tử Vi</h1>
+              <p class="page-subtitle" style="margin-bottom:0;">Ghi lại trải nghiệm và cảm xúc theo Ngũ Hành & Lưu Niên Tử Vi</p>
             </div>
             <button class="btn btn-primary" id="btn-add-journal">+ Viết nhật ký</button>
           </div>
@@ -55,6 +85,45 @@
           </div>
           <p class="card-text" style="font-size:var(--text-base);color:var(--text-primary);font-style:italic;">"${dailyPrompt}"</p>
           <button class="btn btn-sm mt-md" id="btn-write-from-prompt">✍️ Viết về chủ đề này</button>
+        </div>
+
+        <!-- Ziwei Yearly Reflection Widget -->
+        <div class="card tuvi-card stagger-item animate-fade-in" style="margin-bottom:var(--space-xl); background:linear-gradient(135deg, var(--bg-card), var(--bg-surface)); border:1px solid var(--border-accent); padding:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:1.4rem;">📜</span>
+              <div>
+                <h3 style="font-family:'Cinzel',serif; margin:0; color:var(--accent-primary); font-size:1.05rem;">
+                  Phản Tư Theo Nhịp Lưu Niên Tử Vi (Năm ${luuNienInfo.luuNienYear} ${luuNienInfo.canChiYear})
+                </h3>
+                <p style="margin:2px 0 0 0; color:var(--text-tertiary); font-size:0.8rem;">
+                  Gắn thẻ nhật ký theo Lưu Niên để soi chiếu mô thức thăng trầm cuộc đời
+                </p>
+              </div>
+            </div>
+            <button class="btn btn-sm" id="btn-quick-tag-tuvi" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid var(--border-accent);">
+              ✍️ Viết Nhật Ký Tag #LuuNienTuVi
+            </button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+            <div style="padding:10px; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Cung Vị Lưu Niên Hiện Tại</div>
+              <div style="font-weight:700; font-size:0.95rem; color:var(--accent-gold); margin:3px 0;">Cung <span class="palace-name" style="cursor:pointer; text-decoration:underline dashed;">${luuNienInfo.luuPalaceName}</span> [Chi ${luuNienInfo.luuChi}]</div>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">Mặt trận chính của vận trình năm nay</div>
+            </div>
+
+            <div style="padding:10px; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Tứ Hóa Chiếu Lưu Niên</div>
+              <div style="font-size:0.78rem; font-weight:600; color:var(--accent-primary); margin:3px 0;">${luuNienInfo.siHuaList}</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary);">Dấu ấn năng lượng năm Bính</div>
+            </div>
+
+            <div style="padding:10px; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border-color);">
+              <div style="font-size:0.72rem; color:var(--text-tertiary); font-weight:700; text-transform:uppercase;">Gợi Ý Phản Tư Lưu Niên</div>
+              <div style="font-size:0.78rem; color:var(--text-primary); margin-top:3px; line-height:1.4;">${luuNienInfo.reflectionPrompt}</div>
+            </div>
+          </div>
         </div>
 
         <!-- Timeline -->
@@ -97,6 +166,9 @@
       container.querySelector('#btn-add-journal')?.addEventListener('click', () => showJournalForm());
       container.querySelector('#btn-add-journal-empty')?.addEventListener('click', () => showJournalForm());
       container.querySelector('#btn-write-from-prompt')?.addEventListener('click', () => showJournalForm(null, dailyPrompt));
+      container.querySelector('#btn-quick-tag-tuvi')?.addEventListener('click', () => {
+        showJournalForm(null, luuNienInfo.reflectionPrompt, ['#LuuNienTuVi', '#TuVi', '#BinhThin2026']);
+      });
 
       container.querySelectorAll('[data-edit]').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -119,7 +191,7 @@
       });
     }
 
-    function showJournalForm(existing = null, prompt = null) {
+    function showJournalForm(existing = null, prompt = null, defaultTags = []) {
       const moods = [
         '🔥 Hỏa (Bức bối/Áp lực)', 
         '💧 Thủy (Buồn bã/Trầm ngâm)', 
@@ -128,6 +200,8 @@
         '🌳 Mộc (Hào hứng/Sáng tạo)',
         '😶 Trung tính'
       ];
+
+      const initialTagsStr = existing?.tags ? existing.tags.join(', ') : (defaultTags.length > 0 ? defaultTags.join(', ') : '');
 
       const overlay = Modal.show(`
         ${prompt ? `
@@ -151,7 +225,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Tags (cách nhau bởi dấu phẩy)</label>
-          <input class="form-input" id="journal-tags" value="${existing?.tags ? existing.tags.join(', ') : ''}" placeholder="suy-ngẫm, mục-tiêu...">
+          <input class="form-input" id="journal-tags" value="${initialTagsStr}" placeholder="suy-ngẫm, #LuuNienTuVi...">
         </div>
       `, {
         title: existing ? 'Sửa nhật ký' : '📓 Viết nhật ký mới',

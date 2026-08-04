@@ -8,7 +8,7 @@
 
   function renderRPG(container) {
     const AL = window.AstrologyLogic;
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
     const phucDucPts = (window.App && window.App.Storage) ? (App.Storage.get('phuc_duc_points') || 120) : 120;
 
     const stats = (AL && typeof AL.calculateCharacterStats === 'function') ? AL.calculateCharacterStats(userProfile, phucDucPts) : {

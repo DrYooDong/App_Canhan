@@ -136,7 +136,7 @@
 
   function renderHeatmap(container) {
     const AL = window.AstrologyLogic;
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
 
     container.innerHTML = `
       <div class="animate-fade-in">

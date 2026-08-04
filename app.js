@@ -98,11 +98,12 @@
     },
 
     _handleRoute() {
-      const hash = window.location.hash.slice(1) || 'dashboard/overview';
+      const hash = window.location.hash.slice(1) || 'tuvi';
       let [route, ...params] = hash.split('/');
 
       // Alias mapping for consolidated modules
       const ALIASES = {
+        'home': ['tuvi'],
         'command': ['dashboard', 'command'],
         'commandcenter': ['dashboard', 'command'],
         'morning': ['dashboard', 'morning'],
@@ -145,11 +146,12 @@
 
         // Update Mobile Top Bar Title
         const routeTitles = {
-          'dashboard': 'LỊCH MASTER',
-          'astrology': 'TỬ VI MỆNH BÀN',
+          'tuvi': 'LÁ SỐ CỦA TÔI',
+          'dashboard': 'NHẬT LỊCH',
+          'astrology': 'TỬ VI CHUYÊN SÂU',
           'finance': 'TÀI CHÍNH LIFEOS',
           'oracle': 'KỲ MÔN & KINH DỊCH',
-          'knowledge': 'TRI THỨC & PHẢN TƯ',
+          'knowledge': 'TRI THỨC & NHẬT KÝ',
           'search': 'TÌM KIẾM'
         };
         const mobileTitle = document.querySelector('.mobile-title');
@@ -208,24 +210,61 @@
 
   // ── Modal Manager ──
   const Modal = {
-    show(content, options = {}) {
+    _counter: 0,
+
+    show(contentOrOptions, options = {}) {
+      // Support both: Modal.show(htmlString, {title}) and Modal.show({title, content, actions})
+      let title, content, footer;
+
+      if (typeof contentOrOptions === 'object' && contentOrOptions !== null && !Array.isArray(contentOrOptions)) {
+        // Object API: { title, content, actions, footer }
+        title = contentOrOptions.title;
+        content = contentOrOptions.content || '';
+        if (contentOrOptions.footer) {
+          footer = contentOrOptions.footer;
+        } else if (contentOrOptions.actions && contentOrOptions.actions.length) {
+          footer = contentOrOptions.actions.map(a =>
+            `<button class="btn btn-${a.type || 'ghost'}" ${a.onClick ? `data-action-idx="${Modal._counter}"` : 'onclick="App.Modal.close()"'}>${a.label}</button>`
+          ).join('');
+        }
+      } else {
+        // Classic API: (htmlString, {title, footer})
+        content = contentOrOptions;
+        title = options.title;
+        footer = options.footer;
+      }
+
+      const modalId = 'modal-' + (++Modal._counter);
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
+      overlay.id = modalId;
       overlay.innerHTML = `
         <div class="modal">
-          ${options.title ? `
+          ${title ? `
             <div class="modal-header">
-              <h3 class="modal-title">${options.title}</h3>
+              <h3 class="modal-title">${title}</h3>
               <button class="btn btn-ghost btn-icon modal-close" aria-label="Đóng">✕</button>
             </div>
           ` : ''}
           <div class="modal-body">${content}</div>
-          ${options.footer ? `<div class="modal-footer">${options.footer}</div>` : ''}
+          ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
         </div>
       `;
 
       document.body.appendChild(overlay);
       requestAnimationFrame(() => overlay.classList.add('active'));
+
+      // Wire action onClick callbacks
+      if (typeof contentOrOptions === 'object' && contentOrOptions.actions) {
+        setTimeout(() => {
+          contentOrOptions.actions.forEach((a, i) => {
+            if (a.onClick) {
+              const btn = overlay.querySelectorAll('.modal-footer .btn')[i];
+              if (btn) btn.addEventListener('click', () => { a.onClick(); Modal.close(overlay); });
+            }
+          });
+        }, 50);
+      }
 
       // Close handlers
       overlay.querySelector('.modal-close')?.addEventListener('click', () => Modal.close(overlay));
@@ -233,17 +272,19 @@
         if (e.target === overlay) Modal.close(overlay);
       });
 
-      return overlay;
+      return modalId;
     },
 
     close(overlay) {
       if (!overlay) overlay = document.querySelector('.modal-overlay.active');
+      if (typeof overlay === 'string') overlay = document.getElementById(overlay);
       if (overlay) {
         overlay.classList.remove('active');
         setTimeout(() => overlay.remove(), 250);
       }
     }
   };
+
 
   // ── Detail Panel ──
   const DetailPanel = {
@@ -508,7 +549,8 @@
     }
     applyDynamicTheme();
 
-    // Register consolidated 5 main routes & 6 breakthrough routes
+    // Register routes
+    Router.register('tuvi', window.renderTuviHome);  // NEW: Personal Chart Home
     Router.register('dashboard', window.renderDashboard);
     Router.register('astrology', window.renderAstrology);
     Router.register('oracle', window.renderOracle);
@@ -523,6 +565,18 @@
     Router.register('moodtracker', window.renderMoodTracker);
     Router.register('rpg', window.renderRPG);
 
+    // ── Check for first-time onboarding ──
+    if (window.Onboarding && !window.Onboarding.hasProfile()) {
+      // Show onboarding screen before router starts
+      window.Onboarding.showOnboarding((profile) => {
+        // After onboarding complete, init router
+        if (window.renderSidebar) window.renderSidebar();
+        Router.init();
+        setupMobileMenu();
+      });
+      return; // Don't call Router.init() yet
+    }
+
     // Render sidebar
     if (window.renderSidebar) window.renderSidebar();
 
@@ -530,16 +584,20 @@
     Router.init();
 
     // Mobile menu toggle
-    const mobileBtn = document.getElementById('mobile-menu-btn');
-    if (mobileBtn) {
-      mobileBtn.addEventListener('click', () => {
-        const sidebar = document.querySelector('.sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        const isOpen = sidebar?.classList.toggle('open');
-        if (overlay) {
-          overlay.classList.toggle('active', isOpen);
-        }
-      });
+    setupMobileMenu();
+    function setupMobileMenu() {
+      const mobileBtn = document.getElementById('mobile-menu-btn');
+      if (mobileBtn && !mobileBtn._listenerAdded) {
+        mobileBtn._listenerAdded = true;
+        mobileBtn.addEventListener('click', () => {
+          const sidebar = document.querySelector('.sidebar');
+          const overlay = document.getElementById('sidebar-overlay');
+          const isOpen = sidebar?.classList.toggle('open');
+          if (overlay) {
+            overlay.classList.toggle('active', isOpen);
+          }
+        });
+      }
     }
 
     // SOS button

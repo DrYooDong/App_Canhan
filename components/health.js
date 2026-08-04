@@ -137,11 +137,35 @@
     }
   };
 
-  // Tính sức khỏe ngày theo Can Chi
-  function calcHealthData(canNgay, chiNgay, hanhMenh) {
+  // Tính sức khỏe ngày theo Can Chi & Cung Tật Ách
+  function calcHealthData(canNgay, chiNgay, userProfile) {
     const AL = window.AstrologyLogic;
-    const stars = DAILY_STARS_BY_CAN[canNgay] || [];
+    const hanhMenh = userProfile.hanhMenh || 'Kim';
+    let stars = DAILY_STARS_BY_CAN[canNgay] || [];
     const hanhNgay = AL ? AL.NGU_HANH_CAN[canNgay] : 'Thổ';
+
+    let dailyRemedy = null;
+    let kyPalaceName = '';
+
+    if (AL && typeof AL.calculateDailyTransit === 'function') {
+      try {
+        const today = new Date();
+        const dailyTransit = AL.calculateDailyTransit(today, userProfile);
+        dailyRemedy = AL.getDailyRemedy(dailyTransit, userProfile);
+        
+        if (dailyTransit && dailyTransit.baseChart) {
+           const tatAch = dailyTransit.baseChart.palaces.find(p => p.id === 'tat-ach' || p.name === 'Tật Ách');
+           if (tatAch) {
+             stars = [...(tatAch.mainStars || []), ...(tatAch.minorStars || [])];
+           }
+           
+           if (dailyTransit.kyPalace && (dailyTransit.kyPalace.id === 'tat-ach' || dailyTransit.kyPalace.name === 'Tật Ách')) {
+              kyPalaceName = 'Tật Ách';
+              stars.push(dailyTransit.tuHoa.ky + ' (Hóa Kỵ Lưu Nhật)');
+           }
+        }
+      } catch (e) {}
+    }
 
     // Xác định vùng cơ thể bị ảnh hưởng
     const affectedParts = [];
@@ -167,10 +191,18 @@
 
     // Xác định Dụng Thần (hành cần bổ)
     let dungThan = hanhMenh;
-    if (HanhSinhKhac.khac[hanhNgay] === hanhMenh) {
-      // Tìm hành sinh mệnh để hóa giải
-      dungThan = Object.keys(HanhSinhKhac.sinh).find(k => HanhSinhKhac.sinh[k] === hanhMenh) || hanhMenh;
+    if (dailyRemedy && dailyRemedy.dungThan) {
+        dungThan = dailyRemedy.dungThan;
+    } else {
+        if (HanhSinhKhac.khac[hanhNgay] === hanhMenh) {
+          dungThan = Object.keys(HanhSinhKhac.sinh).find(k => HanhSinhKhac.sinh[k] === hanhMenh && HanhSinhKhac.khac[hanhNgay] !== k) || hanhMenh;
+        } else if (HanhSinhKhac.khac[hanhMenh] === hanhNgay) {
+          dungThan = Object.keys(HanhSinhKhac.sinh).find(k => HanhSinhKhac.sinh[k] === hanhMenh) || hanhMenh;
+        }
     }
+
+    if (kyPalaceName === 'Tật Ách') healthScore -= 30;
+    healthScore = Math.max(20, Math.min(100, healthScore));
 
     // Giờ Thiên Y hôm nay
     const healingHours = HEALING_HOURS[canNgay] || ['Tỵ (9h-11h)', 'Thân (15h-17h)'];
@@ -257,7 +289,7 @@
 
   function renderHealth(container) {
     const AL = window.AstrologyLogic;
-    const userProfile = { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
+    const userProfile = (AL && typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : { canNam: 'Canh', chiNam: 'Thìn', hanhMenh: 'Kim' };
 
     let canNgay = 'Giáp', chiNgay = 'Tý', hanhNgay = 'Mộc';
     let lunarDateStr = '';
@@ -273,7 +305,7 @@
       }
     } catch (e) {}
 
-    const data = calcHealthData(canNgay, chiNgay, userProfile.hanhMenh);
+    const data = calcHealthData(canNgay, chiNgay, userProfile);
     const mentalScore = getMentalScore(data.stars);
     const affectedKeys = data.affectedParts.map(p => p.key);
 
@@ -318,7 +350,7 @@
               </div>
               <div>
                 <div style="font-size:1.2em;font-weight:600;color:${getScoreColor(data.healthScore)};margin-bottom:4px;">${getScoreLabel(data.healthScore)}</div>
-                <div style="font-size:0.85em;color:var(--text-secondary);">Sao lưu hôm nay: <strong>${data.stars.join(', ')}</strong></div>
+                <div style="font-size:0.85em;color:var(--text-secondary);">Sao lưu Cung Tật Ách: <strong>${data.stars.length ? data.stars.map(s => `<span class="main-star" style="cursor:pointer; text-decoration:underline dashed;">${s}</span>`).join(', ') : 'Vô Chính Diệu'}</strong></div>
                 <div style="font-size:0.85em;color:var(--text-muted);margin-top:4px;">Bản Mệnh: <strong>${userProfile.hanhMenh}</strong> • Dụng Thần: <strong>${data.dungThan}</strong></div>
               </div>
             </div>
