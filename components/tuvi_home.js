@@ -178,9 +178,12 @@
         </div>
 
         <!-- ═══ NAVIGATION TABS ═══ -->
-        <div class="cmd-nav-tabs" style="margin-bottom:20px;">
+        <div class="cmd-nav-tabs" style="margin-bottom:20px; flex-wrap:wrap;">
           <button class="cmd-nav-btn ${activeTuviHomeTab === 'chart' ? 'active' : ''}" data-tuviTab="chart">
             <span>🔮</span> Lá Số 12 Cung
+          </button>
+          <button class="cmd-nav-btn ${activeTuviHomeTab === 'luan-giai' ? 'active' : ''}" data-tuviTab="luan-giai">
+            <span>✨</span> Luận Giải Sâu
           </button>
           <button class="cmd-nav-btn ${activeTuviHomeTab === 'vanhan' ? 'active' : ''}" data-tuviTab="vanhan">
             <span>⏳</span> Vận Hạn
@@ -250,6 +253,8 @@
 
     if (tab === 'chart') {
       renderChartTab(subContent, tuViChart, fp, config);
+    } else if (tab === 'luan-giai') {
+      renderLuanGiaiTab(subContent, tuViChart, fp, config, currentDX);
     } else if (tab === 'vanhan') {
       renderVanHanTab(subContent, tuViChart, fp, config);
     } else if (tab === 'cot-cach') {
@@ -257,6 +262,216 @@
     } else if (tab === 'tools') {
       renderToolsTab(subContent);
     }
+  }
+
+  // ── TAB MỚI: Luận Giải Sâu (Synchronicity & Bát Quái & Archetypes) ──
+  function renderLuanGiaiTab(container, tuViChart, fp, config, currentDX) {
+    const Engine = window.ZiweiLuanGiaiEngine;
+    if (!Engine) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔮</div><div class="empty-state-title">Đang tải Engine Luận Giải...</div></div>';
+      return;
+    }
+
+    const menhAnalysis = Engine.analyzeMenhCung(tuViChart);
+    const cachCucs = Engine.detectCachCuc(tuViChart);
+    const bq = menhAnalysis.batQuai;
+
+    // Tìm cung đại hạn
+    let daiHanPalace = null;
+    if (currentDX && tuViChart && tuViChart.palaces) {
+      daiHanPalace = tuViChart.palaces.find(p => p.chi === currentDX.branch || p.name === currentDX.palaceName);
+    }
+    const hanVanAnalysis = Engine.analyzeHanVan(tuViChart, daiHanPalace);
+
+    container.innerHTML = `
+      <div class="animate-fade-in" style="display:flex; flex-direction:column; gap:20px;">
+        
+        <!-- CARD 1: ARCHETYPE & BÁN NGÃ TRUNG TÂM -->
+        <div class="card" style="background:linear-gradient(135deg, rgba(30,27,75,0.7), rgba(15,23,42,0.8)); border:1px solid rgba(168,85,247,0.3); border-radius:16px; padding:24px;">
+          <div class="card-header" style="margin-bottom:16px;">
+            <div class="card-icon" style="font-size:1.6rem;">🌌</div>
+            <div>
+              <div class="card-title" style="color:#c084fc; font-family:'Cinzel',serif; font-size:1.15rem;">BẢN NGÃ TRUNG TÂM & NGUYÊN MẪU JUNGIAN</div>
+              <div class="card-subtitle">${menhAnalysis.headline}</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:16px;">
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px;">
+              <div style="font-size:0.7rem; color:#a855f7; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">🎭 NGUYÊN MẪU TÂM LÝ (ARCHETYPE)</div>
+              <div style="font-size:1.05rem; font-weight:700; color:#fff; margin-bottom:8px;">${menhAnalysis.archetype}</div>
+              <p style="font-size:0.83rem; color:var(--text-secondary); line-height:1.6; margin:0;">${menhAnalysis.synchronicity}</p>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px;">
+              <div style="font-size:0.7rem; color:#38bdf8; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">☯ BÁT QUÁI CUNG MỆNH</div>
+              <div style="font-size:1.2rem; font-weight:800; color:#38bdf8; margin-bottom:4px;">
+                ${bq.symbol} Quẻ ${bq.que} (${bq.hanh} - ${bq.phuong})
+              </div>
+              <p style="font-size:0.83rem; color:var(--text-secondary); line-height:1.6; margin:0;">${bq.yNghia}</p>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.25); border-radius:10px; padding:12px 16px; font-size:0.85rem; color:rgba(255,255,255,0.85); line-height:1.6;">
+            💡 <b>Tổng quan năng lượng:</b> ${menhAnalysis.depth}
+          </div>
+        </div>
+
+        <!-- CARD 2: CÁCH CỤC PHÁT HIỆN TỪ KHO LUẬN GIẢI -->
+        <div class="card" style="border-radius:16px; padding:24px;">
+          <div class="card-header" style="margin-bottom:16px;">
+            <div class="card-icon" style="font-size:1.4rem;">🏛️</div>
+            <div>
+              <div class="card-title">CÁCH CỤC & TỔ HỢP SAO MỞ RỘNG</div>
+              <div class="card-subtitle">Nhận diện theo trường phái cổ điển và tâm lý học đồng bộ</div>
+            </div>
+          </div>
+
+          ${cachCucs.length > 0 ? `
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              ${cachCucs.map(cc => `
+                <div style="
+                  background: ${cc.type === 'quy' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'};
+                  border: 1px solid ${cc.type === 'quy' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'};
+                  border-radius:12px; padding:16px;
+                ">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div style="font-weight:700; font-size:0.95rem; color:${cc.type === 'quy' ? '#10b981' : '#ef4444'};">
+                      ${cc.type === 'quy' ? '🌟' : '⚠️'} ${cc.name}
+                    </div>
+                    <span style="font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:10px; background:${cc.type === 'quy' ? '#10b98120' : '#ef444420'}; color:${cc.type === 'quy' ? '#10b981' : '#ef4444'};">
+                      ${cc.type === 'quy' ? 'Cách Quý' : 'Đề Phòng'}
+                    </span>
+                  </div>
+                  <p style="font-size:0.85rem; color:var(--text-primary); margin:0 0 6px; line-height:1.5;">${cc.meaning}</p>
+                  <div style="font-size:0.78rem; color:var(--text-tertiary); font-style:italic;">⚡ <b>Synchronicity:</b> ${cc.synchronicity}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center; color:var(--text-secondary); font-size:0.88rem;">
+              Lá số phát triển cân bằng, không vướng các cách cục cực đoan. Hãy tập trung khai thác thế mạnh của chính tinh Mệnh.
+            </div>
+          `}
+        </div>
+
+        <!-- CARD 3: BỘ CHỌN & LUẬN GIẢI CHUYÊN SÂU 12 CUNG -->
+        <div class="card" style="border-radius:16px; padding:24px;">
+          <div class="card-header" style="margin-bottom:16px;">
+            <div class="card-icon" style="font-size:1.4rem;">🎯</div>
+            <div>
+              <div class="card-title">SOI CHIẾU LUẬN GIẢI 12 CUNG CHỨC NĂNG</div>
+              <div class="card-subtitle">Bấm vào cung cần soi chiếu để xem Archetype & Bát Quái tương ứng</div>
+            </div>
+          </div>
+
+          <!-- Palace Pills -->
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;" id="luan-giai-palace-selector">
+            ${(Engine.PALACE_IDS || ['menh','taibach','quanloc','phuthe','dientrach','phucduc','tatach','thiendi','phumau','tutuc','noboc','phuhuynh']).map((pid, idx) => {
+              const pData = Engine.analyzePalaceDeep(tuViChart, pid);
+              if (!pData) return '';
+              const isSelected = idx === 0;
+              return `
+                <button class="btn btn-sm palace-select-btn ${isSelected ? 'btn-primary' : 'btn-ghost'}" data-pid="${pid}" style="border-radius:20px; font-size:0.8rem; font-weight:600; padding:6px 14px;">
+                  ${pData.icon} ${pData.name}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Dynamic Deep Palace Result Block -->
+          <div id="luan-giai-palace-detail"></div>
+        </div>
+
+        <!-- CARD 4: VẬN HẠN DƯỚI GÓC NHÌN SYNCHRONICITY -->
+        <div class="card" style="border-radius:16px; padding:24px;">
+          <div class="card-header" style="margin-bottom:16px;">
+            <div class="card-icon" style="font-size:1.4rem;">⌛</div>
+            <div>
+              <div class="card-title">HẠN VẬN & SỰ TRÙNG HỢP CÓ Ý NGHĨA</div>
+              <div class="card-subtitle">${hanVanAnalysis.theme}</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:12px; padding:16px;">
+            <div style="font-size:0.75rem; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">🔮 BỐI CẢNH NĂNG LƯỢNG HẠN</div>
+            <div style="font-size:0.95rem; font-weight:700; color:var(--text-primary); margin-bottom:6px;">Sao hội chiếu: ${hanVanAnalysis.stars}</div>
+            <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6; margin:0 0 10px;">${hanVanAnalysis.advice}</p>
+            <div style="font-size:0.78rem; color:#f59e0b; font-style:italic;">
+              "Vận hạn không phải nhân quả cưỡng bách, mà là tấm gương phản chiếu nhịp điệu của thời gian."
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    // Helper render chi tiết 1 cung được chọn
+    function updatePalaceDetail(pid) {
+      const pData = Engine.analyzePalaceDeep(tuViChart, pid);
+      const detailDiv = container.querySelector('#luan-giai-palace-detail');
+      if (!detailDiv || !pData) return;
+
+      const mainStarsText = pData.mainStars.length > 0 ? pData.mainStars.join(', ') : 'Vô Chính Diệu';
+      const subStarsText = pData.subStars.length > 0 ? pData.subStars.join(', ') : 'Không hội tụ phụ tinh lớn';
+
+      detailDiv.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:14px; padding:18px;" class="animate-fade-in">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.3rem;">${pData.icon}</span>
+              <div>
+                <div style="font-weight:700; font-size:1.05rem; color:var(--accent-primary);">${pData.name} (An tại ${pData.branch})</div>
+                <div style="font-size:0.75rem; color:var(--text-tertiary);">${pData.desc}</div>
+              </div>
+            </div>
+            <div style="font-size:0.8rem; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.1); padding:4px 12px; border-radius:12px; border:1px solid rgba(56,189,248,0.2);">
+              ${pData.batQuai.symbol} Quẻ ${pData.batQuai.que} (${pData.batQuai.hanh})
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
+            <div style="background:rgba(0,0,0,0.2); padding:10px 12px; border-radius:8px; font-size:0.82rem;">
+              <span style="color:var(--text-tertiary); display:block; font-size:0.7rem; font-weight:700; text-transform:uppercase;">Chính Tinh</span>
+              <strong style="color:var(--text-primary);">${mainStarsText}</strong>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:10px 12px; border-radius:8px; font-size:0.82rem;">
+              <span style="color:var(--text-tertiary); display:block; font-size:0.7rem; font-weight:700; text-transform:uppercase;">Phụ Tinh & Sát Tinh</span>
+              <strong style="color:var(--text-secondary);">${subStarsText}</strong>
+            </div>
+            <div style="background:rgba(0,0,0,0.2); padding:10px 12px; border-radius:8px; font-size:0.82rem;">
+              <span style="color:#a855f7; display:block; font-size:0.7rem; font-weight:700; text-transform:uppercase;">Archetype Tương Ứng</span>
+              <strong style="color:#c084fc;">${pData.archetype}</strong>
+            </div>
+          </div>
+
+          <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6; margin-bottom:10px;">
+            📖 <b>Phán đoán từ điển:</b> ${pData.fullDictText}
+          </div>
+
+          <div style="font-size:0.8rem; color:#f59e0b; font-style:italic; background:rgba(245,158,11,0.06); padding:10px 12px; border-radius:8px; border-left:3px solid #f59e0b;">
+            ⚡ <b>Thông điệp Đồng Bộ:</b> ${pData.synchronicity}
+          </div>
+        </div>
+      `;
+    }
+
+    // Wire buttons
+    const btns = container.querySelectorAll('.palace-select-btn');
+    btns.forEach(b => {
+      b.addEventListener('click', () => {
+        btns.forEach(other => {
+          other.classList.remove('btn-primary');
+          other.classList.add('btn-ghost');
+        });
+        b.classList.remove('btn-ghost');
+        b.classList.add('btn-primary');
+        updatePalaceDetail(b.dataset.pid);
+      });
+    });
+
+    // Default select Mệnh
+    updatePalaceDetail('menh');
   }
 
   // ── TAB 1: Lá Số 12 Cung (chart) ──
@@ -331,10 +546,10 @@
                   <span style="font-size:0.7rem; color:var(--text-tertiary);">${pl.chi}</span>
                 </div>
                 <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary); line-height:1.4;">
-                  ${mainStars.length > 0 ? mainStars.map(s => `<span style="color:${s.bright === 'M' || s.bright === 'V' ? 'var(--accent-primary)' : 'var(--text-primary)'};">${s.name} [${s.bright}]</span>`).join(', ') : '<span style="color:var(--text-tertiary); font-style:italic;">Vô Chính Diệu</span>'}
+                  ${mainStars.length > 0 ? mainStars.map(s => `<span class="star-clickable" onclick="window.showStarArchetypeModal('${s.name}')" style="cursor:pointer; text-decoration:underline dashed; color:${s.bright === 'M' || s.bright === 'V' ? 'var(--accent-primary)' : 'var(--text-primary)'};" title="Bấm để xem Archetype">${s.name} [${s.bright}]</span>`).join(', ') : '<span style="color:var(--text-tertiary); font-style:italic;">Vô Chính Diệu</span>'}
                 </div>
                 ${pl.subStarsList && pl.subStarsList.length > 0 ? `
-                  <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:4px;">${pl.subStarsList.slice(0,4).map(s => s.name).join(', ')}</div>
+                  <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:4px;">${pl.subStarsList.slice(0,4).map(s => `<span class="star-clickable" onclick="window.showStarArchetypeModal('${s.name}')" style="cursor:pointer; text-decoration:underline dashed;" title="Bấm để xem Archetype">${s.name}</span>`).join(', ')}</div>
                 ` : ''}
               </div>
             `;

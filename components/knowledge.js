@@ -60,7 +60,7 @@
       btn.addEventListener('click', () => {
         loadSubTab(btn.dataset.tab);
         // Update URL state
-        window.history.pushState({}, '', \`#knowledge/\${btn.dataset.tab}\`);
+        window.history.pushState({}, '', `#knowledge/${btn.dataset.tab}`);
       });
     });
 

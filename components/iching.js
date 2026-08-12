@@ -448,10 +448,21 @@
           </div>
         </div>
       </div>
-      <div style="padding:12px;background:${getTypeColor(result.queInfo.type)}11;border-radius:8px;margin-bottom:16px;">
+      <div style="padding:12px;background:${getTypeColor(result.queInfo.type)}11;border-radius:8px;margin-bottom:12px;">
         <div style="font-size:0.85em;font-weight:600;color:${getTypeColor(result.queInfo.type)};margin-bottom:4px;">💡 Lời khuyên của quẻ</div>
         <div style="font-size:0.85em;color:var(--text-secondary);">${result.queInfo.advice}</div>
       </div>
+
+      <!-- Section Kết Nối Tử Vi (Kho Luận Giải) -->
+      <div style="padding:12px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:0.85em;font-weight:700;color:#c084fc;margin-bottom:4px;">🌌 KẾT NỐI TỬ VI & BÁT QUÁI (Synchronicity)</div>
+        <div style="font-size:0.82em;color:var(--text-secondary);line-height:1.5;">
+          • <b>Quẻ Thượng ${result.thuongQue.name} (${result.thuongQue.symbol}):</b> Hành ${result.thuongQue.hanh} — Tương ứng dòng năng lượng vô thức.<br>
+          • <b>Quẻ Hạ ${result.haQue.name} (${result.haQue.symbol}):</b> Hành ${result.haQue.hanh} — Nền tảng thực tại khách quan.<br>
+          • <b>Ghi chú Jungian:</b> Kết quả gieo quẻ là tấm gương phản chiếu trạng thái tâm lý hiện tại của bạn tại thời điểm này.
+        </div>
+      </div>
+
       <button id="save-cast-btn" class="btn btn-primary" style="width:100%;">💾 Lưu Vào Nhật Ký</button>
     </div>`;
   }

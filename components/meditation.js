@@ -75,6 +75,40 @@
           </p>
         </div>
 
+        <!-- Gợi Ý Tần Số Theo Archetype Lá Số -->
+        ${(function() {
+          const Engine = window.ZiweiLuanGiaiEngine;
+          const AL = window.AstrologyLogic;
+          if (!Engine || !AL) return '';
+          let chart = null;
+          const userProfile = (typeof AL.getUserProfile === 'function') ? AL.getUserProfile() : null;
+          if (userProfile && AL.TuViEngine) {
+            try {
+              chart = AL.TuViEngine.calculateTuViChart({
+                day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990,
+                hour: (userProfile.hour ?? 12), minute: userProfile.minute || 0,
+                gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+              });
+            } catch (e) {}
+          }
+          const menhAnalysis = Engine.analyzeMenhCung(chart);
+          const elemMap = { 'Kim': 741, 'Mộc': 528, 'Thủy': 432, 'Hỏa': 639, 'Thổ': 396 };
+          const recFreq = elemMap[menhAnalysis.batQuai.hanh] || 528;
+          return `
+            <div style="width:100%; max-width:600px; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; padding:14px; text-align:center;">
+              <div style="font-size:0.75rem; color:#a855f7; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">
+                ☯ KHUYÊN DÙNG THEO LÁ SỐ CÁ NHÂN
+              </div>
+              <div style="font-size:0.88rem; color:var(--text-primary);">
+                Mệnh an tại <b>${menhAnalysis.batQuai.que}</b> (Hành ${menhAnalysis.batQuai.hanh}) • Archetype <b>${menhAnalysis.primaryStar}</b>
+              </div>
+              <div style="font-size:0.8rem; color:#c084fc; margin-top:4px; font-weight:600;">
+                🎯 Tần số chữa lành đề xuất: <b>${recFreq} Hz</b> để cân bằng trường năng lượng và khai mở trực giác đồng bộ.
+              </div>
+            </div>
+          `;
+        })()}
+
         <!-- Frequency Selector Pills -->
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
           ${SOLFEGGIO_FREQS.map(f => `

@@ -289,4 +289,64 @@
   }
 
   window.renderDictionary = renderDictionary;
+
+  // Global Interactive Star Archetype Modal
+  window.showStarArchetypeModal = function(starName) {
+    if (!starName || typeof starName !== 'string') return;
+
+    // Clean name: e.g. "Tử Vi [M]" -> "Tử Vi"
+    const cleanName = starName.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+    const dict = window.ZiweiDictionary || {};
+    const starData = dict[cleanName] || dict[starName] || null;
+
+    if (!starData) {
+      if (window.App && window.App.Toast) {
+        window.App.Toast.show(`Đang cập nhật từ điển cho sao ${cleanName}`, 'info');
+      }
+      return;
+    }
+
+    const Modal = window.App ? window.App.Modal : null;
+    if (!Modal) return;
+
+    Modal.show(`
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Header badge -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+          <div>
+            <div style="font-size:0.7rem; color:var(--accent-primary); font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">${starData.type || 'Tinh Tú'}</div>
+            <h2 style="font-family:'Cinzel',serif; font-size:1.6rem; color:#fff; margin:2px 0 0;">${cleanName}</h2>
+          </div>
+          <span style="font-size:0.75rem; background:rgba(124,58,237,0.2); color:#c084fc; border:1px solid rgba(124,58,237,0.4); padding:4px 12px; border-radius:20px; font-weight:700;">
+            Nội Tâm Dictionary
+          </span>
+        </div>
+
+        <!-- Description -->
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:12px; padding:14px;">
+          <div style="font-size:0.9rem; font-weight:700; color:var(--accent-gold); margin-bottom:6px;">${starData.short || ''}</div>
+          <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6; margin:0;">${starData.full || ''}</p>
+        </div>
+
+        ${starData.archetype ? `
+          <!-- Jungian Archetype -->
+          <div style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:12px; padding:14px;">
+            <div style="font-size:0.7rem; color:#a855f7; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">🎭 NGUYÊN MẪU JUNGIAN (ARCHETYPE)</div>
+            <div style="font-weight:700; font-size:0.95rem; color:#fff;">${starData.archetype}</div>
+          </div>
+        ` : ''}
+
+        ${starData.synchronicity ? `
+          <!-- Synchronicity Message -->
+          <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:12px; padding:14px;">
+            <div style="font-size:0.7rem; color:#f59e0b; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">⚡ THÔNG ĐIỆP ĐỒNG BỘ (SYNCHRONICITY)</div>
+            <div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${starData.synchronicity}</div>
+          </div>
+        ` : ''}
+      </div>
+    `, {
+      title: `🔮 Chi Tiết Sao: ${cleanName}`,
+      footer: `<button class="btn btn-primary" onclick="App.Modal.close()">Đóng</button>`
+    });
+  };
 })();

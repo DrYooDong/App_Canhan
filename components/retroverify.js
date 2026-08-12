@@ -81,10 +81,26 @@
               <div style="font-size:0.8rem; color:var(--text-secondary);">Mẫu thử liên tục</div>
             </div>
 
+            <div class="card" style="padding:20px; border-radius:14px; background:linear-gradient(135deg, rgba(30,27,75,0.6), rgba(15,23,42,0.7)); border:1px solid rgba(168,85,247,0.3); text-align:center;">
+              <div style="font-size:0.8rem; color:#c084fc; font-weight:700; text-transform:uppercase;">Chỉ Số Đồng Bộ Synchronicity</div>
+              <div style="font-size:2.2rem; font-weight:800; color:#fff; margin:6px 0;">
+                ${(function() {
+                  try {
+                    const storedJ = localStorage.getItem('noitam_journals');
+                    const jList = storedJ ? JSON.parse(storedJ) : [];
+                    const syncCount = jList.filter(j => (j.tags || []).includes('#Synchronicity')).length;
+                    return syncCount > 0 ? `${syncCount} Trùng Hợp` : 'Đang Theo Dõi';
+                  } catch { return '0'; }
+                })()}
+              </div>
+              <div style="font-size:0.8rem; color:#a855f7; font-weight:600;">Ghi nhận hiện tượng phi nhân quả</div>
+            </div>
+
             <div class="card" style="padding:20px; border-radius:14px; background:var(--bg-card); border:1px solid var(--border-color); grid-column:span 2;">
-              <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Phân Tích AI Nghiệm Lý</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Phân Tích AI Nghiệm Lý & Synchronicity</div>
               <div style="font-size:0.95rem; color:var(--text-secondary); margin-top:8px; line-height:1.6;">
-                ${retroResult.insight}
+                ${retroResult.insight} <br>
+                ⚡ <i>Ghi chú Jungian: Sự chính xác của lá số tăng lên khi bạn mở rộng ý thức đón nhận các thông điệp trùng hợp ngẫu nhiên.</i>
               </div>
             </div>
 

@@ -373,6 +373,42 @@
     // Tích hợp dữ liệu tổng hợp cho ngày hôm nay
     const todayInfo = getDailyIntegratedDetails(currentCalDate, userProfile, currentTaskType);
 
+    // Triết Lý Hôm Nay & Synchronicity (Kho Luận Giải)
+    let dailyPhilHtml = '';
+    const Engine = window.ZiweiLuanGiaiEngine;
+    if (Engine && typeof Engine.getDailyPhilosophy === 'function') {
+      const phil = Engine.getDailyPhilosophy(todayInfo.dailyTransit, userProfile);
+      dailyPhilHtml = `
+        <div class="stagger-item animate-fade-in" style="margin-bottom: var(--space-xl);">
+          <div class="card tuvi-card" style="padding:20px; border-radius:16px; background:linear-gradient(135deg, rgba(30,27,75,0.7), rgba(15,23,42,0.85)); border:1px solid rgba(168,85,247,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.5rem;">🌌</span>
+                <div>
+                  <h3 style="font-family:'Cinzel',serif; margin:0; color:#c084fc; font-size:1.1rem;">
+                    Triết Lý Hôm Nay & Đồng Bộ Vũ Trụ (Synchronicity)
+                  </h3>
+                  <p style="margin:2px 0 0 0; color:var(--text-secondary); font-size:0.8rem;">
+                    Can Ngày: ${todayInfo.canNgay} ${todayInfo.chiNgay} (${todayInfo.hanhNgay}) • ${phil.archetype}
+                  </p>
+                </div>
+              </div>
+              <span style="font-size:0.75rem; color:#a855f7; font-weight:700; background:rgba(168,85,247,0.15); padding:4px 12px; border-radius:12px; border:1px solid rgba(168,85,247,0.3);">
+                C.G. Jung & Kho Luận Giải
+              </span>
+            </div>
+
+            <div style="font-size:0.95rem; color:#fff; font-weight:600; font-style:italic; line-height:1.6; margin-bottom:10px;">
+              "${phil.quote}"
+            </div>
+            <div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5;">
+              🎯 <b>Gợi Ý Hành Động:</b> ${phil.action}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     container.innerHTML = `
       <!-- Quick Date Filter Pills Bar -->
       <div class="animate-fade-in" style="margin-bottom: 20px;">
@@ -469,6 +505,9 @@
         </div>
       </div>
       ` : ''}
+
+      <!-- Widget Triết Lý Hôm Nay & Synchronicity (Kho Luận Giải) -->
+      ${dailyPhilHtml}
 
       <!-- Radar Cảnh Báo Sớm 7 Ngày (Early Warning Radar) -->
       <div id="early-warning-radar-widget" class="stagger-item" style="margin-bottom: var(--space-xl);"></div>
@@ -2097,7 +2136,7 @@
        personalYear = AL.Numerology.calculatePersonalYear(userProfile.day, userProfile.month, new Date().getFullYear());
     }
 
-    container.innerHTML = \`
+    container.innerHTML = `
       <div class="animate-fade-in" style="margin-bottom:24px;">
         <h2 style="font-family:'Cinzel', serif; font-size: 1.6rem; color:var(--accent-primary); margin-bottom:8px;">⚡ Chuỗi Phản Ứng Hành Động (LifeOS Reaction Chain)</h2>
         <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:24px;">Quy trình 4 bước khép kín: Nhận thức Năng Lượng -> Định hướng Không Gian -> Ra Quyết Định -> Hành Động.</p>
@@ -2220,7 +2259,7 @@
 
         </div>
       </div>
-    \`;
+    `;
 
     // Script Gieo Quẻ Nhanh
     const btnOracle = container.querySelector('#btn-quick-oracle');

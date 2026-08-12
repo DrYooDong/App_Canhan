@@ -3437,7 +3437,7 @@ window.AstrologyLogic = (function() {
         return {
           accuracyPct,
           correlationLevel,
-          insight: \`Hệ thống đã học từ \${count} mẫu chiêm nghiệm. Độ tương quan hiện tại đạt \${accuracyPct}%.\`
+          insight: `Hệ thống đã học từ ${count} mẫu chiêm nghiệm. Độ tương quan hiện tại đạt ${accuracyPct}%.`
         };
       },
 
@@ -3615,7 +3615,6 @@ window.AstrologyLogic = (function() {
               { name: 'Ứng Dụng Cổ Tịch', desc: 'Vận dụng Tử Vi & Kinh Dịch vào thực tế', level: 5, maxLevel: 5 },
               { name: 'Phản Tư Nhật Ký', desc: 'Đúc kết bài học sau mỗi trải nghiệm cuộc sống', level: 5, maxLevel: 5 }
             ]
-          }
           }
         ];
       },

@@ -101,9 +101,14 @@
                 </p>
               </div>
             </div>
-            <button class="btn btn-sm" id="btn-quick-tag-tuvi" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid var(--border-accent);">
-              ✍️ Viết Nhật Ký Tag #LuuNienTuVi
-            </button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-sm" id="btn-quick-tag-sync" style="background:rgba(168,85,247,0.15); color:#c084fc; font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid rgba(168,85,247,0.3);">
+                ⚡ Viết #Synchronicity
+              </button>
+              <button class="btn btn-sm" id="btn-quick-tag-tuvi" style="background:var(--accent-muted); color:var(--accent-primary); font-weight:600; border-radius:20px; padding:4px 14px; border:1px solid var(--border-accent);">
+                ✍️ Viết #LuuNienTuVi
+              </button>
+            </div>
           </div>
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
@@ -166,6 +171,9 @@
       container.querySelector('#btn-add-journal')?.addEventListener('click', () => showJournalForm());
       container.querySelector('#btn-add-journal-empty')?.addEventListener('click', () => showJournalForm());
       container.querySelector('#btn-write-from-prompt')?.addEventListener('click', () => showJournalForm(null, dailyPrompt));
+      container.querySelector('#btn-quick-tag-sync')?.addEventListener('click', () => {
+        showJournalForm(null, 'Ghi lại sự kiện trùng hợp có ý nghĩa (Synchronicity) diễn ra hôm nay...', ['#Synchronicity', '#Jung', '#TuVi']);
+      });
       container.querySelector('#btn-quick-tag-tuvi')?.addEventListener('click', () => {
         showJournalForm(null, luuNienInfo.reflectionPrompt, ['#LuuNienTuVi', '#TuVi', '#BinhThin2026']);
       });

@@ -48,6 +48,42 @@
           </div>
         </div>
 
+        <!-- Archetype Class & Synchronicity Passive Skill -->
+        ${(function() {
+          const Engine = window.ZiweiLuanGiaiEngine;
+          if (!Engine) return '';
+          const dict = window.ZiweiDictionary || {};
+          let chart = null;
+          if (AL && AL.TuViEngine) {
+            try {
+              chart = AL.TuViEngine.calculateTuViChart({
+                day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990,
+                hour: (userProfile.hour ?? 12), minute: userProfile.minute || 0,
+                gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
+              });
+            } catch (e) {}
+          }
+          const menhAnalysis = Engine.analyzeMenhCung(chart);
+          return `
+            <div class="card" style="padding:20px; border-radius:16px; background:linear-gradient(135deg, rgba(30,27,75,0.7), rgba(15,23,42,0.85)); border:1px solid rgba(168,85,247,0.3);">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                <div>
+                  <div style="font-size:0.75rem; color:#a855f7; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">🎭 ARCHETYPE CLASS HỆ THỐNG</div>
+                  <h3 style="font-family:'Cinzel',serif; margin:2px 0 0; color:#fff; font-size:1.25rem;">
+                    Class: ${menhAnalysis.primaryStar} — ${menhAnalysis.archetype}
+                  </h3>
+                </div>
+                <div style="font-size:0.8rem; font-weight:700; color:#38bdf8; background:rgba(56,189,248,0.1); padding:4px 12px; border-radius:12px; border:1px solid rgba(56,189,248,0.2);">
+                  ${menhAnalysis.batQuai.symbol} Quẻ ${menhAnalysis.batQuai.que} (${menhAnalysis.batQuai.hanh})
+                </div>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">
+                ⚡ <b>Kỹ Năng Đồng Bộ Nội Tại (Passive Skill):</b> ${menhAnalysis.synchronicity}
+              </div>
+            </div>
+          `;
+        })()}
+
         <!-- 6 RPG Stats Character Sheet -->
         <div class="card" style="padding:20px; border-radius:16px; background:var(--bg-surface); border:1px solid var(--border-color);">
           <h3 style="margin-top:0; font-family:'Cinzel',serif; color:var(--accent-primary); font-size:1.1rem;">
