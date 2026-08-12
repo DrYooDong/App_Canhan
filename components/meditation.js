@@ -86,7 +86,7 @@
             try {
               chart = AL.TuViEngine.calculateTuViChart({
                 day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990,
-                hour: (userProfile.hour ?? 12), minute: userProfile.minute || 0,
+                hour: (userProfile.hour ?? 0), minute: userProfile.minute ?? 0,
                 gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
               });
             } catch (e) {}
@@ -160,21 +160,35 @@
 
     function drawBreathingCircle(radius, label) {
       if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      
+      if (canvas.width !== width * dpr) {
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+      }
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
+      ctx.clearRect(0, 0, width, height);
+
+      const centerX = width / 2;
+      const centerY = height / 2;
 
       // Glow outer circle
       ctx.beginPath();
-      ctx.arc(centerX, centerY, radius + 12, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+      ctx.arc(centerX, centerY, radius + 15, 0, Math.PI * 2);
+      const outerGrad = ctx.createRadialGradient(centerX, centerY, radius, centerX, centerY, radius + 15);
+      outerGrad.addColorStop(0, 'rgba(124, 58, 237, 0.4)');
+      outerGrad.addColorStop(1, 'rgba(124, 58, 237, 0)');
+      ctx.fillStyle = outerGrad;
       ctx.fill();
 
-      // Main gradient circle
-      const grad = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, radius);
-      grad.addColorStop(0, '#60a5fa');
-      grad.addColorStop(1, '#1d4ed8');
+      // Main gradient circle (Cosmic Violet Theme)
+      const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+      grad.addColorStop(0, 'rgba(168, 85, 247, 0.9)');
+      grad.addColorStop(1, 'rgba(109, 40, 217, 0.9)');
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -182,12 +196,27 @@
       ctx.fill();
 
       ctx.lineWidth = 3;
-      ctx.strokeStyle = '#93c5fd';
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.8)';
       ctx.stroke();
+
+      // Add small orbiting particles around the circle (visual flare)
+      const time = Date.now() / 1000;
+      for (let i = 0; i < 3; i++) {
+        const angle = time * (1 + i * 0.5) + (i * Math.PI * 2 / 3);
+        const px = centerX + (radius + 25) * Math.cos(angle);
+        const py = centerY + (radius + 25) * Math.sin(angle);
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24'; // Gold particles
+        ctx.fill();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#fbbf24';
+      }
+      ctx.shadowBlur = 0; // Reset shadow
 
       // Text inside circle
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 16px sans-serif';
+      ctx.font = 'bold 18px "DM Sans", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label || '', centerX, centerY);

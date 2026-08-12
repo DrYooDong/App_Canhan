@@ -58,7 +58,7 @@
             try {
               chart = AL.TuViEngine.calculateTuViChart({
                 day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990,
-                hour: (userProfile.hour ?? 12), minute: userProfile.minute || 0,
+                hour: (userProfile.hour ?? 0), minute: userProfile.minute ?? 0,
                 gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
               });
             } catch (e) {}
@@ -84,31 +84,25 @@
           `;
         })()}
 
-        <!-- 6 RPG Stats Character Sheet -->
+        <!-- 6 RPG Stats Character Sheet (Radar Chart) -->
         <div class="card" style="padding:20px; border-radius:16px; background:var(--bg-surface); border:1px solid var(--border-color);">
-          <h3 style="margin-top:0; font-family:'Cinzel',serif; color:var(--accent-primary); font-size:1.1rem;">
+          <h3 style="margin-top:0; font-family:'Cinzel',serif; color:var(--accent-primary); font-size:1.1rem; text-align:center;">
             🛡️ Bảng Chỉ Số Nhân Vật (6 Trụ Cột)
           </h3>
 
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-top:14px;">
-            ${[
-              { name: 'VIT (Thân Tâm)', val: stats.vit, icon: '🧘', color: '#10b981' },
-              { name: 'INT (Sự Nghiệp)', val: stats.int, icon: '👑', color: '#3b82f6' },
-              { name: 'CHA (Gia Đạo)', val: stats.cha, icon: '🏡', color: '#ec4899' },
-              { name: 'WIS (Mối Quan Hệ)', val: stats.wis, icon: '🤝', color: '#8b5cf6' },
-              { name: 'STR (Tài Chính)', val: stats.str, icon: '💰', color: '#f59e0b' },
-              { name: 'DEX (Tri Thức)', val: stats.dex, icon: '📚', color: '#06b6d4' }
-            ].map(s => `
-              <div style="padding:12px; background:var(--bg-card); border-radius:10px; border:1px solid var(--border-color);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span style="font-weight:700; font-size:0.85rem;">${s.icon} ${s.name}</span>
-                  <span style="font-weight:800; color:${s.color}; font-size:0.95rem;">${s.val}</span>
-                </div>
-                <div style="width:100%; height:6px; background:var(--bg-tertiary); border-radius:3px; overflow:hidden;">
-                  <div style="width:${s.val}%; height:100%; background:${s.color}; border-radius:3px;"></div>
-                </div>
-              </div>
-            `).join('')}
+          <div style="display:flex; justify-content:center; align-items:center; margin-top:20px;">
+            <div style="position:relative; width: 100%; max-width: 350px; aspect-ratio: 1/1;">
+              <canvas id="rpg-radar-canvas" style="width:100%; height:100%; display:block;"></canvas>
+            </div>
+          </div>
+          
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px; text-align:center;">
+            <div style="font-size:0.8rem;"><span style="color:#10b981">VIT</span>: ${stats.vit}</div>
+            <div style="font-size:0.8rem;"><span style="color:#3b82f6">INT</span>: ${stats.int}</div>
+            <div style="font-size:0.8rem;"><span style="color:#ec4899">CHA</span>: ${stats.cha}</div>
+            <div style="font-size:0.8rem;"><span style="color:#8b5cf6">WIS</span>: ${stats.wis}</div>
+            <div style="font-size:0.8rem;"><span style="color:#f59e0b">STR</span>: ${stats.str}</div>
+            <div style="font-size:0.8rem;"><span style="color:#06b6d4">DEX</span>: ${stats.dex}</div>
           </div>
         </div>
 
@@ -169,6 +163,19 @@
 
       </div>
     `;
+    // Trigger rendering of radar chart after DOM is updated
+    setTimeout(() => {
+      if (window.renderRadarChart) {
+        window.renderRadarChart('rpg-radar-canvas', [
+          { label: 'Thân Tâm', value: stats.vit },
+          { label: 'Sự Nghiệp', value: stats.int },
+          { label: 'Gia Đạo', value: stats.cha },
+          { label: 'Quan Hệ', value: stats.wis },
+          { label: 'Tài Chính', value: stats.str },
+          { label: 'Tri Thức', value: stats.dex }
+        ]);
+      }
+    }, 100);
   }
 
   window.renderRPG = renderRPG;

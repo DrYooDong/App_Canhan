@@ -101,29 +101,32 @@
       const hash = window.location.hash.slice(1) || 'tuvi';
       let [route, ...params] = hash.split('/');
 
-      // Alias mapping for consolidated modules
+      // Alias mapping for 4 consolidated workspaces
       const ALIASES = {
         'home': ['tuvi'],
+        'astrology': ['tuvi'],
+        'timemachine': ['tuvi', 'timemachine'],
+        'rpg': ['tuvi', 'rpg'],
         'command': ['dashboard', 'command'],
         'commandcenter': ['dashboard', 'command'],
         'morning': ['dashboard', 'morning'],
         'overview': ['dashboard', 'overview'],
         'tasks': ['dashboard', 'tasks'],
-        'health': ['astrology', 'health'],
-        'heatmap': ['astrology', 'heatmap'],
-        'timemachine': ['astrology', 'timemachine'],
-        'rpg': ['astrology', 'rpg'],
-        'mood': ['astrology', 'mood'],
-        'moodtracker': ['astrology', 'mood'],
-        'meditation': ['astrology', 'meditation'],
+        'biorhythm': ['dashboard', 'biorhythm'],
+        'heatmap': ['dashboard', 'biorhythm'],
+        'health': ['dashboard', 'biorhythm'],
+        'mood': ['dashboard', 'mind'],
+        'moodtracker': ['dashboard', 'mind'],
+        'meditation': ['dashboard', 'mind'],
         'timing': ['finance', 'timing'],
         'retroverify': ['finance', 'retroverify'],
         'compass': ['oracle', 'compass'],
         'iching': ['oracle', 'iching'],
-        'journal': ['knowledge', 'journal'],
-        'lessons': ['knowledge', 'lessons'],
-        'rules': ['knowledge', 'rules'],
-        'reminders': ['knowledge', 'reminders']
+        'knowledge': ['oracle', 'knowledge'],
+        'journal': ['oracle', 'knowledge', 'journal'],
+        'lessons': ['oracle', 'knowledge', 'lessons'],
+        'rules': ['oracle', 'knowledge', 'rules'],
+        'reminders': ['oracle', 'knowledge', 'reminders']
       };
 
       if (ALIASES[route]) {
@@ -146,13 +149,11 @@
 
         // Update Mobile Top Bar Title
         const routeTitles = {
-          'tuvi': 'LÁ SỐ CỦA TÔI',
-          'dashboard': 'NHẬT LỊCH',
-          'astrology': 'TỬ VI CHUYÊN SÂU',
-          'finance': 'TÀI CHÍNH LIFEOS',
-          'oracle': 'KỲ MÔN & KINH DỊCH',
-          'knowledge': 'TRI THỨC & NHẬT KÝ',
-          'search': 'TÌM KIẾM'
+          'tuvi': '🔮 TỬ VI PRO',
+          'dashboard': '📅 LỊCH CẢI MỆNH',
+          'finance': '💰 TÀI CHÍNH LIFEOS',
+          'oracle': '☯ KỲ MÔN & TRI THỨC',
+          'search': '🔍 TRA CỨU'
         };
         const mobileTitle = document.querySelector('.mobile-title');
         if (mobileTitle && routeTitles[route]) {
@@ -205,6 +206,81 @@
         toast.classList.add('toast-out');
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+  };
+
+  // ── Mobile Bottom Sheet Manager ──
+  const BottomSheet = {
+    _element: null,
+
+    show(title, htmlContent) {
+      this.close();
+      const backdrop = document.createElement('div');
+      backdrop.className = 'mobile-bottom-sheet-backdrop';
+      backdrop.innerHTML = `
+        <div class="mobile-bottom-sheet">
+          <div class="mobile-sheet-handle-wrap">
+            <div class="mobile-sheet-handle"></div>
+          </div>
+          <div class="mobile-sheet-header">
+            <h3 class="mobile-sheet-title">${title || 'Thông Tin'}</h3>
+            <button class="mobile-sheet-close" aria-label="Đóng">&times;</button>
+          </div>
+          <div class="mobile-sheet-body">${htmlContent}</div>
+        </div>
+      `;
+
+      document.body.appendChild(backdrop);
+      this._element = backdrop;
+
+      const close = () => {
+        backdrop.classList.remove('active');
+        setTimeout(() => backdrop.remove(), 350);
+      };
+
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close();
+      });
+      backdrop.querySelector('.mobile-sheet-close').addEventListener('click', close);
+      backdrop.querySelector('.mobile-sheet-handle-wrap').addEventListener('click', close);
+
+      // Touch swipe-down gesture to dismiss sheet
+      const sheet = backdrop.querySelector('.mobile-bottom-sheet');
+      let startY = 0;
+      let currentY = 0;
+
+      sheet.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+
+      sheet.addEventListener('touchmove', (e) => {
+        currentY = e.touches[0].clientY;
+        const diffY = currentY - startY;
+        if (diffY > 0 && sheet.scrollTop <= 0) {
+          sheet.style.transform = `translateY(${diffY}px)`;
+        }
+      }, { passive: true });
+
+      sheet.addEventListener('touchend', () => {
+        const diffY = currentY - startY;
+        sheet.style.transform = '';
+        if (diffY > 80 && sheet.scrollTop <= 0) {
+          close();
+        }
+        startY = 0;
+        currentY = 0;
+      });
+
+      requestAnimationFrame(() => backdrop.classList.add('active'));
+    },
+
+    close() {
+      if (this._element) {
+        this._element.classList.remove('active');
+        const el = this._element;
+        setTimeout(() => el.remove(), 350);
+        this._element = null;
+      }
     }
   };
 
@@ -618,6 +694,19 @@
         );
       });
     }
+    
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
   }
 
   // ── Export Globals ──
@@ -627,6 +716,7 @@
     Router,
     Toast,
     Modal,
+    BottomSheet,
     DetailPanel,
     Utils,
     CRUD,

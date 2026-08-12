@@ -109,8 +109,8 @@
           day: userProfile?.day || 1,
           month: userProfile?.month || 1,
           year: userProfile?.year || 1990,
-          hour: (userProfile?.hour !== undefined && userProfile?.hour !== null ? userProfile.hour : 12),
-          minute: userProfile?.minute || 0,
+          hour: (userProfile?.hour !== undefined && userProfile?.hour !== null ? userProfile.hour : 0),
+          minute: userProfile?.minute ?? 0,
           gender: userProfile?.gender || 'Nam',
           canNam: userProfile?.canNam || 'Canh',
           chiNam: userProfile?.chiNam || 'Thìn'
@@ -280,10 +280,11 @@
         <!-- Section Switcher Tabs -->
         <div class="cmd-nav-tabs">
           <button class="cmd-nav-btn ${activeDashTab === 'overview' ? 'active' : ''}" data-tab="overview"><span>📅</span> Lịch & Nhịp Ngày</button>
-          <button class="cmd-nav-btn ${activeDashTab === 'reaction' ? 'active' : ''}" data-tab="reaction"><span>⚡</span> Chuỗi Phản Ứng</button>
-          <button class="cmd-nav-btn ${activeDashTab === 'scanner' ? 'active' : ''}" data-tab="scanner"><span>🎯</span> Quét Mục Tiêu Vàng</button>
-          <button class="cmd-nav-btn ${activeDashTab === 'morning' ? 'active' : ''}" data-tab="morning"><span>☀️</span> Bản Tin & Thực Dưỡng</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'biorhythm' ? 'active' : ''}" data-tab="biorhythm"><span>⚡</span> 12 Canh Giờ 24H</button>
           <button class="cmd-nav-btn ${activeDashTab === 'tasks' ? 'active' : ''}" data-tab="tasks"><span>🌱</span> Nhiệm Vụ Cải Mệnh</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'mind' ? 'active' : ''}" data-tab="mind"><span>🧘</span> Tâm Trạng & Thiền</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'morning' ? 'active' : ''}" data-tab="morning"><span>☀️</span> Bản Tin Sáng</button>
+          <button class="cmd-nav-btn ${activeDashTab === 'scanner' ? 'active' : ''}" data-tab="scanner"><span>🎯</span> Quét Mục Tiêu Vàng</button>
           <button class="cmd-nav-btn ${activeDashTab === 'command' ? 'active' : ''}" data-tab="command"><span>📱</span> Ambient HUD</button>
         </div>
 
@@ -325,6 +326,28 @@
         window.renderMorning(subContent);
       } else if (tab === 'tasks' && window.renderTasks) {
         window.renderTasks(subContent);
+      } else if (tab === 'biorhythm') {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'animate-fade-in';
+        if (window.renderHeatmap) window.renderHeatmap(wrapper);
+        if (window.renderHealth) {
+          const healthDiv = document.createElement('div');
+          healthDiv.style.marginTop = '24px';
+          window.renderHealth(healthDiv);
+          wrapper.appendChild(healthDiv);
+        }
+        subContent.appendChild(wrapper);
+      } else if (tab === 'mind') {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'animate-fade-in';
+        if (window.renderMoodTracker) window.renderMoodTracker(wrapper);
+        if (window.renderMeditation) {
+          const medDiv = document.createElement('div');
+          medDiv.style.marginTop = '24px';
+          window.renderMeditation(medDiv);
+          wrapper.appendChild(medDiv);
+        }
+        subContent.appendChild(wrapper);
       } else if (tab === 'scanner') {
         renderScannerTab(subContent);
       } else if (tab === 'reaction') {

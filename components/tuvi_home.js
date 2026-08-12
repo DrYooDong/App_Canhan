@@ -31,7 +31,7 @@
       return {
         gender: p.gender || 'Nam',
         year: p.year || 2000, month: p.month || 4, day: p.day || 20,
-        hour: (p.hour !== undefined && p.hour !== null ? (parseInt(p.hour, 10) % 24) : 21), minute: p.minute || 0,
+        hour: (p.hour !== undefined && p.hour !== null ? (parseInt(p.hour, 10) % 24) : 0), minute: p.minute ?? 0,
         locationName: p.locationName || 'Hà Nội',
         lat: p.lat || 21.03, lng: p.lng || 105.85, tz: p.tz || 7
       };
@@ -59,7 +59,7 @@
   }
 
   function renderTuviHome(container, params) {
-    if (params && params[0] && ['chart', 'vanhan', 'cot-cach', 'tools'].includes(params[0])) {
+    if (params && params[0] && ['chart', 'luan-giai', 'timemachine', 'rpg', 'vanhan', 'cot-cach', 'tools'].includes(params[0])) {
       activeTuviHomeTab = params[0];
     }
 
@@ -67,26 +67,21 @@
     const config = getChartConfig();
     const AL = window.AstrologyLogic;
 
-    // Compute Four Pillars for header info
-    let fp = null;
+    // Compute Tử Vi chart for banner & chart display
     let tuViChart = null;
-    if (AL && AL.FourPillars) {
-      const civilDate = new Date(config.year, config.month - 1, config.day, config.hour, config.minute);
-      fp = AL.FourPillars.calculateFourPillars(civilDate, config.lng, config.tz);
-    }
-    const p = fp ? fp.pillars : null;
-
-    // Compute Tử Vi chart for banner info
-    if (AL && AL.TuViEngine && p) {
+    let fp = null;
+    if (AL && AL.TuViEngine) {
       try {
+        const canNam = profile?.canNam || config.canNam || 'Canh';
+        const chiNam = profile?.chiNam || config.chiNam || 'Thìn';
         tuViChart = AL.TuViEngine.calculateTuViChart({
-          day: config.day, month: config.month, year: config.year,
-          hour: config.hour, minute: config.minute, gender: config.gender,
-          canNam: p.year.can, chiNam: p.year.chi,
-          lunarDay: fp.lunarDay, lunarMonth: fp.lunarMonth
+          day: config.day || 20, month: config.month || 4, year: config.year || 2000,
+          hour: config.hour ?? 0, minute: config.minute ?? 0, gender: config.gender || 'Nam',
+          canNam: canNam, chiNam: chiNam
         });
       } catch (e) { console.warn('TuVi calc error:', e); }
     }
+    const p = fp ? fp.pillars : null;
 
     const tb = tuViChart ? tuViChart.thienBan : null;
     const userName = profile ? profile.name : 'Bạn';
@@ -174,6 +169,9 @@
             <button class="btn btn-sm" id="btn-tuvi-copy-ai" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); backdrop-filter:blur(4px);">
               📋 Copy Dữ Liệu Gửi AI
             </button>
+            <button class="btn btn-sm" id="btn-tuvi-export-pdf" style="background:linear-gradient(90deg, #d97706, #fbbf24); color:#fff; border:1px solid #fbbf24; backdrop-filter:blur(4px); box-shadow: 0 4px 12px rgba(251,191,36,0.3);">
+              📜 Xuất PDF Hoàng Gia
+            </button>
           </div>
         </div>
 
@@ -185,14 +183,17 @@
           <button class="cmd-nav-btn ${activeTuviHomeTab === 'luan-giai' ? 'active' : ''}" data-tuviTab="luan-giai">
             <span>✨</span> Luận Giải Sâu
           </button>
-          <button class="cmd-nav-btn ${activeTuviHomeTab === 'vanhan' ? 'active' : ''}" data-tuviTab="vanhan">
-            <span>⏳</span> Vận Hạn
+          <button class="cmd-nav-btn ${activeTuviHomeTab === 'timemachine' ? 'active' : ''}" data-tuviTab="timemachine">
+            <span>⏳</span> Time-Machine 60 Năm
+          </button>
+          <button class="cmd-nav-btn ${activeTuviHomeTab === 'rpg' ? 'active' : ''}" data-tuviTab="rpg">
+            <span>🎮</span> RPG & Thần Số
           </button>
           <button class="cmd-nav-btn ${activeTuviHomeTab === 'cot-cach' ? 'active' : ''}" data-tuviTab="cot-cach">
             <span>🪞</span> Cốt Cách
           </button>
           <button class="cmd-nav-btn ${activeTuviHomeTab === 'tools' ? 'active' : ''}" data-tuviTab="tools">
-            <span>🧰</span> Công Cụ Chuyên Sâu
+            <span>🧰</span> Công Cụ Tích Hợp
           </button>
         </div>
 
@@ -243,6 +244,41 @@
       else if (window.App) window.App.Toast.show('Đang copy dữ liệu...');
     });
 
+    container.querySelector('#btn-tuvi-export-pdf')?.addEventListener('click', () => {
+      if (typeof html2pdf === 'undefined') {
+        if (window.App) window.App.Toast.show('Thư viện xuất PDF chưa được tải!', 'error');
+        return;
+      }
+      
+      const contentToExport = container.querySelector('#tuvi-home-content');
+      if (!contentToExport) return;
+      
+      if (window.App) window.App.Toast.show('Đang tạo báo cáo PDF...', 'success');
+      
+      const opt = {
+        margin:       10,
+        filename:     `La_So_Tu_Vi_${profile.name || 'Premium'}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0f172a' }, // Dark theme background
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      // Temporarily add a royal border for PDF export
+      const originalBorder = contentToExport.style.border;
+      const originalPadding = contentToExport.style.padding;
+      contentToExport.style.border = '10px solid transparent';
+      contentToExport.style.borderImage = 'linear-gradient(45deg, #fbbf24, #d97706, #fbbf24) 1';
+      contentToExport.style.padding = '20px';
+      
+      html2pdf().set(opt).from(contentToExport).save().then(() => {
+        // Restore styles
+        contentToExport.style.border = originalBorder;
+        contentToExport.style.borderImage = '';
+        contentToExport.style.padding = originalPadding;
+        if (window.App) window.App.Toast.show('Xuất PDF thành công!', 'success');
+      });
+    });
+
     // Load default tab
     loadTuviTab(activeTuviHomeTab, subContent, tuViChart, fp, config, profile, currentDX);
   }
@@ -255,6 +291,19 @@
       renderChartTab(subContent, tuViChart, fp, config);
     } else if (tab === 'luan-giai') {
       renderLuanGiaiTab(subContent, tuViChart, fp, config, currentDX);
+    } else if (tab === 'timemachine' && window.renderTimeMachine) {
+      window.renderTimeMachine(subContent);
+    } else if (tab === 'rpg') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'animate-fade-in';
+      if (window.renderRPG) window.renderRPG(wrapper);
+      if (window.renderNumerology) {
+        const numDiv = document.createElement('div');
+        numDiv.style.marginTop = '24px';
+        window.renderNumerology(numDiv);
+        wrapper.appendChild(numDiv);
+      }
+      subContent.appendChild(wrapper);
     } else if (tab === 'vanhan') {
       renderVanHanTab(subContent, tuViChart, fp, config);
     } else if (tab === 'cot-cach') {
@@ -520,23 +569,36 @@
       </div>
     ` : '';
 
-    // 12 palaces grid
+    // 12 palaces grid with Mobile 1-Hand Carousel Switcher Bar
     const palaceGrid = palaces.length > 0 ? `
       <div class="card animate-fade-in" style="margin-bottom:20px;">
-        <div class="card-header" style="margin-bottom:14px;">
-          <div class="card-icon">🌐</div>
-          <div class="card-title">12 CUNG TỬ VI</div>
+        <div class="card-header" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="card-icon">🌐</div>
+            <div class="card-title">12 CUNG TỬ VI</div>
+          </div>
+          <span style="font-size:0.7rem; color:var(--accent-primary); font-weight:600;">📱 Chế Độ Vuốt 1 Tay</span>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:8px;">
+
+        <!-- Mobile 1-Hand Carousel Switcher Bar -->
+        <div class="cmd-nav-tabs mobile-palace-bar" style="margin-bottom:14px; gap:6px;">
+          ${palaces.map(pl => `
+            <button class="cmd-nav-btn btn-sm palace-chip-btn ${pl.id === 'menh' ? 'active' : ''}" data-pchip="${pl.id}" style="font-size:0.75rem; padding:4px 10px;">
+              ${pl.name} [${pl.chi}]
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="palaces-grid-wrap" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px;">
           ${palaces.map(pl => {
             const isMenh = pl.id === 'menh';
             const isThan = pl.id === 'than' || (tb && pl.chi === tb.thanChi);
             const mainStars = pl.mainStarsList || [];
             return `
-              <div style="
+              <div class="palace-card-box" id="pcard-${pl.id}" style="
                 background:var(--bg-card);
                 border:1px solid ${isMenh ? 'var(--accent-primary)' : isThan ? '#f59e0b' : 'var(--border-color)'};
-                border-radius:10px; padding:10px;
+                border-radius:10px; padding:10px; transition: all 0.2s ease;
                 ${isMenh ? 'box-shadow:0 0 12px rgba(var(--accent-rgb),0.2);' : ''}
               ">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -559,6 +621,23 @@
     ` : '<div class="empty-state"><div class="empty-state-icon">🔮</div><div class="empty-state-title">Chưa tính được lá số</div><p class="empty-state-desc">Vui lòng kiểm tra thông tin ngày giờ sinh trong Cài đặt.</p></div>';
 
     container.innerHTML = pillarsHtml + palaceGrid;
+
+    container.querySelectorAll('.palace-chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.dataset.pchip;
+        container.querySelectorAll('.palace-chip-btn').forEach(b => b.classList.toggle('active', b === btn));
+        container.querySelectorAll('.palace-card-box').forEach(box => {
+          box.style.borderColor = 'var(--border-color)';
+          box.style.transform = '';
+        });
+        const targetBox = container.querySelector(`#pcard-${pid}`);
+        if (targetBox) {
+          targetBox.style.borderColor = 'var(--accent-primary)';
+          targetBox.style.transform = 'scale(1.03)';
+          targetBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    });
   }
 
   // ── TAB 2: Vận Hạn ──
@@ -800,26 +879,85 @@
     });
     
     function showDictionaryModal(term, info) {
+       const cleanTerm = term.replace(/\([A-ZĐ]\)/g, "").trim();
+       const contentHtml = `
+         <div style="font-size:0.75rem; color:var(--accent-primary); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; font-weight:700;">${info.type}</div>
+         <div style="font-weight:700; color:var(--text-primary); margin-bottom:12px; font-size:1.1rem;">${info.short}</div>
+         <div style="color:var(--text-secondary); line-height:1.6; font-size:0.92rem;">${info.full}</div>
+       `;
+
+       if (window.innerWidth <= 768 && window.App && window.App.BottomSheet) {
+         window.App.BottomSheet.show(cleanTerm, contentHtml);
+         return;
+       }
+
        let m = document.getElementById('ziwei-dict-modal');
        if (!m) {
          m = document.createElement('div');
          m.id = 'ziwei-dict-modal';
-         m.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);';
+         m.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px); perspective: 1200px;';
+         
+         const innerStyle = `
+           background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+           border: 1px solid rgba(139, 92, 246, 0.4);
+           border-radius: 24px;
+           width: 90%;
+           max-width: 480px;
+           padding: 32px;
+           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(139, 92, 246, 0.2) inset, 0 0 20px rgba(139, 92, 246, 0.4);
+           position: relative;
+           transform: translateZ(50px) rotateX(10deg);
+           transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+           animation: popup3dEntrance 0.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+         `;
+
          m.innerHTML = `
-           <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:16px; width:90%; max-width:500px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,0.5); position:relative;">
-              <button id="zdict-close" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.5rem;color:var(--text-muted);cursor:pointer;line-height:1;">&times;</button>
-              <div style="font-size:0.8rem; color:var(--accent-primary); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;" id="zdict-type"></div>
-              <h2 id="zdict-term" style="margin:0 0 12px 0; color:var(--text-primary);"></h2>
-              <div id="zdict-short" style="font-weight:600; color:var(--text-secondary); margin-bottom:16px; font-size:1.05rem;"></div>
-              <div id="zdict-full" style="color:var(--text-tertiary); line-height:1.6; font-size:0.95rem;"></div>
+           <style>
+             @keyframes popup3dEntrance {
+               0% { opacity: 0; transform: translateY(50px) translateZ(-100px) rotateX(-20deg); }
+               100% { opacity: 1; transform: translateY(0) translateZ(50px) rotateX(0deg); }
+             }
+             .dict-3d-card:hover {
+               transform: translateZ(60px) rotateX(2deg) rotateY(2deg) !important;
+               box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(139, 92, 246, 0.3) inset, 0 0 30px rgba(139, 92, 246, 0.6) !important;
+             }
+           </style>
+           <div class="dict-3d-card" style="${innerStyle}">
+              <div style="position:absolute; top:-15px; left:32px; background:linear-gradient(90deg, var(--accent-primary), #38bdf8); padding:6px 16px; border-radius:12px; font-weight:800; font-size:0.8rem; color:#fff; box-shadow:0 4px 15px rgba(139,92,246,0.4); letter-spacing:1px; text-transform:uppercase;" id="zdict-type"></div>
+              
+              <button id="zdict-close" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);font-size:1.2rem;color:#fff;cursor:pointer;line-height:1;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">&times;</button>
+              
+              <h2 id="zdict-term" style="margin:16px 0 12px 0; color:#fff; font-family:'Cinzel', serif; font-size:2rem; text-shadow:0 2px 10px rgba(255,255,255,0.2);"></h2>
+              
+              <div id="zdict-short" style="font-weight:700; color:#fbbf24; margin-bottom:20px; font-size:1.15rem; border-left:4px solid #fbbf24; padding-left:12px; background:rgba(251,191,36,0.1); border-radius:0 8px 8px 0; padding-top:8px; padding-bottom:8px;"></div>
+              
+              <div id="zdict-full" style="color:var(--text-secondary); line-height:1.7; font-size:1rem;"></div>
            </div>
          `;
          document.body.appendChild(m);
+         
+         // Hover 3D effect listener
+         const card = m.querySelector('.dict-3d-card');
+         m.addEventListener('mousemove', (e) => {
+           const rect = card.getBoundingClientRect();
+           const x = e.clientX - rect.left; // x position within the element.
+           const y = e.clientY - rect.top;  // y position within the element.
+           const centerX = rect.width / 2;
+           const centerY = rect.height / 2;
+           const rotateX = ((y - centerY) / centerY) * -10;
+           const rotateY = ((x - centerX) / centerX) * 10;
+           card.style.transform = `translateZ(50px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+         });
+         
+         m.addEventListener('mouseleave', () => {
+           card.style.transform = 'translateZ(50px) rotateX(0deg) rotateY(0deg)';
+         });
+
          m.addEventListener('click', (e) => { if(e.target === m) m.style.display='none'; });
          m.querySelector('#zdict-close').addEventListener('click', () => m.style.display='none');
        }
        m.querySelector('#zdict-type').innerText = info.type;
-       m.querySelector('#zdict-term').innerText = term.replace(/\([A-ZĐ]\)/g, "").trim();
+       m.querySelector('#zdict-term').innerText = cleanTerm;
        m.querySelector('#zdict-short').innerText = info.short;
        m.querySelector('#zdict-full').innerText = info.full;
        m.style.display = 'flex';

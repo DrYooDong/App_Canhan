@@ -1,0 +1,12 @@
+{
+  "name": "noi-tam-tu-vi-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Ứng dụng Tử Vi & Tri Thức Cá Nhân Nội Tâm",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "serve": "node server.js"
+  }
+}

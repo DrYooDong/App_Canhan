@@ -592,6 +592,32 @@ Hãy phân tích chuyên sâu lá số Tử Vi kết hợp Tứ Trụ Bát Tự 
         return;
       }
 
+      if (window.innerWidth <= 768 && window.App && window.App.BottomSheet) {
+        window.App.BottomSheet.show(`✨ Luận Giải Sao ${starName}`, `
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div style="background:var(--accent-muted); border:1px solid var(--border-accent); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:var(--accent-primary); font-size:0.95rem; margin-bottom:4px;">🔮 QUAN ĐIỂM 倪海厦 (NI HẢI HẠ)</div>
+              <div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${detail.niHaixia}</div>
+            </div>
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; padding:12px;">
+              <div style="font-weight:700; color:var(--text-secondary); font-size:0.85rem; margin-bottom:4px;">📖 CỔ QUYẾT TRÍCH DẪN</div>
+              <div style="font-size:0.82rem; color:var(--text-secondary); font-style:italic; line-height:1.4;">${detail.classical}</div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; font-weight:700; color:#10b981; text-transform:uppercase;">CUNG ĐẮC THẾ NHẤT</div>
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary); margin-top:2px;">${detail.bestPalace}</div>
+              </div>
+              <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+                <div style="font-size:0.75rem; font-weight:700; color:#ef4444; text-transform:uppercase;">CUNG KỴ HÃM ĐỊA</div>
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary); margin-top:2px;">${detail.worstPalace}</div>
+              </div>
+            </div>
+          </div>
+        `);
+        return;
+      }
+
       Modal.show({
         title: `✨ Luận Giải Chi Tiết Sao ${starName}`,
         content: `

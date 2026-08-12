@@ -112,7 +112,7 @@
     if (AL && AL.TuViEngine && userProfile) {
       try {
         const tuViChart = AL.TuViEngine.calculateTuViChart({
-          day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 12), minute: userProfile.minute || 0,
+          day: userProfile.day || 1, month: userProfile.month || 1, year: userProfile.year || 1990, hour: (userProfile.hour !== undefined && userProfile.hour !== null ? userProfile.hour : 0), minute: userProfile.minute ?? 0,
           gender: userProfile.gender || 'Nam', canNam: userProfile.canNam || 'Canh', chiNam: userProfile.chiNam || 'Thìn'
         });
         if (tuViChart && tuViChart.palaces) {

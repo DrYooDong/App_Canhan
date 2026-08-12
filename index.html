@@ -2,9 +2,11 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Nội Tâm — Trung tâm Tri thức & Phản tư Cá nhân. Hệ thống quản lý tri thức cá nhân kết hợp Tử Vi.">
-  <meta name="theme-color" content="#070912">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
   <title>Nội Tâm — Tri thức Cá nhân</title>
 
   <script>
@@ -25,12 +27,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="index.css?v=20260812_v4">
 
   <!-- Favicon (inline SVG data URI) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☯</text></svg>">
 </head>
 <body>
+  <!-- Cosmic Background Canvas -->
+  <canvas id="cosmic-bg" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;"></canvas>
+
   <!-- Mobile Header Bar -->
   <header class="mobile-top-bar" id="mobile-top-bar">
     <div class="mobile-brand" onclick="App.Router.navigate('dashboard')">
@@ -39,6 +44,7 @@
     </div>
     <div class="mobile-top-actions">
       <div class="mobile-lunar-badge" id="mobile-lunar-badge" title="Lịch Âm Dương">📅 Đang tải...</div>
+      <button class="mobile-icon-btn" id="audio-toggle-btn" title="Âm thanh chữa lành" aria-label="Audio">🎵</button>
       <button class="mobile-icon-btn" id="mobile-theme-toggle-btn" title="Đổi giao diện" aria-label="Đổi giao diện">☀️</button>
       <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
     </div>
@@ -70,23 +76,19 @@
   <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
     <div class="mobile-nav-item active" data-route="tuvi" onclick="App.Router.navigate('tuvi')">
       <span class="mobile-nav-icon">🔮</span>
-      <span class="mobile-nav-label">Lá Số</span>
+      <span class="mobile-nav-label">Tử Vi Pro</span>
     </div>
     <div class="mobile-nav-item" data-route="dashboard" onclick="App.Router.navigate('dashboard')">
       <span class="mobile-nav-icon">📅</span>
-      <span class="mobile-nav-label">Nhật Lịch</span>
+      <span class="mobile-nav-label">Lịch 24H</span>
     </div>
-    <div class="mobile-nav-item" data-route="astrology" onclick="App.Router.navigate('astrology')">
-      <span class="mobile-nav-icon">🌌</span>
-      <span class="mobile-nav-label">Tử Vi</span>
+    <div class="mobile-nav-item" data-route="finance" onclick="App.Router.navigate('finance')">
+      <span class="mobile-nav-icon">💰</span>
+      <span class="mobile-nav-label">Tài Chính</span>
     </div>
     <div class="mobile-nav-item" data-route="oracle" onclick="App.Router.navigate('oracle')">
-      <span class="mobile-nav-icon">🧭</span>
-      <span class="mobile-nav-label">Kỳ Môn</span>
-    </div>
-    <div class="mobile-nav-item" data-route="knowledge" onclick="App.Router.navigate('knowledge')">
-      <span class="mobile-nav-icon">📖</span>
-      <span class="mobile-nav-label">Nhật Ký</span>
+      <span class="mobile-nav-icon">☯</span>
+      <span class="mobile-nav-label">Kỳ Môn/Dịch</span>
     </div>
   </nav>
 
@@ -104,6 +106,8 @@
   <script src="data/ziwei_luan_giai_engine.js"></script>
   <!-- Thư viện Lịch Âm -->
   <script src="https://unpkg.com/lunar-javascript/lunar.js"></script>
+  <!-- Thư viện PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- Sub-components & Specialized Modules -->
   <script src="components/onboarding.js"></script>
@@ -138,7 +142,10 @@
   <script src="components/meditation.js"></script>
   <script src="components/retroverify.js"></script>
   <script src="components/moodtracker.js"></script>
+  <script src="components/radar_chart.js"></script>
   <script src="components/rpg.js"></script>
+  <script src="components/cosmic_bg.js"></script>
+  <script src="components/solfeggio_audio.js"></script>
 
   <!-- App Core (must be last) -->
   <script src="app.js"></script>

@@ -265,9 +265,14 @@
     container.innerHTML = `
     <div class="animate-fade-in">
       <!-- Header -->
-      <div style="margin-bottom:24px;">
-        <h1 class="page-title" style="margin-bottom:5px;">☀️ Trợ Lý Cải Mệnh Buổi Sáng</h1>
-        <p class="page-subtitle">${greeting}, Nguyễn Hữu Đông! • Hôm nay ${canNgay} ${chiNgay} ${lunarStr ? `• ${lunarStr}` : ''}</p>
+      <div style="margin-bottom:24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h1 class="page-title" style="margin-bottom:5px;">☀️ Trợ Lý Cải Mệnh Buổi Sáng</h1>
+          <p class="page-subtitle">${greeting}, Nguyễn Hữu Đông! • Hôm nay ${canNgay} ${chiNgay} ${lunarStr ? `• ${lunarStr}` : ''}</p>
+        </div>
+        <button id="play-morning-brief-btn" class="btn btn-primary" style="display:flex; align-items:center; gap:8px;">
+          🔊 Nghe Báo Cáo
+        </button>
       </div>
 
       <!-- Morning Briefing Card -->
@@ -465,6 +470,52 @@
         }
       });
     });
+
+    // TTS Voice Briefing
+    const playBtn = container.querySelector('#play-morning-brief-btn');
+    if (playBtn) {
+      playBtn.addEventListener('click', () => {
+        if (!('speechSynthesis' in window)) {
+          App.Toast.show('Trình duyệt của bạn không hỗ trợ tính năng đọc.', 'error');
+          return;
+        }
+        
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          playBtn.innerHTML = '🔊 Nghe Báo Cáo';
+          playBtn.classList.remove('pulse');
+          return;
+        }
+
+        const scriptText = `
+          ${greeting} bạn. Hôm nay là ngày ${canNgay} ${chiNgay}. 
+          Về năng lượng, ${elementBalance.replace('•', 'và')}. 
+          Lưu ý trong ngày: ${warning.split('→').join('. Lời khuyên là: ')}. 
+          Hành động cải mệnh ưu tiên của bạn hôm nay là nạp năng lượng ${remedy.element}.
+          Bạn nên mặc màu ${remedy.wardrobe.colors[0]} hoặc ${remedy.wardrobe.colors[1]}.
+          Và đừng quên: ${remedy.mindset.action}
+        `;
+
+        const utterance = new SpeechSynthesisUtterance(scriptText);
+        utterance.lang = 'vi-VN';
+        utterance.rate = 0.95;
+        
+        utterance.onstart = () => {
+          playBtn.innerHTML = '⏸️ Dừng Đọc';
+          playBtn.classList.add('pulse');
+        };
+        utterance.onend = () => {
+          playBtn.innerHTML = '🔊 Nghe Báo Cáo';
+          playBtn.classList.remove('pulse');
+        };
+        utterance.onerror = () => {
+          playBtn.innerHTML = '🔊 Nghe Báo Cáo';
+          playBtn.classList.remove('pulse');
+        };
+
+        window.speechSynthesis.speak(utterance);
+      });
+    }
   }
 
   window.renderMorning = renderMorning;
