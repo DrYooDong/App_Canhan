@@ -142,14 +142,16 @@ body {
   border-radius: 4px;
   white-space: nowrap;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
   z-index: 9999;
   box-shadow: var(--shadow-md);
   font-family: 'Inter', sans-serif;
 }
 [data-tooltip]:hover::after {
   opacity: 1;
+  visibility: visible;
   transform: translateX(-50%) translateY(2px);
 }
 [data-tooltip-top]::after {
@@ -157,6 +159,8 @@ body {
   top: -34px;
 }
 [data-tooltip-top]:hover::after {
+  opacity: 1;
+  visibility: visible;
   transform: translateX(-50%) translateY(-2px);
 }
 
@@ -443,6 +447,7 @@ body {
    ============================================================================== */
 .table-wrapper {
   overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin-bottom: 20px;
@@ -466,61 +471,89 @@ table.med-table th {
   font-weight: 700;
   text-align: center;
   vertical-align: middle;
-  padding: 6px 6px;
+  padding: 6px 8px;
+  white-space: nowrap;
 }
 .th-title {
   display: block;
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-main);
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 .th-sub {
   display: block;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-muted);
-  margin-top: 1px;
+  line-height: 1.15;
+  margin-top: 2px;
+  white-space: nowrap;
 }
 table.med-table tbody tr:hover {
   background-color: var(--bg-subtle);
 }
 
 table.med-table th.col-stt, table.med-table td.col-stt {
-  width: 1%;
+  width: 42px;
+  min-width: 38px;
   white-space: nowrap;
   text-align: center;
   color: var(--text-muted);
 }
 table.med-table th.col-room, table.med-table td.col-room {
-  width: 1%;
+  width: 80px;
+  min-width: 75px;
   white-space: nowrap;
   font-weight: 700;
   color: var(--primary);
   text-align: center;
 }
 table.med-table th.col-name, table.med-table td.col-name {
-  width: 1%;
+  width: 160px;
+  min-width: 140px;
   white-space: nowrap;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-main);
 }
 table.med-table th.col-birth, table.med-table td.col-birth {
-  width: 1%;
+  width: 80px;
+  min-width: 72px;
   white-space: nowrap;
   text-align: center;
   color: var(--text-muted);
 }
 
-table.med-table th.col-cd, table.med-table td.col-cd { width: 30%; min-width: 160px; white-space: pre-wrap; }
-table.med-table th.col-cls, table.med-table td.col-cls { width: 25%; min-width: 150px; white-space: pre-wrap; }
-table.med-table th.col-yl, table.med-table td.col-yl { width: 30%; min-width: 180px; white-space: pre-wrap; }
+table.med-table th.col-cd { width: 28%; min-width: 165px; white-space: nowrap; }
+table.med-table td.col-cd { width: 28%; min-width: 165px; white-space: pre-wrap; word-break: break-word; }
+
+table.med-table th.col-cls { width: 24%; min-width: 145px; white-space: nowrap; }
+table.med-table td.col-cls { width: 24%; min-width: 145px; white-space: pre-wrap; word-break: break-word; }
+
+table.med-table th.col-yl { width: 28%; min-width: 175px; white-space: nowrap; }
+table.med-table td.col-yl { width: 28%; min-width: 175px; white-space: pre-wrap; word-break: break-word; }
+
 table.med-table th.col-handover, table.med-table td.col-handover {
-  width: 1%;
+  width: 72px;
+  min-width: 68px;
   white-space: nowrap;
   text-align: center;
   vertical-align: middle;
+}
+table.med-table th.col-actions, table.med-table td.col-actions {
+  width: 92px;
+  min-width: 88px;
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Hidden elements for print-only views */
+.print-signature-block,
+.print-handover-view {
+  display: none;
 }
 
 /* ROOM GROUP HEADER */

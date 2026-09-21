@@ -216,44 +216,35 @@
     <table class="med-table" id="patientTable">
       <thead>
         <tr>
-          <th class="col-stt" data-tooltip="Số thứ tự">STT</th>
-          <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)">
-            <span class="th-title">P/G</span>
-            <span class="th-sub">Buồng-Giường</span>
-          </th>
-          <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)">
-            <span class="th-title">Họ & Tên</span>
-            <span class="th-sub">Người bệnh</span>
-          </th>
-          <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)">
-            <span class="th-title">NS (Tuổi)</span>
-            <span class="th-sub">Năm sinh</span>
-          </th>
-          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)">
-            <span class="th-title">CĐ</span>
-            <span class="th-sub">Chẩn đoán</span>
-          </th>
-          <th class="col-cls" data-tooltip="Cận lâm sàng & Kết quả xét nghiệm (CLS)">
-            <span class="th-title">CLS</span>
-            <span class="th-sub">Cận lâm sàng</span>
-          </th>
-          <th class="col-yl" data-tooltip="Y lệnh điều trị, thuốc & dịch truyền (YL)">
-            <span class="th-title">YL</span>
-            <span class="th-sub">Y lệnh</span>
-          </th>
-          <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)">
-            <span class="th-title">BG</span>
-            <span class="th-sub">Bàn giao</span>
-          </th>
-          <th class="col-actions no-print" data-tooltip="Thao tác nhanh">
-            <span class="th-title">Thao Tác</span>
-          </th>
+          <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
+          <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
+          <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span><span class="th-sub">Người bệnh</span></th>
+          <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span><span class="th-sub">Năm sinh</span></th>
+          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CĐ</span><span class="th-sub">Chẩn đoán</span></th>
+          <th class="col-cls" data-tooltip="Cận lâm sàng &amp; Kết quả xét nghiệm (CLS)"><span class="th-title">CLS</span><span class="th-sub">Cận lâm sàng</span></th>
+          <th class="col-yl" data-tooltip="Y lệnh điều trị, thuốc &amp; dịch truyền (YL)"><span class="th-title">YL</span><span class="th-sub">Y lệnh</span></th>
+          <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
+          <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
         </tr>
       </thead>
       <tbody id="patientTableBody">
         <!-- Render bởi JavaScript -->
       </tbody>
     </table>
+
+    <!-- Khối chữ ký in A4 chuẩn y tế (Chỉ xuất hiện khi in) -->
+    <div class="print-signature-block">
+      <div class="print-sign-col">
+        <div class="print-sign-role">ĐIỀU DƯỠNG TRỰC</div>
+        <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
+      </div>
+      <div class="print-sign-col">
+        <div class="print-sign-date" id="printSignatureDate">Ngày ..... tháng ..... năm 202...</div>
+        <div class="print-sign-role">BÁC SĨ ĐIỀU TRỊ / TRỰC</div>
+        <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
+        <div class="print-sign-name" id="printSignatureDoctorName"></div>
+      </div>
+    </div>
   </div>
 
   <!-- 7. CHẾ ĐỘ XEM 2: THẺ DÀNH CHO SMARTPHONE & THIẾT BỊ DI ĐỘNG -->

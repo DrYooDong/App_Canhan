@@ -1,5 +1,5 @@
 /* ==============================================================================
-   MEDWARD PRO - PRINT STYLES (A4 LANDSCAPE & HANDOVER REPORT)
+   MEDWARD PRO - PRINT STYLES (A4 LANDSCAPE - CHỈ IN BẢNG NỘI DUNG)
    ============================================================================== */
 
 .print-date-note {
@@ -9,27 +9,41 @@
 @media print {
   @page {
     size: A4 landscape;
-    margin: 6mm 8mm 6mm 8mm;
+    margin: 8mm 8mm 8mm 8mm;
   }
 
-  body {
-    background-color: #fff !important;
+  *, ::before, ::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 8.5pt !important;
+    line-height: 1.3 !important;
     padding: 0 !important;
-    color: #000 !important;
-    font-size: 10pt;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .app-container {
+    width: 100% !important;
     max-width: 100% !important;
     box-shadow: none !important;
+    border: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
   }
 
-  /* ẨN TẤT CẢ THANH ĐIỀU HƯỚNG VÀ CÔNG CỤ */
+  /* ẨN TOÀN BỘ TIÊU ĐỀ, THANH CÔNG CỤ, VÀ CHỮ KÝ - CHỈ GIỮ LẠI BẢNG DỮ LIỆU */
   .top-nav-bar,
   .hospital-header,
+  .print-signature-block,
   .nav-tabs-wrapper,
   .toolbar,
   .status-bar,
@@ -38,32 +52,34 @@
   .action-btn-group,
   .modal-overlay,
   .app-toast,
-  .no-print {
+  .empty-state,
+  #emptyMessage,
+  .print-date-note,
+  .btn-calendar-trigger,
+  #nativeDatePicker,
+  .no-print,
+  [data-tooltip]::after,
+  [data-tooltip-top]::after {
     display: none !important;
   }
 
-  /* HIỆN LẠI BẢNG TRÊN BẢN IN NGAY CẢ KHI TRÊN MOBILE VIEW */
+  /* BẢNG THEO DÕI NỘI TRÚ CHUẨN A4 */
   .table-wrapper {
     display: block !important;
     border: none !important;
-    margin-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
-  }
-
-  .print-date-note {
-    display: flex !important;
-    justify-content: flex-end;
-    align-items: center;
-    font-size: 9.5pt !important;
-    font-weight: 600;
-    color: #000 !important;
-    margin-bottom: 4px !important;
   }
 
   table.med-table {
     display: table !important;
-    border: 1.5px solid #000 !important;
     width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #000000 !important;
+    font-size: 8.5pt !important;
+    table-layout: fixed !important;
+    margin-top: 0 !important;
   }
 
   table.med-table thead {
@@ -79,65 +95,194 @@
     page-break-inside: avoid !important;
   }
 
-  table.med-table th, table.med-table td {
+  table.med-table th,
+  table.med-table td {
     display: table-cell !important;
-    border: 1px solid #000 !important;
-    padding: 6px 5px !important;
-    color: #000 !important;
+    border: 1px solid #000000 !important;
+    padding: 4px 4px !important;
+    color: #000000 !important;
     background: transparent !important;
+    vertical-align: top !important;
+    word-break: break-word !important;
   }
 
   table.med-table th {
     background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    padding: 5px 3px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  table.med-table th .th-title {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+  }
+
+  table.med-table th .th-sub {
+    font-size: 7pt !important;
+    font-weight: 600 !important;
+    color: #333333 !important;
+    line-height: 1.1 !important;
+    margin-top: 1px !important;
+    white-space: nowrap !important;
+  }
+
+  /* ĐỘ RỘNG CÁC CỘT TRÊN BẢN IN A4 LANDSCAPE */
+  table.med-table th.col-stt,
+  table.med-table td.col-stt {
+    width: 28px !important;
+    text-align: center !important;
+    font-size: 8pt !important;
+    vertical-align: middle !important;
+  }
+
+  table.med-table th.col-room,
+  table.med-table td.col-room {
+    width: 70px !important;
+    text-align: center !important;
     font-weight: 700 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    font-size: 8.5pt !important;
   }
 
-  tr.room-group-row {
-    background-color: #f1f5f9 !important;
-    border-top: 1.5px solid #000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  tr.room-group-row td {
-    color: #000 !important;
-    font-size: 10pt !important;
-    padding: 4px 8px !important;
-  }
-  tr.room-group-row td span.room-badge-count {
-    border: 1px solid #000 !important;
-    color: #000 !important;
+  table.med-table th.col-name,
+  table.med-table td.col-name {
+    width: 140px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 8.5pt !important;
   }
 
+  table.med-table th.col-birth,
+  table.med-table td.col-birth {
+    width: 65px !important;
+    text-align: center !important;
+    font-size: 8pt !important;
+  }
+
+  table.med-table th.col-cd,
+  table.med-table td.col-cd {
+    width: 31% !important;
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+  }
+
+  table.med-table th.col-cls,
+  table.med-table td.col-cls {
+    width: 27% !important;
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+  }
+
+  table.med-table th.col-yl,
+  table.med-table td.col-yl {
+    width: 32% !important;
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+  }
+
+  /* ẨN CẢ CỘT BÀN GIAO VÀ CỘT THAO TÁC TRÊN BẢN IN */
+  table.med-table th.col-handover,
+  table.med-table td.col-handover,
   table.med-table th.col-actions,
   table.med-table td.col-actions {
     display: none !important;
     width: 0 !important;
   }
 
-  .badge-status {
-    border: 1px solid #000 !important;
-    color: #000 !important;
+  /* PHÂN NHÓM BUỒNG */
+  tr.room-group-row {
+    background-color: #e2e8f0 !important;
+    border-top: 1.5px solid #000000 !important;
+    border-bottom: 1.5px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  tr.room-group-row td {
+    color: #000000 !important;
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    padding: 3px 6px !important;
+  }
+
+  tr.room-group-row td span.room-badge-count {
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 7.5pt !important;
+    font-weight: 600 !important;
+    padding: 1px 4px !important;
+  }
+
+  /* TRẠNG THÁI BÀN GIAO TRÊN BẢN IN */
+  .icon-status-btn,
+  .handover-mini-icon {
+    display: none !important;
+  }
+
+  .print-handover-view {
+    display: block !important;
+    text-align: center !important;
+  }
+
+  .print-status-tag {
+    display: inline-block !important;
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    padding: 1px 4px !important;
+    border: 1px solid #000000 !important;
+    border-radius: 3px !important;
     background: transparent !important;
-    font-size: 9pt !important;
+    color: #000000 !important;
+    white-space: nowrap !important;
+  }
+
+  .print-status-tag.badge-critical {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    border-color: #991b1b !important;
+    font-weight: 800 !important;
+  }
+
+  .print-status-tag.badge-pending {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    border-color: #92400e !important;
+  }
+
+  .print-issue-text {
+    font-size: 7pt !important;
+    font-style: italic !important;
+    color: #333333 !important;
+    margin-top: 2px !important;
+    line-height: 1.15 !important;
+    text-align: left !important;
   }
 
   /* KHI CHỈ IN BIÊN BẢN BÀN GIAO CA TRỰC */
   body.printing-handover-only .table-wrapper {
     display: none !important;
   }
+
   body.printing-handover-only #handoverDashboardModal {
     display: block !important;
     position: static !important;
     opacity: 1 !important;
     background: transparent !important;
   }
+
   body.printing-handover-only #handoverDashboardModal .modal-card {
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
   }
+
   body.printing-handover-only .modal-footer,
   body.printing-handover-only .btn-close-modal,
   body.printing-handover-only .btn-sm {

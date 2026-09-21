@@ -66,6 +66,22 @@ class MedWardApp {
       if (docVal) str += ` • BS: ${docVal}`;
       printEl.innerText = str;
     }
+
+    // Cập nhật khối chữ ký in A4
+    const printDocSign = document.getElementById('printSignatureDoctorName');
+    if (printDocSign) {
+      printDocSign.innerText = docVal || '';
+    }
+    const printSignDate = document.getElementById('printSignatureDate');
+    if (printSignDate) {
+      const curDateStr = dVal || this.formatToDMY(new Date());
+      const parts = curDateStr.split('/');
+      if (parts.length === 3) {
+        printSignDate.innerText = `Ngày ${parts[0]} tháng ${parts[1]} năm ${parts[2]}`;
+      } else {
+        printSignDate.innerText = `Ngày: ${curDateStr}`;
+      }
+    }
   }
 
   setupMetaHandlers() {

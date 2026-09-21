@@ -429,6 +429,10 @@ class PatientController {
             ${statusCfg.icon}
           </button>
           ${p.handover_issues ? `<span class="handover-mini-icon" data-tooltip="${this.escape(p.handover_issues)}">⚠️</span>` : ''}
+          <div class="print-handover-view">
+            <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label || 'Bình thường'}</span>
+            ${p.handover_issues ? `<div class="print-issue-text">⚠️ ${this.escape(p.handover_issues)}</div>` : ''}
+          </div>
         </td>
         <td class="col-actions no-print">
           <div class="action-btn-group">
