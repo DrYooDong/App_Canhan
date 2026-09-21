@@ -1,40 +1,41 @@
-const CACHE_NAME = 'noitam-premium-v3';
+// ==============================================================================
+// SERVICE WORKER - MEDWARD PRO (OFFLINE ASSETS CACHING)
+// ==============================================================================
+
+const CACHE_NAME = 'medward-pro-cache-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './index.css?v=20260812_v4',
-  './app.js',
-  './data/tuvi.js',
-  './data/astrology_logic.js?v=20260804_v2',
-  './data/ziwei_dictionary.js',
-  './data/ziwei_patterns.js',
-  './components/dashboard.js?v=20260804_v3',
-  './components/tuvi_home.js?v=20260804_v3',
-  './components/astrology.js?v=20260804_v3',
-  './components/morning.js',
-  './components/meditation.js',
-  './components/radar_chart.js',
-  './components/rpg.js',
-  './components/cosmic_bg.js',
-  './components/solfeggio_audio.js',
-  'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Cinzel:wght@500;600;700&display=swap'
+  './index.css',
+  './manifest.json',
+  './css/main.css',
+  './css/mobile.css',
+  './css/print.css',
+  './js/config.js',
+  './js/supabase_service.js',
+  './js/auth.js',
+  './js/patient_service.js',
+  './js/handover_service.js',
+  './js/app.js'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('⚡ Caching core medical app assets...');
+      return cache.addAll(ASSETS_TO_CACHE);
+    }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('🧹 Clearing old cache:', key);
+            return caches.delete(key);
           }
         })
       );
@@ -42,15 +43,27 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-First Strategy: Luôn lấy code mới nhất khi online, chỉ dùng cache khi offline
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        // Fallback for offline mode, you can return a custom offline page if needed
-      });
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          return caches.match('./index.html');
+        });
+      })
   );
 });
+

@@ -1,0 +1,357 @@
+/* ==============================================================================
+   MEDWARD PRO - MOBILE-FIRST DESIGN (4-COLOR MINIMALIST PALETTE)
+   ============================================================================== */
+
+.mobile-cards-view {
+  display: none;
+}
+
+.bottom-nav-bar {
+  display: none;
+}
+
+@media screen and (max-width: 840px) {
+  body {
+    padding: 6px;
+    background-color: var(--bg-app);
+    padding-bottom: 68px; /* Dành chỗ cho Bottom Nav Bar */
+  }
+
+  .app-container {
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    min-height: unset;
+  }
+
+  /* TOP NAV */
+  .top-nav-bar {
+    background: #ffffff;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .app-brand-titles .app-title-sub {
+    display: none;
+  }
+
+  /* HOSPITAL HEADER */
+  .hospital-header {
+    background: #ffffff;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .hospital-info {
+    text-align: center;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 8px;
+  }
+  .hospital-info .unit-name { font-size: 11px; }
+  .hospital-info .hospital-title { font-size: 13px; }
+  .hospital-info .dept-name { font-size: 13px; }
+
+  .main-title-box {
+    padding: 0;
+    text-align: center;
+  }
+  .main-title {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+  .sub-title {
+    font-size: 11px;
+  }
+
+  .meta-box {
+    text-align: left;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    min-width: 100%;
+  }
+  .meta-item {
+    justify-content: flex-start;
+    font-size: 12px;
+    margin-bottom: 0;
+  }
+  .meta-item:last-child {
+    grid-column: span 2;
+    border-top: 1px dashed var(--border);
+    padding-top: 5px;
+    margin-top: 2px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .meta-item input[type="text"] {
+    width: 100%;
+    max-width: 140px;
+  }
+
+  /* TOOLBAR ON MOBILE */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+  }
+  .toolbar-actions {
+    justify-content: flex-start;
+    width: 100%;
+    gap: 5px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .group-toggle-label {
+    margin-left: auto;
+    font-size: 11.5px;
+  }
+  .search-box {
+    margin-left: 0;
+    width: 100%;
+  }
+  .search-box input {
+    width: 100%;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 11px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+
+  /* ẨN BẢNG DESKTOP KHI Ở TRÊN MOBILE */
+  .table-wrapper {
+    display: none;
+  }
+
+  /* CHẾ ĐỘ THẺ NGƯỜI BỆNH MOBILE */
+  .mobile-cards-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .mobile-patient-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+  }
+  .mobile-patient-card:active {
+    background: var(--bg-subtle);
+  }
+  .mobile-patient-card.card-critical {
+    border-left: 4px solid var(--critical-text);
+    border-color: var(--critical-border);
+    background: var(--critical-bg);
+  }
+  .mobile-patient-card.card-pending {
+    border-left: 4px solid var(--border-dark);
+    background: #ffffff;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-room-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  .card-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+  }
+  .patient-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+    text-transform: uppercase;
+  }
+  .patient-age {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .field-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+  }
+
+  .field-content {
+    font-size: 13px;
+    color: var(--text-main);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    min-height: 32px;
+  }
+
+  .card-handover-box {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .card-handover-box.critical-box {
+    border-color: var(--critical-border);
+    background: var(--critical-bg);
+  }
+  .handover-title {
+    font-weight: 800;
+    color: var(--critical-text);
+    margin-bottom: 3px;
+    font-size: 11px;
+  }
+  .handover-text {
+    margin-bottom: 2px;
+    color: var(--text-main);
+  }
+  .handover-meta {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 3px;
+  }
+
+  .card-footer-icons {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--border);
+    padding-top: 6px;
+  }
+  .card-footer-icons .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  /* MODALS BOTTOM SHEET ON MOBILE */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-card {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 90vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .auth-tabs-nav {
+    padding: 4px 8px 0;
+    gap: 4px;
+  }
+  .nav-tab-btn {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  .modal-overlay.active .modal-card {
+    transform: translateY(0);
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* BOTTOM NAVIGATION BAR FOR PHONES (4-COLOR PALETTE) */
+  .bottom-nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 56px;
+    background: #ffffff;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 999;
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+  }
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    gap: 2px;
+    cursor: pointer;
+    flex: 1;
+    height: 100%;
+    transition: color 0.15s;
+    font-family: inherit;
+  }
+  .bottom-nav-item .nav-icon {
+    font-size: 17px;
+    line-height: 1;
+  }
+  .bottom-nav-item.active {
+    color: var(--primary);
+  }
+  .bottom-nav-item.critical-pulse {
+    color: var(--critical-text);
+  }
+}

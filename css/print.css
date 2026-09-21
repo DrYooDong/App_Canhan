@@ -1,0 +1,146 @@
+/* ==============================================================================
+   MEDWARD PRO - PRINT STYLES (A4 LANDSCAPE & HANDOVER REPORT)
+   ============================================================================== */
+
+.print-date-note {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm 8mm 6mm 8mm;
+  }
+
+  body {
+    background-color: #fff !important;
+    padding: 0 !important;
+    color: #000 !important;
+    font-size: 10pt;
+  }
+
+  .app-container {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ẨN TẤT CẢ THANH ĐIỀU HƯỚNG VÀ CÔNG CỤ */
+  .top-nav-bar,
+  .hospital-header,
+  .nav-tabs-wrapper,
+  .toolbar,
+  .status-bar,
+  .mobile-cards-view,
+  .bottom-nav-bar,
+  .action-btn-group,
+  .modal-overlay,
+  .app-toast,
+  .no-print {
+    display: none !important;
+  }
+
+  /* HIỆN LẠI BẢNG TRÊN BẢN IN NGAY CẢ KHI TRÊN MOBILE VIEW */
+  .table-wrapper {
+    display: block !important;
+    border: none !important;
+    margin-bottom: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-date-note {
+    display: flex !important;
+    justify-content: flex-end;
+    align-items: center;
+    font-size: 9.5pt !important;
+    font-weight: 600;
+    color: #000 !important;
+    margin-bottom: 4px !important;
+  }
+
+  table.med-table {
+    display: table !important;
+    border: 1.5px solid #000 !important;
+    width: 100% !important;
+  }
+
+  table.med-table thead {
+    display: table-header-group !important;
+  }
+
+  table.med-table tbody {
+    display: table-row-group !important;
+  }
+
+  table.med-table tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+  }
+
+  table.med-table th, table.med-table td {
+    display: table-cell !important;
+    border: 1px solid #000 !important;
+    padding: 6px 5px !important;
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  table.med-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tr.room-group-row {
+    background-color: #f1f5f9 !important;
+    border-top: 1.5px solid #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  tr.room-group-row td {
+    color: #000 !important;
+    font-size: 10pt !important;
+    padding: 4px 8px !important;
+  }
+  tr.room-group-row td span.room-badge-count {
+    border: 1px solid #000 !important;
+    color: #000 !important;
+  }
+
+  table.med-table th.col-actions,
+  table.med-table td.col-actions {
+    display: none !important;
+    width: 0 !important;
+  }
+
+  .badge-status {
+    border: 1px solid #000 !important;
+    color: #000 !important;
+    background: transparent !important;
+    font-size: 9pt !important;
+  }
+
+  /* KHI CHỈ IN BIÊN BẢN BÀN GIAO CA TRỰC */
+  body.printing-handover-only .table-wrapper {
+    display: none !important;
+  }
+  body.printing-handover-only #handoverDashboardModal {
+    display: block !important;
+    position: static !important;
+    opacity: 1 !important;
+    background: transparent !important;
+  }
+  body.printing-handover-only #handoverDashboardModal .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+  }
+  body.printing-handover-only .modal-footer,
+  body.printing-handover-only .btn-close-modal,
+  body.printing-handover-only .btn-sm {
+    display: none !important;
+  }
+}

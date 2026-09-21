@@ -2,152 +2,676 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#1e3a8a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0f172a">
+  <title>MedWard Pro - Danh Sách Bệnh Nhân Nội Trú & Bàn Giao Trực</title>
+
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json">
-  <title>Nội Tâm — Tri thức Cá nhân</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231e3a8a' width='100' height='100' rx='20'/><path d='M50 20v60M20 50h60' stroke='white' stroke-width='14' stroke-linecap='round'/></svg>">
 
-  <script>
-    (function() {
-      try {
-        const saved = localStorage.getItem('noitam_theme');
-        const theme = saved ? JSON.parse(saved) : 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-      } catch(e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
-    })();
-  </script>
+  <!-- Thư viện SheetJS đọc file Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Thư viện Supabase JS Client cho Cloud Database & Realtime Sync -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="index.css?v=20260812_v4">
-
-  <!-- Favicon (inline SVG data URI) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☯</text></svg>">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/mobile.css">
+  <link rel="stylesheet" href="css/print.css">
 </head>
 <body>
-  <!-- Cosmic Background Canvas -->
-  <canvas id="cosmic-bg" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;"></canvas>
 
-  <!-- Mobile Header Bar -->
-  <header class="mobile-top-bar" id="mobile-top-bar">
-    <div class="mobile-brand" onclick="App.Router.navigate('dashboard')">
-      <div class="mobile-logo">☯</div>
-      <span class="mobile-title">NỘI TÂM</span>
+<div class="app-container">
+
+  <!-- 1. THANH TOP APP BAR (BRAND & NÚT ICON CLOUD/USER) -->
+  <header class="top-nav-bar no-print">
+    <div class="brand-section">
+      <div class="app-logo-badge">🩺</div>
+      <div class="app-brand-titles">
+        <span class="app-title-main">MedWard Pro</span>
+        <span class="app-title-sub">Quản Lý Nội Trú & Bàn Giao Trực</span>
+      </div>
     </div>
-    <div class="mobile-top-actions">
-      <div class="mobile-lunar-badge" id="mobile-lunar-badge" title="Lịch Âm Dương">📅 Đang tải...</div>
-      <button class="mobile-icon-btn" id="audio-toggle-btn" title="Âm thanh chữa lành" aria-label="Audio">🎵</button>
-      <button class="mobile-icon-btn" id="mobile-theme-toggle-btn" title="Đổi giao diện" aria-label="Đổi giao diện">☀️</button>
-      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">☰</button>
+
+    <div class="user-quick-bar">
+      <!-- Nút Icon Trạng thái Cloud Sync -->
+      <button class="icon-btn btn-cloud" id="cloudSyncIndicator" onclick="window.authController.openCloudSettingsModal()" data-tooltip="Lưu trữ nội bộ (Nhấn để kết nối Cloud)">
+        ☁️
+      </button>
+
+      <!-- Nút Icon Hồ sơ Bác sĩ / Đăng nhập -->
+      <button class="icon-btn btn-user" id="userProfileBadge" onclick="window.authController.openAuthModal()" data-tooltip="Hồ sơ Bác sĩ / Đăng nhập">
+        🩺
+      </button>
     </div>
   </header>
 
-  <!-- Sidebar Overlay for Mobile -->
-  <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-  <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar"></aside>
-
-    <!-- Main Content -->
-    <main class="main-content" id="main-content">
-      <div class="content-container">
-        <!-- Content will be rendered by router -->
-        <div class="empty-state animate-fade-in">
-          <div class="empty-state-icon">☯</div>
-          <div class="empty-state-title">Đang tải...</div>
+  <!-- 2. TIÊU ĐỀ KHOA PHÒNG / BỆNH VIỆN -->
+  <div class="hospital-header">
+    <div class="hospital-info">
+      <div class="unit-name" contenteditable="true">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+      <div class="hospital-title" contenteditable="true">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
+      <div class="dept-name" contenteditable="true">KHOA: NHIỄM</div>
+    </div>
+    <div class="main-title-box">
+      <div class="main-title" contenteditable="true">BẢNG THEO DÕI & Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
+      <div class="sub-title" contenteditable="true">(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-item">
+        <label>Ngày: </label>
+        <div class="date-wrapper">
+          <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10">
+          <input type="date" id="nativeDatePicker" tabindex="-1">
+          <button type="button" class="btn-calendar-trigger" onclick="window.medWardApp.openCalendarPicker()" data-tooltip="Chọn ngày từ lịch">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </button>
         </div>
       </div>
-    </main>
+      <div class="meta-item">
+        <label>BS điều trị: </label>
+        <input type="text" id="doctorName" placeholder="Ghi tên BS...">
+      </div>
+      <div class="meta-item">
+        <span>Tổng số NB: <strong id="patientCount">0</strong></span>
+      </div>
+    </div>
   </div>
 
-  <!-- SOS Floating Button -->
-  <button class="sos-btn" id="sos-btn" title="Lời nhắc ngay lập tức" aria-label="SOS">💡</button>
+  <!-- 3. THANH ĐIỀU KHIỂN & CÔNG CỤ ICON TINH GỌN (ICON TOOLBAR) -->
+  <div class="toolbar no-print">
+    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
 
-  <!-- Mobile Bottom Navigation Bar -->
-  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-    <div class="mobile-nav-item active" data-route="tuvi" onclick="App.Router.navigate('tuvi')">
-      <span class="mobile-nav-icon">🔮</span>
-      <span class="mobile-nav-label">Tử Vi Pro</span>
+    <div class="toolbar-actions">
+      <!-- 1. TẤT CẢ NGƯỜI BỆNH (ICON TAB) -->
+      <button class="icon-btn btn-tab active" id="btnTabAll" data-tab="all" data-tooltip="Xem tất cả người bệnh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        </svg>
+        <span class="mini-badge" id="countTabAll">0</span>
+      </button>
+
+      <!-- 2. CẦN BÀN GIAO TRỰC (ICON TAB) -->
+      <button class="icon-btn btn-tab" id="btnTabHandover" data-tab="handover" data-tooltip="Ca cần bàn giao trực">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span class="mini-badge crit" id="countTabHandover">0</span>
+      </button>
+
+      <!-- 3. BIÊN BẢN BÀN GIAO TUA TRỰC (DASHBOARD & ZALO) -->
+      <button class="icon-btn btn-handover-dash" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực & Zalo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </button>
+
+      <!-- 4. NẠP EXCEL -->
+      <button class="icon-btn btn-excel" onclick="document.getElementById('excelFileInput').click()" data-tooltip="Nạp file Excel (.xlsx)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="12" y1="18" x2="12" y2="12"></line>
+          <polyline points="9 15 12 12 15 15"></polyline>
+        </svg>
+      </button>
+
+      <!-- 5. THÊM NGƯỜI BỆNH MỚI -->
+      <button class="icon-btn btn-add" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip="Thêm bệnh nhân mới">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
+      <!-- 6. SẮP XẾP THEO BUỒNG & GIƯỜNG -->
+      <button class="icon-btn btn-sort" id="btnSortPatients" data-tooltip="Sắp xếp buồng & giường">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <path d="M3 6h18M3 12h12M3 18h6"></path>
+        </svg>
+      </button>
+
+      <!-- 7. ĐỔI CHẾ ĐỘ XEM THẺ / BẢNG -->
+      <button class="icon-btn btn-view" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()" data-tooltip="Đổi chế độ xem (Thẻ 📱 / Bảng 💻)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </button>
+
+      <!-- 8. TỪ ĐIỂN VIẾT TẮT Y KHOA -->
+      <button class="icon-btn btn-abbr" onclick="window.medWardApp.openAbbreviationModal()" data-tooltip="Từ điển viết tắt Y khoa (Tra cứu & Gợi ý)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <line x1="9" y1="7" x2="15" y2="7"></line>
+          <line x1="9" y1="11" x2="13" y2="11"></line>
+        </svg>
+      </button>
+
+      <!-- 9. IN A4 NGANG -->
+      <button class="icon-btn btn-print" onclick="window.print()" data-tooltip="In A4 ngang">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+      </button>
+
+      <!-- 9. XÓA TẤT CẢ -->
+      <button class="icon-btn btn-clear" onclick="window.patientController.clearAll()" data-tooltip="Xóa danh sách">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </button>
+
+      <!-- 10. CHECKBOX GOM NHÓM BUỒNG -->
+      <label class="group-toggle-label" data-tooltip="Gom nhóm các giường cùng buồng">
+        <input type="checkbox" id="toggleRoomGroup" checked>
+        <span>Gom buồng</span>
+      </label>
     </div>
-    <div class="mobile-nav-item" data-route="dashboard" onclick="App.Router.navigate('dashboard')">
-      <span class="mobile-nav-icon">📅</span>
-      <span class="mobile-nav-label">Lịch 24H</span>
+
+    <!-- Ô TÌM KIẾM -->
+    <div class="search-box">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Tìm tên, buồng, chẩn đoán...">
     </div>
-    <div class="mobile-nav-item" data-route="finance" onclick="App.Router.navigate('finance')">
-      <span class="mobile-nav-icon">💰</span>
-      <span class="mobile-nav-label">Tài Chính</span>
+  </div>
+
+  <!-- 5. THANH TRẠNG THÁI -->
+  <div class="status-bar no-print">
+    <span id="saveStatus" class="status-tag">🟢 Đang tải hệ thống...</span>
+    <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop & Điện thoại!</span>
+  </div>
+
+  <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
+  <div class="print-date-note">
+    <span id="printDateDisplay">Ngày: 21/09/2026</span>
+  </div>
+
+  <!-- 6. CHẾ ĐỘ XEM 1: BẢNG DÀNH CHO DESKTOP / LAPTOP / IN ẤN -->
+  <div class="table-wrapper" id="tableWrapper">
+    <table class="med-table" id="patientTable">
+      <thead>
+        <tr>
+          <th class="col-stt" data-tooltip="Số thứ tự">STT</th>
+          <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)">
+            <span class="th-title">P/G</span>
+            <span class="th-sub">Buồng-Giường</span>
+          </th>
+          <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)">
+            <span class="th-title">Họ & Tên</span>
+            <span class="th-sub">Người bệnh</span>
+          </th>
+          <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)">
+            <span class="th-title">NS (Tuổi)</span>
+            <span class="th-sub">Năm sinh</span>
+          </th>
+          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)">
+            <span class="th-title">CĐ</span>
+            <span class="th-sub">Chẩn đoán</span>
+          </th>
+          <th class="col-cls" data-tooltip="Cận lâm sàng & Kết quả xét nghiệm (CLS)">
+            <span class="th-title">CLS</span>
+            <span class="th-sub">Cận lâm sàng</span>
+          </th>
+          <th class="col-yl" data-tooltip="Y lệnh điều trị, thuốc & dịch truyền (YL)">
+            <span class="th-title">YL</span>
+            <span class="th-sub">Y lệnh</span>
+          </th>
+          <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)">
+            <span class="th-title">BG</span>
+            <span class="th-sub">Bàn giao</span>
+          </th>
+          <th class="col-actions no-print" data-tooltip="Thao tác nhanh">
+            <span class="th-title">Thao Tác</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="patientTableBody">
+        <!-- Render bởi JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 7. CHẾ ĐỘ XEM 2: THẺ DÀNH CHO SMARTPHONE & THIẾT BỊ DI ĐỘNG -->
+  <div class="mobile-cards-view" id="mobileCardContainer">
+    <!-- Render danh sách thẻ người bệnh bởi JavaScript -->
+  </div>
+
+  <!-- Thông báo rỗng -->
+  <div id="emptyMessage" class="empty-state" style="display: none;">
+    Chưa có bệnh nhân nào phù hợp. Hãy bấm nút <strong>📂</strong> để nạp Excel hoặc nút <strong>➕</strong> để thêm người bệnh mới!
+  </div>
+
+</div>
+
+<!-- 8. BOTTOM NAVIGATION BAR (CỐ ĐỊNH TRÊN SMARTPHONE) -->
+<nav class="bottom-nav-bar no-print">
+  <button class="bottom-nav-item active" data-tab="all" data-tooltip-top="Tất cả người bệnh">
+    <span class="nav-icon">📋</span>
+    <span>Danh sách</span>
+  </button>
+  <button class="bottom-nav-item" data-tab="handover" data-tooltip-top="Ca cần bàn giao">
+    <span class="nav-icon">🚨</span>
+    <span>Bàn giao</span>
+  </button>
+  <button class="bottom-nav-item" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip-top="Thêm bệnh nhân">
+    <span class="nav-icon">➕</span>
+    <span>Thêm NB</span>
+  </button>
+  <button class="bottom-nav-item" data-tab="handover_dash" data-tooltip-top="Biên bản trực">
+    <span class="nav-icon">📊</span>
+    <span>Tua trực</span>
+  </button>
+  <button class="bottom-nav-item" data-tab="auth" data-tooltip-top="Bác sĩ điều trị">
+    <span class="nav-icon">🩺</span>
+    <span>Bác sĩ</span>
+  </button>
+</nav>
+
+<!-- ==============================================================================
+     MODALS
+     ============================================================================== -->
+
+<!-- MODAL 1: CHI TIẾT & CHỈNH SỬA NGƯỜI BỆNH -->
+<div class="modal-overlay" id="patientDetailModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
+      <button class="btn-close-modal" onclick="window.patientController.closePatientDetailModal()">&times;</button>
     </div>
-    <div class="mobile-nav-item" data-route="oracle" onclick="App.Router.navigate('oracle')">
-      <span class="mobile-nav-icon">☯</span>
-      <span class="mobile-nav-label">Kỳ Môn/Dịch</span>
+    <div class="modal-body">
+      <input type="hidden" id="editPatientId">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Buồng - Giường (P/G):</label>
+          <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.12 - G01">
+        </div>
+        <div class="form-group">
+          <label>Năm sinh / Tuổi (NS):</label>
+          <input type="text" id="editAgeYear" class="form-control" placeholder="VD: 2003 (23)">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Họ và tên người bệnh (Họ tên NB):</label>
+        <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA" style="font-weight: 700; text-transform: uppercase;">
+      </div>
+
+      <div class="form-group">
+        <label>Chẩn đoán (CĐ):</label>
+        <textarea id="editDiagnosis" class="form-control" rows="2" placeholder="Chẩn đoán xác định / kèm theo (gõ tắt: sxh, vp, dtd, tha, nkh...)"></textarea>
+        <div class="quick-tags-box" id="diagQuickTags"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Cận lâm sàng & Xét nghiệm (CLS):</label>
+        <textarea id="editCls" class="form-control" rows="2" placeholder="Kết quả CLS (gõ tắt: ctm, shm, dgd, xq, sa, cm, ecg...)"></textarea>
+        <div class="quick-tags-box" id="clsQuickTags"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Y lệnh điều trị & Thuốc (YL):</label>
+        <textarea id="editOrders" class="form-control" rows="2" placeholder="Thuốc, dịch truyền, chăm sóc (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
+        <div class="quick-tags-box" id="ordersQuickTags"></div>
+      </div>
+
+      <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
+
+      <!-- MỤC BÀN GIAO TRỰC TRONG MODAL CHI TIẾT -->
+      <div class="form-group">
+        <label>🚨 Trạng thái bàn giao tua trực (BG):</label>
+        <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
+          <option value="none">🟢 Bình thường / Ổn định</option>
+          <option value="pending">⏳ Cần bàn giao / Vấn đề tồn đọng</option>
+          <option value="critical">🚨 Báo động đỏ / Bệnh nặng theo dõi sát</option>
+          <option value="resolved">✅ Đã xử trí xong</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>⚠️ Vấn đề lâm sàng tồn đọng / Chưa giải quyết xong:</label>
+        <textarea id="editHandoverIssues" class="form-control" rows="2" placeholder="VD: Đang sốt 39.5°C chưa hạ; Chờ KQ cấy máu; HA dao động..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>🎯 Y lệnh & Hành động tua trực cần xử trí:</label>
+        <textarea id="editHandoverActions" class="form-control" rows="2" placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
+      </div>
     </div>
-  </nav>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
+      <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
+    </div>
+  </div>
+</div>
 
-  <!-- Data -->
-  <script src="data/tuvi.js"></script>
-  <script src="data/supabase_client.js"></script>
-  <script src="data/sample.js"></script>
-  <script src="data/astrology_logic.js?v=20260804_v2"></script>
-  <script src="data/ziwei_patterns.js"></script>
-  <script src="data/ziwei_star_knowledge.js"></script>
-  <script src="data/ziwei_marriage_knowledge.js"></script>
-  <script src="data/ziwei_famous.js"></script>
-  <script src="data/ziwei_classics.js"></script>
-  <script src="data/ziwei_dictionary.js"></script>
-  <script src="data/ziwei_luan_giai_engine.js"></script>
-  <!-- Thư viện Lịch Âm -->
-  <script src="https://unpkg.com/lunar-javascript/lunar.js"></script>
-  <!-- Thư viện PDF Export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- MODAL 2: THIẾT LẬP BÀN GIAO CA TRỰC CHO 1 NGƯỜI BỆNH -->
+<div class="modal-overlay" id="handoverModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">🚨 Thiết Lập Bàn Giao Ca Trực</div>
+      <button class="btn-close-modal" onclick="window.handoverController.closeHandoverModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="hoPatientHeader" style="margin-bottom: 14px; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-light);">
+        <!-- Tóm tắt tên, buồng, chẩn đoán -->
+      </div>
 
-  <!-- Sub-components & Specialized Modules -->
-  <script src="components/onboarding.js"></script>
-  <script src="components/sidebar.js"></script>
-  <script src="components/overview.js"></script>
-  <script src="components/lessons.js"></script>
-  <script src="components/rules.js"></script>
-  <script src="components/reminders.js"></script>
-  <script src="components/library.js"></script>
-  <script src="components/journal.js"></script>
-  <script src="components/dictionary.js"></script>
-  <script src="components/search.js"></script>
-  <script src="components/health.js"></script>
-  <script src="components/compass.js"></script>
-  <script src="components/heatmap.js"></script>
-  <script src="components/iching.js"></script>
-  <script src="components/morning.js"></script>
-  <script src="components/tasks.js"></script>
-  <script src="components/timemachine.js"></script>
-  <script src="components/numerology.js"></script>
+      <div class="form-group">
+        <label>Mức độ bàn giao:</label>
+        <div class="status-radio-group">
+          <label class="status-radio-item">
+            <input type="radio" name="hoStatusRadio" value="none">
+            <span>🟢 Ổn định (Không cần bàn giao)</span>
+          </label>
+          <label class="status-radio-item">
+            <input type="radio" name="hoStatusRadio" value="pending">
+            <span>⏳ Cần theo dõi sát / Tồn đọng</span>
+          </label>
+          <label class="status-radio-item">
+            <input type="radio" name="hoStatusRadio" value="critical">
+            <span>🚨 Báo động đỏ (Nguy kịch / Nặng)</span>
+          </label>
+          <label class="status-radio-item">
+            <input type="radio" name="hoStatusRadio" value="resolved">
+            <span>✅ Đã xử trí xong trong tua</span>
+          </label>
+        </div>
+      </div>
 
-  <!-- Core Consolidated Module Hubs -->
-  <script src="components/tuvi_home.js?v=20260804_v3"></script>
-  <script src="components/dashboard.js?v=20260804_v3"></script>
-  <script src="components/astrology.js?v=20260804_v3"></script>
-  <script src="components/oracle.js"></script>
-  <script src="components/knowledge.js"></script>
+      <div class="form-group">
+        <label>⚠️ Vấn đề tồn đọng / Chưa giải quyết xong:</label>
+        <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề chưa xong..."></textarea>
+        <div class="quick-tags-box" id="handoverIssueQuickTags"></div>
+      </div>
 
-  <!-- Breakthrough Feature Components -->
-  <script src="components/commandcenter.js?v=20260804_v3"></script>
-  <script src="components/finance.js"></script>
-  <script src="components/meditation.js"></script>
-  <script src="components/retroverify.js"></script>
-  <script src="components/moodtracker.js"></script>
-  <script src="components/radar_chart.js"></script>
-  <script src="components/rpg.js"></script>
-  <script src="components/cosmic_bg.js"></script>
-  <script src="components/solfeggio_audio.js"></script>
+      <div class="form-group">
+        <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
+        <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận hành động ca trực..."></textarea>
+        <div class="quick-tags-box" id="handoverActionQuickTags"></div>
+      </div>
 
-  <!-- App Core (must be last) -->
-  <script src="app.js"></script>
+      <div class="form-group">
+        <label>Bác sĩ bàn giao:</label>
+        <input type="text" id="hoDoctorFrom" class="form-control" placeholder="Họ tên BS bàn giao...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn Giao</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 3: DASHBOARD TỔNG HỢP BÀN GIAO TUA TRỰC -->
+<div class="modal-overlay" id="handoverDashboardModal">
+  <div class="modal-card" style="max-width: 780px;">
+    <div class="modal-header">
+      <div class="modal-title">📊 Biên Bản Bàn Giao Tua Trực Lâm Sàng</div>
+      <button class="btn-close-modal" onclick="window.handoverController.closeHandoverDashboard()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Thống kê ca bệnh -->
+      <div class="handover-stat-cards">
+        <div class="ho-stat-card crit">
+          <div class="stat-number" id="statCriticalCount">0</div>
+          <div class="stat-title">🚨 Báo động đỏ (Nặng)</div>
+        </div>
+        <div class="ho-stat-card pend">
+          <div class="stat-number" id="statPendingCount">0</div>
+          <div class="stat-title">⏳ Cần theo dõi sát</div>
+        </div>
+        <div class="ho-stat-card done">
+          <div class="stat-number" id="statResolvedCount">0</div>
+          <div class="stat-title">✅ Đã xử trí xong</div>
+        </div>
+      </div>
+
+      <!-- Danh sách ca cần bàn giao -->
+      <div id="handoverDashboardList"></div>
+
+      <div id="handoverDashboardEmpty" class="empty-state" style="display: none;">
+        🎉 Tuyệt vời! Hiện tại khoa không có ca bệnh nào còn tồn đọng hoặc cần bàn giao đặc biệt.
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: space-between;">
+      <div>
+        <button class="btn btn-success" id="btnCopyHandoverZalo" title="Sao chép định dạng tin nhắn để dán vào nhóm Zalo trực">
+          📋 Sao chép tóm tắt gửi Zalo/Viber
+        </button>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="btnPrintHandoverReport">
+          🖨️ In biên bản trực
+        </button>
+        <button class="btn btn-primary" onclick="window.handoverController.closeHandoverDashboard()">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-card" style="max-width: 520px;">
+    <div class="modal-header">
+      <div class="modal-title">👤 Tài Khoản & Cá Thể Hóa Bác Sĩ</div>
+      <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
+    </div>
+
+    <!-- Tab Bar trong Auth Modal -->
+    <div class="auth-tabs-nav">
+      <button class="nav-tab-btn active" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
+      <button class="nav-tab-btn" id="tabBtn_register" onclick="window.authController.switchAuthTab('register')">Đăng Ký</button>
+      <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ Của Tôi</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- 1. TAB ĐĂNG NHẬP -->
+      <div id="tabContent_login" class="auth-tab-content active">
+        <div id="loginMessage" class="form-message"></div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Tài khoản Bác sĩ (Tên viết tắt):</label>
+            <input type="text" id="loginUsername" class="form-control" placeholder="VD: dongnh, annv..." autocapitalize="none" required>
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu (Số):</label>
+            <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Đăng Nhập</button>
+        </form>
+      </div>
+
+      <!-- 2. TAB ĐĂNG KÝ -->
+      <div id="tabContent_register" class="auth-tab-content" style="display: none;">
+        <div id="registerMessage" class="form-message"></div>
+        <form id="registerForm">
+          <div class="form-group">
+            <label>Họ và tên Bác sĩ:</label>
+            <input type="text" id="regFullName" class="form-control" placeholder="VD: Nguyễn Hữu Đông" required>
+          </div>
+          <div class="form-group">
+            <label>Tài khoản đăng ký (Tên viết tắt):</label>
+            <input type="text" id="regUsername" class="form-control" placeholder="VD: dongnh" pattern="[a-zA-Z0-9_]+" autocapitalize="none" required>
+            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">💡 Gợi ý: Thường là tên viết tắt của bác sĩ (VD: Nguyễn Hữu Đông ➔ dongnh)</small>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Khoa phòng:</label>
+              <input type="text" id="regDept" class="form-control" value="Khoa Nhiễm">
+            </div>
+            <div class="form-group">
+              <label>Số ĐT trực:</label>
+              <input type="tel" id="regPhone" class="form-control" placeholder="09xx.xxx.xxx">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu (Số - tối thiểu 6 chữ số):</label>
+            <input type="password" id="regPassword" class="form-control" placeholder="Chỉ nhập số, tối thiểu 6 số (VD: 123456)" pattern="[0-9]{6,}" inputmode="numeric" minlength="6" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số (không lấy ký tự chữ)</small>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Tạo Tài Khoản Mới</button>
+        </form>
+      </div>
+
+      <!-- 3. TAB HỒ SƠ BÁC SĨ -->
+      <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
+        <div id="profileMessage" class="form-message"></div>
+        <form id="profileForm">
+          <div class="form-group">
+            <label>Họ và tên:</label>
+            <input type="text" id="profFullName" class="form-control" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Chức danh:</label>
+              <input type="text" id="profTitle" class="form-control" value="Bác sĩ điều trị">
+            </div>
+            <div class="form-group">
+              <label>Khoa / Phòng:</label>
+              <input type="text" id="profDept" class="form-control" value="Khoa Nhiễm">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Bệnh viện:</label>
+            <input type="text" id="profHospital" class="form-control" value="Bệnh viện Đa khoa Khu vực Thủ Đức">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Số ĐT liên hệ trực:</label>
+              <input type="text" id="profPhone" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Tài khoản Bác sĩ:</label>
+              <input type="text" id="profUsername" class="form-control" disabled style="background: #f1f5f9;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 14px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
+            <button type="button" class="btn btn-danger" id="btnLogout">Đăng Xuất</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 5: CẤU HÌNH SUPABASE CLOUD & ĐỒNG BỘ LAPTOP - DI ĐỘNG -->
+<div class="modal-overlay" id="cloudSettingsModal">
+  <div class="modal-card" style="max-width: 580px;">
+    <div class="modal-header">
+      <div class="modal-title">☁️ Cấu Hình Đồng Bộ Supabase Cloud</div>
+      <button class="btn-close-modal" onclick="window.authController.closeCloudSettingsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="cloudConfigMessage" class="form-message"></div>
+
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px; color: #166534;">
+        <strong>📡 Cơ chế hoạt động:</strong><br>
+        Khi điền <strong>Supabase URL</strong> và <strong>Anon Key</strong>, ứng dụng sẽ kích hoạt tính năng <strong>Đồng bộ thời gian thực (Realtime)</strong>: dữ liệu bạn nhập trên Laptop sẽ lập tức hiện trên Điện thoại khi đi buồng bệnh và ngược lại!
+      </div>
+
+      <form id="cloudConfigForm">
+        <div class="form-group">
+          <label>Supabase Project URL:</label>
+          <input type="url" id="cfgSupabaseUrl" class="form-control" value="https://iqkrdzeymxdrqdvfjnyt.supabase.co" placeholder="https://xyzcompany.supabase.co">
+        </div>
+        <div class="form-group">
+          <label>Supabase Anon (Public) Key:</label>
+          <textarea id="cfgSupabaseKey" class="form-control" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxa3JkemV5bXhkcnFkdmZqbnl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5OTU3MjgsImV4cCI6MjEwNTU3MTcyOH0.POFtPFoT3fUN7ZeDHOFbBPvo19gSzEQvmij5G9o8eos</textarea>
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+          <em>* Cấu hình Supabase này đã được cố định mặc định cho dự án. Mọi thiết bị Laptop & Điện thoại mở web đều sẽ tự động kết nối và đồng bộ 2 chiều!</em>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu & Kiểm Tra Kết Nối Cloud</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 6: TỪ ĐIỂN VIẾT TẮT Y KHOA & TRA CỨU NHANH -->
+<div class="modal-overlay" id="abbreviationModal">
+  <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-header">
+      <div class="modal-title">📖 Quy Chuẩn & Từ Điển Viết Tắt Lâm Sàng</div>
+      <button class="btn-close-modal" onclick="window.medWardApp.closeAbbreviationModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--text-main);">
+        💡 <strong>Cơ chế tự động mở rộng (Smart Auto-Expand):</strong> Khi bạn gõ từ viết tắt (VD: <code>sxh</code>, <code>vp</code>, <code>dtd</code>, <code>ctm</code>, <code>ttm</code>, <code>para</code>...) trực tiếp vào bảng hoặc cửa sổ chi tiết, hệ thống sẽ tự động chuyển thành thuật ngữ y khoa đầy đủ khi nhấn <kbd>Enter</kbd> hoặc rời ô!
+      </div>
+
+      <!-- Tìm kiếm & Bộ lọc phân loại -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+        <input type="text" id="abbrSearchInput" class="form-control" placeholder="Tìm từ viết tắt, tên bệnh, xét nghiệm, y lệnh..." style="flex: 1; min-width: 220px;">
+        <div class="abbr-category-tabs" id="abbrCategoryTabs">
+          <button type="button" class="btn-filter-pill active" data-cat="all">Tất cả</button>
+          <button type="button" class="btn-filter-pill" data-cat="Chẩn đoán thường gặp">CĐ</button>
+          <button type="button" class="btn-filter-pill" data-cat="Cận lâm sàng & Xét nghiệm">CLS</button>
+          <button type="button" class="btn-filter-pill" data-cat="Y lệnh & Điều trị">Y Lệnh</button>
+        </div>
+      </div>
+
+      <!-- Bảng danh sách từ viết tắt -->
+      <div class="abbr-table-wrapper" style="max-height: 380px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <table class="abbr-table" id="abbrListTable">
+          <thead>
+            <tr>
+              <th style="width: 22%;">Chữ viết tắt</th>
+              <th style="width: 43%;">Thuật ngữ đầy đủ</th>
+              <th style="width: 35%;">Diễn giải lâm sàng</th>
+            </tr>
+          </thead>
+          <tbody id="abbrTableBody">
+            <!-- Render bởi JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.medWardApp.closeAbbreviationModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/config.js"></script>
+<script src="js/supabase_service.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/patient_service.js"></script>
+<script src="js/handover_service.js"></script>
+<script src="js/app.js"></script>
+
 </body>
 </html>
