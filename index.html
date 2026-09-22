@@ -90,107 +90,136 @@
     <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
 
     <div class="toolbar-actions">
-      <!-- 1. TẤT CẢ NGƯỜI BỆNH (ICON TAB) -->
-      <button class="icon-btn btn-tab active" id="btnTabAll" data-tab="all" data-tooltip="Xem tất cả người bệnh">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-        </svg>
-        <span class="mini-badge" id="countTabAll">0</span>
-      </button>
+      <!-- NHÓM 1: CHẾ ĐỘ XEM & BỘ LỌC TABS -->
+      <div class="btn-group" role="group" aria-label="Chế độ xem & Lọc">
+        <!-- Tất cả người bệnh (Icon Tab) -->
+        <button class="icon-btn btn-tab active" id="btnTabAll" data-tab="all" data-tooltip="Xem tất cả người bệnh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          <span class="mini-badge" id="countTabAll">0</span>
+        </button>
 
-      <!-- 2. CẦN BÀN GIAO TRỰC (ICON TAB) -->
-      <button class="icon-btn btn-tab" id="btnTabHandover" data-tab="handover" data-tooltip="Ca cần bàn giao trực">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
-        <span class="mini-badge crit" id="countTabHandover">0</span>
-      </button>
+        <!-- Cần bàn giao trực (Icon Tab) -->
+        <button class="icon-btn btn-tab" id="btnTabHandover" data-tab="handover" data-tooltip="Ca cần bàn giao trực">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span class="mini-badge crit" id="countTabHandover">0</span>
+        </button>
 
-      <!-- 3. BIÊN BẢN BÀN GIAO TUA TRỰC (DASHBOARD & ZALO) -->
-      <button class="icon-btn btn-handover-dash" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực & Zalo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>
-      </button>
+        <!-- Đổi chế độ xem Thẻ 📱 / Bảng 💻 -->
+        <button class="icon-btn btn-view" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()" data-tooltip="Đổi chế độ xem (Thẻ 📱 / Bảng 💻)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </button>
+      </div>
 
-      <!-- 4. NẠP EXCEL -->
-      <button class="icon-btn btn-excel" onclick="document.getElementById('excelFileInput').click()" data-tooltip="Nạp file Excel (.xlsx)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="12" y1="18" x2="12" y2="12"></line>
-          <polyline points="9 15 12 12 15 15"></polyline>
-        </svg>
-      </button>
+      <!-- NHÓM 2: DỮ LIỆU & QUẢN LÝ NGƯỜI BỆNH -->
+      <div class="btn-group" role="group" aria-label="Quản lý người bệnh">
+        <!-- Thêm người bệnh mới -->
+        <button class="icon-btn btn-add" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip="Thêm bệnh nhân mới">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
 
-      <!-- 5. THÊM NGƯỜI BỆNH MỚI -->
-      <button class="icon-btn btn-add" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip="Thêm bệnh nhân mới">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
+        <!-- Nạp file Excel -->
+        <button class="icon-btn btn-excel" onclick="document.getElementById('excelFileInput').click()" data-tooltip="Nạp file Excel (.xlsx)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <polyline points="9 15 12 12 15 15"></polyline>
+          </svg>
+        </button>
 
-      <!-- 6. SẮP XẾP THEO BUỒNG & GIƯỜNG -->
-      <button class="icon-btn btn-sort" id="btnSortPatients" data-tooltip="Sắp xếp buồng & giường">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-          <path d="M3 6h18M3 12h12M3 18h6"></path>
-        </svg>
-      </button>
+        <!-- Sắp xếp theo buồng & giường -->
+        <button class="icon-btn btn-sort" id="btnSortPatients" data-tooltip="Sắp xếp buồng & giường">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <path d="M3 6h18M3 12h12M3 18h6"></path>
+          </svg>
+        </button>
 
-      <!-- 7. ĐỔI CHẾ ĐỘ XEM THẺ / BẢNG -->
-      <button class="icon-btn btn-view" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()" data-tooltip="Đổi chế độ xem (Thẻ 📱 / Bảng 💻)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7"></rect>
-          <rect x="14" y="3" width="7" height="7"></rect>
-          <rect x="14" y="14" width="7" height="7"></rect>
-          <rect x="3" y="14" width="7" height="7"></rect>
-        </svg>
-      </button>
+        <!-- Chuyển ngày tiếp theo (Người bệnh chưa xuất viện) -->
+        <button class="icon-btn btn-next-day" id="btnNextDayRollover" onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày tiếp theo (Người bệnh chưa xuất viện)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+          </svg>
+        </button>
+      </div>
 
-      <!-- 8. TỪ ĐIỂN VIẾT TẮT Y KHOA -->
-      <button class="icon-btn btn-abbr" onclick="window.medWardApp.openAbbreviationModal()" data-tooltip="Từ điển viết tắt Y khoa (Tra cứu & Gợi ý)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-          <line x1="9" y1="7" x2="15" y2="7"></line>
-          <line x1="9" y1="11" x2="13" y2="11"></line>
-        </svg>
-      </button>
+      <!-- NHÓM 3: LÂM SÀNG, BÀN GIAO & IN ẤN -->
+      <div class="btn-group" role="group" aria-label="Lâm sàng & Tiện ích">
+        <!-- Biên bản bàn giao tua trực & Zalo -->
+        <button class="icon-btn btn-handover-dash" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực & Zalo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </button>
 
-      <!-- 9. IN A4 NGANG -->
-      <button class="icon-btn btn-print" onclick="window.print()" data-tooltip="In A4 ngang">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 6 2 18 2 18 9"></polyline>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
-      </button>
+        <!-- Từ điển viết tắt Y khoa -->
+        <button class="icon-btn btn-abbr" onclick="window.medWardApp.openAbbreviationModal()" data-tooltip="Từ điển viết tắt Y khoa (Tra cứu & Gợi ý)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <line x1="9" y1="7" x2="15" y2="7"></line>
+            <line x1="9" y1="11" x2="13" y2="11"></line>
+          </svg>
+        </button>
 
-      <!-- 9. XÓA TẤT CẢ -->
-      <button class="icon-btn btn-clear" onclick="window.patientController.clearAll()" data-tooltip="Xóa danh sách">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          <line x1="10" y1="11" x2="10" y2="17"></line>
-          <line x1="14" y1="11" x2="14" y2="17"></line>
-        </svg>
-      </button>
+        <!-- In A4 ngang -->
+        <button class="icon-btn btn-print" onclick="window.print()" data-tooltip="In A4 ngang">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+        </button>
+      </div>
 
-      <!-- 10. CHECKBOX GOM NHÓM BUỒNG -->
-      <label class="group-toggle-label" data-tooltip="Gom nhóm các giường cùng buồng">
-        <input type="checkbox" id="toggleRoomGroup" checked>
-        <span>Gom buồng</span>
-      </label>
+      <!-- NHÓM 4: BẢNG THEO DÕI RIÊNG THEO BÁC SĨ (DOCTOR FILTER) -->
+      <div class="doctor-select-wrapper" data-tooltip="Bảng theo dõi riêng cho từng ID/Bác sĩ">
+        <span class="doctor-select-icon">🩺</span>
+        <select id="doctorFilterSelect" onchange="window.patientController.handleDoctorFilterChange(this.value)">
+          <option value="all">👨‍⚕️ Toàn khoa (Tất cả)</option>
+          <option value="my_patients">👤 Bệnh nhân của tôi</option>
+        </select>
+      </div>
+
+      <!-- NHÓM 5: TÙY CHỌN & THAO TÁC KHÁC -->
+      <div class="btn-group" role="group" aria-label="Tùy chọn">
+        <!-- Checkbox Gom nhóm buồng -->
+        <label class="group-toggle-label" data-tooltip="Gom nhóm các giường cùng buồng" style="padding: 0 6px;">
+          <input type="checkbox" id="toggleRoomGroup" checked>
+          <span>Gom buồng</span>
+        </label>
+
+        <!-- Xóa tất cả -->
+        <button class="icon-btn btn-clear" onclick="window.patientController.clearAll()" data-tooltip="Xóa danh sách">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Ô TÌM KIẾM -->
@@ -264,25 +293,25 @@
 
 <!-- 8. BOTTOM NAVIGATION BAR (CỐ ĐỊNH TRÊN SMARTPHONE) -->
 <nav class="bottom-nav-bar no-print">
-  <button class="bottom-nav-item active" data-tab="all" data-tooltip-top="Tất cả người bệnh">
+  <button class="bottom-nav-item active" data-tab="all" data-tooltip-top="Bảng theo dõi người bệnh">
     <span class="nav-icon">📋</span>
-    <span>Danh sách</span>
+    <span>Bảng theo dõi</span>
   </button>
-  <button class="bottom-nav-item" data-tab="handover" data-tooltip-top="Ca cần bàn giao">
-    <span class="nav-icon">🚨</span>
-    <span>Bàn giao</span>
+  <button class="bottom-nav-item" onclick="window.patientController.openNextDayModal()" data-tooltip-top="Chuyển ngày tiếp theo">
+    <span class="nav-icon">⏭️</span>
+    <span>Ngày kế</span>
   </button>
-  <button class="bottom-nav-item" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip-top="Thêm bệnh nhân">
+  <button class="bottom-nav-item" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip-top="Thêm người bệnh mới">
     <span class="nav-icon">➕</span>
     <span>Thêm NB</span>
   </button>
-  <button class="bottom-nav-item" data-tab="handover_dash" data-tooltip-top="Biên bản trực">
+  <button class="bottom-nav-item" data-tab="handover_dash" data-tooltip-top="Biên bản bàn giao tua trực">
     <span class="nav-icon">📊</span>
     <span>Tua trực</span>
   </button>
-  <button class="bottom-nav-item" data-tab="auth" data-tooltip-top="Bác sĩ điều trị">
+  <button class="bottom-nav-item" data-tab="workspace" data-tooltip-top="Không gian Bác sĩ">
     <span class="nav-icon">🩺</span>
-    <span>Bác sĩ</span>
+    <span>Không gian BS</span>
   </button>
 </nav>
 
@@ -303,7 +332,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Buồng - Giường (P/G):</label>
-          <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.12 - G01">
+          <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.14-3">
         </div>
         <div class="form-group">
           <label>Năm sinh / Tuổi (NS):</label>
@@ -311,9 +340,15 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Họ và tên người bệnh (Họ tên NB):</label>
-        <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA" style="font-weight: 700; text-transform: uppercase;">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Họ và tên người bệnh (Họ tên NB):</label>
+          <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA" style="font-weight: 700; text-transform: uppercase;">
+        </div>
+        <div class="form-group">
+          <label>🩺 Bác sĩ điều trị / Phụ trách:</label>
+          <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. CKI Nguyễn Văn An">
+        </div>
       </div>
 
       <div class="form-group">
@@ -360,6 +395,97 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
       <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHUYỂN DANH SÁCH SANG NGÀY TIẾP THEO (CHO NGƯỜI BỆNH CHƯA XUẤT VIỆN) -->
+<div class="modal-overlay" id="nextDayModal">
+  <div class="modal-card modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">⏭️ Chuyển Danh Sách Sang Ngày Tiếp Theo</div>
+      <button class="btn-close-modal" onclick="window.patientController.closeNextDayModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="next-day-banner">
+        <div class="date-step-box">
+          <div class="step-item">
+            <span class="step-label">Ngày hiện tại:</span>
+            <strong id="nextDayCurrentDate" class="step-date">--/--/----</strong>
+          </div>
+          <span class="step-arrow">➔</span>
+          <div class="step-item">
+            <span class="step-label">Ngày tiếp theo:</span>
+            <input type="text" id="nextDayTargetDate" class="form-control date-picker-input" placeholder="dd/mm/yyyy" style="width: 140px; font-weight: 700; text-align: center;">
+          </div>
+        </div>
+        <p class="step-desc">Tự động giữ lại các người bệnh còn đang nằm viện, tăng ngày bệnh trong chẩn đoán và chuẩn bị danh sách đi buồng cho ngày mới.</p>
+      </div>
+
+      <div class="next-day-options-grid">
+        <label class="custom-checkbox-card">
+          <input type="checkbox" id="chkAutoIncrementDay" checked>
+          <div>
+            <strong>Tăng số ngày bệnh (+1 ngày)</strong>
+            <span>VD: "SXH ngày 4" ➔ "ngày 5", "Viêm phổi N3" ➔ "N4", "Hậu phẫu ngày 1" ➔ "ngày 2"</span>
+          </div>
+        </label>
+        <label class="custom-checkbox-card">
+          <input type="checkbox" id="chkFilterDischarged" checked onchange="window.patientController.handleDischargeFilterToggle(this.checked)">
+          <div>
+            <strong>Tự động lọc bỏ người bệnh đã xuất viện</strong>
+            <span>Tự động bỏ chọn các ca ghi chú "ra viện", "xuất viện", "xin về", "chuyển viện"</span>
+          </div>
+        </label>
+        <label class="custom-checkbox-card">
+          <input type="checkbox" id="chkResetHandover" checked>
+          <div>
+            <strong>Làm mới bàn giao trực (giữ ca báo động đỏ)</strong>
+            <span>Đặt các ca ổn định về bình thường, giữ lại ca 🚨 nguy kịch để theo dõi tiếp</span>
+          </div>
+        </label>
+        <label class="custom-checkbox-card">
+          <input type="checkbox" id="chkKeepOrders" checked>
+          <div>
+            <strong>Kế thừa y lệnh cũ</strong>
+            <span>Giữ lại y lệnh hiện tại làm bản nháp để bác sĩ đi buồng điều chỉnh tiếp</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="next-day-patient-list-header">
+        <div class="list-title">
+          <strong>Danh sách người bệnh tiếp tục điều trị (<span id="nextDaySelectedCount">0</span>/<span id="nextDayTotalCount">0</span>)</strong>
+        </div>
+        <div class="list-actions">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="window.patientController.toggleAllNextDayPatients(true)">Chọn tất cả</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="window.patientController.toggleAllNextDayPatients(false)">Bỏ chọn hết</button>
+        </div>
+      </div>
+
+      <div class="next-day-patient-table-wrap">
+        <table class="next-day-table">
+          <thead>
+            <tr>
+              <th style="width: 44px; text-align: center;">Chọn</th>
+              <th style="width: 80px;">P/G</th>
+              <th style="width: 170px;">Họ và tên</th>
+              <th style="width: 120px;">Bác sĩ</th>
+              <th>Chẩn đoán: Hiện tại ➔ Ngày mới</th>
+              <th style="width: 100px; text-align: center;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="nextDayPatientTableBody">
+            <!-- Render bởi JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.patientController.closeNextDayModal()">Hủy</button>
+      <button class="btn btn-primary btn-rollover" onclick="window.patientController.executeNextDayRollover()">
+        ⏭️ Xác Nhận Chuyển Sang Ngày Mới
+      </button>
     </div>
   </div>
 </div>

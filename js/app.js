@@ -191,10 +191,13 @@ class MedWardApp {
   }
 
   switchTab(tabName) {
-    if (!window.patientController) return;
+    if (tabName === 'auth' || tabName === 'workspace') {
+      window.authController?.openAuthModal('workspace');
+      return;
+    }
 
-    if (tabName === 'auth') {
-      window.authController?.openAuthModal();
+    if (tabName === 'profile') {
+      window.authController?.openAuthModal('profile');
       return;
     }
 
@@ -203,7 +206,20 @@ class MedWardApp {
       return;
     }
 
-    window.patientController.currentTab = tabName;
+    if (tabName === 'toggle_view') {
+      this.toggleViewMode();
+      return;
+    }
+
+    if (tabName === 'abbr') {
+      this.openAbbreviationModal();
+      return;
+    }
+
+    if (tabName === 'all' || tabName === 'patients') {
+      window.patientController?.scrollToTop();
+      return;
+    }
 
     // Cập nhật trạng thái active của buttons
     document.querySelectorAll('.btn-tab, .nav-tab-btn').forEach(btn => {
@@ -212,8 +228,6 @@ class MedWardApp {
     document.querySelectorAll('.bottom-nav-item').forEach(item => {
       item.classList.toggle('active', item.dataset.tab === tabName);
     });
-
-    window.patientController.render();
   }
 
   setupClipboardPaste() {
@@ -441,15 +455,21 @@ window.showToast = function(msg) {
   setTimeout(() => toast.classList.remove('show'), 3500);
 };
 
-window.updateSaveStatus = function(msg) {
+window.updateSaveStatus = function(msg, type = 'saved') {
   const statusEl = document.getElementById('saveStatus');
   if (!statusEl) return;
   statusEl.innerText = msg;
   statusEl.className = 'status-tag highlight';
+  if (type === 'saving') {
+    statusEl.style.color = '#b45309';
+    return;
+  }
+  statusEl.style.color = '';
   setTimeout(() => {
     const isCloud = window.supabaseService?.isCloudEnabled;
     statusEl.innerText = isCloud ? '🟢 Cloud Realtime kết nối tốt (Đã đồng bộ)' : '🟢 Lưu trữ bộ nhớ thiết bị (Tự động lưu)';
     statusEl.className = 'status-tag';
+    statusEl.style.color = '';
   }, 3500);
 };
 

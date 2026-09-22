@@ -14,7 +14,9 @@ const CONFIG = {
     SETTINGS: 'medward_settings_v2',
     AUTH_USER: 'medward_local_user_v2',
     SUPABASE_CONFIG: 'medward_supabase_config_v2',
-    HANDOVER_LOGS: 'medward_handover_logs_v2'
+    HANDOVER_LOGS: 'medward_handover_logs_v2',
+    DOCTOR_WORKSPACES: 'medward_doctor_workspaces_v2',
+    ACTIVE_WORKSPACE: 'medward_active_workspace_v2'
   },
 
   // CẤU HÌNH SUPABASE CLOUD CỐ ĐỊNH (PERMANENT REALTIME SYNC)
@@ -32,16 +34,50 @@ const CONFIG = {
     subTitle: '(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)'
   },
 
-  // DEFAULT LOCAL DEMO ACCOUNT (Khi chưa cấu hình Supabase Cloud)
+  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ
   DEFAULT_DEMO_DOCTOR: {
-    id: 'local_doctor_demo',
-    email: 'bacsi@thuduchospital.vn',
+    id: 'doc_annv',
+    email: 'annv@thuduchospital.vn',
+    username: 'annv',
     full_name: 'BS. CKI Nguyễn Văn An',
     title: 'Bác sĩ điều trị',
     department: 'Khoa Nhiễm',
     hospital: 'BV ĐKKV Thủ Đức',
     phone: '0912.345.678'
   },
+
+  DEFAULT_DOCTORS: [
+    {
+      id: 'doc_annv',
+      email: 'annv@thuduchospital.vn',
+      username: 'annv',
+      full_name: 'BS. CKI Nguyễn Văn An',
+      title: 'Bác sĩ điều trị',
+      department: 'Khoa Nhiễm',
+      hospital: 'BV ĐKKV Thủ Đức',
+      phone: '0912.345.678'
+    },
+    {
+      id: 'doc_dongnh',
+      email: 'dongnh@thuduchospital.vn',
+      username: 'dongnh',
+      full_name: 'BS. Nguyễn Hữu Đông',
+      title: 'Bác sĩ điều trị',
+      department: 'Khoa Nhiễm',
+      hospital: 'BV ĐKKV Thủ Đức',
+      phone: '0988.765.432'
+    },
+    {
+      id: 'doc_binhtt',
+      email: 'binhtt@thuduchospital.vn',
+      username: 'binhtt',
+      full_name: 'BS. CKI Trần Thị Bình',
+      title: 'Bác sĩ trực',
+      department: 'Khoa Nhiễm',
+      hospital: 'BV ĐKKV Thủ Đức',
+      phone: '0903.112.233'
+    }
+  ],
 
   // HANDOVER STATUS TYPES
   HANDOVER_STATUS: {
@@ -269,7 +305,7 @@ const CONFIG = {
   SAMPLE_PATIENTS: [
     {
       id: '00000000-0000-4000-8000-000000000001',
-      phong_giuong: 'D1.12 - G01',
+      phong_giuong: 'D1.12-1',
       ten: 'NGUYỄN HÀ TRỊNH THỊNH',
       nam_sinh_tuoi: '2003 (23)',
       chan_doan: 'SXH Dengue ngày 4 có dấu hiệu cảnh báo',
@@ -279,11 +315,13 @@ const CONFIG = {
       handover_issues: 'Tiểu cầu có xu hướng tụt nhanh, sốt cao liên tục ngày 4, đau bụng vùng gan.',
       handover_actions: 'Theo dõi sinh hiệu + Hct mỗi 4h. Nếu Hct > 46% hoặc đau bụng tăng báo ngay BS trực.',
       handover_by: 'BS. CKI Nguyễn Văn An',
+      doctor_name: 'BS. CKI Nguyễn Văn An',
+      doctor_id: 'doc_an',
       handover_at: '2026-09-21T17:00:00Z'
     },
     {
       id: '00000000-0000-4000-8000-000000000002',
-      phong_giuong: 'D1.12 - G02',
+      phong_giuong: 'D1.12-2',
       ten: 'TRẦN VĂN HOÀNG',
       nam_sinh_tuoi: '1988 (38)',
       chan_doan: 'Viêm phổi cộng đồng mức độ trung bình',
@@ -293,11 +331,13 @@ const CONFIG = {
       handover_issues: 'Còn sốt nhẹ 38°C, đang chờ kết quả cấy đàm kháng sinh đồ trả về.',
       handover_actions: 'Kiểm tra SpO2 lúc 22h (duy trì > 95%), nếu khó thở cho thở Oxy kính 2-3 L/p.',
       handover_by: 'BS. CKI Nguyễn Văn An',
+      doctor_name: 'BS. CKI Nguyễn Văn An',
+      doctor_id: 'doc_an',
       handover_at: '2026-09-21T17:00:00Z'
     },
     {
       id: '00000000-0000-4000-8000-000000000003',
-      phong_giuong: 'D1.14 - G01',
+      phong_giuong: 'D1.14-1',
       ten: 'LÊ THỊ MAI',
       nam_sinh_tuoi: '1965 (61)',
       chan_doan: 'Nhiễm trùng tiêu hóa / ĐTĐ type 2',
@@ -307,6 +347,8 @@ const CONFIG = {
       handover_issues: '',
       handover_actions: '',
       handover_by: '',
+      doctor_name: 'BS. Hữu Đông',
+      doctor_id: 'doc_dong',
       handover_at: null
     }
   ]

@@ -387,6 +387,56 @@ class SupabaseService {
     }
   }
 
+  async fetchDepartmentDoctors() {
+    let localList = [];
+    try {
+      const stored = localStorage.getItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES);
+      if (stored) localList = JSON.parse(stored);
+    } catch (e) {}
+
+    if (!localList || localList.length === 0) {
+      localList = [...(CONFIG.DEFAULT_DOCTORS || [CONFIG.DEFAULT_DEMO_DOCTOR])];
+      try {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(localList));
+      } catch (e) {}
+    }
+
+    if (this.isCloudEnabled && this.client) {
+      try {
+        const { data, error } = await this.client
+          .from('profiles')
+          .select('*')
+          .order('full_name', { ascending: true });
+        if (!error && data && data.length > 0) {
+          data.forEach(p => {
+            const idx = localList.findIndex(d => d.id === p.id || (p.email && d.email === p.email));
+            const docObj = {
+              id: p.id,
+              email: p.email,
+              username: p.username || this.extractUsername(p.email),
+              full_name: p.full_name || 'Bác sĩ',
+              title: p.title || 'Bác sĩ điều trị',
+              department: p.department || 'Khoa Nhiễm',
+              hospital: p.hospital || 'BV ĐKKV Thủ Đức',
+              phone: p.phone || ''
+            };
+            if (idx >= 0) {
+              localList[idx] = { ...localList[idx], ...docObj };
+            } else {
+              localList.push(docObj);
+            }
+          });
+          try {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(localList));
+          } catch (e) {}
+        }
+      } catch (err) {
+        console.warn('Lỗi lấy danh sách bác sĩ từ cloud:', err);
+      }
+    }
+    return localList;
+  }
+
   // ================= PATIENT DATA OPERATIONS =================
 
   async fetchPatients() {
@@ -433,6 +483,28 @@ class SupabaseService {
     }
   }
 
+  // Lọc chỉ giữ các cột hợp lệ theo PostgreSQL Schema để tránh lỗi column not exist
+  sanitizePatientForSupabase(p) {
+    const allowedCols = [
+      'id', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
+      'chan_doan', 'cls', 'y_lenh', 'sort_order', 'handover_status',
+      'handover_issues', 'handover_actions', 'handover_by', 'handover_by_id',
+      'handover_at', 'handover_resolved_by', 'handover_resolved_at',
+      'created_at', 'updated_at'
+    ];
+    const out = {};
+    for (const col of allowedCols) {
+      if (p[col] !== undefined) {
+        out[col] = p[col];
+      }
+    }
+    // Gán doctor_name vào handover_by để đồng bộ xuyên suốt
+    if (p.doctor_name && !out.handover_by) {
+      out.handover_by = p.doctor_name;
+    }
+    return out;
+  }
+
   async savePatient(patient) {
     this.isSyncing = true;
     this.notifyStateChange();
@@ -461,7 +533,7 @@ class SupabaseService {
 
     try {
       await this.ensureSession();
-      const payload = { ...patient };
+      const payload = this.sanitizePatientForSupabase(patient);
       const currentUser = await this.getCurrentUser();
       if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
         payload.user_id = currentUser.id;
@@ -507,7 +579,7 @@ class SupabaseService {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
       const recordsToInsert = patientsArray.map((p, idx) => {
-        const item = { ...p, sort_order: idx };
+        const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx });
         // Chuẩn hóa ID thành UUID hợp lệ theo schema Postgres
         if (!item.id || !uuidRegex.test(item.id)) {
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
