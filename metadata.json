@@ -1,0 +1,8 @@
+{
+  "name": "MedWard Pro",
+  "description": "Quản lý danh sách bệnh nhân nội trú & bàn giao trực lâm sàng",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

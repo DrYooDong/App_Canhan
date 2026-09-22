@@ -217,7 +217,7 @@ class MedWardApp {
   }
 
   setupClipboardPaste() {
-    window.addEventListener('paste', (e) => {
+    window.addEventListener('paste', async (e) => {
       const activeEl = document.activeElement;
       if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
         return;
@@ -247,12 +247,20 @@ class MedWardApp {
             window.patientController.patientList = window.patientController.patientList.concat(imported);
           }
 
-          window.patientController.sortPatientsByRoomAndBed(false);
+          window.patientController.sortPatientsByRoomAndBed(false, false);
           window.patientController.saveLocalCache();
-          window.supabaseService.syncBatchPatients(window.patientController.patientList);
           window.patientController.render();
 
-          alert(`✓ Đã nạp thành công ${imported.length} người bệnh từ clipboard!`);
+          if (window.updateSaveStatus) {
+            window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
+          }
+
+          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+          if (syncRes && syncRes.error) {
+            alert(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy, nhưng gặp lỗi khi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
+          } else {
+            alert(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);
+          }
         }
       }
     });
@@ -268,7 +276,7 @@ class MedWardApp {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -295,12 +303,20 @@ class MedWardApp {
           window.patientController.patientList = window.patientController.patientList.concat(imported);
         }
 
-        window.patientController.sortPatientsByRoomAndBed(false);
+        window.patientController.sortPatientsByRoomAndBed(false, false);
         window.patientController.saveLocalCache();
-        window.supabaseService.syncBatchPatients(window.patientController.patientList);
         window.patientController.render();
 
-        alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân, tự lọc bỏ "NHIEM" và sắp xếp theo buồng!`);
+        if (window.updateSaveStatus) {
+          window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
+        }
+
+        const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+        if (syncRes && syncRes.error) {
+          alert(`⚠️ Đã nạp ${imported.length} bệnh nhân vào bộ nhớ máy, nhưng gặp lỗi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
+        } else {
+          alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);
+        }
       } catch (err) {
         alert('Lỗi đọc file Excel: ' + err.message);
       } finally {

@@ -1,0 +1,15 @@
+{
+  "name": "medward-pro",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node -e \"console.log('Build complete')\"",
+    "lint": "node -c server.js js/config.js js/supabase_service.js js/auth.js js/patient_service.js js/handover_service.js js/app.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

@@ -253,10 +253,22 @@ const CONFIG = {
     });
   },
 
+  // HÀM TẠO UUID CHUẨN POSTGRESQL (RFC4122 v4)
+  generateUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      try { return crypto.randomUUID(); } catch (e) {}
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  },
+
   // DEFAULT SAMPLE DATA BAN ĐẦU
   SAMPLE_PATIENTS: [
     {
-      id: 'demo_patient_1',
+      id: '00000000-0000-4000-8000-000000000001',
       phong_giuong: 'D1.12 - G01',
       ten: 'NGUYỄN HÀ TRỊNH THỊNH',
       nam_sinh_tuoi: '2003 (23)',
@@ -270,7 +282,7 @@ const CONFIG = {
       handover_at: '2026-09-21T17:00:00Z'
     },
     {
-      id: 'demo_patient_2',
+      id: '00000000-0000-4000-8000-000000000002',
       phong_giuong: 'D1.12 - G02',
       ten: 'TRẦN VĂN HOÀNG',
       nam_sinh_tuoi: '1988 (38)',
@@ -284,7 +296,7 @@ const CONFIG = {
       handover_at: '2026-09-21T17:00:00Z'
     },
     {
-      id: 'demo_patient_3',
+      id: '00000000-0000-4000-8000-000000000003',
       phong_giuong: 'D1.14 - G01',
       ten: 'LÊ THỊ MAI',
       nam_sinh_tuoi: '1965 (61)',

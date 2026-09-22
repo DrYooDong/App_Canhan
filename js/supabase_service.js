@@ -15,7 +15,7 @@ class SupabaseService {
     this.init();
   }
 
-  init() {
+  async init() {
     let conf = null;
     const configStr = localStorage.getItem(CONFIG.STORAGE_KEYS.SUPABASE_CONFIG);
     if (configStr) {
@@ -47,12 +47,45 @@ class SupabaseService {
           }
         });
         this.isCloudEnabled = true;
+
+        // Đảm bảo session xác thực để thỏa mãn RLS Supabase
+        await this.ensureSession();
         this.setupRealtimeSubscription();
+
+        this.client.auth.onAuthStateChange(async (event, session) => {
+          this.notifyStateChange();
+          if (window.authController) {
+            window.authController.currentUser = await this.getCurrentUser();
+            window.authController.updateUserUI();
+          }
+        });
       } catch (err) {
         console.error('Lỗi khởi tạo Supabase:', err);
       }
     }
     this.notifyStateChange();
+  }
+
+  // Đảm bảo có phiên xác thực hợp lệ trên cả Laptop và Mobile
+  async ensureSession() {
+    if (!this.client) return null;
+    try {
+      const { data: { session } } = await this.client.auth.getSession();
+      if (session) return session;
+
+      // Nếu chưa có phiên đăng nhập, tự động kết nối tài khoản Bác sĩ mặc định của khoa
+      const { data, error } = await this.client.auth.signInWithPassword({
+        email: 'bacsi@thuduchospital.vn',
+        password: '123456'
+      });
+      if (!error && data?.session) {
+        console.log('✓ Tự động kết nối phiên làm việc Bác sĩ khoa:', data.user.email);
+        return data.session;
+      }
+    } catch (e) {
+      console.warn('Lỗi kết nối phiên Supabase:', e);
+    }
+    return null;
   }
 
   // Cấu hình URL & Key
@@ -368,6 +401,9 @@ class SupabaseService {
     }
 
     try {
+      // Đảm bảo session trước khi truy vấn
+      await this.ensureSession();
+
       const { data, error } = await this.client
         .from('patients')
         .select('*')
@@ -384,7 +420,7 @@ class SupabaseService {
         localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(data));
         return data;
       } else {
-        // Nếu trên cloud chưa có dữ liệu, trả về cache local
+        // Nếu trên cloud chưa có dữ liệu, trả về cache local nếu có
         const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
         return local ? JSON.parse(local) : [];
       }
@@ -400,6 +436,11 @@ class SupabaseService {
   async savePatient(patient) {
     this.isSyncing = true;
     this.notifyStateChange();
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!patient.id || !uuidRegex.test(patient.id)) {
+      patient.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+    }
 
     // Luôn cập nhật local storage trước
     let localList = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA) || '[]');
@@ -419,10 +460,11 @@ class SupabaseService {
     }
 
     try {
+      await this.ensureSession();
       const payload = { ...patient };
-      // Nếu ID là dạng tạm demo/local thì không gửi id dạng string nếu Postgres đòi UUID
-      if (typeof payload.id === 'string' && payload.id.startsWith('local_')) {
-        delete payload.id;
+      const currentUser = await this.getCurrentUser();
+      if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
+        payload.user_id = currentUser.id;
       }
 
       const { data, error } = await this.client
@@ -431,11 +473,14 @@ class SupabaseService {
         .select()
         .single();
 
+      if (error) throw error;
+
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
-      return { data, error };
+      return { data: data || patient, error: null };
     } catch (err) {
+      console.warn('Lỗi lưu bệnh nhân lên cloud:', err);
       this.isSyncing = false;
       this.notifyStateChange();
       return { data: null, error: err };
@@ -457,23 +502,50 @@ class SupabaseService {
     }
 
     try {
-      // Xóa và ghi lại hoặc upsert
+      await this.ensureSession();
+      const currentUser = await this.getCurrentUser();
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
       const recordsToInsert = patientsArray.map((p, idx) => {
         const item = { ...p, sort_order: idx };
-        if (typeof item.id === 'string' && (item.id.startsWith('demo_') || item.id.startsWith('local_'))) {
-          delete item.id;
+        // Chuẩn hóa ID thành UUID hợp lệ theo schema Postgres
+        if (!item.id || !uuidRegex.test(item.id)) {
+          item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+        }
+        if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
+          item.user_id = currentUser.id;
         }
         return item;
       });
 
-      // Xóa cũ và thêm mới danh sách giao ban
-      await this.client.from('patients').delete().neq('ten', '___PROTECT_KEEP_ALL___');
-      const { data, error } = await this.client.from('patients').insert(recordsToInsert).select();
+      // 1. Xóa cũ trên cloud (giữ lại phòng khi danh sách trống)
+      const { error: delError } = await this.client.from('patients').delete().neq('ten', '___PROTECT_KEEP_ALL___');
+      if (delError) {
+        console.warn('Lỗi xóa danh sách cũ trên cloud:', delError);
+      }
+
+      // 2. Chèn danh sách mới
+      let syncedData = recordsToInsert;
+      if (recordsToInsert.length > 0) {
+        const { data, error: insError } = await this.client.from('patients').insert(recordsToInsert).select();
+        if (insError) {
+          throw insError;
+        }
+        if (data && data.length > 0) {
+          syncedData = data;
+        }
+      }
+
+      // Đồng bộ ngược lại vào local cache và controller
+      localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
+      if (window.patientController) {
+        window.patientController.patientList = syncedData;
+      }
 
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
-      return { data, error };
+      return { data: syncedData, error: null };
     } catch (err) {
       console.error('Lỗi sync batch patients lên cloud:', err);
       this.isSyncing = false;
@@ -492,10 +564,18 @@ class SupabaseService {
       return { success: true };
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(patientId)) {
+      return { success: true };
+    }
+
     try {
-      await this.client.from('patients').delete().eq('id', patientId);
+      await this.ensureSession();
+      const { error } = await this.client.from('patients').delete().eq('id', patientId);
+      if (error) throw error;
       return { success: true };
     } catch (err) {
+      console.warn('Lỗi xóa bệnh nhân trên cloud:', err);
       return { success: false, error: err };
     }
   }

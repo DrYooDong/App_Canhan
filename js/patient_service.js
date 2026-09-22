@@ -98,7 +98,7 @@ class PatientController {
   }
 
   // SẮP XẾP TỰ NHIÊN THEO BUỒNG & GIƯỜNG (NATURAL SORT)
-  sortPatientsByRoomAndBed(notify = true) {
+  sortPatientsByRoomAndBed(notify = true, syncCloud = true) {
     this.patientList.sort((a, b) => {
       const roomA = a.phong_giuong || '';
       const roomB = b.phong_giuong || '';
@@ -110,7 +110,9 @@ class PatientController {
 
     this.patientList.forEach((p, i) => p.sort_order = i);
     this.saveLocalCache();
-    window.supabaseService.syncBatchPatients(this.patientList);
+    if (syncCloud && window.supabaseService) {
+      window.supabaseService.syncBatchPatients(this.patientList);
+    }
     this.render();
 
     if (notify && window.updateSaveStatus) {
@@ -121,7 +123,7 @@ class PatientController {
   // CRUD THAO TÁC BỆNH NHÂN
   async addPatient(patientData) {
     const newPatient = {
-      id: 'patient_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
       phong_giuong: this.cleanRoomBedString(patientData.phong_giuong || ''),
       ten: (patientData.ten || '').trim(),
       nam_sinh_tuoi: (patientData.nam_sinh_tuoi || '').trim(),
@@ -295,7 +297,7 @@ class PatientController {
       }
 
       results.push({
-        id: 'patient_' + Date.now() + '_' + r + '_' + Math.random().toString(36).substr(2, 4),
+        id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
         phong_giuong: phongGiuongVal,
         ten: tenVal,
         nam_sinh_tuoi: namSinhTuoiVal,
@@ -450,7 +452,7 @@ class PatientController {
     const idx = this.patientList.findIndex(p => p.id === patientId);
     const baseRoom = idx >= 0 ? this.cleanRoomBedString(this.patientList[idx].phong_giuong) : '';
     const newP = {
-      id: 'patient_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
       phong_giuong: baseRoom,
       ten: 'BỆNH NHÂN MỚI',
       nam_sinh_tuoi: '',
