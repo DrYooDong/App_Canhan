@@ -483,7 +483,7 @@ class SupabaseService {
     }
   }
 
-  // Lọc chỉ giữ các cột hợp lệ theo PostgreSQL Schema để tránh lỗi column not exist
+  // Lọc chỉ giữ các cột hợp lệ theo PostgreSQL Schema để tránh lỗi column not exist và bảo đảm Not-Null constraints
   sanitizePatientForSupabase(p) {
     const allowedCols = [
       'id', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
@@ -494,7 +494,7 @@ class SupabaseService {
     ];
     const out = {};
     for (const col of allowedCols) {
-      if (p[col] !== undefined) {
+      if (p[col] !== undefined && p[col] !== null) {
         out[col] = p[col];
       }
     }
@@ -502,6 +502,33 @@ class SupabaseService {
     if (p.doctor_name && !out.handover_by) {
       out.handover_by = p.doctor_name;
     }
+
+    // Đảm bảo created_at và updated_at luôn là chuỗi thời gian ISO hợp lệ, TUYỆT ĐỐI không bao giờ null
+    const nowIso = new Date().toISOString();
+    if (!out.created_at || out.created_at === 'null' || typeof out.created_at !== 'string') {
+      out.created_at = (p.created_at && p.created_at !== 'null' && typeof p.created_at === 'string')
+        ? p.created_at
+        : nowIso;
+    }
+    if (!out.updated_at || out.updated_at === 'null' || typeof out.updated_at !== 'string') {
+      out.updated_at = nowIso;
+    }
+
+    // Đảm bảo tên người bệnh không rỗng
+    if (!out.ten || !String(out.ten).trim()) {
+      out.ten = (p.ten && String(p.ten).trim()) || 'BỆNH NHÂN MỚI';
+    }
+
+    // Đảm bảo handover_status hợp lệ
+    if (!out.handover_status) {
+      out.handover_status = p.handover_status || 'none';
+    }
+
+    // Đảm bảo sort_order là số
+    if (typeof out.sort_order !== 'number' || isNaN(out.sort_order)) {
+      out.sort_order = 0;
+    }
+
     return out;
   }
 
@@ -538,6 +565,7 @@ class SupabaseService {
       if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
         payload.user_id = currentUser.id;
       }
+      payload.updated_at = new Date().toISOString();
 
       const { data, error } = await this.client
         .from('patients')
@@ -577,6 +605,7 @@ class SupabaseService {
       await this.ensureSession();
       const currentUser = await this.getCurrentUser();
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const nowIso = new Date().toISOString();
 
       const recordsToInsert = patientsArray.map((p, idx) => {
         const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx });
@@ -587,6 +616,10 @@ class SupabaseService {
         if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
           item.user_id = currentUser.id;
         }
+        if (!item.created_at || item.created_at === 'null') {
+          item.created_at = nowIso;
+        }
+        item.updated_at = nowIso;
         return item;
       });
 

@@ -317,7 +317,10 @@ const CONFIG = {
       handover_by: 'BS. CKI Nguyễn Văn An',
       doctor_name: 'BS. CKI Nguyễn Văn An',
       doctor_id: 'doc_an',
-      handover_at: '2026-09-21T17:00:00Z'
+      handover_at: '2026-09-21T17:00:00Z',
+      sort_order: 0,
+      created_at: '2026-09-21T08:00:00.000Z',
+      updated_at: '2026-09-21T08:00:00.000Z'
     },
     {
       id: '00000000-0000-4000-8000-000000000002',
@@ -333,7 +336,10 @@ const CONFIG = {
       handover_by: 'BS. CKI Nguyễn Văn An',
       doctor_name: 'BS. CKI Nguyễn Văn An',
       doctor_id: 'doc_an',
-      handover_at: '2026-09-21T17:00:00Z'
+      handover_at: '2026-09-21T17:00:00Z',
+      sort_order: 1,
+      created_at: '2026-09-21T08:00:00.000Z',
+      updated_at: '2026-09-21T08:00:00.000Z'
     },
     {
       id: '00000000-0000-4000-8000-000000000003',
@@ -349,7 +355,10 @@ const CONFIG = {
       handover_by: '',
       doctor_name: 'BS. Hữu Đông',
       doctor_id: 'doc_dong',
-      handover_at: null
+      handover_at: null,
+      sort_order: 2,
+      created_at: '2026-09-21T08:00:00.000Z',
+      updated_at: '2026-09-21T08:00:00.000Z'
     }
   ]
 };

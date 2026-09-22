@@ -56,8 +56,9 @@ class PatientController {
     const data = await window.supabaseService.fetchPatients();
     this.patientList = data || [];
 
-    // Tự động chuẩn hóa phòng/giường thành dạng ngắn gọn (VD: D1.14-3)
+    // Tự động chuẩn hóa phòng/giường thành dạng ngắn gọn (VD: D1.14-3) và bổ sung created_at nếu thiếu
     let cleaned = false;
+    const nowIso = new Date().toISOString();
     this.patientList.forEach(p => {
       if (p.phong_giuong) {
         const compact = this.cleanRoomBedString(p.phong_giuong);
@@ -69,6 +70,14 @@ class PatientController {
       // Gán doctor_name từ handover_by nếu chưa có
       if (!p.doctor_name && p.handover_by) {
         p.doctor_name = p.handover_by;
+      }
+      if (!p.created_at || p.created_at === 'null') {
+        p.created_at = nowIso;
+        cleaned = true;
+      }
+      if (!p.updated_at || p.updated_at === 'null') {
+        p.updated_at = nowIso;
+        cleaned = true;
       }
     });
 
@@ -838,7 +847,9 @@ class PatientController {
         handover_status: CONFIG.HANDOVER_STATUS.NONE,
         handover_issues: '',
         handover_actions: '',
-        sort_order: r
+        sort_order: r,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
     }
 
@@ -1011,9 +1022,15 @@ class PatientController {
         </td>
         <td class="col-actions no-print">
           <div class="action-btn-group">
-            <button class="btn-icon" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">➕</button>
-            <button class="btn-icon" data-tooltip="Chi tiết & Chẩn đoán" onclick="window.patientController.openPatientDetailModal('${p.id}')">✏️</button>
-            <button class="btn-icon delete" data-tooltip="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">🗑️</button>
+            <button class="btn-table-action" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button class="btn-table-action" data-tooltip="Chi tiết &amp; Chẩn đoán" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="btn-table-action btn-del" data-tooltip="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
           </div>
         </td>
       `;
@@ -1038,8 +1055,7 @@ class PatientController {
       card.innerHTML = `
         <div class="card-header" onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-room-badge">
-            <span class="icon">🛏️</span>
-            <strong>${this.escape(p.phong_giuong || 'Chưa xếp')}</strong>
+            <span class="room-bed-text">${this.escape(p.phong_giuong || 'Chưa xếp')}</span>
           </div>
           <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="event.stopPropagation(); window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
             ${statusCfg.icon}
@@ -1077,15 +1093,18 @@ class PatientController {
           ` : ''}
         </div>
 
-        <div class="card-footer-icons">
-          <button class="icon-btn btn-ho-mobile" data-tooltip="Bàn giao trực" onclick="window.handoverController.openHandoverModal('${p.id}')">
-            🚨
+        <div class="card-footer-actions">
+          <button class="btn-card-action btn-card-ho" onclick="window.handoverController.openHandoverModal('${p.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Bàn giao</span>
           </button>
-          <button class="icon-btn btn-edit-mobile" data-tooltip="Sửa chi tiết" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-            ✏️
+          <button class="btn-card-action" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            <span>Chi tiết</span>
           </button>
-          <button class="icon-btn btn-del-mobile" data-tooltip="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
-            🗑️
+          <button class="btn-card-action btn-card-del" onclick="window.patientController.deletePatient('${p.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Xóa</span>
           </button>
         </div>
       `;
