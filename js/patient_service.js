@@ -1484,55 +1484,23 @@ class PatientController {
 
     container.innerHTML = `
       <div class="nurse-sheet-content">
-        <!-- Header chuẩn phiếu y tế bệnh viện -->
-        <div class="nurse-header-grid">
-          <div class="nurse-header-left">
-            <div class="nurse-unit-title">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
-            <div class="nurse-hospital-title">BV ĐA KHOA KHU VỰC THỦ ĐỨC</div>
-            <div class="nurse-dept-title">KHOA NHIỄM</div>
-          </div>
-          <div class="nurse-header-right">
-            <div><strong>BÁC SĨ ĐIỀU TRỊ:</strong> BS. NGUYỄN HỮU ĐÔNG</div>
-            <div><strong>Thời gian in:</strong> ${nowTimeStr} • ${todayStr}</div>
-            <div><strong>Tổng số NB:</strong> ${targetList.length} người bệnh</div>
-          </div>
-        </div>
-
-        <div class="nurse-doc-title-block">
-          <h2 class="nurse-doc-title">PHIẾU THỰC HIỆN Y LỆNH &amp; CHỈ ĐỊNH CẬN LÂM SÀNG</h2>
-          <div class="nurse-doc-subtitle">(DÀNH CHO ĐIỀU DƯỠNG CA TRỰC THỰC HIỆN THEO DÕI &amp; KÝ NHẬN)</div>
-        </div>
-
-        <!-- Bảng danh sách phiếu điều dưỡng -->
+        <!-- Bảng danh sách phiếu điều dưỡng (Chỉ giữ lại phần bảng, không tiêu đề, không chữ ký) -->
         <table class="nurse-table">
           <thead>
             <tr>
-              <th style="width: 38px;">STT</th>
-              <th style="width: 90px;">Phòng/Giường</th>
-              <th style="width: 175px;">Họ và Tên NB</th>
-              <th style="width: 85px;">Năm sinh (Tuổi)</th>
-              <th style="width: 30%;">🔬 CLS CẦN LÀM (XN / CĐHA)</th>
-              <th style="width: 30%;">💊 THÊM THUỐC / Y LỆNH MỚI</th>
-              <th style="width: 110px;">Điều Dưỡng Ký Nhận</th>
+              <th style="width: 40px; text-align: center;">STT</th>
+              <th style="width: 95px; text-align: center;">Phòng/Giường</th>
+              <th style="width: 180px;">Họ và Tên NB</th>
+              <th style="width: 90px; text-align: center;">Năm sinh (Tuổi)</th>
+              <th style="width: 31%;">🔬 CLS CẦN LÀM (XN / CĐHA)</th>
+              <th style="width: 31%;">💊 THÊM THUỐC / Y LỆNH MỚI</th>
+              <th style="width: 110px; text-align: center;">Điều Dưỡng Ký Nhận</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml}
           </tbody>
         </table>
-
-        <!-- Khối chữ ký xác nhận -->
-        <div class="nurse-sign-grid">
-          <div class="nurse-sign-col">
-            <div class="nurse-sign-role">ĐIỀU DƯỠNG THỰC HIỆN CA TRỰC</div>
-            <div class="nurse-sign-hint">(Ký, ghi rõ họ tên &amp; giờ hoàn thành)</div>
-          </div>
-          <div class="nurse-sign-col">
-            <div class="nurse-sign-role">BÁC SĨ RA Y LỆNH</div>
-            <div class="nurse-sign-hint">(Ký và ghi rõ họ tên)</div>
-            <div class="nurse-sign-name">BS. Nguyễn Hữu Đông</div>
-          </div>
-        </div>
       </div>
     `;
   }

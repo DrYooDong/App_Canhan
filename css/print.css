@@ -327,10 +327,13 @@
     content: '' !important;
   }
 
-  /* KHI IN PHIẾU ĐIỀU DƯỠNG (PRINT-NURSE-MODE) */
+  /* KHI IN PHIẾU ĐIỀU DƯỠNG (PRINT-NURSE-MODE) - CHỈ IN BẢNG NỘI DUNG */
   body.print-nurse-mode .table-wrapper,
   body.print-nurse-mode .hospital-header,
-  body.print-nurse-mode .print-signature-block {
+  body.print-nurse-mode .print-signature-block,
+  body.print-nurse-mode .nurse-header-grid,
+  body.print-nurse-mode .nurse-doc-title-block,
+  body.print-nurse-mode .nurse-sign-grid {
     display: none !important;
   }
 
@@ -370,27 +373,105 @@
     width: 100% !important;
   }
 
+  body.print-nurse-mode .nurse-sheet-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   body.print-nurse-mode .nurse-table {
+    display: table !important;
     width: 100% !important;
     border-collapse: collapse !important;
     border: 1.5px solid #000000 !important;
+    table-layout: fixed !important;
+    font-size: 8.5pt !important;
+    margin-top: 0 !important;
+  }
+
+  body.print-nurse-mode .nurse-table thead {
+    display: table-header-group !important;
+  }
+
+  body.print-nurse-mode .nurse-table tbody {
+    display: table-row-group !important;
+  }
+
+  body.print-nurse-mode .nurse-table tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
   }
 
   body.print-nurse-mode .nurse-table th,
   body.print-nurse-mode .nurse-table td {
+    display: table-cell !important;
     border: 1px solid #000000 !important;
-    padding: 4px 6px !important;
+    padding: 4px 5px !important;
+    color: #000000 !important;
+    background: transparent !important;
+    vertical-align: top !important;
+    word-break: break-word !important;
   }
 
   body.print-nurse-mode .nurse-table th {
     background-color: #f1f5f9 !important;
     font-weight: 800 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  body.print-nurse-mode .nurse-sign-grid {
-    page-break-inside: avoid !important;
-    margin-top: 20px !important;
+  body.print-nurse-mode .nurse-col-stt {
+    width: 32px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+  body.print-nurse-mode .nurse-col-room {
+    width: 80px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+  body.print-nurse-mode .nurse-col-name {
+    width: 155px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #000000 !important;
+  }
+  body.print-nurse-mode .nurse-col-birth {
+    width: 70px !important;
+    text-align: center !important;
+    color: #000000 !important;
+  }
+  body.print-nurse-mode .nurse-col-cls {
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+  }
+  body.print-nurse-mode .nurse-col-rx {
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+  }
+  body.print-nurse-mode .nurse-col-sign {
+    width: 95px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  body.print-nurse-mode .nurse-item-cls {
+    color: #000000 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+  }
+  body.print-nurse-mode .nurse-item-rx {
+    color: #000000 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+  }
+  body.print-nurse-mode .sign-box {
+    border-color: #000000 !important;
   }
 }
