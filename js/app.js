@@ -288,11 +288,11 @@ class MedWardApp {
 
           const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
           if (syncRes && syncRes.offlineSaved) {
-            alert(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy!\n(Dữ liệu đã được lưu an toàn, hệ thống sẽ tự động đồng bộ lên Cloud khi có kết nối mạng)`);
+            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
           } else if (syncRes && syncRes.error) {
-            alert(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy, nhưng gặp lỗi khi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
+            window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
           } else {
-            alert(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);
+            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ lên Cloud!`);
           }
         }
       }
@@ -310,7 +310,7 @@ class MedWardApp {
     if (!file) return;
 
     if (typeof XLSX === 'undefined') {
-      alert("Không tìm thấy thư viện đọc Excel. Bạn có thể mở file Excel, bấm Ctrl+A rồi Ctrl+C, sau đó quay lại trang này bấm Ctrl+V để nạp trực tiếp!");
+      window.showToast("⚠️ Thư viện đọc file Excel chưa sẵn sàng. Bạn có thể sao chép bảng từ Excel rồi bấm Ctrl+V để dán trực tiếp!");
       return;
     }
 
@@ -324,7 +324,7 @@ class MedWardApp {
 
         const imported = window.patientController.parseExcelRawRows(rawRows);
         if (imported.length === 0) {
-          alert('Không tìm thấy hàng dữ liệu người bệnh phù hợp trong file Excel.');
+          window.showToast('⚠️ Không tìm thấy hàng dữ liệu người bệnh phù hợp trong file Excel.');
           return;
         }
 
@@ -352,14 +352,14 @@ class MedWardApp {
 
         const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
         if (syncRes && syncRes.offlineSaved) {
-          alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân vào bộ nhớ máy!\n(Dữ liệu đã được lưu an toàn, hệ thống sẽ tự động đồng bộ lên Cloud khi có kết nối mạng)`);
+          window.showToast(`✓ Đã nạp thành công ${imported.length} bệnh nhân vào bộ nhớ máy! (Lưu an toàn offline)`);
         } else if (syncRes && syncRes.error) {
-          alert(`⚠️ Đã nạp ${imported.length} bệnh nhân vào bộ nhớ máy, nhưng gặp lỗi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
+          window.showToast(`⚠️ Đã nạp ${imported.length} bệnh nhân vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
         } else {
-          alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);
+          window.showToast(`✓ Đã nạp thành công ${imported.length} bệnh nhân và đồng bộ lên Cloud!`);
         }
       } catch (err) {
-        alert('Lỗi đọc file Excel: ' + err.message);
+        window.showToast('⚠️ Lỗi đọc file Excel: ' + err.message);
       } finally {
         e.target.value = '';
       }

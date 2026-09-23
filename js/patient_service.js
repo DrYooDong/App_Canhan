@@ -53,7 +53,26 @@ class PatientController {
   }
 
   async reloadFromSource(showNotice = true) {
-    const data = await window.supabaseService.fetchPatients();
+    let data = null;
+    if (window.supabaseService) {
+      try {
+        data = await window.supabaseService.fetchPatients();
+      } catch (err) {
+        console.warn('Lỗi khi tải từ Supabase, chuyển sang cache offline:', err);
+      }
+    }
+
+    if (!data || data.length === 0) {
+      const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+      if (local) {
+        try {
+          data = JSON.parse(local);
+        } catch (e) {
+          console.error('Lỗi đọc local cache:', e);
+        }
+      }
+    }
+
     this.patientList = data || [];
 
     // Tự động chuẩn hóa phòng/giường thành dạng ngắn gọn (VD: D1.14-3) và bổ sung created_at nếu thiếu
@@ -949,7 +968,7 @@ class PatientController {
     // NẾU CHƯA ĐĂNG NHẬP: KHÓA BẢO MẬT BẢNG THEO DÕI VÀ DỮ LIỆU
     if (!isLoggedIn) {
       const tbody = document.getElementById('patientTableBody');
-      const cardList = document.getElementById('patientCardList');
+      const cardList = document.getElementById('mobileCardContainer') || document.getElementById('patientCardList');
       const totalEl = document.getElementById('patientCount');
       const emptyMsg = document.getElementById('emptyMessage');
       if (emptyMsg) emptyMsg.style.display = 'none';
