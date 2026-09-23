@@ -11,6 +11,8 @@ class SupabaseService {
     this.stateListeners = [];
     this.isSyncing = false;
     this.lastSyncedAt = null;
+    this.batchSyncLock = false;
+    this.pendingBatch = null;
 
     this.init();
   }
@@ -502,6 +504,32 @@ class SupabaseService {
       out.handover_by = p.doctor_name;
     }
 
+    // Đóng gói cấu trúc 2 phần CLS (Hiện có & Cần làm) vào cột cls để tương thích hoàn toàn cơ sở dữ liệu
+    if (p.cls_hien_co !== undefined || p.cls_can_lam !== undefined) {
+      const hc = (p.cls_hien_co || '').trim();
+      const cl = (p.cls_can_lam || '').trim();
+      if (hc && cl) {
+        out.cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+      } else if (cl) {
+        out.cls = `[Cần làm]: ${cl}`;
+      } else {
+        out.cls = hc;
+      }
+    }
+
+    // Đóng gói Thêm thuốc vào cột y_lenh để tương thích cơ sở dữ liệu
+    if (p.them_thuoc) {
+      const baseYl = (p.y_lenh || '').trim();
+      const extraRx = String(p.them_thuoc).trim();
+      if (extraRx) {
+        if (baseYl) {
+          out.y_lenh = `${baseYl}\n[Thêm thuốc]: ${extraRx}`;
+        } else {
+          out.y_lenh = `[Thêm thuốc]: ${extraRx}`;
+        }
+      }
+    }
+
     // Đảm bảo created_at và updated_at luôn là chuỗi thời gian ISO hợp lệ, TUYỆT ĐỐI không bao giờ null
     const nowIso = new Date().toISOString();
     if (!out.created_at || out.created_at === 'null' || typeof out.created_at !== 'string') {
@@ -587,13 +615,25 @@ class SupabaseService {
   }
 
   async syncBatchPatients(patientsArray) {
+    if (!patientsArray || !Array.isArray(patientsArray)) {
+      return { data: [], error: null };
+    }
+
+    // Cache local ngay lập tức
+    localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(patientsArray));
+
+    // Khóa chống xung đột truy vấn đồng thời (concurrency mutex)
+    if (this.batchSyncLock) {
+      this.pendingBatch = patientsArray;
+      return { data: patientsArray, error: null, queued: true };
+    }
+
+    this.batchSyncLock = true;
     this.isSyncing = true;
     this.notifyStateChange();
 
-    // Cache local
-    localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(patientsArray));
-
     if (!this.isCloudEnabled || !this.client) {
+      this.batchSyncLock = false;
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
@@ -601,16 +641,17 @@ class SupabaseService {
     }
 
     try {
-      await this.ensureSession();
-      const currentUser = await this.getCurrentUser();
+      await this.ensureSession().catch(() => {});
+      const currentUser = await this.getCurrentUser().catch(() => null);
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const nowIso = new Date().toISOString();
 
-      // 1. Chuẩn hóa dữ liệu theo schema Postgres và cấp phát UUID nếu thiếu
+      // 1. Chuẩn hóa dữ liệu theo schema Postgres và cấp phát UUID nếu thiếu hoặc không hợp lệ
       const rawRecords = patientsArray.map((p, idx) => {
         const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx });
         if (!item.id || !uuidRegex.test(item.id)) {
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+          if (p) p.id = item.id;
         }
         if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
           item.user_id = currentUser.id;
@@ -622,66 +663,95 @@ class SupabaseService {
         return item;
       });
 
-      // 2. KHỬ TRÙNG LẶP ID: Đảm bảo không có 2 bản ghi nào cùng id trong 1 mẻ lưu
+      // 2. KHỬ TRÙNG LẶP ID TRIỆT ĐỂ: Đảm bảo không có 2 bản ghi nào cùng id trong cùng 1 request
       const seenIds = new Set();
       const deduplicatedRecords = [];
-      for (const item of rawRecords) {
-        if (seenIds.has(item.id)) {
+      for (let i = 0; i < rawRecords.length; i++) {
+        const item = rawRecords[i];
+        const lowerId = String(item.id).toLowerCase();
+        if (seenIds.has(lowerId)) {
           // Trùng ID: cấp phát UUID mới để tránh lỗi 23505
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+          if (patientsArray[i]) patientsArray[i].id = item.id;
         }
-        seenIds.add(item.id);
+        seenIds.add(String(item.id).toLowerCase());
         deduplicatedRecords.push(item);
       }
 
       let syncedData = deduplicatedRecords;
 
-      // 3. THỰC HIỆN UPSERT (ON CONFLICT 'id') THAY VÌ DELETE + INSERT
-      // Phương thức này là atomic và ngăn chặn triệt để lỗi duplicate key 23505
+      // 3. THỰC HIỆN UPSERT (ON CONFLICT 'id')
       if (deduplicatedRecords.length > 0) {
-        const { data, error: upsertError } = await this.client
-          .from('patients')
-          .upsert(deduplicatedRecords, { onConflict: 'id', ignoreDuplicates: false })
-          .select();
+        let upsertSuccess = false;
+        try {
+          const { data, error: upsertError } = await this.client
+            .from('patients')
+            .upsert(deduplicatedRecords, { onConflict: 'id', ignoreDuplicates: false })
+            .select();
 
-        if (upsertError) {
-          console.warn('Lưu ý upsert mẻ, chuyển sang lưu từng bản ghi:', upsertError?.message || upsertError);
-          for (const item of deduplicatedRecords) {
-            try {
-              await this.client.from('patients').upsert(item, { onConflict: 'id' });
-            } catch (singleErr) {
-              try {
-                item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
-                await this.client.from('patients').upsert(item, { onConflict: 'id' });
-              } catch (retryErr) {}
-            }
+          if (!upsertError && data && data.length > 0) {
+            syncedData = data;
+            upsertSuccess = true;
+          } else if (upsertError) {
+            console.warn('Lưu ý upsert mẻ:', upsertError?.message || upsertError);
           }
-        } else if (data && data.length > 0) {
-          syncedData = data;
+        } catch (batchErr) {
+          console.warn('Lỗi mạng khi upsert mẻ, chuyển sang lưu từng bản ghi:', batchErr?.message || batchErr);
         }
 
-        // 4. DỌN DẸP BỆNH NHÂN ĐÃ BỊ XÓA (nếu có bệnh nhân cũ trên Cloud không còn trong danh sách)
+        // Nếu upsert cả mẻ bị lỗi (ví dụ 23505 hoặc payload lớn), lưu từng bản ghi một cách bền bỉ
+        if (!upsertSuccess) {
+          const individuallySaved = [];
+          for (const item of deduplicatedRecords) {
+            try {
+              const res = await this.client.from('patients').upsert(item, { onConflict: 'id' });
+              if (res.error) {
+                // Nếu bị lỗi 23505 trùng khóa, cấp phát UUID mới và thử lại
+                item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+                const retryRes = await this.client.from('patients').upsert(item, { onConflict: 'id' });
+                if (!retryRes.error) individuallySaved.push(item);
+              } else {
+                individuallySaved.push(item);
+              }
+            } catch (singleErr) {
+              // Bỏ qua lỗi từng bản ghi để không ngắt toàn bộ tiến trình
+            }
+          }
+          if (individuallySaved.length > 0) {
+            syncedData = individuallySaved;
+          }
+        }
+
+        // 4. DỌN DẸP BỆNH NHÂN ĐÃ BỊ XÓA
         try {
           const keepIdSet = new Set(deduplicatedRecords.map(r => r.id));
-          const { data: remoteRows, error: fetchErr } = await this.client
-            .from('patients')
-            .select('id');
+          let q = this.client.from('patients').select('id');
+          if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
+            q = q.eq('user_id', currentUser.id);
+          }
+          const { data: remoteRows, error: fetchErr } = await q;
           if (!fetchErr && remoteRows && remoteRows.length > 0) {
             const staleIds = remoteRows.map(r => r.id).filter(id => !keepIdSet.has(id));
             if (staleIds.length > 0) {
               for (let i = 0; i < staleIds.length; i += 50) {
                 const chunk = staleIds.slice(i, i + 50);
-                await this.client.from('patients').delete().in('id', chunk);
+                await this.client.from('patients').delete().in('id', chunk).catch(() => {});
               }
             }
           }
         } catch (pruneErr) {
-          console.warn('Lưu ý dọn dẹp ID cũ trên cloud:', pruneErr?.message || pruneErr);
+          // Bỏ qua lỗi dọn dẹp ID cũ
         }
       } else {
         // Trường hợp danh sách rỗng (người dùng xóa hết bệnh nhân)
         try {
-          await this.client.from('patients').delete().neq('ten', '___PROTECT_EMPTY_GUARD___');
+          let delQ = this.client.from('patients').delete();
+          if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
+            delQ = delQ.eq('user_id', currentUser.id);
+          } else {
+            delQ = delQ.neq('ten', '___PROTECT_EMPTY_GUARD___');
+          }
+          await delQ;
         } catch (e) {}
       }
 
@@ -691,14 +761,28 @@ class SupabaseService {
         window.patientController.patientList = syncedData;
       }
 
+      this.batchSyncLock = false;
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
+
+      // Nếu có tác vụ chờ trong hàng đợi, thực thi tiếp tục
+      if (this.pendingBatch) {
+        const nextBatch = this.pendingBatch;
+        this.pendingBatch = null;
+        setTimeout(() => this.syncBatchPatients(nextBatch), 50);
+      }
+
       return { data: syncedData, error: null };
     } catch (err) {
       console.warn('Lưu ý đồng bộ Cloud (dữ liệu đã lưu an toàn vào bộ nhớ nội bộ):', err?.message || err);
+      this.batchSyncLock = false;
       this.isSyncing = false;
       this.notifyStateChange();
+
+      if (this.pendingBatch) {
+        this.pendingBatch = null;
+      }
 
       // Cập nhật trạng thái lưu an toàn trên máy
       if (window.updateSaveStatus) {

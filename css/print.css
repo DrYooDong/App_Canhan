@@ -288,4 +288,109 @@
   body.printing-handover-only .btn-sm {
     display: none !important;
   }
+
+  /* ĐỊNH DẠNG CỘT CLS VÀ Y LỆNH TRÊN BẢN IN CHUẨN A4 */
+  .med-dual-cell, .cls-dual-wrapper, .yl-dual-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    background: transparent !important;
+  }
+  .med-tier, .cls-sub-box, .yl-sub-box {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .med-tier-divider {
+    border-top: 0.5pt dashed #555555 !important;
+    margin: 2px 0 !important;
+  }
+  .med-micro-badge, .cls-sub-badge, .yl-sub-badge {
+    font-weight: 800 !important;
+    font-size: 7pt !important;
+    color: #000000 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-right: 3px !important;
+    display: inline !important;
+  }
+  .med-cell-editor, .cls-sub-text, .yl-main-text, .yl-extra-text {
+    font-size: 8.2pt !important;
+    line-height: 1.25 !important;
+    color: #000000 !important;
+    white-space: pre-wrap !important;
+    display: inline !important;
+  }
+  .med-cell-editor:empty:before, .cls-sub-text:empty:before, .yl-main-text:empty:before, .yl-extra-text:empty:before {
+    display: none !important;
+    content: '' !important;
+  }
+
+  /* KHI IN PHIẾU ĐIỀU DƯỠNG (PRINT-NURSE-MODE) */
+  body.print-nurse-mode .table-wrapper,
+  body.print-nurse-mode .hospital-header,
+  body.print-nurse-mode .print-signature-block {
+    display: none !important;
+  }
+
+  body.print-nurse-mode #nursePrintModal {
+    display: block !important;
+    position: static !important;
+    opacity: 1 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  body.print-nurse-mode #nursePrintModal .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  body.print-nurse-mode #nursePrintModal .modal-header,
+  body.print-nurse-mode #nursePrintModal .modal-footer,
+  body.print-nurse-mode #nursePrintModal .nurse-print-toolbar,
+  body.print-nurse-mode #nursePrintModal .btn-close-modal {
+    display: none !important;
+  }
+
+  body.print-nurse-mode #nursePrintArea {
+    display: block !important;
+    border: none !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  body.print-nurse-mode .nurse-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #000000 !important;
+  }
+
+  body.print-nurse-mode .nurse-table th,
+  body.print-nurse-mode .nurse-table td {
+    border: 1px solid #000000 !important;
+    padding: 4px 6px !important;
+  }
+
+  body.print-nurse-mode .nurse-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-nurse-mode .nurse-sign-grid {
+    page-break-inside: avoid !important;
+    margin-top: 20px !important;
+  }
 }

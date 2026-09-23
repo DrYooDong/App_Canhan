@@ -249,6 +249,11 @@ class MedWardApp {
         return;
       }
 
+      if (!window.authController?.isLoggedIn) {
+        window.authController?.showGateOverlay?.();
+        return;
+      }
+
       const clipboardData = e.clipboardData || window.clipboardData;
       const pastedText = clipboardData?.getData('text');
       if (pastedText && (pastedText.includes('\t') || pastedText.includes('\n'))) {
@@ -295,6 +300,12 @@ class MedWardApp {
   }
 
   handleExcelFileUpload(e) {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      e.target.value = '';
+      return;
+    }
+
     const file = e.target.files[0];
     if (!file) return;
 

@@ -53,6 +53,10 @@ class HandoverController {
   }
 
   openHandoverModal(patientId) {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
     this.currentPatientId = patientId;
     const p = window.patientController.patientList.find(item => item.id === patientId);
     if (!p) return;
@@ -141,6 +145,10 @@ class HandoverController {
 
   // MỞ DASHBOARD BÀN GIAO TOÀN DIỆN
   openHandoverDashboard() {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
     const modal = document.getElementById('handoverDashboardModal');
     if (!modal) return;
 

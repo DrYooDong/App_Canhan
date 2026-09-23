@@ -102,6 +102,7 @@ class PatientController {
         p.updated_at = nowIso;
         cleaned = true;
       }
+      this.normalizePatientClsAndOrders(p);
     });
 
     if (cleaned) {
@@ -116,6 +117,43 @@ class PatientController {
 
     if (showNotice && window.updateSaveStatus) {
       window.updateSaveStatus('✓ Đã tải dữ liệu bệnh nhân');
+    }
+  }
+
+  // Phân tách Cận lâm sàng (Hiện có & Cần làm) và Y lệnh (Y lệnh & Thêm thuốc)
+  normalizePatientClsAndOrders(p) {
+    if (!p) return;
+
+    // 1. Phân tách Cận lâm sàng thành 2 phần: Hiện có & Cần làm
+    let rawCls = (p.cls || '').trim();
+    if (rawCls.includes('[Hiện có]:') || rawCls.includes('[Cần làm]:')) {
+      const mHienCo = rawCls.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
+      const mCanLam = rawCls.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
+      p.cls_hien_co = mHienCo ? mHienCo[1].trim() : '';
+      p.cls_can_lam = mCanLam ? mCanLam[1].trim() : '';
+    } else if (p.cls_hien_co && (p.cls_hien_co.includes('[Hiện có]:') || p.cls_hien_co.includes('[Cần làm]:'))) {
+      const mHienCo = p.cls_hien_co.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
+      const mCanLam = p.cls_hien_co.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
+      p.cls_hien_co = mHienCo ? mHienCo[1].trim() : '';
+      p.cls_can_lam = mCanLam ? mCanLam[1].trim() : (p.cls_can_lam || '');
+    } else if (p.cls_hien_co === undefined && p.cls_can_lam === undefined) {
+      p.cls_hien_co = rawCls;
+      p.cls_can_lam = '';
+    } else {
+      p.cls_hien_co = (p.cls_hien_co || '').trim();
+      p.cls_can_lam = (p.cls_can_lam || '').trim();
+    }
+
+    // 2. Phân tách Y lệnh và Thêm thuốc
+    let rawYl = (p.y_lenh || '').trim();
+    if (rawYl.includes('[Thêm thuốc]:')) {
+      const parts = rawYl.split(/\[Thêm thuốc\]:/i);
+      p.y_lenh = (parts[0] || '').trim();
+      p.them_thuoc = (parts[1] || '').trim();
+    } else if (p.them_thuoc === undefined) {
+      p.them_thuoc = '';
+    } else {
+      p.them_thuoc = (p.them_thuoc || '').trim();
     }
   }
 
@@ -216,6 +254,20 @@ class PatientController {
 
     // 1. Cập nhật ngay lập tức vào bộ nhớ RAM
     this.patientList[idx][field] = rawValue;
+
+    // Nếu sửa CLS Hiện có hoặc Cần làm, tự động cập nhật trường tổng hợp cls
+    if (field === 'cls_hien_co' || field === 'cls_can_lam') {
+      const hc = (this.patientList[idx].cls_hien_co || '').trim();
+      const cl = (this.patientList[idx].cls_can_lam || '').trim();
+      if (hc && cl) {
+        this.patientList[idx].cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+      } else if (cl) {
+        this.patientList[idx].cls = `[Cần làm]: ${cl}`;
+      } else {
+        this.patientList[idx].cls = hc;
+      }
+    }
+
     this.patientList[idx].updated_at = new Date().toISOString();
 
     // 2. Lưu ngay vào localStorage (phòng ngừa F5/đóng tab)
@@ -263,7 +315,7 @@ class PatientController {
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
       }
-    } else if (CONFIG.expandMedicalText && (field === 'chan_doan' || field === 'cls' || field === 'y_lenh')) {
+    } else if (CONFIG.expandMedicalText && (field === 'chan_doan' || field === 'cls' || field === 'cls_hien_co' || field === 'cls_can_lam' || field === 'y_lenh' || field === 'them_thuoc')) {
       cleanVal = CONFIG.expandMedicalText(cleanVal);
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
@@ -273,6 +325,19 @@ class PatientController {
     const idx = this.patientList.findIndex(p => p.id === patientId);
     if (idx !== -1) {
       this.patientList[idx][field] = cleanVal;
+
+      if (field === 'cls_hien_co' || field === 'cls_can_lam') {
+        const hc = (this.patientList[idx].cls_hien_co || '').trim();
+        const cl = (this.patientList[idx].cls_can_lam || '').trim();
+        if (hc && cl) {
+          this.patientList[idx].cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+        } else if (cl) {
+          this.patientList[idx].cls = `[Cần làm]: ${cl}`;
+        } else {
+          this.patientList[idx].cls = hc;
+        }
+      }
+
       this.patientList[idx].updated_at = new Date().toISOString();
       this.saveLocalCache();
 
@@ -302,20 +367,14 @@ class PatientController {
   // ==============================================================================
   handleDoctorFilterChange(val) {
     const isLoggedIn = !!window.authController?.isLoggedIn;
-
-    if (val === 'login_prompt' || (val === 'my_patients' && !isLoggedIn)) {
-      window.authController?.openAuthModal('workspace');
-      if (!isLoggedIn) {
-        this.currentDoctorFilter = 'all';
-        this.updateDoctorFilterDropdown();
-        this.render();
-        return;
-      }
+    if (!isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
     }
 
-    this.currentDoctorFilter = val || (isLoggedIn ? 'my_patients' : 'all');
+    this.currentDoctorFilter = 'my_patients';
     try {
-      localStorage.setItem('medward_doctor_filter', this.currentDoctorFilter);
+      localStorage.setItem('medward_doctor_filter', 'my_patients');
     } catch (e) {}
 
     const activeDoc = window.authController?.getActiveDoctor?.();
@@ -326,56 +385,21 @@ class PatientController {
     const subTitleEl = document.querySelector('.sub-title');
     const wsText = document.getElementById('currentWorkspaceText');
     if (titleEl) {
-      if (this.currentDoctorFilter === 'all') {
-        titleEl.innerText = CONFIG.DEFAULT_META.title;
-        if (subTitleEl) subTitleEl.innerText = '(Bảng theo dõi toàn khoa - Tất cả bác sĩ điều trị)';
-        if (wsText) wsText.innerText = 'Toàn khoa';
-      } else if (this.currentDoctorFilter === 'my_patients') {
-        titleEl.innerText = CONFIG.DEFAULT_META.title;
-        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${docName} • ${activeDoc?.department || 'Khoa Nhiễm'})`;
-        if (wsText) wsText.innerText = docName || 'Không gian riêng';
-      } else {
-        titleEl.innerText = CONFIG.DEFAULT_META.title;
-        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị: ${this.currentDoctorFilter})`;
-        if (wsText) wsText.innerText = `${this.currentDoctorFilter}`;
-      }
+      titleEl.innerText = CONFIG.DEFAULT_META.title;
+      if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${docName} • ${activeDoc?.department || 'Khoa Nhiễm'})`;
+      if (wsText) wsText.innerText = docName;
     }
 
     this.render();
   }
 
   updateDoctorFilterDropdown() {
-    const select = document.getElementById('doctorFilterSelect');
-    if (!select) return;
-
-    const isLoggedIn = !!window.authController?.isLoggedIn;
     const activeDoc = window.authController?.getActiveDoctor?.();
-    const myDocName = activeDoc ? (activeDoc.full_name || 'BS. Nguyễn Hữu Đông').trim() : 'BS. Nguyễn Hữu Đông';
-    const myCount = this.patientList.length;
-
-    let html = '';
-    if (isLoggedIn) {
-      html += `<option value="my_patients">🩺 Không gian của tôi: ${this.escape(myDocName)} (${myCount})</option>`;
-      html += `<option value="all">🏥 Toàn khoa: Tất cả bác sĩ (${this.patientList.length})</option>`;
-    } else {
-      html += `<option value="all">🏥 Toàn khoa: Tất cả người bệnh (${this.patientList.length})</option>`;
-      html += `<option value="login_prompt">🔒 Không gian BS. Đông (Cần đăng nhập)</option>`;
-    }
-
-    select.innerHTML = html;
-
-    // Giữ giá trị đã chọn phù hợp
-    if (isLoggedIn) {
-      if (this.currentDoctorFilter && Array.from(select.options).some(o => o.value === this.currentDoctorFilter)) {
-        select.value = this.currentDoctorFilter;
-      } else {
-        select.value = 'my_patients';
-        this.currentDoctorFilter = 'my_patients';
-      }
-    } else {
-      select.value = 'all';
-      this.currentDoctorFilter = 'all';
-    }
+    const docName = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
+    const subTitleEl = document.querySelector('.sub-title');
+    const wsText = document.getElementById('currentWorkspaceText');
+    if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${docName} • ${activeDoc?.department || 'Khoa Nhiễm'})`;
+    if (wsText) wsText.innerText = docName;
   }
 
   quickAssignDoctor(patientId, event) {
@@ -621,11 +645,14 @@ class PatientController {
   // CRUD CƠ BẢN
   // ==============================================================================
   async addPatient(patientData = {}) {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
+
     const activeDoc = window.authController?.getActiveDoctor?.();
-    const myDocName = activeDoc ? activeDoc.full_name : '';
-    const targetDoc = (this.currentDoctorFilter && this.currentDoctorFilter !== 'all' && this.currentDoctorFilter !== 'my_patients')
-      ? this.currentDoctorFilter
-      : (myDocName || '');
+    const myDocName = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
+    const targetDoc = myDocName;
 
     const newPatient = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
@@ -635,12 +662,15 @@ class PatientController {
       nam_sinh_tuoi: (patientData.nam_sinh_tuoi || '').trim(),
       chan_doan: (patientData.chan_doan || '').trim(),
       cls: (patientData.cls || '').trim(),
+      cls_hien_co: (patientData.cls_hien_co || patientData.cls || '').trim(),
+      cls_can_lam: (patientData.cls_can_lam || '').trim(),
       y_lenh: (patientData.y_lenh || '').trim(),
+      them_thuoc: (patientData.them_thuoc || '').trim(),
       handover_status: patientData.handover_status || CONFIG.HANDOVER_STATUS.NONE,
       handover_issues: patientData.handover_issues || '',
       handover_actions: patientData.handover_actions || '',
-      doctor_name: patientData.doctor_name || targetDoc,
-      handover_by: patientData.handover_by || targetDoc,
+      doctor_name: targetDoc,
+      handover_by: targetDoc,
       handover_at: patientData.handover_at || null,
       sort_order: this.patientList.length,
       created_at: new Date().toISOString(),
@@ -658,11 +688,15 @@ class PatientController {
   }
 
   insertRowAfter(patientId) {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
+
     const idx = this.patientList.findIndex(p => p.id === patientId);
     const baseRoom = idx >= 0 ? this.cleanRoomBedString(this.patientList[idx].phong_giuong) : 'D1.14-1';
-    const baseDoc = idx >= 0 ? (this.patientList[idx].doctor_name || this.patientList[idx].handover_by) : '';
     const activeDoc = window.authController?.getActiveDoctor?.();
-    const myDoc = activeDoc ? activeDoc.full_name : '';
+    const myDoc = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
 
     const newP = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
@@ -672,12 +706,15 @@ class PatientController {
       nam_sinh_tuoi: '',
       chan_doan: '',
       cls: '',
+      cls_hien_co: '',
+      cls_can_lam: '',
       y_lenh: '',
+      them_thuoc: '',
       handover_status: CONFIG.HANDOVER_STATUS.NONE,
       handover_issues: '',
       handover_actions: '',
-      doctor_name: baseDoc || myDoc,
-      handover_by: baseDoc || myDoc,
+      doctor_name: myDoc,
+      handover_by: myDoc,
       sort_order: idx + 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -744,6 +781,11 @@ class PatientController {
   }
 
   async clearAll() {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
+
     if (confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách bệnh nhân hiện tại không? Thao tác này không thể hoàn tác.')) {
       this.patientList = [];
       this.saveLocalCache();
@@ -858,7 +900,10 @@ class PatientController {
         nam_sinh_tuoi: namSinhTuoiVal,
         chan_doan: cdVal,
         cls: clsVal,
+        cls_hien_co: clsVal,
+        cls_can_lam: '',
         y_lenh: ylVal,
+        them_thuoc: '',
         doctor_name: docVal,
         handover_by: docVal,
         handover_status: CONFIG.HANDOVER_STATUS.NONE,
@@ -874,43 +919,22 @@ class PatientController {
   }
 
   // ==============================================================================
-  // LỌC DANH SÁCH BỆNH NHÂN THEO BÁC SĨ (KHÔNG GIAN RIÊNG) VÀ TỪ KHÓA
-  // (Đã loại bỏ phân loại bệnh nhân - Tất cả hiển thị cùng không gian)
+  // LỌC DANH SÁCH BỆNH NHÂN CỦA BÁC SĨ ĐIỀU TRỊ VÀ TỪ KHÓA TÌM KIẾM
   // ==============================================================================
   getFilteredPatients() {
     const q = this.currentFilterQuery.toLowerCase().trim();
-    const docFilter = this.currentDoctorFilter || 'my_patients';
-    const activeDoc = window.authController?.getActiveDoctor?.() || null;
-    const myDocName = (activeDoc?.full_name || '').trim().toLowerCase();
-    const myDocId = activeDoc?.id || '';
+    if (!q) return this.patientList;
 
     return this.patientList.filter(p => {
-      // 1. Lọc theo Không Gian Bác Sĩ (Bảng theo dõi riêng)
-      if (docFilter && docFilter !== 'all') {
-        const pDoc = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-        const pUserId = p.user_id || '';
-        if (docFilter === 'my_patients') {
-          if (!myDocName && !myDocId) return true;
-          // Khớp theo user_id hoặc tên bác sĩ
-          const matchId = myDocId && pUserId && pUserId === myDocId;
-          const matchName = myDocName && (pDoc.includes(myDocName) || myDocName.includes(pDoc));
-          if (!matchId && !matchName) return false;
-        } else {
-          // Khớp theo tên bác sĩ được chọn cụ thể
-          const targetLower = docFilter.toLowerCase();
-          if (!pDoc.includes(targetLower) && !targetLower.includes(pDoc)) return false;
-        }
-      }
-
-      // 2. Lọc theo từ khóa tìm kiếm
-      if (!q) return true;
-
       return (p.phong_giuong || '').toLowerCase().includes(q) ||
              (p.ten || '').toLowerCase().includes(q) ||
              (p.doctor_name || '').toLowerCase().includes(q) ||
              (p.chan_doan || '').toLowerCase().includes(q) ||
+             (p.cls_hien_co || '').toLowerCase().includes(q) ||
+             (p.cls_can_lam || '').toLowerCase().includes(q) ||
              (p.cls || '').toLowerCase().includes(q) ||
              (p.y_lenh || '').toLowerCase().includes(q) ||
+             (p.them_thuoc || '').toLowerCase().includes(q) ||
              (p.handover_issues || '').toLowerCase().includes(q) ||
              (p.handover_actions || '').toLowerCase().includes(q);
     });
@@ -920,28 +944,57 @@ class PatientController {
   // RENDER GIAO DIỆN CHÍNH
   // ==============================================================================
   render() {
+    const isLoggedIn = !!window.authController?.isLoggedIn;
+
+    // NẾU CHƯA ĐĂNG NHẬP: KHÓA BẢO MẬT BẢNG THEO DÕI VÀ DỮ LIỆU
+    if (!isLoggedIn) {
+      const tbody = document.getElementById('patientTableBody');
+      const cardList = document.getElementById('patientCardList');
+      const totalEl = document.getElementById('patientCount');
+      const emptyMsg = document.getElementById('emptyMessage');
+      if (emptyMsg) emptyMsg.style.display = 'none';
+      if (totalEl) totalEl.innerText = '0';
+
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+              <div style="font-size: 32px; margin-bottom: 10px;">🔒</div>
+              <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">HỒ SƠ BỆNH ÁN ĐÃ KHÓA BẢO MẬT</div>
+              <div style="font-size: 13px; max-width: 440px; margin: 0 auto; line-height: 1.5;">Vui lòng đăng nhập mã PIN để mở khóa và làm việc với danh sách người bệnh của BS. Nguyễn Hữu Đông.</div>
+              <button class="btn btn-primary" onclick="window.authController.showGateOverlay()" style="margin-top: 16px; display: inline-flex; align-items: center; gap: 6px;">
+                🔑 Nhập mã PIN đăng nhập
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+      if (cardList) {
+        cardList.innerHTML = `
+          <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: var(--radius); border: 1.5px solid var(--border);">
+            <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
+            <div style="font-size: 15px; font-weight: 800; color: var(--text-main);">Hồ sơ bệnh án đã khóa</div>
+            <div style="font-size: 12.5px; margin-top: 4px; line-height: 1.4;">Vui lòng đăng nhập mã PIN để mở khóa bảng theo dõi.</div>
+            <button class="btn btn-primary" onclick="window.authController.showGateOverlay()" style="margin-top: 14px; width: 100%; justify-content: center;">
+              🔑 Nhập mã PIN đăng nhập
+            </button>
+          </div>
+        `;
+      }
+      return;
+    }
+
     const filtered = this.getFilteredPatients();
 
     // Cập nhật bộ đếm
     const totalEl = document.getElementById('patientCount');
-    const activeDoc = window.authController?.getActiveDoctor?.() || null;
-    const myDocName = (activeDoc?.full_name || '').trim().toLowerCase();
-    const myPatientsCount = this.patientList.filter(p => {
-      const d = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-      return myDocName && (d.includes(myDocName) || myDocName.includes(d));
-    }).length;
-
     if (totalEl) {
-      if (this.currentDoctorFilter === 'my_patients') {
-        totalEl.innerHTML = `${filtered.length} <small style="font-weight: normal; font-size: 11px; color: var(--text-muted);">(Khoa: ${this.patientList.length})</small>`;
-      } else {
-        totalEl.innerText = filtered.length;
-      }
+      totalEl.innerText = filtered.length;
     }
 
     // Cập nhật Header Pill Badge
     if (window.authController && window.authController.updateHeaderPill) {
-      window.authController.updateHeaderPill(myPatientsCount, this.patientList.length);
+      window.authController.updateHeaderPill(filtered.length, this.patientList.length);
     }
 
     // Render Bảng Desktop
@@ -976,6 +1029,7 @@ class PatientController {
     }
 
     filtered.forEach((p, idx) => {
+      this.normalizePatientClsAndOrders(p);
       const roomCode = this.extractRoomCode(p.phong_giuong);
 
       // Nhóm buồng
@@ -1020,14 +1074,49 @@ class PatientController {
             oninput="window.patientController.handleCellInput('${p.id}', 'chan_doan', this.innerText, this)"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
             onblur="window.patientController.handleCellBlur('${p.id}', 'chan_doan', this.innerText, this)">${this.escape(p.chan_doan || '')}</td>
-        <td class="col-cls col-editable" contenteditable="true"
-            oninput="window.patientController.handleCellInput('${p.id}', 'cls', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
-            onblur="window.patientController.handleCellBlur('${p.id}', 'cls', this.innerText, this)">${this.escape(p.cls || '')}</td>
-        <td class="col-yl col-editable" contenteditable="true"
-            oninput="window.patientController.handleCellInput('${p.id}', 'y_lenh', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
-            onblur="window.patientController.handleCellBlur('${p.id}', 'y_lenh', this.innerText, this)">${this.escape(p.y_lenh || '')}</td>
+        <td class="col-cls col-cls-dual">
+          <div class="med-dual-cell">
+            <div class="med-tier tier-present" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-tier-header">
+                <span class="med-micro-badge badge-present">✓ Hiện có</span>
+              </div>
+              <div class="med-cell-editor col-editable" contenteditable="true"
+                   data-placeholder="Chưa có kết quả..."
+                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_hien_co', this.innerText, this)"
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_hien_co', this.innerText, this)">${this.escape(p.cls_hien_co || '')}</div>
+            </div>
+            <div class="med-tier-divider"></div>
+            <div class="med-tier tier-pending ${p.cls_can_lam ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-tier-header">
+                <span class="med-micro-badge badge-pending ${p.cls_can_lam ? 'active' : ''}">${p.cls_can_lam ? '⚡ Cần làm' : '+ Cần làm'}</span>
+              </div>
+              <div class="med-cell-editor col-editable ${p.cls_can_lam ? 'text-pending-highlight' : ''}" contenteditable="true"
+                   data-placeholder="+ Chỉ định mới cần làm..."
+                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_can_lam', this.innerText, this)"
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_can_lam', this.innerText, this)">${this.escape(p.cls_can_lam || '')}</div>
+            </div>
+          </div>
+        </td>
+        <td class="col-yl col-yl-dual">
+          <div class="med-dual-cell">
+            <div class="med-tier tier-orders" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-cell-editor col-editable" contenteditable="true"
+                   data-placeholder="Y lệnh điều trị, thuốc, chăm sóc..."
+                   oninput="window.patientController.handleCellInput('${p.id}', 'y_lenh', this.innerText, this)"
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'y_lenh', this.innerText, this)">${this.escape(p.y_lenh || '')}</div>
+            </div>
+            <div class="med-tier-divider"></div>
+            <div class="med-tier tier-rx ${p.them_thuoc ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-tier-header">
+                <span class="med-micro-badge badge-rx ${p.them_thuoc ? 'active' : ''}">${p.them_thuoc ? '💊 Thêm thuốc' : '+ Thêm thuốc'}</span>
+              </div>
+              <div class="med-cell-editor col-editable ${p.them_thuoc ? 'text-rx-highlight' : ''}" contenteditable="true"
+                   data-placeholder="+ Bổ sung thuốc mới..."
+                   oninput="window.patientController.handleCellInput('${p.id}', 'them_thuoc', this.innerText, this)"
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'them_thuoc', this.innerText, this)">${this.escape(p.them_thuoc || '')}</div>
+            </div>
+          </div>
+        </td>
         <td class="col-handover">
           <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
             ${statusCfg.icon}
@@ -1062,6 +1151,7 @@ class PatientController {
     container.innerHTML = '';
 
     filtered.forEach((p) => {
+      this.normalizePatientClsAndOrders(p);
       const statusCfg = CONFIG.STATUS_CONFIG[p.handover_status] || CONFIG.STATUS_CONFIG.none;
       const isCritical = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
       const isPending = p.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
@@ -1092,13 +1182,28 @@ class PatientController {
           </div>
 
           <div class="card-field">
-            <span class="field-label">CLS:</span>
-            <div class="field-content">${this.escape(p.cls || '—')}</div>
+            <span class="field-label">Cận lâm sàng (CLS):</span>
+            <div class="mobile-cls-box">
+              <div class="mobile-cls-row">
+                <span class="mobile-sub-badge badge-present">✓ Hiện có:</span>
+                <span>${this.escape(p.cls_hien_co || '—')}</span>
+              </div>
+              <div class="mobile-cls-row ${p.cls_can_lam ? 'mobile-highlight-pending' : ''}">
+                <span class="mobile-sub-badge badge-pending">⚡ Cần làm:</span>
+                <span class="${p.cls_can_lam ? 'text-pending-bold' : ''}">${this.escape(p.cls_can_lam || 'Không có')}</span>
+              </div>
+            </div>
           </div>
 
           <div class="card-field">
             <span class="field-label">Y lệnh:</span>
             <div class="field-content">${this.escape(p.y_lenh || '—')}</div>
+            ${p.them_thuoc ? `
+              <div class="mobile-them-thuoc-box">
+                <span class="mobile-sub-badge badge-extra">💊 Thêm thuốc:</span>
+                <span class="mobile-rx-val">${this.escape(p.them_thuoc)}</span>
+              </div>
+            ` : ''}
           </div>
 
           ${p.handover_issues || p.handover_actions ? `
@@ -1148,6 +1253,8 @@ class PatientController {
     const p = this.patientList.find(item => item.id === patientId);
     if (!p) return;
 
+    this.normalizePatientClsAndOrders(p);
+
     const modal = document.getElementById('patientDetailModal');
     if (!modal) return;
 
@@ -1157,8 +1264,17 @@ class PatientController {
     document.getElementById('editAgeYear').value = p.nam_sinh_tuoi || '';
     document.getElementById('editDoctorName').value = p.doctor_name || p.handover_by || '';
     document.getElementById('editDiagnosis').value = p.chan_doan || '';
-    document.getElementById('editCls').value = p.cls || '';
+    
+    if (document.getElementById('editClsHienCo')) {
+      document.getElementById('editClsHienCo').value = p.cls_hien_co || '';
+    }
+    if (document.getElementById('editClsCanLam')) {
+      document.getElementById('editClsCanLam').value = p.cls_can_lam || '';
+    }
     document.getElementById('editOrders').value = p.y_lenh || '';
+    if (document.getElementById('editThemThuoc')) {
+      document.getElementById('editThemThuoc').value = p.them_thuoc || '';
+    }
     document.getElementById('editHandoverStatus').value = p.handover_status || CONFIG.HANDOVER_STATUS.NONE;
     document.getElementById('editHandoverIssues').value = p.handover_issues || '';
     document.getElementById('editHandoverActions').value = p.handover_actions || '';
@@ -1170,16 +1286,31 @@ class PatientController {
         `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editDiagnosis', '${t}')">+ ${t}</button>`
       ).join('');
     }
-    const clsEl = document.getElementById('clsQuickTags');
-    if (clsEl && CONFIG.QUICK_TAGS?.LABS) {
-      clsEl.innerHTML = CONFIG.QUICK_TAGS.LABS.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editCls', '${t}')">+ ${t}</button>`
+    const clsHcEl = document.getElementById('clsHienCoQuickTags');
+    if (clsHcEl && (CONFIG.QUICK_TAGS?.LABS_HIEN_CO || CONFIG.QUICK_TAGS?.LABS)) {
+      const list = CONFIG.QUICK_TAGS.LABS_HIEN_CO || CONFIG.QUICK_TAGS.LABS;
+      clsHcEl.innerHTML = list.map(t =>
+        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editClsHienCo', '${t}')">+ ${t}</button>`
+      ).join('');
+    }
+    const clsClEl = document.getElementById('clsCanLamQuickTags');
+    if (clsClEl && (CONFIG.QUICK_TAGS?.LABS_CAN_LAM || CONFIG.QUICK_TAGS?.LABS)) {
+      const list = CONFIG.QUICK_TAGS.LABS_CAN_LAM || CONFIG.QUICK_TAGS.LABS;
+      clsClEl.innerHTML = list.map(t =>
+        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editClsCanLam', '${t}')">+ ${t}</button>`
       ).join('');
     }
     const ordersEl = document.getElementById('ordersQuickTags');
     if (ordersEl && CONFIG.QUICK_TAGS?.ORDERS) {
       ordersEl.innerHTML = CONFIG.QUICK_TAGS.ORDERS.map(t =>
         `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editOrders', '${t}')">+ ${t}</button>`
+      ).join('');
+    }
+    const themThuocEl = document.getElementById('themThuocQuickTags');
+    if (themThuocEl && (CONFIG.QUICK_TAGS?.THEM_THUOC || CONFIG.QUICK_TAGS?.ORDERS)) {
+      const list = CONFIG.QUICK_TAGS.THEM_THUOC || CONFIG.QUICK_TAGS.ORDERS;
+      themThuocEl.innerHTML = list.map(t =>
+        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editThemThuoc', '${t}')">+ ${t}</button>`
       ).join('');
     }
 
@@ -1196,13 +1327,26 @@ class PatientController {
     if (!id) return;
 
     let cdVal = document.getElementById('editDiagnosis').value.trim();
-    let clsVal = document.getElementById('editCls').value.trim();
+    let clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value.trim() : '';
+    let clsClVal = document.getElementById('editClsCanLam') ? document.getElementById('editClsCanLam').value.trim() : '';
     let ylVal = document.getElementById('editOrders').value.trim();
+    let themThuocVal = document.getElementById('editThemThuoc') ? document.getElementById('editThemThuoc').value.trim() : '';
 
     if (CONFIG.expandMedicalText) {
       cdVal = CONFIG.expandMedicalText(cdVal);
-      clsVal = CONFIG.expandMedicalText(clsVal);
+      clsHcVal = CONFIG.expandMedicalText(clsHcVal);
+      clsClVal = CONFIG.expandMedicalText(clsClVal);
       ylVal = CONFIG.expandMedicalText(ylVal);
+      themThuocVal = CONFIG.expandMedicalText(themThuocVal);
+    }
+
+    let combinedCls = '';
+    if (clsHcVal && clsClVal) {
+      combinedCls = `[Hiện có]: ${clsHcVal}\n[Cần làm]: ${clsClVal}`;
+    } else if (clsClVal) {
+      combinedCls = `[Cần làm]: ${clsClVal}`;
+    } else {
+      combinedCls = clsHcVal;
     }
 
     const docVal = document.getElementById('editDoctorName')?.value?.trim() || '';
@@ -1213,8 +1357,11 @@ class PatientController {
       nam_sinh_tuoi: document.getElementById('editAgeYear').value.trim(),
       doctor_name: docVal,
       chan_doan: cdVal,
-      cls: clsVal,
+      cls: combinedCls,
+      cls_hien_co: clsHcVal,
+      cls_can_lam: clsClVal,
       y_lenh: ylVal,
+      them_thuoc: themThuocVal,
       handover_status: document.getElementById('editHandoverStatus').value,
       handover_issues: document.getElementById('editHandoverIssues').value.trim(),
       handover_actions: document.getElementById('editHandoverActions').value.trim()
@@ -1237,6 +1384,231 @@ class PatientController {
     if (window.updateSaveStatus) {
       window.updateSaveStatus('✓ Đã cập nhật thông tin người bệnh');
     }
+  }
+
+  // ==============================================================================
+  // IN CHO ĐIỀU DƯỠNG (PHIẾU Y LỆNH & CLS CẦN LÀM)
+  // ==============================================================================
+  openNursePrintModal() {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
+    const modal = document.getElementById('nursePrintModal');
+    if (!modal) return;
+
+    this.renderNursePrintPreview();
+    modal.classList.add('active');
+  }
+
+  closeNursePrintModal() {
+    const modal = document.getElementById('nursePrintModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  renderNursePrintPreview() {
+    const container = document.getElementById('nursePrintArea');
+    if (!container) return;
+
+    this.patientList.forEach(p => this.normalizePatientClsAndOrders(p));
+
+    // Đếm số người bệnh có chỉ định cần làm (CLS cần làm hoặc Thêm thuốc)
+    const pendingPatients = this.patientList.filter(p => {
+      const hasCls = Boolean(p.cls_can_lam && p.cls_can_lam.trim());
+      const hasRx = Boolean(p.them_thuoc && p.them_thuoc.trim());
+      return hasCls || hasRx;
+    });
+
+    const countEl = document.getElementById('nursePendingCount');
+    if (countEl) countEl.innerText = pendingPatients.length;
+
+    const onlyPending = document.getElementById('nurseFilterOnlyPending')?.checked ?? true;
+    const targetList = onlyPending ? pendingPatients : this.patientList;
+
+    const todayStr = new Date().toLocaleDateString('vi-VN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const nowTimeStr = new Date().toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    if (targetList.length === 0) {
+      container.innerHTML = `
+        <div class="nurse-empty-state">
+          <div style="font-size: 36px; margin-bottom: 8px;">🎉</div>
+          <div style="font-size: 15px; font-weight: 700; color: #15803d; margin-bottom: 4px;">Hiện tại không có chỉ định mới cần thực hiện!</div>
+          <div style="font-size: 13px; color: var(--text-muted);">
+            Tất cả người bệnh trong danh sách chưa có chỉ định <strong>CLS cần làm</strong> hoặc <strong>Thêm thuốc</strong> mới.
+          </div>
+          <div style="margin-top: 14px;">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('nurseFilterOnlyPending').checked = false; window.patientController.renderNursePrintPreview();">
+              Xem toàn bộ danh sách (${this.patientList.length} người bệnh)
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    let rowsHtml = '';
+    targetList.forEach((p, idx) => {
+      const clsCanLamHtml = p.cls_can_lam && p.cls_can_lam.trim()
+        ? `<div class="nurse-item-cls"><span class="nurse-bullet">🔬</span> ${this.escape(p.cls_can_lam)}</div>`
+        : `<span class="nurse-item-empty">—</span>`;
+
+      const themThuocHtml = p.them_thuoc && p.them_thuoc.trim()
+        ? `<div class="nurse-item-rx"><span class="nurse-bullet">💊</span> <strong>${this.escape(p.them_thuoc)}</strong></div>`
+        : `<span class="nurse-item-empty">—</span>`;
+
+      rowsHtml += `
+        <tr>
+          <td class="nurse-col-stt">${idx + 1}</td>
+          <td class="nurse-col-room">${this.escape(p.phong_giuong || '—')}</td>
+          <td class="nurse-col-name">${this.escape(p.ten || '—')}</td>
+          <td class="nurse-col-birth">${this.escape(p.nam_sinh_tuoi || '—')}</td>
+          <td class="nurse-col-cls">${clsCanLamHtml}</td>
+          <td class="nurse-col-rx">${themThuocHtml}</td>
+          <td class="nurse-col-sign">
+            <div class="nurse-sign-check">
+              <span class="sign-box"></span>
+              <span class="sign-line">Giờ: ...... Ký: .......</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    container.innerHTML = `
+      <div class="nurse-sheet-content">
+        <!-- Header chuẩn phiếu y tế bệnh viện -->
+        <div class="nurse-header-grid">
+          <div class="nurse-header-left">
+            <div class="nurse-unit-title">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+            <div class="nurse-hospital-title">BV ĐA KHOA KHU VỰC THỦ ĐỨC</div>
+            <div class="nurse-dept-title">KHOA NHIỄM</div>
+          </div>
+          <div class="nurse-header-right">
+            <div><strong>BÁC SĨ ĐIỀU TRỊ:</strong> BS. NGUYỄN HỮU ĐÔNG</div>
+            <div><strong>Thời gian in:</strong> ${nowTimeStr} • ${todayStr}</div>
+            <div><strong>Tổng số NB:</strong> ${targetList.length} người bệnh</div>
+          </div>
+        </div>
+
+        <div class="nurse-doc-title-block">
+          <h2 class="nurse-doc-title">PHIẾU THỰC HIỆN Y LỆNH &amp; CHỈ ĐỊNH CẬN LÂM SÀNG</h2>
+          <div class="nurse-doc-subtitle">(DÀNH CHO ĐIỀU DƯỠNG CA TRỰC THỰC HIỆN THEO DÕI &amp; KÝ NHẬN)</div>
+        </div>
+
+        <!-- Bảng danh sách phiếu điều dưỡng -->
+        <table class="nurse-table">
+          <thead>
+            <tr>
+              <th style="width: 38px;">STT</th>
+              <th style="width: 90px;">Phòng/Giường</th>
+              <th style="width: 175px;">Họ và Tên NB</th>
+              <th style="width: 85px;">Năm sinh (Tuổi)</th>
+              <th style="width: 30%;">🔬 CLS CẦN LÀM (XN / CĐHA)</th>
+              <th style="width: 30%;">💊 THÊM THUỐC / Y LỆNH MỚI</th>
+              <th style="width: 110px;">Điều Dưỡng Ký Nhận</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <!-- Khối chữ ký xác nhận -->
+        <div class="nurse-sign-grid">
+          <div class="nurse-sign-col">
+            <div class="nurse-sign-role">ĐIỀU DƯỠNG THỰC HIỆN CA TRỰC</div>
+            <div class="nurse-sign-hint">(Ký, ghi rõ họ tên &amp; giờ hoàn thành)</div>
+          </div>
+          <div class="nurse-sign-col">
+            <div class="nurse-sign-role">BÁC SĨ RA Y LỆNH</div>
+            <div class="nurse-sign-hint">(Ký và ghi rõ họ tên)</div>
+            <div class="nurse-sign-name">BS. Nguyễn Hữu Đông</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  printNurseWorklist() {
+    this.renderNursePrintPreview();
+    document.body.classList.add('print-nurse-mode');
+    
+    setTimeout(() => {
+      window.print();
+    }, 150);
+
+    const cleanup = () => {
+      document.body.classList.remove('print-nurse-mode');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => {
+      document.body.classList.remove('print-nurse-mode');
+    }, 2500);
+  }
+
+  copyNurseWorklistZalo() {
+    this.patientList.forEach(p => this.normalizePatientClsAndOrders(p));
+    const onlyPending = document.getElementById('nurseFilterOnlyPending')?.checked ?? true;
+    
+    let targetList = this.patientList;
+    if (onlyPending) {
+      targetList = this.patientList.filter(p => {
+        return Boolean(p.cls_can_lam && p.cls_can_lam.trim()) || Boolean(p.them_thuoc && p.them_thuoc.trim());
+      });
+    }
+
+    if (targetList.length === 0) {
+      if (window.updateSaveStatus) window.updateSaveStatus('ℹ️ Không có người bệnh nào có CLS cần làm hoặc Thêm thuốc để sao chép', 'warning');
+      return;
+    }
+
+    const todayStr = new Date().toLocaleDateString('vi-VN');
+    let text = `🏥 KHOA NHIỄM - BV ĐK KHU VỰC THỦ ĐỨC\n`;
+    text += `📋 PHIẾU Y LỆNH & CLS CHO ĐIỀU DƯỠNG (BS. Nguyễn Hữu Đông)\n`;
+    text += `📅 Ngày: ${todayStr} - Tổng cộng: ${targetList.length} người bệnh\n`;
+    text += `--------------------------------------------------\n`;
+
+    targetList.forEach((p, idx) => {
+      text += `${idx + 1}. [${p.phong_giuong || 'Chưa xếp'}] ${p.ten || 'BỆNH NHÂN'} - NS: ${p.nam_sinh_tuoi || '—'}\n`;
+      if (p.cls_can_lam && p.cls_can_lam.trim()) {
+        text += `   🔬 CLS CẦN LÀM: ${p.cls_can_lam.trim()}\n`;
+      }
+      if (p.them_thuoc && p.them_thuoc.trim()) {
+        text += `   💊 THÊM THUỐC: ${p.them_thuoc.trim()}\n`;
+      }
+      if (!p.cls_can_lam?.trim() && !p.them_thuoc?.trim()) {
+        text += `   ✓ Y lệnh thường quy, không thêm mới\n`;
+      }
+      text += `\n`;
+    });
+
+    text += `--------------------------------------------------\n`;
+    text += `👉 Đề nghị Điều dưỡng ca trực tiếp nhận, thực hiện và phản hồi sau khi hoàn tất. Trân trọng!`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      if (window.updateSaveStatus) {
+        window.updateSaveStatus('📋 Đã sao chép nội dung phiếu Điều dưỡng! Bạn có thể dán (Ctrl+V) vào nhóm Zalo của khoa.', 'saved');
+      }
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (window.updateSaveStatus) {
+        window.updateSaveStatus('📋 Đã sao chép nội dung phiếu Điều dưỡng! Bạn có thể dán (Ctrl+V) vào nhóm Zalo của khoa.', 'saved');
+      }
+    });
   }
 
   escape(str) {

@@ -28,6 +28,66 @@
 </head>
 <body>
 
+<!-- MÀN HÌNH ĐĂNG NHẬP BẢO MẬT BẮT BUỘC KHI VÀO TRANG WEB -->
+<div id="loginGateOverlay" class="login-gate-overlay" style="display: none;">
+  <div class="login-gate-card">
+    <div class="login-gate-brand">
+      <div class="login-gate-badge">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="login-gate-hospital">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
+        <div class="login-gate-dept">KHOA NHIỄM • BẢNG THEO DÕI NỘI TRÚ</div>
+      </div>
+    </div>
+
+    <div class="login-gate-banner">
+      <div class="login-gate-lock-icon">🔒</div>
+      <div>
+        <div class="login-gate-banner-title">Xác thực Bác sĩ điều trị</div>
+        <div class="login-gate-banner-sub">Bắt buộc đăng nhập để sử dụng và truy cập danh sách người bệnh</div>
+      </div>
+    </div>
+
+    <!-- THẺ THÔNG TIN BÁC SĨ -->
+    <div class="login-doctor-preview">
+      <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
+      <div class="login-doc-info">
+        <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
+        <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
+        <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> (nguyenhuudongy18@gmail.com)</div>
+      </div>
+    </div>
+
+    <!-- FORM ĐĂNG NHẬP NHANH BẰNG PIN/PASSWORD -->
+    <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" style="padding: 0 20px 20px;">
+      <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label for="gatePinInput" style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <span>Mã PIN / Mật khẩu số:</span>
+          <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
+        </label>
+        <div class="pin-input-wrapper">
+          <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" autofocus required>
+          <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1" title="Hiện/ẩn mã PIN">👁️</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-gate-submit">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>ĐĂNG NHẬP ĐỂ SỬ DỤNG</span>
+      </button>
+
+      <div class="gate-security-note">
+        🛡️ Quy định bảo mật thông tin người bệnh: Vui lòng đăng nhập mã PIN mỗi khi vào trang web để sử dụng.
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="app-container">
 
   <!-- 1. THANH TOP APP BAR: CLINICAL WORKSPACE & DOCTOR PROFILE -->
@@ -56,13 +116,19 @@
         <div class="doc-avatar-circle" id="headerDocAvatar">HĐ</div>
         <div class="doc-header-info">
           <span class="doc-header-name" id="headerDocName">BS. Nguyễn Hữu Đông</span>
-          <span class="doc-header-role" id="headerDocRole">Không gian riêng</span>
+          <span class="doc-header-role" id="headerDocRole">Bác sĩ điều trị</span>
         </div>
         <svg class="pill-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </div>
 
+      <!-- Nút Khóa Bảng & Đăng Xuất -->
+      <button class="btn-lock-board" id="btnLockBoard" onclick="window.authController.handleLogout()" data-tooltip="Khóa bảng theo dõi &amp; Đăng xuất">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>Khóa</span>
+      </button>
+
       <!-- Nút Đăng Nhập Bác Sĩ (Hiển thị khi chưa đăng nhập) -->
-      <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.openAuthModal('workspace')" style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ riêng">
+      <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.showGateOverlay()" style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
         <span>Đăng nhập BS</span>
       </button>
@@ -135,16 +201,17 @@
         <span>In A4</span>
       </button>
 
+      <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()" data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng (Khổ A4)">
+        <span style="font-size: 13px;">👩‍⚕️</span>
+        <span>In cho Điều dưỡng</span>
+      </button>
+
       <div class="toolbar-divider"></div>
 
-      <!-- NHÓM 3: KHÔNG GIAN BÁC SĨ (DOCTOR WORKSPACE SELECTOR) -->
-      <div class="doctor-select-wrapper" data-tooltip="Chọn không gian theo dõi">
-        <svg class="doctor-select-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path><circle cx="20" cy="10" r="2"></circle></svg>
-        <select id="doctorFilterSelect" onchange="window.patientController.handleDoctorFilterChange(this.value)">
-          <option value="my_patients">🩺 Bảng của tôi</option>
-          <option value="all">🏥 Toàn khoa (Tất cả)</option>
-        </select>
-        <svg class="select-caret" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <!-- NHÓM 3: THÔNG TIN BÁC SĨ ĐIỀU TRỊ -->
+      <div class="doctor-badge-toolbar" data-tooltip="Bác sĩ điều trị phụ trách">
+        <span class="doctor-badge-icon">🩺</span>
+        <span class="doctor-badge-name">BS. Nguyễn Hữu Đông</span>
       </div>
 
       <div class="toolbar-divider"></div>
@@ -206,9 +273,9 @@
           <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
           <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span><span class="th-sub">Người bệnh</span></th>
           <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span><span class="th-sub">Năm sinh</span></th>
-          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CĐ</span><span class="th-sub">Chẩn đoán</span></th>
-          <th class="col-cls" data-tooltip="Cận lâm sàng &amp; Kết quả xét nghiệm (CLS)"><span class="th-title">CLS</span><span class="th-sub">Cận lâm sàng</span></th>
-          <th class="col-yl" data-tooltip="Y lệnh điều trị, thuốc &amp; dịch truyền (YL)"><span class="th-title">YL</span><span class="th-sub">Y lệnh</span></th>
+          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN ĐOÁN</span><span class="th-sub">Xác định • Kèm theo</span></th>
+          <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span class="th-title">CẬN LÂM SÀNG</span><span class="th-sub">✓ Hiện có • ⚡ Cần làm</span></th>
+          <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
           <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
           <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
         </tr>
@@ -265,6 +332,10 @@
     <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
     <span>Tua trực</span>
   </button>
+  <button class="bottom-nav-item" onclick="window.patientController.openNursePrintModal()" data-tooltip-top="Phiếu Y lệnh &amp; CLS cho Điều dưỡng">
+    <span style="font-size: 18px; line-height: 1;">👩‍⚕️</span>
+    <span>In cho ĐD</span>
+  </button>
   <button class="bottom-nav-item" data-tab="workspace" data-tooltip-top="Không gian Bác sĩ">
     <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path><circle cx="20" cy="10" r="2"></circle></svg>
     <span>Không gian BS</span>
@@ -313,16 +384,39 @@
         <div class="quick-tags-box" id="diagQuickTags"></div>
       </div>
 
-      <div class="form-group">
-        <label>Cận lâm sàng & Xét nghiệm (CLS):</label>
-        <textarea id="editCls" class="form-control" rows="2" placeholder="Kết quả CLS (gõ tắt: ctm, shm, dgd, xq, sa, cm, ecg...)"></textarea>
-        <div class="quick-tags-box" id="clsQuickTags"></div>
+      <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label style="color: #0369a1; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+            <span>🔬 CLS - HIỆN CÓ:</span>
+            <small style="font-weight: 400; color: var(--text-muted);">(KQ đã trả về)</small>
+          </label>
+          <textarea id="editClsHienCo" class="form-control" rows="2" placeholder="Kết quả CLS hiện có (gõ tắt: ctm, shm, dgd, xq, sa...)"></textarea>
+          <div class="quick-tags-box" id="clsHienCoQuickTags"></div>
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label style="color: #b45309; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+            <span>⚡ CLS - CẦN LÀM:</span>
+            <small style="font-weight: 400; color: #b45309;">(Chỉ định cho Điều dưỡng)</small>
+          </label>
+          <textarea id="editClsCanLam" class="form-control" rows="2" placeholder="Xét nghiệm / CĐHA cần thực hiện (gõ tắt: ctm, shm, cm, xq...)"></textarea>
+          <div class="quick-tags-box" id="clsCanLamQuickTags"></div>
+        </div>
       </div>
 
       <div class="form-group">
-        <label>Y lệnh điều trị & Thuốc (YL):</label>
-        <textarea id="editOrders" class="form-control" rows="2" placeholder="Thuốc, dịch truyền, chăm sóc (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
+        <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
+        <textarea id="editOrders" class="form-control" rows="2" placeholder="Thuốc, dịch truyền, chế độ theo dõi (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
         <div class="quick-tags-box" id="ordersQuickTags"></div>
+      </div>
+
+      <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
+      <div class="form-group" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+        <label style="color: #15803d; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng thực hiện):</span>
+        </label>
+        <textarea id="editThemThuoc" class="form-control" rows="2" placeholder="Thuốc bổ sung trong ngày, thuốc hạ sốt, kháng sinh thêm, dịch truyền..."></textarea>
+        <div class="quick-tags-box" id="themThuocQuickTags"></div>
       </div>
 
       <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
@@ -674,6 +768,54 @@
 
         <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu & Kiểm Tra Kết Nối Cloud</button>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 5: PHIẾU THỰC HIỆN Y LỆNH & CLS CHO ĐIỀU DƯỠNG -->
+<div class="modal-overlay" id="nursePrintModal">
+  <div class="modal-card modal-xl" style="max-width: 980px; width: 95%;">
+    <div class="modal-header">
+      <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">👩‍⚕️</span>
+        <span>Phiếu Thực Hiện Y Lệnh &amp; Chỉ Định CLS Cho Điều Dưỡng</span>
+      </div>
+      <button class="btn-close-modal" onclick="window.patientController.closeNursePrintModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 16px;">
+      <!-- Thanh công cụ điều khiển trong modal -->
+      <div class="nurse-print-toolbar">
+        <div class="nurse-filter-toggles">
+          <label class="nurse-toggle-label">
+            <input type="checkbox" id="nurseFilterOnlyPending" checked onchange="window.patientController.renderNursePrintPreview()">
+            <span>Chỉ lọc người bệnh có <strong>CLS cần làm</strong> hoặc <strong>Thêm thuốc</strong> (<span id="nursePendingCount" style="color: #b45309; font-weight: 700;">0</span> NB)</span>
+          </label>
+        </div>
+        <div class="nurse-action-btns">
+          <button class="btn btn-secondary btn-sm" onclick="window.patientController.copyNurseWorklistZalo()" data-tooltip="Sao chép nội dung để dán gửi nhóm Zalo Điều dưỡng">
+            📋 Copy gửi Zalo
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="window.patientController.printNurseWorklist()" data-tooltip="In trực tiếp phiếu này ra khổ giấy A4">
+            🖨️ In Khổ A4
+          </button>
+        </div>
+      </div>
+
+      <!-- Khu vực hiển thị phiếu xem trước & in ấn -->
+      <div id="nursePrintArea" class="nurse-print-area">
+        <!-- Render bởi JavaScript -->
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div style="font-size: 12px; color: var(--text-muted);">
+        💡 <em>Tổng hợp đúng 02 phần: <strong>CLS cần làm</strong> và <strong>Thêm thuốc</strong> + Họ tên, Năm sinh, Phòng để Điều dưỡng ca trực thực hiện.</em>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" onclick="window.patientController.closeNursePrintModal()">Đóng</button>
+        <button class="btn btn-primary" onclick="window.patientController.printNurseWorklist()" style="display: inline-flex; align-items: center; gap: 6px;">
+          🖨️ In Phiếu Cho Điều Dưỡng
+        </button>
+      </div>
     </div>
   </div>
 </div>

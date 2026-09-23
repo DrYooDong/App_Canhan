@@ -23,39 +23,118 @@ class AuthController {
     // 2. Lấy thông tin user hiện tại (Supabase hoặc Local Storage)
     this.currentUser = await window.supabaseService.getCurrentUser();
 
-    // 3. Khởi tạo trạng thái không gian bác sĩ
-    const savedActiveDocStr = localStorage.getItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
-    let isDongSession = false;
-    if (savedActiveDocStr) {
-      try {
-        const parsed = JSON.parse(savedActiveDocStr);
-        if (parsed && (parsed.username === 'dongnh' || (parsed.full_name && /đông|dong/i.test(parsed.full_name)))) {
-          isDongSession = true;
-          this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR, ...parsed };
-        }
-      } catch (e) {}
-    }
-
-    if (isDongSession) {
-      this.isLoggedIn = true;
-      this.saveActiveDoctor();
-    } else {
-      // Chưa đăng nhập: chỉ định cấu hình BS. Đông nhưng trạng thái chưa kích hoạt
-      try {
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
-      } catch (e) {}
-      this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
-      this.isLoggedIn = false;
-    }
+    // 3. Khởi tạo trạng thái đăng nhập bắt buộc mỗi khi vào trang web (Session Gate)
+    const isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
+    this.isLoggedIn = isUnlocked;
+    this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
+    this.saveActiveDoctor();
 
     this.updateUserUI();
+    this.checkLoginGate();
     this.bindEvents();
 
     // Lắng nghe thay đổi kết nối Cloud
     window.supabaseService.onStateChange((status) => {
       this.updateCloudStatusUI(status);
     });
+  }
+
+  checkLoginGate() {
+    const overlay = document.getElementById('loginGateOverlay');
+    const pinInput = document.getElementById('gatePinInput');
+    const msgEl = document.getElementById('gateLoginMsg');
+
+    if (!this.isLoggedIn) {
+      document.body.classList.add('app-locked');
+      if (overlay) {
+        overlay.style.display = 'flex';
+      }
+      if (msgEl) {
+        msgEl.style.display = 'none';
+        msgEl.innerText = '';
+      }
+      if (pinInput) {
+        pinInput.value = '';
+        setTimeout(() => pinInput.focus(), 150);
+      }
+    } else {
+      document.body.classList.remove('app-locked');
+      if (overlay) {
+        overlay.style.display = 'none';
+      }
+    }
+  }
+
+  showGateOverlay() {
+    this.isLoggedIn = false;
+    this.checkLoginGate();
+  }
+
+  togglePinVisibility(inputId, btnEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (btnEl) btnEl.innerText = '🙈';
+    } else {
+      input.type = 'password';
+      if (btnEl) btnEl.innerText = '👁️';
+    }
+  }
+
+  async handleGateLogin() {
+    const pinInput = document.getElementById('gatePinInput');
+    const msgEl = document.getElementById('gateLoginMsg');
+    const pin = pinInput?.value?.trim() || '';
+
+    if (!pin) {
+      this.showMsg(msgEl, 'Vui lòng nhập mã PIN / Mật khẩu số!', 'error');
+      if (pinInput) pinInput.focus();
+      return;
+    }
+
+    if (!/^\d+$/.test(pin)) {
+      this.showMsg(msgEl, 'Mật khẩu chỉ bao gồm các chữ số!', 'error');
+      if (pinInput) pinInput.focus();
+      return;
+    }
+
+    const savedPin = localStorage.getItem('medward_doctor_pin') || '123456';
+    let isAuthenticated = (pin === '123456' || pin === savedPin);
+
+    // Thử xác thực với Supabase nếu cần
+    if (!isAuthenticated) {
+      try {
+        const { data, error } = await window.supabaseService.signIn('dongnh', pin);
+        if (!error && data) isAuthenticated = true;
+      } catch (e) {}
+    }
+
+    if (!isAuthenticated) {
+      this.showMsg(msgEl, 'Mã PIN không chính xác! Vui lòng thử lại (Mặc định: 123456)', 'error');
+      if (pinInput) {
+        pinInput.value = '';
+        pinInput.focus();
+      }
+      return;
+    }
+
+    // Đăng nhập thành công!
+    sessionStorage.setItem('medward_session_unlocked', 'true');
+    this.isLoggedIn = true;
+    this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
+    this.saveActiveDoctor();
+    this.updateUserUI();
+    this.checkLoginGate();
+
+    if (window.patientController) {
+      window.patientController.updateDoctorFilterDropdown();
+      window.patientController.render();
+    }
+
+    if (window.showToast) {
+      window.showToast('✓ Chào mừng BS. Nguyễn Hữu Đông vào hệ thống điều trị!');
+    }
   }
 
   async loadKnownDoctors() {
@@ -105,46 +184,36 @@ class AuthController {
     const roleEl = document.getElementById('headerDocRole');
 
     if (avatarEl) avatarEl.innerText = this.getInitials(doc?.full_name);
-    if (nameEl) nameEl.innerText = doc?.full_name || 'Bác sĩ điều trị';
+    if (nameEl) nameEl.innerText = doc?.full_name || 'BS. Nguyễn Hữu Đông';
     if (roleEl) {
-      const isFilteringMine = window.patientController?.currentDoctorFilter === 'my_patients';
-      if (isFilteringMine) {
-        roleEl.innerText = `Không gian riêng • ${myPatientsCount} BN`;
-      } else if (window.patientController?.currentDoctorFilter === 'all') {
-        roleEl.innerText = `Toàn khoa • ${totalCount} BN`;
-      } else {
-        roleEl.innerText = `Không gian: ${window.patientController?.currentDoctorFilter}`;
-      }
+      roleEl.innerText = `BS. Điều trị • ${totalCount} BN`;
     }
   }
 
   updateUserUI() {
     const doc = this.getActiveDoctor();
     const userBadgeEl = document.getElementById('userProfileBadge');
+    const lockBtn = document.getElementById('btnLockBoard');
     const loginBtnHeader = document.getElementById('btnLoginHeader');
     const wsText = document.getElementById('currentWorkspaceText');
 
     if (this.isLoggedIn && doc) {
       if (userBadgeEl) {
         userBadgeEl.style.display = 'inline-flex';
-        const tooltip = `Không gian: ${doc.full_name} (${doc.department || 'Khoa Nhiễm'}) • Nhấn để đổi / quản lý`;
+        const tooltip = `Không gian điều trị: ${doc.full_name} (${doc.department || 'Khoa Nhiễm'})`;
         userBadgeEl.setAttribute('data-tooltip', tooltip);
       }
+      if (lockBtn) lockBtn.style.display = 'inline-flex';
       if (loginBtnHeader) loginBtnHeader.style.display = 'none';
       if (wsText) wsText.innerText = doc.full_name;
 
-      // Cập nhật header pill
-      const countMy = window.patientController?.patientList?.filter(p => {
-        const d = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-        const myName = (doc.full_name || '').trim().toLowerCase();
-        return myName && (d.includes(myName) || myName.includes(d));
-      }).length || 0;
-
-      this.updateHeaderPill(countMy, window.patientController?.patientList?.length || 0);
+      const totalCount = window.patientController?.patientList?.length || 0;
+      this.updateHeaderPill(totalCount, totalCount);
     } else {
       if (userBadgeEl) userBadgeEl.style.display = 'none';
+      if (lockBtn) lockBtn.style.display = 'none';
       if (loginBtnHeader) loginBtnHeader.style.display = 'inline-flex';
-      if (wsText) wsText.innerText = 'Toàn khoa (Tất cả BS)';
+      if (wsText) wsText.innerText = 'BS. Nguyễn Hữu Đông (Chưa đăng nhập)';
     }
 
     if (window.medWardApp?.updatePrintDateNote) {
@@ -351,11 +420,11 @@ class AuthController {
               🩺 Mở Bảng Điều Trị Riêng Của Tôi
             </button>
             <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn btn-secondary" onclick="window.authController.viewAllWard()" style="flex: 1; justify-content: center; font-size: 12.5px;">
-                🏥 Xem Bảng Toàn Khoa
+              <button type="button" class="btn btn-secondary" onclick="window.authController.switchAuthTab('profile')" style="flex: 1; justify-content: center; font-size: 12.5px;">
+                👤 Hồ Sơ &amp; Đổi PIN
               </button>
-              <button type="button" class="btn btn-secondary" onclick="window.authController.handleLogout()" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); font-size: 12.5px;">
-                🚪 Đăng Xuất
+              <button type="button" class="btn btn-secondary" onclick="window.authController.handleLogout()" style="flex: 1; justify-content: center; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); font-size: 12.5px; font-weight: 700;">
+                🔒 Khóa Bảng &amp; Đăng Xuất
               </button>
             </div>
           </div>
@@ -367,7 +436,7 @@ class AuthController {
         <div class="doctor-workspace-status-card not-logged-in" style="background: #ffffff; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px;">
           <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 14px;">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div class="quick-doc-avatar" style="width: 44px; height: 44px; font-size: 15px; background: var(--primary);">.Đ</div>
+              <div class="quick-doc-avatar" style="width: 44px; height: 44px; font-size: 15px; background: var(--primary);">HĐ</div>
               <div>
                 <div style="font-size: 14px; font-weight: 800; color: var(--text-main);">${this.escape(dong.full_name)}</div>
                 <div style="font-size: 12px; color: var(--text-muted);">${this.escape(dong.title || 'Bác sĩ điều trị')} • Khoa Nhiễm</div>
@@ -383,7 +452,7 @@ class AuthController {
               🔐 Xác thực tài khoản Bác sĩ
             </div>
             <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
-              Muốn vào không gian điều trị riêng của <strong>BS. Nguyễn Hữu Đông</strong>, bạn vui lòng nhập mật khẩu tài khoản:
+              Muốn vào bảng theo dõi người bệnh của <strong>BS. Nguyễn Hữu Đông</strong>, vui lòng nhập mật khẩu số (PIN):
             </div>
           </div>
 
@@ -401,15 +470,9 @@ class AuthController {
               <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
-              🔑 Đăng Nhập &amp; Vào Không Gian BS. Đông
+              🔑 Đăng Nhập &amp; Mở Bảng Điều Trị
             </button>
           </form>
-
-          <div style="border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 14px; text-align: center;">
-            <button type="button" class="btn-compact btn-subtle" onclick="window.authController.viewAllWard()" style="font-size: 12px;">
-              🏥 Tiếp tục xem Bảng Toàn Khoa (Không cần đăng nhập)
-            </button>
-          </div>
         </div>
       `;
     }
@@ -435,11 +498,7 @@ class AuthController {
 
   switchDoctorWorkspace(doctorNameOrId) {
     if (!this.isLoggedIn) {
-      this.openAuthModal('workspace');
-      setTimeout(() => {
-        const passInput = document.getElementById('wsQuickPass') || document.getElementById('loginPassword');
-        if (passInput) passInput.focus();
-      }, 200);
+      this.showGateOverlay();
       return;
     }
 
@@ -448,15 +507,7 @@ class AuthController {
   }
 
   viewAllWard() {
-    if (window.patientController) {
-      window.patientController.handleDoctorFilterChange('all');
-      window.patientController.updateDoctorFilterDropdown();
-      window.patientController.render();
-    }
-    this.closeAuthModal();
-    if (window.showToast) {
-      window.showToast('🏥 Đang hiển thị Bảng theo dõi Toàn khoa (Tất cả Bác sĩ)');
-    }
+    this.enterMyWorkspace();
   }
 
   fillProfileForm() {
@@ -591,25 +642,20 @@ class AuthController {
   }
 
   async handleLogout() {
-    if (confirm('Bạn có chắc muốn đăng xuất khỏi Không gian Bác sĩ?')) {
-      await window.supabaseService.signOut();
-      this.currentUser = null;
-      this.activeDoctor = null;
-      this.isLoggedIn = false;
+    if (confirm('Khóa bảng theo dõi và đăng xuất khỏi ca trực?')) {
       try {
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
-        localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
-        localStorage.setItem('medward_doctor_filter', 'all');
+        await window.supabaseService.signOut();
       } catch (e) {}
-      this.updateUserUI();
+      sessionStorage.removeItem('medward_session_unlocked');
+      this.isLoggedIn = false;
       this.closeAuthModal();
+      this.updateUserUI();
+      this.checkLoginGate();
       if (window.patientController) {
-        window.patientController.currentDoctorFilter = 'all';
-        window.patientController.updateDoctorFilterDropdown();
         window.patientController.render();
       }
       if (window.showToast) {
-        window.showToast('ℹ️ Đã đăng xuất khỏi Không gian Bác sĩ');
+        window.showToast('🔒 Đã khóa bảng theo dõi & đăng xuất');
       }
     }
   }
