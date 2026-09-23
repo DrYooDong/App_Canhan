@@ -34,48 +34,28 @@ const CONFIG = {
     subTitle: '(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)'
   },
 
-  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ
+  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (CHỈ DUY NHẤT BS. ĐÔNG)
   DEFAULT_DEMO_DOCTOR: {
-    id: 'doc_annv',
-    email: 'annv@thuduchospital.vn',
-    username: 'annv',
-    full_name: 'BS. CKI Nguyễn Văn An',
+    id: 'doc_dongnh',
+    email: 'nguyenhuudongy18@gmail.com',
+    username: 'dongnh',
+    full_name: 'BS. Nguyễn Hữu Đông',
     title: 'Bác sĩ điều trị',
     department: 'Khoa Nhiễm',
     hospital: 'BV ĐKKV Thủ Đức',
-    phone: '0912.345.678'
+    phone: '0988.765.432'
   },
 
   DEFAULT_DOCTORS: [
     {
-      id: 'doc_annv',
-      email: 'annv@thuduchospital.vn',
-      username: 'annv',
-      full_name: 'BS. CKI Nguyễn Văn An',
-      title: 'Bác sĩ điều trị',
-      department: 'Khoa Nhiễm',
-      hospital: 'BV ĐKKV Thủ Đức',
-      phone: '0912.345.678'
-    },
-    {
       id: 'doc_dongnh',
-      email: 'dongnh@thuduchospital.vn',
+      email: 'nguyenhuudongy18@gmail.com',
       username: 'dongnh',
       full_name: 'BS. Nguyễn Hữu Đông',
       title: 'Bác sĩ điều trị',
       department: 'Khoa Nhiễm',
       hospital: 'BV ĐKKV Thủ Đức',
       phone: '0988.765.432'
-    },
-    {
-      id: 'doc_binhtt',
-      email: 'binhtt@thuduchospital.vn',
-      username: 'binhtt',
-      full_name: 'BS. CKI Trần Thị Bình',
-      title: 'Bác sĩ trực',
-      department: 'Khoa Nhiễm',
-      hospital: 'BV ĐKKV Thủ Đức',
-      phone: '0903.112.233'
     }
   ],
 
@@ -314,9 +294,9 @@ const CONFIG = {
       handover_status: 'critical',
       handover_issues: 'Tiểu cầu có xu hướng tụt nhanh, sốt cao liên tục ngày 4, đau bụng vùng gan.',
       handover_actions: 'Theo dõi sinh hiệu + Hct mỗi 4h. Nếu Hct > 46% hoặc đau bụng tăng báo ngay BS trực.',
-      handover_by: 'BS. CKI Nguyễn Văn An',
-      doctor_name: 'BS. CKI Nguyễn Văn An',
-      doctor_id: 'doc_an',
+      handover_by: 'BS. Nguyễn Hữu Đông',
+      doctor_name: 'BS. Nguyễn Hữu Đông',
+      doctor_id: 'doc_dongnh',
       handover_at: '2026-09-21T17:00:00Z',
       sort_order: 0,
       created_at: '2026-09-21T08:00:00.000Z',
@@ -333,9 +313,9 @@ const CONFIG = {
       handover_status: 'pending',
       handover_issues: 'Còn sốt nhẹ 38°C, đang chờ kết quả cấy đàm kháng sinh đồ trả về.',
       handover_actions: 'Kiểm tra SpO2 lúc 22h (duy trì > 95%), nếu khó thở cho thở Oxy kính 2-3 L/p.',
-      handover_by: 'BS. CKI Nguyễn Văn An',
-      doctor_name: 'BS. CKI Nguyễn Văn An',
-      doctor_id: 'doc_an',
+      handover_by: 'BS. Nguyễn Hữu Đông',
+      doctor_name: 'BS. Nguyễn Hữu Đông',
+      doctor_id: 'doc_dongnh',
       handover_at: '2026-09-21T17:00:00Z',
       sort_order: 1,
       created_at: '2026-09-21T08:00:00.000Z',
@@ -352,9 +332,9 @@ const CONFIG = {
       handover_status: 'none',
       handover_issues: '',
       handover_actions: '',
-      handover_by: '',
-      doctor_name: 'BS. Hữu Đông',
-      doctor_id: 'doc_dong',
+      handover_by: 'BS. Nguyễn Hữu Đông',
+      doctor_name: 'BS. Nguyễn Hữu Đông',
+      doctor_id: 'doc_dongnh',
       handover_at: null,
       sort_order: 2,
       created_at: '2026-09-21T08:00:00.000Z',

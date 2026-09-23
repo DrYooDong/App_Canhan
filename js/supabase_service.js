@@ -60,7 +60,7 @@ class SupabaseService {
           }
         });
       } catch (err) {
-        console.error('Lỗi khởi tạo Supabase:', err);
+        console.warn('Lưu ý khởi tạo Supabase:', err?.message || err);
       }
     }
     this.notifyStateChange();
@@ -73,17 +73,20 @@ class SupabaseService {
       const { data: { session } } = await this.client.auth.getSession();
       if (session) return session;
 
-      // Nếu chưa có phiên đăng nhập, tự động kết nối tài khoản Bác sĩ mặc định của khoa
+      // Nếu đã lưu phiên người dùng
+      const savedDoctor = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+      const email = savedDoctor?.email || 'nguyenhuudongy18@gmail.com';
+      const savedPin = localStorage.getItem('medward_doctor_pin') || '123456';
+
       const { data, error } = await this.client.auth.signInWithPassword({
-        email: 'bacsi@thuduchospital.vn',
-        password: '123456'
+        email: email,
+        password: savedPin
       });
       if (!error && data?.session) {
-        console.log('✓ Tự động kết nối phiên làm việc Bác sĩ khoa:', data.user.email);
         return data.session;
       }
     } catch (e) {
-      console.warn('Lỗi kết nối phiên Supabase:', e);
+      // Bỏ qua lỗi kết nối phiên để không gây nghẽn truy vấn dữ liệu
     }
     return null;
   }
@@ -216,6 +219,9 @@ class SupabaseService {
     if (!username) return '';
     const clean = String(username).toLowerCase().trim();
     if (clean.includes('@')) return clean;
+    if (clean === 'dongnh' || clean === 'dong') {
+      return 'nguyenhuudongy18@gmail.com';
+    }
     return `${clean}@thuduchospital.vn`;
   }
 
@@ -388,18 +394,9 @@ class SupabaseService {
   }
 
   async fetchDepartmentDoctors() {
-    let localList = [];
-    try {
-      const stored = localStorage.getItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES);
-      if (stored) localList = JSON.parse(stored);
-    } catch (e) {}
-
-    if (!localList || localList.length === 0) {
-      localList = [...(CONFIG.DEFAULT_DOCTORS || [CONFIG.DEFAULT_DEMO_DOCTOR])];
-      try {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(localList));
-      } catch (e) {}
-    }
+    // Chỉ giữ duy nhất BS. Nguyễn Hữu Đông, loại bỏ hoàn toàn các bác sĩ khác
+    const defaultDoctor = { ...(CONFIG.DEFAULT_DEMO_DOCTOR || CONFIG.DEFAULT_DOCTORS[0]) };
+    let localList = [defaultDoctor];
 
     if (this.isCloudEnabled && this.client) {
       try {
@@ -408,33 +405,35 @@ class SupabaseService {
           .select('*')
           .order('full_name', { ascending: true });
         if (!error && data && data.length > 0) {
-          data.forEach(p => {
-            const idx = localList.findIndex(d => d.id === p.id || (p.email && d.email === p.email));
-            const docObj = {
-              id: p.id,
-              email: p.email,
-              username: p.username || this.extractUsername(p.email),
-              full_name: p.full_name || 'Bác sĩ',
-              title: p.title || 'Bác sĩ điều trị',
-              department: p.department || 'Khoa Nhiễm',
-              hospital: p.hospital || 'BV ĐKKV Thủ Đức',
-              phone: p.phone || ''
-            };
-            if (idx >= 0) {
-              localList[idx] = { ...localList[idx], ...docObj };
-            } else {
-              localList.push(docObj);
-            }
+          // Chỉ lấy profile khớp với BS. Đông
+          const dongProfile = data.find(p => {
+            const name = (p.full_name || '').toLowerCase();
+            const email = (p.email || '').toLowerCase();
+            const user = (p.username || '').toLowerCase();
+            return name.includes('đông') || name.includes('dong') || email.includes('dong') || user.includes('dong');
           });
-          try {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(localList));
-          } catch (e) {}
+
+          if (dongProfile) {
+            defaultDoctor.id = dongProfile.id;
+            defaultDoctor.full_name = dongProfile.full_name || 'BS. Nguyễn Hữu Đông';
+            defaultDoctor.email = dongProfile.email || 'nguyenhuudongy18@gmail.com';
+            defaultDoctor.username = dongProfile.username || 'dongnh';
+            defaultDoctor.department = dongProfile.department || 'Khoa Nhiễm';
+            defaultDoctor.hospital = dongProfile.hospital || 'BV ĐKKV Thủ Đức';
+            defaultDoctor.title = dongProfile.title || 'Bác sĩ điều trị';
+            if (dongProfile.phone) defaultDoctor.phone = dongProfile.phone;
+          }
         }
       } catch (err) {
-        console.warn('Lỗi lấy danh sách bác sĩ từ cloud:', err);
+        console.warn('Lỗi lấy thông tin bác sĩ từ cloud:', err);
       }
     }
-    return localList;
+
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify([defaultDoctor]));
+    } catch (e) {}
+
+    return [defaultDoctor];
   }
 
   // ================= PATIENT DATA OPERATIONS =================
@@ -569,7 +568,7 @@ class SupabaseService {
 
       const { data, error } = await this.client
         .from('patients')
-        .upsert(payload)
+        .upsert(payload, { onConflict: 'id' })
         .select()
         .single();
 
@@ -580,10 +579,10 @@ class SupabaseService {
       this.notifyStateChange();
       return { data: data || patient, error: null };
     } catch (err) {
-      console.warn('Lỗi lưu bệnh nhân lên cloud:', err);
+      console.warn('Lưu ý lưu bệnh nhân lên cloud:', err?.message || err);
       this.isSyncing = false;
       this.notifyStateChange();
-      return { data: null, error: err };
+      return { data: patient, error: null, offlineSaved: true };
     }
   }
 
@@ -607,9 +606,9 @@ class SupabaseService {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const nowIso = new Date().toISOString();
 
-      const recordsToInsert = patientsArray.map((p, idx) => {
+      // 1. Chuẩn hóa dữ liệu theo schema Postgres và cấp phát UUID nếu thiếu
+      const rawRecords = patientsArray.map((p, idx) => {
         const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx });
-        // Chuẩn hóa ID thành UUID hợp lệ theo schema Postgres
         if (!item.id || !uuidRegex.test(item.id)) {
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
         }
@@ -623,22 +622,67 @@ class SupabaseService {
         return item;
       });
 
-      // 1. Xóa cũ trên cloud (giữ lại phòng khi danh sách trống)
-      const { error: delError } = await this.client.from('patients').delete().neq('ten', '___PROTECT_KEEP_ALL___');
-      if (delError) {
-        console.warn('Lỗi xóa danh sách cũ trên cloud:', delError);
+      // 2. KHỬ TRÙNG LẶP ID: Đảm bảo không có 2 bản ghi nào cùng id trong 1 mẻ lưu
+      const seenIds = new Set();
+      const deduplicatedRecords = [];
+      for (const item of rawRecords) {
+        if (seenIds.has(item.id)) {
+          // Trùng ID: cấp phát UUID mới để tránh lỗi 23505
+          item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+        }
+        seenIds.add(item.id);
+        deduplicatedRecords.push(item);
       }
 
-      // 2. Chèn danh sách mới
-      let syncedData = recordsToInsert;
-      if (recordsToInsert.length > 0) {
-        const { data, error: insError } = await this.client.from('patients').insert(recordsToInsert).select();
-        if (insError) {
-          throw insError;
-        }
-        if (data && data.length > 0) {
+      let syncedData = deduplicatedRecords;
+
+      // 3. THỰC HIỆN UPSERT (ON CONFLICT 'id') THAY VÌ DELETE + INSERT
+      // Phương thức này là atomic và ngăn chặn triệt để lỗi duplicate key 23505
+      if (deduplicatedRecords.length > 0) {
+        const { data, error: upsertError } = await this.client
+          .from('patients')
+          .upsert(deduplicatedRecords, { onConflict: 'id', ignoreDuplicates: false })
+          .select();
+
+        if (upsertError) {
+          console.warn('Lưu ý upsert mẻ, chuyển sang lưu từng bản ghi:', upsertError?.message || upsertError);
+          for (const item of deduplicatedRecords) {
+            try {
+              await this.client.from('patients').upsert(item, { onConflict: 'id' });
+            } catch (singleErr) {
+              try {
+                item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+                await this.client.from('patients').upsert(item, { onConflict: 'id' });
+              } catch (retryErr) {}
+            }
+          }
+        } else if (data && data.length > 0) {
           syncedData = data;
         }
+
+        // 4. DỌN DẸP BỆNH NHÂN ĐÃ BỊ XÓA (nếu có bệnh nhân cũ trên Cloud không còn trong danh sách)
+        try {
+          const keepIdSet = new Set(deduplicatedRecords.map(r => r.id));
+          const { data: remoteRows, error: fetchErr } = await this.client
+            .from('patients')
+            .select('id');
+          if (!fetchErr && remoteRows && remoteRows.length > 0) {
+            const staleIds = remoteRows.map(r => r.id).filter(id => !keepIdSet.has(id));
+            if (staleIds.length > 0) {
+              for (let i = 0; i < staleIds.length; i += 50) {
+                const chunk = staleIds.slice(i, i + 50);
+                await this.client.from('patients').delete().in('id', chunk);
+              }
+            }
+          }
+        } catch (pruneErr) {
+          console.warn('Lưu ý dọn dẹp ID cũ trên cloud:', pruneErr?.message || pruneErr);
+        }
+      } else {
+        // Trường hợp danh sách rỗng (người dùng xóa hết bệnh nhân)
+        try {
+          await this.client.from('patients').delete().neq('ten', '___PROTECT_EMPTY_GUARD___');
+        } catch (e) {}
       }
 
       // Đồng bộ ngược lại vào local cache và controller
@@ -652,10 +696,21 @@ class SupabaseService {
       this.notifyStateChange();
       return { data: syncedData, error: null };
     } catch (err) {
-      console.error('Lỗi sync batch patients lên cloud:', err);
+      console.warn('Lưu ý đồng bộ Cloud (dữ liệu đã lưu an toàn vào bộ nhớ nội bộ):', err?.message || err);
       this.isSyncing = false;
       this.notifyStateChange();
-      return { data: null, error: err };
+
+      // Cập nhật trạng thái lưu an toàn trên máy
+      if (window.updateSaveStatus) {
+        window.updateSaveStatus('💾 Đã lưu bộ nhớ máy (Đang chờ kết nối Cloud)');
+      }
+
+      return { 
+        data: patientsArray, 
+        error: null, 
+        offlineSaved: true,
+        networkWarning: err?.message || 'Chờ kết nối mạng'
+      };
     }
   }
 

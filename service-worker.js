@@ -2,7 +2,7 @@
 // SERVICE WORKER - MEDWARD PRO (OFFLINE ASSETS CACHING)
 // ==============================================================================
 
-const CACHE_NAME = 'medward-pro-cache-v5';
+const CACHE_NAME = 'medward-pro-cache-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -46,6 +46,8 @@ self.addEventListener('activate', (event) => {
 // Network-First Strategy: Luôn lấy code mới nhất khi online, chỉ dùng cache khi offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Không can thiệp các request API hoặc dịch vụ ngoài (Supabase Cloud, CDN...)
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request)

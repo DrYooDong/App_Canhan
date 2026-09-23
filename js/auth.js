@@ -7,34 +7,48 @@ class AuthController {
   constructor() {
     this.currentUser = null;
     this.activeDoctor = null;
+    this.isLoggedIn = false;
     this.knownDoctors = [];
     this.init();
   }
 
   async init() {
-    // 1. Tải danh sách bác sĩ đã lưu
+    // 1. Tải danh sách bác sĩ đã lưu & làm sạch để chỉ giữ BS. Nguyễn Hữu Đông
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify([CONFIG.DEFAULT_DEMO_DOCTOR]));
+    } catch (e) {}
+
     await this.loadKnownDoctors();
 
     // 2. Lấy thông tin user hiện tại (Supabase hoặc Local Storage)
     this.currentUser = await window.supabaseService.getCurrentUser();
 
-    // 3. Khởi tạo không gian bác sĩ đang kích hoạt
+    // 3. Khởi tạo trạng thái không gian bác sĩ
     const savedActiveDocStr = localStorage.getItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
+    let isDongSession = false;
     if (savedActiveDocStr) {
       try {
-        this.activeDoctor = JSON.parse(savedActiveDocStr);
+        const parsed = JSON.parse(savedActiveDocStr);
+        if (parsed && (parsed.username === 'dongnh' || (parsed.full_name && /đông|dong/i.test(parsed.full_name)))) {
+          isDongSession = true;
+          this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR, ...parsed };
+        }
       } catch (e) {}
     }
 
-    if (!this.activeDoctor) {
-      if (this.currentUser) {
-        this.activeDoctor = { ...this.currentUser };
-      } else {
-        this.activeDoctor = { ...(CONFIG.DEFAULT_DEMO_DOCTOR || CONFIG.DEFAULT_DOCTORS[0]) };
-      }
+    if (isDongSession) {
+      this.isLoggedIn = true;
+      this.saveActiveDoctor();
+    } else {
+      // Chưa đăng nhập: chỉ định cấu hình BS. Đông nhưng trạng thái chưa kích hoạt
+      try {
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
+      } catch (e) {}
+      this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
+      this.isLoggedIn = false;
     }
 
-    this.saveActiveDoctor();
     this.updateUserUI();
     this.bindEvents();
 
@@ -63,10 +77,14 @@ class AuthController {
   }
 
   saveActiveDoctor() {
-    if (!this.activeDoctor) return;
+    if (!this.activeDoctor) {
+      try {
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
+      } catch (e) {}
+      return;
+    }
     try {
       localStorage.setItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE, JSON.stringify(this.activeDoctor));
-      // Đồng bộ vào AUTH_USER nếu cần
       localStorage.setItem(CONFIG.STORAGE_KEYS.AUTH_USER, JSON.stringify(this.activeDoctor));
     } catch (e) {}
   }
@@ -86,8 +104,8 @@ class AuthController {
     const nameEl = document.getElementById('headerDocName');
     const roleEl = document.getElementById('headerDocRole');
 
-    if (avatarEl) avatarEl.innerText = this.getInitials(doc.full_name);
-    if (nameEl) nameEl.innerText = doc.full_name || 'Bác sĩ điều trị';
+    if (avatarEl) avatarEl.innerText = this.getInitials(doc?.full_name);
+    if (nameEl) nameEl.innerText = doc?.full_name || 'Bác sĩ điều trị';
     if (roleEl) {
       const isFilteringMine = window.patientController?.currentDoctorFilter === 'my_patients';
       if (isFilteringMine) {
@@ -95,33 +113,43 @@ class AuthController {
       } else if (window.patientController?.currentDoctorFilter === 'all') {
         roleEl.innerText = `Toàn khoa • ${totalCount} BN`;
       } else {
-        roleEl.innerText = `Bác sĩ: ${window.patientController?.currentDoctorFilter}`;
+        roleEl.innerText = `Không gian: ${window.patientController?.currentDoctorFilter}`;
       }
     }
   }
 
   updateUserUI() {
     const doc = this.getActiveDoctor();
-    const doctorInput = document.getElementById('doctorName');
     const userBadgeEl = document.getElementById('userProfileBadge');
+    const loginBtnHeader = document.getElementById('btnLoginHeader');
+    const wsText = document.getElementById('currentWorkspaceText');
 
-    if (doctorInput) {
-      doctorInput.value = doc.full_name || '';
+    if (this.isLoggedIn && doc) {
+      if (userBadgeEl) {
+        userBadgeEl.style.display = 'inline-flex';
+        const tooltip = `Không gian: ${doc.full_name} (${doc.department || 'Khoa Nhiễm'}) • Nhấn để đổi / quản lý`;
+        userBadgeEl.setAttribute('data-tooltip', tooltip);
+      }
+      if (loginBtnHeader) loginBtnHeader.style.display = 'none';
+      if (wsText) wsText.innerText = doc.full_name;
+
+      // Cập nhật header pill
+      const countMy = window.patientController?.patientList?.filter(p => {
+        const d = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
+        const myName = (doc.full_name || '').trim().toLowerCase();
+        return myName && (d.includes(myName) || myName.includes(d));
+      }).length || 0;
+
+      this.updateHeaderPill(countMy, window.patientController?.patientList?.length || 0);
+    } else {
+      if (userBadgeEl) userBadgeEl.style.display = 'none';
+      if (loginBtnHeader) loginBtnHeader.style.display = 'inline-flex';
+      if (wsText) wsText.innerText = 'Toàn khoa (Tất cả BS)';
     }
 
-    if (userBadgeEl) {
-      const tooltip = `Không gian: ${doc.full_name} (${doc.department || 'Khoa Nhiễm'})`;
-      userBadgeEl.setAttribute('data-tooltip', tooltip);
+    if (window.medWardApp?.updatePrintDateNote) {
+      window.medWardApp.updatePrintDateNote();
     }
-
-    // Cập nhật header pill
-    const countMy = window.patientController?.patientList?.filter(p => {
-      const d = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-      const myName = (doc.full_name || '').trim().toLowerCase();
-      return myName && (d.includes(myName) || myName.includes(d));
-    }).length || 0;
-
-    this.updateHeaderPill(countMy, window.patientController?.patientList?.length || 0);
   }
 
   updateCloudStatusUI(status) {
@@ -169,15 +197,6 @@ class AuthController {
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.handleLogin();
-      });
-    }
-
-    // Form Đăng ký
-    const registerForm = document.getElementById('registerForm');
-    if (registerForm) {
-      registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await this.handleRegister();
       });
     }
 
@@ -258,7 +277,7 @@ class AuthController {
   }
 
   switchAuthTab(tabName) {
-    const tabs = ['workspace', 'profile', 'login', 'register'];
+    const tabs = ['workspace', 'login', 'profile'];
     tabs.forEach(t => {
       const btn = document.getElementById(`tabBtn_${t}`);
       const content = document.getElementById(`tabContent_${t}`);
@@ -277,154 +296,162 @@ class AuthController {
   }
 
   async renderWorkspaceTab() {
-    const doc = this.getActiveDoctor();
-
-    // 1. Cập nhật hero card
-    const heroAvatar = document.getElementById('heroDocAvatar');
-    const heroName = document.getElementById('heroDocName');
-    const heroDept = document.getElementById('heroDocDept');
-    const heroHospital = document.getElementById('heroDocHospital');
-
-    if (heroAvatar) heroAvatar.innerText = this.getInitials(doc.full_name);
-    if (heroName) heroName.innerText = doc.full_name || 'Bác sĩ điều trị';
-    if (heroDept) heroDept.innerText = `${doc.title || 'Bác sĩ điều trị'} • ${doc.department || 'Khoa Nhiễm'}`;
-    if (heroHospital) heroHospital.innerText = doc.hospital || 'Bệnh viện Đa khoa Khu vực Thủ Đức';
-
-    // 2. Thống kê số lượng
-    const patients = window.patientController?.patientList || [];
-    const myDocName = (doc.full_name || '').trim().toLowerCase();
-    const myDocId = doc.id || '';
-
-    const myPatients = patients.filter(p => {
-      const pDoc = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-      const pUserId = p.user_id || '';
-      const matchId = myDocId && pUserId && pUserId === myDocId;
-      const matchName = myDocName && (pDoc.includes(myDocName) || myDocName.includes(pDoc));
-      return matchId || matchName;
-    });
-
-    const myCritical = myPatients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
-
-    const wsPatientCount = document.getElementById('wsPatientCount');
-    const wsCriticalCount = document.getElementById('wsCriticalCount');
-    const wsTotalWardCount = document.getElementById('wsTotalWardCount');
-
-    if (wsPatientCount) wsPatientCount.innerText = myPatients.length;
-    if (wsCriticalCount) wsCriticalCount.innerText = myCritical;
-    if (wsTotalWardCount) wsTotalWardCount.innerText = patients.length;
-
-    // 3. Render danh sách chuyển nhanh không gian Bác sĩ
-    const listContainer = document.getElementById('doctorWorkspacesList');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px;">Đang tải danh sách Bác sĩ...</div>';
+    const container = document.getElementById('workspaceContentArea') || document.getElementById('quickDoctorGrid');
+    if (!container) return;
 
     await this.loadKnownDoctors();
 
-    // Thu thập thêm các bác sĩ từ danh sách bệnh nhân
-    const allDoctorsMap = new Map();
+    const dong = (this.knownDoctors && this.knownDoctors[0]) || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const patients = window.patientController?.patientList || [];
+    const myCount = patients.length;
+    const criticalCount = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
+    const pendingCount = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
 
-    this.knownDoctors.forEach(d => {
-      allDoctorsMap.set(d.full_name.toLowerCase(), d);
-    });
+    let html = '';
 
-    patients.forEach(p => {
-      const pDoc = (p.doctor_name || p.handover_by || '').trim();
-      if (pDoc && !allDoctorsMap.has(pDoc.toLowerCase())) {
-        allDoctorsMap.set(pDoc.toLowerCase(), {
-          id: 'doc_' + pDoc.toLowerCase().replace(/[^a-z0-9]/g, ''),
-          full_name: pDoc,
-          title: 'Bác sĩ điều trị',
-          department: 'Khoa Nhiễm',
-          hospital: 'BV ĐKKV Thủ Đức'
-        });
-      }
-    });
+    if (this.isLoggedIn) {
+      // ĐÃ ĐĂNG NHẬP
+      html = `
+        <div class="doctor-workspace-status-card logged-in" style="background: #ffffff; border: 1.5px solid var(--primary); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.08);">
+          <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="quick-doc-avatar" style="width: 46px; height: 46px; font-size: 16px; background: var(--primary);">.Đ</div>
+              <div>
+                <div style="font-size: 15px; font-weight: 800; color: var(--text-main);">${this.escape(dong.full_name)}</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  ${this.escape(dong.title || 'Bác sĩ điều trị')} • ${this.escape(dong.department || 'Khoa Nhiễm')}
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">
+                  Tài khoản: <strong>${this.escape(dong.username || 'dongnh')}</strong> (${this.escape(dong.email || 'nguyenhuudongy18@gmail.com')})
+                </div>
+              </div>
+            </div>
+            <span class="quick-doc-badge" style="background: #10b981; color: #ffffff; border: none; font-size: 11px; padding: 4px 10px; border-radius: 14px; font-weight: 700;">
+              ✓ Đã đăng nhập
+            </span>
+          </div>
 
-    const doctorsArray = Array.from(allDoctorsMap.values());
-
-    let listHtml = '';
-    doctorsArray.forEach(d => {
-      const isActive = d.full_name.toLowerCase() === doc.full_name.toLowerCase();
-      const initials = this.getInitials(d.full_name);
-      const count = patients.filter(p => {
-        const pd = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-        return pd.includes(d.full_name.toLowerCase()) || d.full_name.toLowerCase().includes(pd);
-      }).length;
-
-      listHtml += `
-        <div class="doctor-workspace-item ${isActive ? 'active' : ''}">
-          <div class="doc-item-left">
-            <div class="doc-item-avatar">${initials}</div>
-            <div class="doc-item-info">
-              <span class="doc-item-name">${this.escape(d.full_name)}</span>
-              <span class="doc-item-title">${this.escape(d.title || 'Bác sĩ điều trị')} • ${this.escape(d.department || 'Khoa')}</span>
+          <div class="ws-stats-row" style="display: flex; gap: 8px; margin: 12px 0;">
+            <div style="flex: 1; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+              <div style="font-size: 20px; font-weight: 800; color: var(--primary);">${myCount}</div>
+              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Tổng số người bệnh</div>
+            </div>
+            <div style="flex: 1; padding: 10px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center;">
+              <div style="font-size: 20px; font-weight: 800; color: var(--danger);">${criticalCount}</div>
+              <div style="font-size: 11px; color: var(--danger); font-weight: 600;">🚨 Báo động đỏ</div>
+            </div>
+            <div style="flex: 1; padding: 10px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); text-align: center;">
+              <div style="font-size: 20px; font-weight: 800; color: #b45309;">${pendingCount}</div>
+              <div style="font-size: 11px; color: #b45309; font-weight: 600;">⏳ Cần theo dõi</div>
             </div>
           </div>
-          <div class="doc-item-right">
-            <span class="doc-item-count" title="Số người bệnh đang phụ trách">${count} BN</span>
-            ${isActive ? `
-              <span class="btn-switch-workspace" style="background: #e2e8f0; border-color: #cbd5e1; color: var(--text-muted); cursor: default;">
-                ✓ Đang kích hoạt
-              </span>
-            ` : `
-              <button type="button" class="btn-switch-workspace" onclick="window.authController.switchDoctorWorkspace('${this.escape(d.full_name)}')">
-                Vào không gian
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+            <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
+              🩺 Mở Bảng Điều Trị Riêng Của Tôi
+            </button>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="window.authController.viewAllWard()" style="flex: 1; justify-content: center; font-size: 12.5px;">
+                🏥 Xem Bảng Toàn Khoa
               </button>
-            `}
+              <button type="button" class="btn btn-secondary" onclick="window.authController.handleLogout()" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); font-size: 12.5px;">
+                🚪 Đăng Xuất
+              </button>
+            </div>
           </div>
         </div>
       `;
-    });
+    } else {
+      // CHƯA ĐĂNG NHẬP -> BẮT BUỘC ĐĂNG NHẬP MỚI VÀO ĐƯỢC
+      html = `
+        <div class="doctor-workspace-status-card not-logged-in" style="background: #ffffff; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px;">
+          <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="quick-doc-avatar" style="width: 44px; height: 44px; font-size: 15px; background: var(--primary);">.Đ</div>
+              <div>
+                <div style="font-size: 14px; font-weight: 800; color: var(--text-main);">${this.escape(dong.full_name)}</div>
+                <div style="font-size: 12px; color: var(--text-muted);">${this.escape(dong.title || 'Bác sĩ điều trị')} • Khoa Nhiễm</div>
+              </div>
+            </div>
+            <span class="quick-doc-badge" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.2); font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 14px;">
+              🔒 Cần đăng nhập
+            </span>
+          </div>
 
-    listContainer.innerHTML = listHtml;
-  }
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 3px;">
+              🔐 Xác thực tài khoản Bác sĩ
+            </div>
+            <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
+              Muốn vào không gian điều trị riêng của <strong>BS. Nguyễn Hữu Đông</strong>, bạn vui lòng nhập mật khẩu tài khoản:
+            </div>
+          </div>
 
-  switchDoctorWorkspace(doctorNameOrId) {
-    if (!doctorNameOrId) return;
+          <div id="wsLoginMsg" class="form-message" style="display: none;"></div>
 
-    // Tìm trong knownDoctors hoặc tạo mới
-    let target = this.knownDoctors.find(d => 
-      d.full_name.toLowerCase() === doctorNameOrId.toLowerCase() || 
-      d.id === doctorNameOrId || 
-      d.username === doctorNameOrId
-    );
+          <form id="wsQuickLoginForm" onsubmit="event.preventDefault(); window.authController.handleQuickLoginSubmit();">
+            <div class="form-group" style="margin-bottom: 10px;">
+              <label style="font-size: 12px; font-weight: 600;">Tài khoản Bác sĩ:</label>
+              <input type="text" id="wsQuickUser" class="form-control" value="dongnh" readonly style="background: var(--bg-subtle); font-weight: 700; color: var(--primary);">
+              <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px;">Email: nguyenhuudongy18@gmail.com</small>
+            </div>
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label style="font-size: 12px; font-weight: 600;">Mật khẩu số (Mặc định: 123456):</label>
+              <input type="password" id="wsQuickPass" class="form-control" placeholder="Nhập các chữ số (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" autofocus required>
+              <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
+              🔑 Đăng Nhập &amp; Vào Không Gian BS. Đông
+            </button>
+          </form>
 
-    if (!target) {
-      target = {
-        id: 'doc_' + Date.now(),
-        full_name: doctorNameOrId,
-        title: 'Bác sĩ điều trị',
-        department: 'Khoa Nhiễm',
-        hospital: 'BV ĐKKV Thủ Đức'
-      };
-      this.knownDoctors.push(target);
-      try {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(this.knownDoctors));
-      } catch (e) {}
+          <div style="border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 14px; text-align: center;">
+            <button type="button" class="btn-compact btn-subtle" onclick="window.authController.viewAllWard()" style="font-size: 12px;">
+              🏥 Tiếp tục xem Bảng Toàn Khoa (Không cần đăng nhập)
+            </button>
+          </div>
+        </div>
+      `;
     }
 
-    this.activeDoctor = { ...target };
-    this.saveActiveDoctor();
-    this.updateUserUI();
+    container.innerHTML = html;
+  }
 
-    // Chuyển bộ lọc bệnh nhân sang Bác sĩ này
+  async handleQuickLoginSubmit() {
+    const user = document.getElementById('wsQuickUser')?.value || 'dongnh';
+    const pass = document.getElementById('wsQuickPass')?.value || '';
+    const msgEl = document.getElementById('wsLoginMsg');
+    await this.processLogin(user, pass, msgEl);
+  }
+
+  enterMyWorkspace() {
+    this.closeAuthModal();
     if (window.patientController) {
       window.patientController.handleDoctorFilterChange('my_patients');
       window.patientController.updateDoctorFilterDropdown();
+      window.patientController.render();
+    }
+  }
+
+  switchDoctorWorkspace(doctorNameOrId) {
+    if (!this.isLoggedIn) {
+      this.openAuthModal('workspace');
+      setTimeout(() => {
+        const passInput = document.getElementById('wsQuickPass') || document.getElementById('loginPassword');
+        if (passInput) passInput.focus();
+      }, 200);
+      return;
     }
 
-    this.closeAuthModal();
-
-    if (window.showToast) {
-      window.showToast(`🩺 Đã chuyển sang Không gian Bác sĩ: ${this.activeDoctor.full_name}`);
-    }
+    // Đã đăng nhập: Mở bảng riêng
+    this.enterMyWorkspace();
   }
 
   viewAllWard() {
     if (window.patientController) {
       window.patientController.handleDoctorFilterChange('all');
       window.patientController.updateDoctorFilterDropdown();
+      window.patientController.render();
     }
     this.closeAuthModal();
     if (window.showToast) {
@@ -439,30 +466,25 @@ class AuthController {
       if (el) el.value = val || '';
     };
 
-    setVal('profFullName', doc.full_name);
+    setVal('profFullName', doc.full_name || 'BS. Nguyễn Hữu Đông');
     setVal('profTitle', doc.title || 'Bác sĩ điều trị');
     setVal('profTitleSelect', doc.title || 'Bác sĩ điều trị');
     setVal('profDept', doc.department || 'Khoa Nhiễm');
     setVal('profHospital', doc.hospital || 'Bệnh viện Đa khoa Khu vực Thủ Đức');
-    setVal('profPhone', doc.phone || '');
-    setVal('profUsername', doc.username || this.generateDoctorUsername(doc.full_name));
-  }
-
-  async quickLogin(username, password) {
-    const uInput = document.getElementById('loginUsername');
-    const pInput = document.getElementById('loginPassword');
-    if (uInput) uInput.value = username;
-    if (pInput) pInput.value = password;
-    await this.handleLogin();
+    setVal('profPhone', doc.phone || '0988.765.432');
+    setVal('profUsername', doc.username || 'dongnh');
   }
 
   async handleLogin() {
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
+    const username = document.getElementById('loginUsername')?.value.trim() || 'dongnh';
+    const password = document.getElementById('loginPassword')?.value.trim() || '';
     const msgEl = document.getElementById('loginMessage');
+    await this.processLogin(username, password, msgEl);
+  }
 
-    if (!username || !password) {
-      this.showMsg(msgEl, 'Vui lòng nhập đầy đủ Tài khoản Bác sĩ và Mật khẩu số!', 'error');
+  async processLogin(username, password, msgEl) {
+    if (!password) {
+      this.showMsg(msgEl, 'Vui lòng nhập mật khẩu số của BS. Đông!', 'error');
       return;
     }
 
@@ -471,119 +493,69 @@ class AuthController {
       return;
     }
 
-    this.showMsg(msgEl, 'Đang xác thực & mở không gian Bác sĩ...', 'info');
+    this.showMsg(msgEl, 'Đang xác thực tài khoản BS. Nguyễn Hữu Đông...', 'info');
 
-    const { data, error } = await window.supabaseService.signIn(username, password);
-    if (error) {
-      this.showMsg(msgEl, 'Đăng nhập không thành công: ' + (error.message || 'Sai tài khoản hoặc mật khẩu'), 'error');
-      return;
-    }
+    const dong = { ...(CONFIG.DEFAULT_DEMO_DOCTOR || CONFIG.DEFAULT_DOCTORS[0]) };
+    let isAuthenticated = false;
 
-    this.currentUser = await window.supabaseService.getCurrentUser();
-    
-    // Tìm hoặc thêm vào knownDoctors
-    let target = this.knownDoctors.find(d => 
-      (d.username && d.username.toLowerCase() === username.toLowerCase()) ||
-      (this.currentUser.full_name && d.full_name.toLowerCase() === this.currentUser.full_name.toLowerCase())
-    );
-
-    if (target) {
-      this.activeDoctor = { ...target, ...this.currentUser };
-    } else {
-      this.activeDoctor = { ...this.currentUser };
-      this.knownDoctors.push(this.activeDoctor);
-      try {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(this.knownDoctors));
-      } catch (e) {}
-    }
-
-    this.saveActiveDoctor();
-    this.updateUserUI();
-
-    this.showMsg(msgEl, `✓ Đăng nhập thành công! Đang chuyển vào Không gian Bác sĩ ${this.activeDoctor.full_name}...`, 'success');
-
-    setTimeout(() => {
-      this.closeAuthModal();
-      if (window.patientController) {
-        window.patientController.handleDoctorFilterChange('my_patients');
-        window.patientController.reloadFromSource();
-      }
-    }, 700);
-  }
-
-  async handleRegister() {
-    const fullName = document.getElementById('regFullName').value.trim();
-    const username = document.getElementById('regUsername').value.trim().toLowerCase();
-    const password = document.getElementById('regPassword').value.trim();
-    const title = document.getElementById('regTitle')?.value || 'Bác sĩ điều trị';
-    const dept = document.getElementById('regDept').value.trim();
-    const phone = document.getElementById('regPhone').value.trim();
-    const msgEl = document.getElementById('registerMessage');
-
-    if (!fullName || !username) {
-      this.showMsg(msgEl, 'Vui lòng điền Họ tên và Tài khoản viết tắt của Bác sĩ!', 'error');
-      return;
-    }
-
-    if (!/^\d{6,}$/.test(password)) {
-      this.showMsg(msgEl, 'Mật khẩu phải chỉ gồm các chữ số và tối thiểu 6 số (VD: 123456)!', 'error');
-      return;
-    }
-
-    this.showMsg(msgEl, 'Đang khởi tạo Không Gian Bác Sĩ...', 'info');
-
-    const doctorData = {
-      full_name: fullName,
-      username: username,
-      title: title,
-      department: dept || 'Khoa Nhiễm',
-      hospital: 'Bệnh viện Đa khoa Khu vực Thủ Đức',
-      phone: phone || ''
-    };
-
-    const { data, error } = await window.supabaseService.signUp(username, password, doctorData);
-    if (error) {
-      if (error.message?.includes('rate limit')) {
-        this.showMsg(msgEl, 'Lưu ý: Supabase đang giới hạn gửi email. Vui lòng vào Supabase Dashboard tắt "Confirm email" hoặc đăng nhập tài khoản đã có!', 'error');
-      } else if (error.message?.includes('Email signups are disabled') || error.message?.includes('Signups not allowed')) {
-        this.showMsg(msgEl, 'Lỗi: Dự án Supabase chưa bật cho phép đăng ký mới. Vui lòng vào Supabase Dashboard > Authentication > Providers > Email: Bật "Allow new users to sign up" và Tắt "Confirm email".', 'error');
-      } else {
-        this.showMsg(msgEl, 'Đăng ký thất bại: ' + error.message, 'error');
-      }
-      return;
-    }
-
-    this.currentUser = await window.supabaseService.getCurrentUser() || doctorData;
-    this.activeDoctor = { ...doctorData, id: this.currentUser?.id || ('doc_' + Date.now()) };
-
-    // Thêm vào knownDoctors
-    this.knownDoctors.push(this.activeDoctor);
+    // 1. Thử xác thực với Supabase Cloud nếu có kết nối
     try {
-      localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(this.knownDoctors));
+      const { data, error } = await window.supabaseService.signIn(username || 'dongnh', password);
+      if (!error && data) {
+        isAuthenticated = true;
+      }
     } catch (e) {}
 
+    // 2. Xác thực với mật khẩu cục bộ (123456 hoặc PIN đã lưu)
+    const savedPin = localStorage.getItem('medward_doctor_pin') || '123456';
+    if (password === '123456' || password === savedPin) {
+      isAuthenticated = true;
+    }
+
+    if (!isAuthenticated) {
+      this.showMsg(msgEl, 'Mật khẩu không chính xác! Vui lòng nhập lại (Mặc định: 123456)', 'error');
+      return;
+    }
+
+    // Xác thực thành công!
+    this.isLoggedIn = true;
+    this.activeDoctor = { ...dong };
     this.saveActiveDoctor();
     this.updateUserUI();
 
-    this.showMsg(msgEl, `✓ Đã tạo Không Gian Bác Sĩ "${fullName}" thành công!`, 'success');
+    this.showMsg(msgEl, `✓ Đăng nhập thành công! Đang chuyển vào Không gian BS. Nguyễn Hữu Đông...`, 'success');
 
     setTimeout(() => {
       this.closeAuthModal();
       if (window.patientController) {
         window.patientController.handleDoctorFilterChange('my_patients');
         window.patientController.updateDoctorFilterDropdown();
-        window.patientController.reloadFromSource();
+        window.patientController.render();
       }
-    }, 900);
+      if (window.showToast) {
+        window.showToast(`🩺 Đã đăng nhập Không gian Bác sĩ: BS. Nguyễn Hữu Đông`);
+      }
+    }, 600);
   }
 
   async handleSaveProfile() {
-    const fullName = document.getElementById('profFullName').value.trim();
-    const title = document.getElementById('profTitle').value.trim() || document.getElementById('profTitleSelect')?.value || 'Bác sĩ điều trị';
-    const dept = document.getElementById('profDept').value.trim();
-    const hospital = document.getElementById('profHospital').value.trim();
-    const phone = document.getElementById('profPhone').value.trim();
+    const fullName = document.getElementById('profFullName')?.value?.trim() || 'BS. Nguyễn Hữu Đông';
+    const title = document.getElementById('profTitle')?.value?.trim() || document.getElementById('profTitleSelect')?.value || 'Bác sĩ điều trị';
+    const dept = document.getElementById('profDept')?.value?.trim() || 'Khoa Nhiễm';
+    const hospital = document.getElementById('profHospital')?.value?.trim() || 'Bệnh viện Đa khoa Khu vực Thủ Đức';
+    const phone = document.getElementById('profPhone')?.value?.trim() || '';
+    const pin = document.getElementById('profPin')?.value?.trim();
     const msgEl = document.getElementById('profileMessage');
+
+    if (pin) {
+      if (!/^\d+$/.test(pin)) {
+        this.showMsg(msgEl, 'Mật khẩu số (PIN) chỉ được bao gồm các chữ số!', 'error');
+        return;
+      }
+      try {
+        localStorage.setItem('medward_doctor_pin', pin);
+      } catch (e) {}
+    }
 
     const updatePayload = {
       full_name: fullName,
@@ -593,22 +565,13 @@ class AuthController {
       phone: phone
     };
 
-    this.showMsg(msgEl, 'Đang cập nhật hồ sơ & không gian Bác sĩ...', 'info');
+    this.showMsg(msgEl, 'Đang cập nhật hồ sơ Bác sĩ...', 'info');
 
     // Lưu vào active doctor
     this.activeDoctor = { ...this.activeDoctor, ...updatePayload };
     this.saveActiveDoctor();
 
-    // Cập nhật trong knownDoctors
-    const idx = this.knownDoctors.findIndex(d => 
-      d.id === this.activeDoctor.id || 
-      (d.username && d.username === this.activeDoctor.username)
-    );
-    if (idx >= 0) {
-      this.knownDoctors[idx] = { ...this.knownDoctors[idx], ...updatePayload };
-    } else {
-      this.knownDoctors.push(this.activeDoctor);
-    }
+    this.knownDoctors = [{ ...CONFIG.DEFAULT_DEMO_DOCTOR, ...this.activeDoctor }];
     try {
       localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(this.knownDoctors));
     } catch (e) {}
@@ -628,13 +591,25 @@ class AuthController {
   }
 
   async handleLogout() {
-    if (confirm('Bạn có chắc muốn đăng xuất khỏi tài khoản Bác sĩ hiện tại?')) {
+    if (confirm('Bạn có chắc muốn đăng xuất khỏi Không gian Bác sĩ?')) {
       await window.supabaseService.signOut();
       this.currentUser = null;
+      this.activeDoctor = null;
+      this.isLoggedIn = false;
+      try {
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.ACTIVE_WORKSPACE);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.AUTH_USER);
+        localStorage.setItem('medward_doctor_filter', 'all');
+      } catch (e) {}
       this.updateUserUI();
       this.closeAuthModal();
       if (window.patientController) {
-        window.patientController.reloadFromSource();
+        window.patientController.currentDoctorFilter = 'all';
+        window.patientController.updateDoctorFilterDropdown();
+        window.patientController.render();
+      }
+      if (window.showToast) {
+        window.showToast('ℹ️ Đã đăng xuất khỏi Không gian Bác sĩ');
       }
     }
   }

@@ -59,7 +59,8 @@ class MedWardApp {
 
   updatePrintDateNote() {
     const dVal = (document.getElementById('reportDate')?.value || '').trim();
-    const docVal = (document.getElementById('doctorName')?.value || '').trim();
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const docVal = activeDoc ? (activeDoc.full_name || '') : '';
     const printEl = document.getElementById('printDateDisplay');
     if (printEl) {
       let str = `Ngày: ${dVal || this.formatToDMY(new Date())}`;
@@ -90,20 +91,30 @@ class MedWardApp {
     if (savedMetaStr) {
       try {
         const meta = JSON.parse(savedMetaStr);
-        if (meta.date) document.getElementById('reportDate').value = meta.date;
-        if (meta.doctor) document.getElementById('doctorName').value = meta.doctor;
-        if (meta.unit) document.querySelector('.unit-name').innerText = meta.unit;
-        if (meta.hospital) document.querySelector('.hospital-title').innerText = meta.hospital;
-        if (meta.dept) document.querySelector('.dept-name').innerText = meta.dept;
-        if (meta.title) document.querySelector('.main-title').innerText = meta.title;
-        if (meta.subTitle) document.querySelector('.sub-title').innerText = meta.subTitle;
+        if (meta.date && document.getElementById('reportDate')) {
+          document.getElementById('reportDate').value = meta.date;
+        }
+        if (meta.unit && document.querySelector('.unit-name')) {
+          document.querySelector('.unit-name').innerText = meta.unit;
+        }
+        if (meta.hospital && document.querySelector('.hospital-title')) {
+          document.querySelector('.hospital-title').innerText = meta.hospital;
+        }
+        if (meta.dept && document.querySelector('.dept-name')) {
+          document.querySelector('.dept-name').innerText = meta.dept;
+        }
+        if (meta.title && document.querySelector('.main-title')) {
+          document.querySelector('.main-title').innerText = meta.title;
+        }
+        if (meta.subTitle && document.querySelector('.sub-title')) {
+          document.querySelector('.sub-title').innerText = meta.subTitle;
+        }
       } catch (e) {}
     }
 
     // Lắng nghe thay đổi
     const save = () => this.saveMeta();
     document.getElementById('reportDate')?.addEventListener('input', save);
-    document.getElementById('doctorName')?.addEventListener('input', save);
     document.querySelectorAll('.hospital-info [contenteditable], .main-title-box [contenteditable]').forEach(el => {
       el.addEventListener('input', save);
     });
@@ -111,9 +122,10 @@ class MedWardApp {
 
   saveMeta() {
     this.updatePrintDateNote();
+    const activeDoc = window.authController?.getActiveDoctor?.();
     const meta = {
       date: document.getElementById('reportDate')?.value || '',
-      doctor: document.getElementById('doctorName')?.value || '',
+      doctor: activeDoc ? (activeDoc.full_name || '') : '',
       unit: document.querySelector('.unit-name')?.innerText || '',
       hospital: document.querySelector('.hospital-title')?.innerText || '',
       dept: document.querySelector('.dept-name')?.innerText || '',
@@ -270,7 +282,9 @@ class MedWardApp {
           }
 
           const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
-          if (syncRes && syncRes.error) {
+          if (syncRes && syncRes.offlineSaved) {
+            alert(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy!\n(Dữ liệu đã được lưu an toàn, hệ thống sẽ tự động đồng bộ lên Cloud khi có kết nối mạng)`);
+          } else if (syncRes && syncRes.error) {
             alert(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy, nhưng gặp lỗi khi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
           } else {
             alert(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);
@@ -326,7 +340,9 @@ class MedWardApp {
         }
 
         const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
-        if (syncRes && syncRes.error) {
+        if (syncRes && syncRes.offlineSaved) {
+          alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân vào bộ nhớ máy!\n(Dữ liệu đã được lưu an toàn, hệ thống sẽ tự động đồng bộ lên Cloud khi có kết nối mạng)`);
+        } else if (syncRes && syncRes.error) {
           alert(`⚠️ Đã nạp ${imported.length} bệnh nhân vào bộ nhớ máy, nhưng gặp lỗi lưu lên Cloud: ${syncRes.error.message || 'Lỗi mạng'}\n\nVui lòng kiểm tra biểu tượng đám mây ☁️ để đồng bộ sang điện thoại.`);
         } else {
           alert(`✓ Đã nạp thành công ${imported.length} bệnh nhân và đồng bộ tức thì lên Cloud!\nĐiện thoại và máy khác mở web sẽ thấy ngay lập tức.`);

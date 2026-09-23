@@ -67,9 +67,32 @@ class PatientController {
           cleaned = true;
         }
       }
-      // Gán doctor_name từ handover_by nếu chưa có
-      if (!p.doctor_name && p.handover_by) {
-        p.doctor_name = p.handover_by;
+      // Chuẩn hóa Bác sĩ điều trị duy nhất về BS. Nguyễn Hữu Đông
+      if (p.doctor_name !== 'BS. Nguyễn Hữu Đông') {
+        p.doctor_name = 'BS. Nguyễn Hữu Đông';
+        cleaned = true;
+      }
+      if (!p.handover_by || p.handover_by !== 'BS. Nguyễn Hữu Đông') {
+        p.handover_by = 'BS. Nguyễn Hữu Đông';
+        cleaned = true;
+      }
+      // Dọn sạch cột Y lệnh nếu bị dính tên Bác sĩ điều trị do nạp file Excel trước đây
+      if (p.y_lenh) {
+        const ylLower = p.y_lenh.trim().toLowerCase();
+        const isDocName = ylLower.startsWith('bs.') || 
+                          ylLower.startsWith('bs ') || 
+                          ylLower.startsWith('bác sĩ') || 
+                          ylLower.startsWith('bác sỹ') || 
+                          ylLower.includes('nguyễn hữu đông') || 
+                          ylLower.includes('hữu đông') ||
+                          ylLower.includes('bác sĩ điều trị') ||
+                          ylLower.includes('bs điều trị') ||
+                          ylLower === (p.doctor_name || '').trim().toLowerCase() ||
+                          ylLower === (p.handover_by || '').trim().toLowerCase();
+        if (isDocName) {
+          p.y_lenh = '';
+          cleaned = true;
+        }
       }
       if (!p.created_at || p.created_at === 'null') {
         p.created_at = nowIso;
@@ -83,6 +106,9 @@ class PatientController {
 
     if (cleaned) {
       this.saveLocalCache();
+      if (window.supabaseService?.syncBatchPatients) {
+        window.supabaseService.syncBatchPatients(this.patientList).catch(() => {});
+      }
     }
 
     this.updateDoctorFilterDropdown();
@@ -275,28 +301,43 @@ class PatientController {
   // BẢNG THEO DÕI RIÊNG CHO TỪNG BÁC SĨ (DOCTOR WORKSPACE)
   // ==============================================================================
   handleDoctorFilterChange(val) {
-    this.currentDoctorFilter = val || 'my_patients';
+    const isLoggedIn = !!window.authController?.isLoggedIn;
+
+    if (val === 'login_prompt' || (val === 'my_patients' && !isLoggedIn)) {
+      window.authController?.openAuthModal('workspace');
+      if (!isLoggedIn) {
+        this.currentDoctorFilter = 'all';
+        this.updateDoctorFilterDropdown();
+        this.render();
+        return;
+      }
+    }
+
+    this.currentDoctorFilter = val || (isLoggedIn ? 'my_patients' : 'all');
     try {
       localStorage.setItem('medward_doctor_filter', this.currentDoctorFilter);
     } catch (e) {}
 
-    const activeDoc = window.authController?.getActiveDoctor?.() || {
-      full_name: document.getElementById('doctorName')?.value || 'Bác sĩ'
-    };
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const docName = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
 
     // Cập nhật tiêu đề bảng theo dõi
     const titleEl = document.querySelector('.main-title');
     const subTitleEl = document.querySelector('.sub-title');
+    const wsText = document.getElementById('currentWorkspaceText');
     if (titleEl) {
       if (this.currentDoctorFilter === 'all') {
         titleEl.innerText = CONFIG.DEFAULT_META.title;
         if (subTitleEl) subTitleEl.innerText = '(Bảng theo dõi toàn khoa - Tất cả bác sĩ điều trị)';
+        if (wsText) wsText.innerText = 'Toàn khoa';
       } else if (this.currentDoctorFilter === 'my_patients') {
-        titleEl.innerText = `BẢNG THEO DÕI BỆNH NHÂN - ${activeDoc.full_name.toUpperCase()}`;
-        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị & Bàn giao trực của ${activeDoc.full_name} • ${activeDoc.department || 'Khoa Nhiễm'})`;
+        titleEl.innerText = CONFIG.DEFAULT_META.title;
+        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${docName} • ${activeDoc?.department || 'Khoa Nhiễm'})`;
+        if (wsText) wsText.innerText = docName || 'Không gian riêng';
       } else {
-        titleEl.innerText = `BẢNG THEO DÕI BỆNH NHÂN - ${this.currentDoctorFilter.toUpperCase()}`;
-        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị & Bàn giao trực của ${this.currentDoctorFilter})`;
+        titleEl.innerText = CONFIG.DEFAULT_META.title;
+        if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị: ${this.currentDoctorFilter})`;
+        if (wsText) wsText.innerText = `${this.currentDoctorFilter}`;
       }
     }
 
@@ -307,57 +348,33 @@ class PatientController {
     const select = document.getElementById('doctorFilterSelect');
     if (!select) return;
 
-    const activeDoc = window.authController?.getActiveDoctor?.() || {
-      full_name: document.getElementById('doctorName')?.value || 'BS. CKI Nguyễn Văn An'
-    };
-    const myDocName = (activeDoc.full_name || '').trim();
+    const isLoggedIn = !!window.authController?.isLoggedIn;
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const myDocName = activeDoc ? (activeDoc.full_name || 'BS. Nguyễn Hữu Đông').trim() : 'BS. Nguyễn Hữu Đông';
+    const myCount = this.patientList.length;
 
-    // Thu thập danh sách bác sĩ từ dữ liệu bệnh nhân và user hiện tại
-    const docSet = new Set();
-    if (myDocName) docSet.add(myDocName);
-
-    this.patientList.forEach(p => {
-      const d = (p.doctor_name || p.handover_by || '').trim();
-      if (d) docSet.add(d);
-    });
-
-    const doctors = Array.from(docSet).filter(Boolean);
-
-    // Đếm số lượng bệnh nhân của từng bác sĩ
-    const docCounts = {};
-    this.patientList.forEach(p => {
-      const d = (p.doctor_name || p.handover_by || '').trim();
-      if (d) {
-        docCounts[d] = (docCounts[d] || 0) + 1;
-      }
-    });
-
-    let myCount = 0;
-    if (myDocName) {
-      myCount = this.patientList.filter(p => {
-        const d = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
-        return d.includes(myDocName.toLowerCase()) || myDocName.toLowerCase().includes(d);
-      }).length;
+    let html = '';
+    if (isLoggedIn) {
+      html += `<option value="my_patients">🩺 Không gian của tôi: ${this.escape(myDocName)} (${myCount})</option>`;
+      html += `<option value="all">🏥 Toàn khoa: Tất cả bác sĩ (${this.patientList.length})</option>`;
+    } else {
+      html += `<option value="all">🏥 Toàn khoa: Tất cả người bệnh (${this.patientList.length})</option>`;
+      html += `<option value="login_prompt">🔒 Không gian BS. Đông (Cần đăng nhập)</option>`;
     }
-
-    let html = `<option value="my_patients">🩺 Bảng theo dõi của tôi: ${this.escape(myDocName)} (${myCount})</option>`;
-    html += `<option value="all">🏥 Bảng toàn khoa: Tất cả bác sĩ (${this.patientList.length})</option>`;
-
-    doctors.forEach(doc => {
-      if (doc.toLowerCase() !== myDocName.toLowerCase()) {
-        const count = docCounts[doc] || 0;
-        html += `<option value="${this.escape(doc)}">👨‍⚕️ Bác sĩ: ${this.escape(doc)} (${count})</option>`;
-      }
-    });
 
     select.innerHTML = html;
 
-    // Giữ giá trị đã chọn
-    if (this.currentDoctorFilter && Array.from(select.options).some(o => o.value === this.currentDoctorFilter)) {
-      select.value = this.currentDoctorFilter;
+    // Giữ giá trị đã chọn phù hợp
+    if (isLoggedIn) {
+      if (this.currentDoctorFilter && Array.from(select.options).some(o => o.value === this.currentDoctorFilter)) {
+        select.value = this.currentDoctorFilter;
+      } else {
+        select.value = 'my_patients';
+        this.currentDoctorFilter = 'my_patients';
+      }
     } else {
-      select.value = 'my_patients';
-      this.currentDoctorFilter = 'my_patients';
+      select.value = 'all';
+      this.currentDoctorFilter = 'all';
     }
   }
 
@@ -367,27 +384,24 @@ class PatientController {
     if (idx === -1) return;
 
     const currentDoc = this.patientList[idx].doctor_name || this.patientList[idx].handover_by || '';
-    const activeDoc = window.authController?.getActiveDoctor?.() || {
-      full_name: document.getElementById('doctorName')?.value || 'BS. CKI Nguyễn Văn An'
-    };
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const defaultDoc = activeDoc ? activeDoc.full_name : '';
 
     const newDoc = prompt(
       `Chuyển không gian điều trị cho BN "${this.patientList[idx].ten}":\n(Nhập tên hoặc ID Bác sĩ tiếp nhận)`,
-      currentDoc || activeDoc.full_name
+      currentDoc || defaultDoc
     );
 
-    if (newDoc !== null) {
-      const cleanDoc = newDoc.trim();
-      this.patientList[idx].doctor_name = cleanDoc;
-      this.patientList[idx].handover_by = cleanDoc;
+    if (newDoc !== null && newDoc.trim()) {
+      this.patientList[idx].doctor_name = newDoc.trim();
+      this.patientList[idx].handover_by = newDoc.trim();
+      this.patientList[idx].updated_at = new Date().toISOString();
       this.saveLocalCache();
-      if (window.supabaseService) {
-        window.supabaseService.savePatient(this.patientList[idx]);
-      }
+      window.supabaseService.savePatient(this.patientList[idx]);
       this.updateDoctorFilterDropdown();
       this.render();
       if (window.showToast) {
-        window.showToast(`✓ Đã chuyển người bệnh sang Bác sĩ: ${cleanDoc || 'Chưa phân công'}`);
+        window.showToast(`✓ Đã chuyển BN sang Không gian của ${newDoc.trim()}`);
       }
     }
   }
@@ -607,17 +621,15 @@ class PatientController {
   // CRUD CƠ BẢN
   // ==============================================================================
   async addPatient(patientData = {}) {
-    const activeDoc = window.authController?.getActiveDoctor?.() || {
-      full_name: document.getElementById('doctorName')?.value || 'BS. CKI Nguyễn Văn An',
-      id: 'doc_annv'
-    };
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const myDocName = activeDoc ? activeDoc.full_name : '';
     const targetDoc = (this.currentDoctorFilter && this.currentDoctorFilter !== 'all' && this.currentDoctorFilter !== 'my_patients')
       ? this.currentDoctorFilter
-      : (activeDoc.full_name || 'BS. CKI Nguyễn Văn An');
+      : (myDocName || '');
 
     const newPatient = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-      user_id: activeDoc.id || null,
+      user_id: activeDoc?.id || null,
       phong_giuong: this.cleanRoomBedString(patientData.phong_giuong || 'D1.14-1'),
       ten: (patientData.ten || 'BỆNH NHÂN MỚI').trim(),
       nam_sinh_tuoi: (patientData.nam_sinh_tuoi || '').trim(),
@@ -631,7 +643,8 @@ class PatientController {
       handover_by: patientData.handover_by || targetDoc,
       handover_at: patientData.handover_at || null,
       sort_order: this.patientList.length,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     this.patientList.push(newPatient);
@@ -648,10 +661,12 @@ class PatientController {
     const idx = this.patientList.findIndex(p => p.id === patientId);
     const baseRoom = idx >= 0 ? this.cleanRoomBedString(this.patientList[idx].phong_giuong) : 'D1.14-1';
     const baseDoc = idx >= 0 ? (this.patientList[idx].doctor_name || this.patientList[idx].handover_by) : '';
-    const myDoc = window.authController?.currentUser?.full_name || document.getElementById('doctorName')?.value || 'BS. CKI Nguyễn Văn An';
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const myDoc = activeDoc ? activeDoc.full_name : '';
 
     const newP = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
+      user_id: activeDoc?.id || null,
       phong_giuong: baseRoom,
       ten: 'BỆNH NHÂN MỚI',
       nam_sinh_tuoi: '',
@@ -664,7 +679,8 @@ class PatientController {
       doctor_name: baseDoc || myDoc,
       handover_by: baseDoc || myDoc,
       sort_order: idx + 1,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     if (idx >= 0) {
@@ -780,11 +796,12 @@ class PatientController {
       nam_sinh_tuoi: headerRow.findIndex(c => c === 'ns (tuổi)' || c === 'ns/tuổi' || ((c.includes('năm sinh') || c.includes('year') || c.includes('ns')) && (c.includes('tuổi') || c.includes('age')))),
       chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('(a)') || c.includes('diagnosis')),
       cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm')),
-      y_lenh: headerRow.findIndex(c => c === 'yl' || c === 'p' || c === 'rx' || c === 'order' || c.includes('y lệnh') || c.includes('điều trị') || c.includes('(p)') || c.includes('treatment')),
-      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c.includes('bác sĩ') || c.includes('bs điều trị'))
+      y_lenh: -1, // Lúc nhập Excel luôn để trống cột Y lệnh theo yêu cầu
+      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị') || c.includes('bác sĩ điều trị') || c.includes('điều trị'))
     };
 
-    const myDoc = window.authController?.currentUser?.full_name || document.getElementById('doctorName')?.value || 'BS. CKI Nguyễn Văn An';
+    const activeDoc = window.authController?.getActiveDoctor?.();
+    const myDoc = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
     const results = [];
 
     for (let r = headerIdx + 1; r < rows.length; r++) {
@@ -825,13 +842,13 @@ class PatientController {
 
       let cdVal = mapping.chan_doan !== -1 ? String(row[mapping.chan_doan] || '').trim() : '';
       let clsVal = mapping.cls !== -1 ? String(row[mapping.cls] || '').trim() : '';
-      let ylVal = mapping.y_lenh !== -1 ? String(row[mapping.y_lenh] || '').trim() : '';
-      let docVal = mapping.bac_si !== -1 ? String(row[mapping.bac_si] || '').trim() : myDoc;
+      // Cột Y lệnh: Để trống cột y lệnh lúc nạp file Excel (không đưa tên Bác sĩ điều trị vào y lệnh)
+      let ylVal = '';
+      let docVal = 'BS. Nguyễn Hữu Đông';
 
       if (CONFIG.expandMedicalText) {
         cdVal = CONFIG.expandMedicalText(cdVal);
         clsVal = CONFIG.expandMedicalText(clsVal);
-        ylVal = CONFIG.expandMedicalText(ylVal);
       }
 
       results.push({
@@ -864,7 +881,7 @@ class PatientController {
     const q = this.currentFilterQuery.toLowerCase().trim();
     const docFilter = this.currentDoctorFilter || 'my_patients';
     const activeDoc = window.authController?.getActiveDoctor?.() || null;
-    const myDocName = (activeDoc?.full_name || document.getElementById('doctorName')?.value || '').trim().toLowerCase();
+    const myDocName = (activeDoc?.full_name || '').trim().toLowerCase();
     const myDocId = activeDoc?.id || '';
 
     return this.patientList.filter(p => {
@@ -873,6 +890,7 @@ class PatientController {
         const pDoc = (p.doctor_name || p.handover_by || '').trim().toLowerCase();
         const pUserId = p.user_id || '';
         if (docFilter === 'my_patients') {
+          if (!myDocName && !myDocId) return true;
           // Khớp theo user_id hoặc tên bác sĩ
           const matchId = myDocId && pUserId && pUserId === myDocId;
           const matchName = myDocName && (pDoc.includes(myDocName) || myDocName.includes(pDoc));

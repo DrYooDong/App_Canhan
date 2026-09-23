@@ -51,15 +51,21 @@
         <span class="cloud-text">Cloud</span>
       </button>
 
-      <!-- Pill Không Gian Bác Sĩ -->
-      <div class="doctor-workspace-header-pill" id="userProfileBadge" onclick="window.authController.openAuthModal('workspace')" data-tooltip="Không gian Bác sĩ (Nhấn để đổi)">
-        <div class="doc-avatar-circle" id="headerDocAvatar">BS</div>
+      <!-- Pill Không Gian Bác Sĩ (Hiển thị khi Bác sĩ đã đăng nhập) -->
+      <div class="doctor-workspace-header-pill" id="userProfileBadge" onclick="window.authController.openAuthModal('workspace')" data-tooltip="Không gian Bác sĩ (Nhấn để chuyển / quản lý)">
+        <div class="doc-avatar-circle" id="headerDocAvatar">HĐ</div>
         <div class="doc-header-info">
-          <span class="doc-header-name" id="headerDocName">BS. CKI Nguyễn Văn An</span>
+          <span class="doc-header-name" id="headerDocName">BS. Nguyễn Hữu Đông</span>
           <span class="doc-header-role" id="headerDocRole">Không gian riêng</span>
         </div>
         <svg class="pill-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </div>
+
+      <!-- Nút Đăng Nhập Bác Sĩ (Hiển thị khi chưa đăng nhập) -->
+      <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.openAuthModal('workspace')" style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ riêng">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span>Đăng nhập BS</span>
+      </button>
     </div>
   </header>
 
@@ -72,7 +78,7 @@
     </div>
     <div class="main-title-box">
       <div class="main-title" contenteditable="true">BẢNG THEO DÕI &amp; Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
-      <div class="sub-title" contenteditable="true">(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng &amp; Bàn giao trực)</div>
+      <div class="sub-title" contenteditable="true">(Không gian điều trị riêng: BS. Nguyễn Hữu Đông • Khoa Nhiễm)</div>
     </div>
     <div class="meta-box">
       <div class="meta-item">
@@ -85,9 +91,9 @@
           </button>
         </div>
       </div>
-      <div class="meta-item">
-        <label>BS điều trị: </label>
-        <input type="text" id="doctorName" placeholder="Ghi tên BS...">
+      <div class="meta-item" id="workspaceMetaItem">
+        <label>Không gian: </label>
+        <span id="currentWorkspaceText" class="workspace-pill-tag">BS. Nguyễn Hữu Đông</span>
       </div>
       <div class="meta-item">
         <span>Tổng số NB: <strong id="patientCount">0</strong></span>
@@ -297,7 +303,7 @@
         </div>
         <div class="form-group">
           <label>🩺 Bác sĩ điều trị / Phụ trách:</label>
-          <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. CKI Nguyễn Văn An">
+          <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. Nguyễn Hữu Đông">
         </div>
       </div>
 
@@ -549,75 +555,52 @@
 
 <!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
 <div class="modal-overlay" id="authModal">
-  <div class="modal-card" style="max-width: 520px;">
+  <div class="modal-card" style="max-width: 560px;">
     <div class="modal-header">
-      <div class="modal-title">👤 Tài Khoản & Cá Thể Hóa Bác Sĩ</div>
+      <div class="modal-title">🩺 Không Gian Làm Việc Bác Sĩ</div>
       <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
     </div>
 
     <!-- Tab Bar trong Auth Modal -->
     <div class="auth-tabs-nav">
-      <button class="nav-tab-btn active" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
-      <button class="nav-tab-btn" id="tabBtn_register" onclick="window.authController.switchAuthTab('register')">Đăng Ký</button>
-      <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ Của Tôi</button>
+      <button class="nav-tab-btn active" id="tabBtn_workspace" onclick="window.authController.switchAuthTab('workspace')">Không Gian BS. Đông</button>
+      <button class="nav-tab-btn" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
+      <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ BS</button>
     </div>
 
     <div class="modal-body">
+      <!-- 0. TAB KHÔNG GIAN BÁC SĨ (CHỈ DUY NHẤT BS. NGUYỄN HỮU ĐÔNG) -->
+      <div id="tabContent_workspace" class="auth-tab-content active">
+        <!-- Render động qua AuthController.renderWorkspaceTab() -->
+        <div id="workspaceContentArea"></div>
+      </div>
+
       <!-- 1. TAB ĐĂNG NHẬP -->
-      <div id="tabContent_login" class="auth-tab-content active">
+      <div id="tabContent_login" class="auth-tab-content" style="display: none;">
         <div id="loginMessage" class="form-message"></div>
         <form id="loginForm">
           <div class="form-group">
-            <label>Tài khoản Bác sĩ (Tên viết tắt):</label>
-            <input type="text" id="loginUsername" class="form-control" placeholder="VD: dongnh, annv..." autocapitalize="none" required>
+            <label>Tài khoản Bác sĩ:</label>
+            <input type="text" id="loginUsername" class="form-control" value="dongnh" placeholder="dongnh" autocapitalize="none" required>
+            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">Tài khoản: <strong>dongnh</strong> (nguyenhuudongy18@gmail.com)</small>
           </div>
           <div class="form-group">
-            <label>Mật khẩu (Số):</label>
+            <label>Mật khẩu số (Mặc định: 123456):</label>
             <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
             <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
           </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Đăng Nhập</button>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào Không Gian BS. Đông</button>
         </form>
       </div>
 
-      <!-- 2. TAB ĐĂNG KÝ -->
-      <div id="tabContent_register" class="auth-tab-content" style="display: none;">
-        <div id="registerMessage" class="form-message"></div>
-        <form id="registerForm">
-          <div class="form-group">
-            <label>Họ và tên Bác sĩ:</label>
-            <input type="text" id="regFullName" class="form-control" placeholder="VD: Nguyễn Hữu Đông" required>
-          </div>
-          <div class="form-group">
-            <label>Tài khoản đăng ký (Tên viết tắt):</label>
-            <input type="text" id="regUsername" class="form-control" placeholder="VD: dongnh" pattern="[a-zA-Z0-9_]+" autocapitalize="none" required>
-            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">💡 Gợi ý: Thường là tên viết tắt của bác sĩ (VD: Nguyễn Hữu Đông ➔ dongnh)</small>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Khoa phòng:</label>
-              <input type="text" id="regDept" class="form-control" value="Khoa Nhiễm">
-            </div>
-            <div class="form-group">
-              <label>Số ĐT trực:</label>
-              <input type="tel" id="regPhone" class="form-control" placeholder="09xx.xxx.xxx">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Mật khẩu (Số - tối thiểu 6 chữ số):</label>
-            <input type="password" id="regPassword" class="form-control" placeholder="Chỉ nhập số, tối thiểu 6 số (VD: 123456)" pattern="[0-9]{6,}" inputmode="numeric" minlength="6" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số (không lấy ký tự chữ)</small>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Tạo Tài Khoản Mới</button>
-        </form>
-      </div>
+
 
       <!-- 3. TAB HỒ SƠ BÁC SĨ -->
       <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
         <div id="profileMessage" class="form-message"></div>
         <form id="profileForm">
           <div class="form-group">
-            <label>Họ và tên:</label>
+            <label>Họ và tên Bác sĩ:</label>
             <input type="text" id="profFullName" class="form-control" required>
           </div>
           <div class="form-row">
@@ -644,10 +627,15 @@
               <input type="text" id="profUsername" class="form-control" disabled style="background: #f1f5f9;">
             </div>
           </div>
+          <div class="form-group">
+            <label>Mật khẩu số (PIN) đăng nhập Không Gian:</label>
+            <input type="password" id="profPin" class="form-control" placeholder="Để trống nếu không đổi (Mặc định: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số để vào nhanh không gian riêng</small>
+          </div>
 
           <div style="display: flex; gap: 8px; margin-top: 14px;">
             <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
-            <button type="button" class="btn btn-danger" id="btnLogout">Đăng Xuất</button>
+            <button type="button" class="btn btn-danger" id="btnLogout" onclick="window.authController.handleLogout()">Đăng Xuất</button>
           </div>
         </form>
       </div>
@@ -736,12 +724,12 @@
 </div>
 
 <!-- Scripts -->
-<script src="js/config.js"></script>
-<script src="js/supabase_service.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/patient_service.js"></script>
-<script src="js/handover_service.js"></script>
-<script src="js/app.js"></script>
+<script src="js/config.js?v=2.2"></script>
+<script src="js/supabase_service.js?v=2.2"></script>
+<script src="js/auth.js?v=2.2"></script>
+<script src="js/patient_service.js?v=2.2"></script>
+<script src="js/handover_service.js?v=2.2"></script>
+<script src="js/app.js?v=2.2"></script>
 
 </body>
 </html>
