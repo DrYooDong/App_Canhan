@@ -43,11 +43,19 @@ class PatientController {
     if (window.supabaseService) {
       window.supabaseService.onRealtimeUpdate(async (payload) => {
         console.log('🔄 Bệnh nhân được cập nhật từ thiết bị khác:', payload);
-        await this.reloadFromSource(false);
-        this.render();
-        if (window.showToast) {
-          window.showToast('📡 Dữ liệu vừa được đồng bộ từ thiết bị khác!');
+        
+        // Chống dội (Debounce 1000ms) để khi nhận nhiều sự kiện liên tiếp chỉ tải lại 1 lần duy nhất
+        if (this.realtimeDebounceTimer) {
+          clearTimeout(this.realtimeDebounceTimer);
         }
+        
+        this.realtimeDebounceTimer = setTimeout(async () => {
+          await this.reloadFromSource(false);
+          this.render();
+          if (window.showToast) {
+            window.showToast('📡 Dữ liệu vừa được cập nhật từ Cloud');
+          }
+        }, 1000);
       });
     }
   }
@@ -126,9 +134,7 @@ class PatientController {
 
     if (cleaned) {
       this.saveLocalCache();
-      if (window.supabaseService?.syncBatchPatients) {
-        window.supabaseService.syncBatchPatients(this.patientList).catch(() => {});
-      }
+      // TUYỆT ĐỐI KHÔNG GỌI syncBatchPatients ở đây để tránh vòng lặp đồng bộ vô tận (infinite loop)
     }
 
     this.updateDoctorFilterDropdown();
@@ -663,6 +669,24 @@ class PatientController {
   // ==============================================================================
   // CRUD CƠ BẢN
   // ==============================================================================
+  async openAddPatientModal() {
+    if (!window.authController?.isLoggedIn) {
+      window.authController?.showGateOverlay?.();
+      return;
+    }
+    const newPatient = await this.addPatient({ ten: '', phong_giuong: '' });
+    if (newPatient) {
+      this.openPatientDetailModal(newPatient.id);
+      setTimeout(() => {
+        const roomInput = document.getElementById('editRoomBed');
+        if (roomInput) {
+          roomInput.focus();
+          roomInput.select();
+        }
+      }, 120);
+    }
+  }
+
   async addPatient(patientData = {}) {
     if (!window.authController?.isLoggedIn) {
       window.authController?.showGateOverlay?.();

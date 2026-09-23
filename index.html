@@ -61,8 +61,52 @@
       </div>
     </div>
 
-    <!-- FORM ĐĂNG NHẬP NHANH BẰNG PIN/PASSWORD -->
-    <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" style="padding: 0 20px 20px;">
+    <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: VẼ HÌNH 9 NÚT HOẶC MÃ PIN -->
+    <div class="gate-mode-selector">
+      <button type="button" class="gate-mode-btn active" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="5" cy="5" r="2.5"/><circle cx="12" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/>
+          <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
+          <circle cx="5" cy="19" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/>
+        </svg>
+        <span>Vẽ hình 9 nút</span>
+      </button>
+      <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>Mã PIN số</span>
+      </button>
+    </div>
+
+    <!-- KHU VỰC 1: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
+    <div id="gatePatternContainer" class="gate-unlock-panel" style="display: block; padding: 0 20px 20px;">
+      <div id="gatePatternStatus" class="gate-pattern-status">
+        Vẽ hình nối các điểm để mở khoá
+      </div>
+
+      <div class="pattern-lock-wrap" id="patternLockWrap">
+        <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+      </div>
+
+      <div class="pattern-hint-box">
+        <span>💡 <strong>Gợi ý mặc định:</strong> Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
+      </div>
+
+      <div class="pattern-action-row">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
+          🔄 Vẽ lại
+        </button>
+        <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
+          🔢 Nhập mã PIN
+        </button>
+      </div>
+
+      <div class="gate-security-note">
+        🛡️ Chế độ mở khoá nhanh bằng cử chỉ vẽ hình 9 nút giúp Bác sĩ vào ca trực tức thì.
+      </div>
+    </div>
+
+    <!-- KHU VỰC 2: FORM ĐĂNG NHẬP NHANH BẰNG PIN/PASSWORD -->
+    <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" class="gate-unlock-panel" style="display: none; padding: 0 20px 20px;">
       <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
 
       <div class="form-group" style="margin-bottom: 12px;">
@@ -71,7 +115,7 @@
           <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
         </label>
         <div class="pin-input-wrapper">
-          <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" autofocus required>
+          <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
           <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1" title="Hiện/ẩn mã PIN">👁️</button>
         </div>
       </div>
@@ -82,7 +126,7 @@
       </button>
 
       <div class="gate-security-note">
-        🛡️ Quy định bảo mật thông tin người bệnh: Vui lòng đăng nhập mã PIN mỗi khi vào trang web để sử dụng.
+        🛡️ Quy định bảo mật thông tin người bệnh: Vui lòng đăng nhập mã PIN hoặc vẽ hình mỗi khi vào trang web.
       </div>
     </form>
   </div>
@@ -173,20 +217,20 @@
 
     <div class="toolbar-actions">
       <!-- NHÓM 1: NÚT HÀNH ĐỘNG CHÍNH (PRIMARY CTA) -->
-      <button class="btn-compact btn-primary" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip="Thêm bệnh nhân mới vào danh sách">
+      <button class="btn-compact btn-primary" onclick="window.patientController.openAddPatientModal()" data-tooltip="Thêm bệnh nhân mới &amp; Nhập liệu (Ctrl+N)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Thêm NB</span>
+        <span>Thêm NB (Ctrl+N)</span>
       </button>
 
       <div class="toolbar-divider"></div>
 
       <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS) -->
-      <button class="btn-compact btn-subtle" id="btnNextDayRollover" onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày điều trị tiếp theo">
+      <button class="btn-compact btn-subtle" id="btnNextDayRollover" onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày điều trị tiếp theo (Ctrl+D)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
         <span>Ngày kế</span>
       </button>
 
-      <button class="btn-compact btn-subtle btn-handover-highlight" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực &amp; Xuất Zalo">
+      <button class="btn-compact btn-subtle btn-handover-highlight" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực &amp; Xuất Zalo (Ctrl+H)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
         <span>Bàn giao</span>
       </button>
@@ -196,14 +240,14 @@
         <span>Excel</span>
       </button>
 
-      <button class="btn-compact btn-subtle" onclick="window.print()" data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế)">
+      <button class="btn-compact btn-subtle" onclick="window.print()" data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế) (Ctrl+P)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        <span>In A4</span>
+        <span>In A4 (Ctrl+P)</span>
       </button>
 
-      <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()" data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng (Khổ A4)">
+      <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()" data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng (Ctrl+Shift+P)">
         <span style="font-size: 13px;">👩‍⚕️</span>
-        <span>In cho Điều dưỡng</span>
+        <span>In Điều dưỡng</span>
       </button>
 
       <div class="toolbar-divider"></div>
@@ -218,6 +262,11 @@
 
       <!-- NHÓM 4: CÁC NÚT TIỆN ÍCH TINH GỌN (COMPACT GHOST ICONS) -->
       <div class="utility-icon-group">
+        <!-- Phím tắt lâm sàng -->
+        <button class="btn-icon-minimal" id="btnShortcutsHelp" onclick="window.medWardApp.openShortcutsModal()" data-tooltip="Danh sách phím tắt lâm sàng (F1, Ctrl+N, Ctrl+P...)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="6" y1="12" x2="6.01" y2="12"></line><line x1="18" y1="12" x2="18.01" y2="12"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
+        </button>
+
         <!-- Sắp xếp buồng giường -->
         <button class="btn-icon-minimal" id="btnSortPatients" data-tooltip="Sắp xếp theo buồng &amp; giường">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line><path d="M3 6h18M3 12h12M3 18h6"></path></svg>
@@ -727,6 +776,29 @@
             <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số để vào nhanh không gian riêng</small>
           </div>
 
+          <!-- CÀI ĐẶT HÌNH VẼ 9 NÚT (PATTERN LOCK) -->
+          <div class="pattern-profile-setting" style="margin: 12px 0 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <span>🔲 Hình vẽ mở khoá 9 nút:</span>
+              </span>
+              <span id="currentPatternBadge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 600;">
+                Mặc định: Chữ L hoặc Z
+              </span>
+            </div>
+            <p style="font-size: 11.8px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
+              Cho phép Bác sĩ mở khoá nhanh bằng cử chỉ vẽ hình (Pattern Lock) thay cho việc bấm mã PIN mỗi lần vào trang web.
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.openPatternChangeModal()">
+                🎨 Thiết lập hình vẽ mới
+              </button>
+              <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.resetToDefaultPattern()">
+                Khôi phục mặc định (Chữ L)
+              </button>
+            </div>
+          </div>
+
           <div style="display: flex; gap: 8px; margin-top: 14px;">
             <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
             <button type="button" class="btn btn-danger" id="btnLogout" onclick="window.authController.handleLogout()">Đăng Xuất</button>
@@ -865,12 +937,119 @@
   </div>
 </div>
 
+<!-- MODAL 7: BẢNG PHÍM TẮT LÂM SÀNG TOÀN CỤC (GLOBAL SHORTCUTS) -->
+<div class="modal-overlay" id="shortcutsModal">
+  <div class="modal-card" style="max-width: 620px;">
+    <div class="modal-header">
+      <div class="modal-title">⌨️ Phím Tắt Thao Tác Nhanh Lâm Sàng</div>
+      <button class="btn-close-modal" onclick="window.medWardApp.closeShortcutsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: #1e40af;">
+        ⚡ <strong>Tối ưu tốc độ làm việc:</strong> Sử dụng các phím tắt bên dưới giúp Bác sĩ đi buồng, nhập liệu và ra y lệnh nhanh hơn gấp 3 lần mà không cần rê chuột.
+      </div>
+
+      <table class="shortcuts-table">
+        <thead>
+          <tr>
+            <th style="width: 170px;">Phím tắt</th>
+            <th>Hành động lâm sàng</th>
+            <th style="width: 110px; text-align: center;">Phạm vi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+            <td><strong>Thêm người bệnh mới</strong> &amp; Mở ngay cửa sổ nhập liệu</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
+            <td><strong>In bảng theo dõi A4</strong> (hoặc in phiếu nếu đang ở tab Điều dưỡng)</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
+            <td><strong>Mở giao diện In cho Điều dưỡng</strong> (phiếu Y lệnh &amp; CLS)</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>F</kbd></td>
+            <td><strong>Tìm kiếm nhanh</strong> (focus ô tìm kiếm họ tên, buồng, CĐ)</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>H</kbd></td>
+            <td><strong>Mở Bảng bàn giao tua trực</strong> &amp; Xuất mẫu Zalo</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>D</kbd></td>
+            <td><strong>Chuyển sang ngày điều trị kế tiếp</strong> (Rollover)</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+            <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>Esc</kbd></td>
+            <td><strong>Đóng nhanh</strong> bất kỳ cửa sổ / modal nào đang mở</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
+            <td><kbd>F1</kbd> hoặc <kbd>Ctrl</kbd> + <kbd>/</kbd></td>
+            <td><strong>Mở bảng danh mục phím tắt này</strong></td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="window.medWardApp.closeShortcutsModal()">Đã Hiểu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 8: CÀI ĐẶT / ĐỔI HÌNH VẼ MỞ KHÓA 9 NÚT (PATTERN RECORDER) -->
+<div class="modal-overlay" id="patternChangeModal">
+  <div class="modal-card" style="max-width: 440px;">
+    <div class="modal-header">
+      <div class="modal-title">🎨 Thiết Lập Hình Vẽ Mở Khóa (9 Nút)</div>
+      <button class="btn-close-modal" onclick="window.patternLock?.closePatternChangeModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="text-align: center;">
+      <div id="patternRecordStatus" class="gate-pattern-status" style="margin-bottom: 12px;">
+        Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)
+      </div>
+
+      <div class="pattern-lock-wrap" id="patternRecordWrap" style="margin: 0 auto 14px;">
+        <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+      </div>
+
+      <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+        💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần nữa để xác nhận an toàn.</em>
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: space-between;">
+      <button type="button" class="btn btn-subtle" onclick="window.patternLock?.resetToDefaultPattern(); window.patternLock?.closePatternChangeModal();">
+        Về mặc định (Chữ L)
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Global Toast Notification -->
 <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
 
 <!-- Scripts -->
 <script src="js/config.js?v=2.2"></script>
 <script src="js/supabase_service.js?v=2.2"></script>
+<script src="js/pattern_lock.js?v=2.2"></script>
 <script src="js/auth.js?v=2.2"></script>
 <script src="js/patient_service.js?v=2.2"></script>
 <script src="js/handover_service.js?v=2.2"></script>

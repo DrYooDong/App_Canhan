@@ -12,8 +12,120 @@ class MedWardApp {
     this.setupDatePickers();
     this.setupMetaHandlers();
     this.bindGlobalEvents();
+    this.setupKeyboardShortcuts();
     this.setupClipboardPaste();
     this.setupPWA();
+  }
+
+  setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const key = e.key;
+      const lowerKey = key.toLowerCase();
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+
+      // 1. Phím ESC: Luôn đóng bất kỳ modal nào đang mở
+      if (key === 'Escape') {
+        this.closeAllModals();
+        return;
+      }
+
+      // 2. Phím F1, Ctrl+/ hoặc ? (khi không gõ chữ): Mở bảng tra cứu phím tắt
+      if (key === 'F1' || (isCtrlOrCmd && key === '/') || (!isInput && key === '?')) {
+        e.preventDefault();
+        this.openShortcutsModal();
+        return;
+      }
+
+      // 3. Các phím tắt kết hợp với Ctrl / Cmd
+      if (isCtrlOrCmd) {
+        // Ctrl + N: Thêm bệnh nhân mới & mở ngay form nhập liệu
+        if (lowerKey === 'n') {
+          e.preventDefault();
+          window.patientController?.openAddPatientModal?.();
+          return;
+        }
+
+        // Ctrl + P: In ấn lâm sàng
+        if (lowerKey === 'p') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Ctrl + Shift + P: In cho điều dưỡng
+            window.patientController?.openNursePrintModal?.();
+          } else {
+            // Ctrl + P: Nếu đang mở modal điều dưỡng thì in phiếu điều dưỡng, ngược lại in bản A4
+            const nurseModal = document.getElementById('nursePrintModal');
+            if (nurseModal && nurseModal.classList.contains('active')) {
+              window.patientController?.printNurseWorklist?.();
+            } else {
+              this.updatePrintDateNote();
+              window.print();
+            }
+          }
+          return;
+        }
+
+        // Ctrl + F: Tìm kiếm nhanh bệnh nhân
+        if (lowerKey === 'f') {
+          e.preventDefault();
+          const searchInput = document.getElementById('patientSearchInput');
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+          }
+          return;
+        }
+
+        // Ctrl + H: Mở Bảng bàn giao ca trực
+        if (lowerKey === 'h') {
+          e.preventDefault();
+          window.handoverController?.openHandoverDashboard?.();
+          return;
+        }
+
+        // Ctrl + D: Chuyển sang ngày mới (Rollover)
+        if (lowerKey === 'd') {
+          e.preventDefault();
+          window.patientController?.openNextDayModal?.();
+          return;
+        }
+
+        // Ctrl + S: Lưu tức thì và đồng bộ Cloud
+        if (lowerKey === 's') {
+          e.preventDefault();
+          window.patientController?.saveLocalCache?.();
+          window.supabaseService?.syncBatchPatients?.(window.patientController?.patientList || []);
+          if (window.showToast) {
+            window.showToast('💾 Đã lưu dữ liệu vào máy & gửi đồng bộ Cloud!');
+          }
+          return;
+        }
+      }
+    });
+  }
+
+  closeAllModals() {
+    window.patientController?.closePatientDetailModal?.();
+    window.patientController?.closeNextDayModal?.();
+    window.patientController?.closeNursePrintModal?.();
+    window.handoverController?.closeHandoverModal?.();
+    window.handoverController?.closeHandoverDashboard?.();
+    window.authController?.closeAuthModal?.();
+    window.authController?.closeCloudSettingsModal?.();
+    this.closeAbbreviationModal?.();
+    this.closeShortcutsModal?.();
+    window.patternLock?.closePatternChangeModal?.();
+  }
+
+  openShortcutsModal() {
+    const modal = document.getElementById('shortcutsModal');
+    if (modal) modal.classList.add('active');
+  }
+
+  closeShortcutsModal() {
+    const modal = document.getElementById('shortcutsModal');
+    if (modal) modal.classList.remove('active');
   }
 
   setupDatePickers() {

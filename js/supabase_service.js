@@ -181,6 +181,12 @@ class SupabaseService {
   }
 
   notifyRealtimeSubscribers(payload) {
+    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 2.5 giây, bỏ qua để tránh phản xạ lặp (echo loop)
+    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 2500)) {
+      console.log('⚡ Bỏ qua phản xạ realtime từ chính thiết bị này (chống lặp)');
+      return;
+    }
+
     this.syncListeners.forEach(cb => {
       try { cb(payload); } catch (e) {}
     });
@@ -201,7 +207,12 @@ class SupabaseService {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'patients' },
           (payload) => {
-            console.log('⚡ Realtime sync received:', payload);
+            // Kiểm tra xem sự kiện có bắt nguồn từ lượt lưu của chính thiết bị này không
+            if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 2500)) {
+              console.log('⚡ Bỏ qua sự kiện Realtime từ chính thiết bị này (chống lặp đồng bộ)');
+              return;
+            }
+            console.log('⚡ Realtime sync received từ thiết bị khác:', payload);
             this.lastSyncedAt = new Date();
             this.notifyStateChange();
             this.notifyRealtimeSubscribers(payload);
@@ -560,6 +571,7 @@ class SupabaseService {
   }
 
   async savePatient(patient) {
+    this.lastLocalSaveTimestamp = Date.now();
     this.isSyncing = true;
     this.notifyStateChange();
 
@@ -628,6 +640,7 @@ class SupabaseService {
       return { data: patientsArray, error: null, queued: true };
     }
 
+    this.lastLocalSaveTimestamp = Date.now();
     this.batchSyncLock = true;
     this.isSyncing = true;
     this.notifyStateChange();

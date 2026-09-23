@@ -53,15 +53,66 @@ class AuthController {
         msgEl.style.display = 'none';
         msgEl.innerText = '';
       }
+
+      // Khôi phục phương thức mở khóa người dùng chọn lần trước (Mặc định: vẽ hình 9 nút)
+      const preferredMode = localStorage.getItem('medward_unlock_mode') || 'pattern';
+      this.switchGateMode(preferredMode);
+
       if (pinInput) {
         pinInput.value = '';
-        setTimeout(() => pinInput.focus(), 150);
       }
     } else {
       document.body.classList.remove('app-locked');
       if (overlay) {
         overlay.style.display = 'none';
       }
+    }
+  }
+
+  switchGateMode(mode) {
+    const btnPattern = document.getElementById('btnGateModePattern');
+    const btnPin = document.getElementById('btnGateModePin');
+    const panelPattern = document.getElementById('gatePatternContainer');
+    const panelPin = document.getElementById('gateLoginForm');
+    const pinInput = document.getElementById('gatePinInput');
+
+    localStorage.setItem('medward_unlock_mode', mode);
+
+    if (mode === 'pattern') {
+      if (btnPattern) btnPattern.classList.add('active');
+      if (btnPin) btnPin.classList.remove('active');
+      if (panelPattern) panelPattern.style.display = 'block';
+      if (panelPin) panelPin.style.display = 'none';
+      if (window.patternLock) {
+        window.patternLock.setupMainGateLock();
+        window.patternLock.reset();
+      }
+    } else {
+      if (btnPattern) btnPattern.classList.remove('active');
+      if (btnPin) btnPin.classList.add('active');
+      if (panelPattern) panelPattern.style.display = 'none';
+      if (panelPin) panelPin.style.display = 'block';
+      if (pinInput) {
+        setTimeout(() => pinInput.focus(), 100);
+      }
+    }
+  }
+
+  unlockSession() {
+    sessionStorage.setItem('medward_session_unlocked', 'true');
+    this.isLoggedIn = true;
+    this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
+    this.saveActiveDoctor();
+    this.updateUserUI();
+    this.checkLoginGate();
+
+    if (window.patientController) {
+      window.patientController.updateDoctorFilterDropdown();
+      window.patientController.render();
+    }
+
+    if (window.showToast) {
+      window.showToast('✓ Chào mừng BS. Nguyễn Hữu Đông vào hệ thống điều trị!');
     }
   }
 
@@ -120,21 +171,7 @@ class AuthController {
     }
 
     // Đăng nhập thành công!
-    sessionStorage.setItem('medward_session_unlocked', 'true');
-    this.isLoggedIn = true;
-    this.activeDoctor = { ...CONFIG.DEFAULT_DEMO_DOCTOR };
-    this.saveActiveDoctor();
-    this.updateUserUI();
-    this.checkLoginGate();
-
-    if (window.patientController) {
-      window.patientController.updateDoctorFilterDropdown();
-      window.patientController.render();
-    }
-
-    if (window.showToast) {
-      window.showToast('✓ Chào mừng BS. Nguyễn Hữu Đông vào hệ thống điều trị!');
-    }
+    this.unlockSession();
   }
 
   async loadKnownDoctors() {
