@@ -34,16 +34,18 @@ const CONFIG = {
     subTitle: '(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)'
   },
 
-  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (CHỈ DUY NHẤT BS. ĐÔNG)
+  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (BS. ĐÔNG LÀ QUẢN TRỊ VIÊN)
   DEFAULT_DEMO_DOCTOR: {
     id: 'doc_dongnh',
     email: 'nguyenhuudongy18@gmail.com',
     username: 'dongnh',
     full_name: 'BS. Nguyễn Hữu Đông',
-    title: 'Bác sĩ điều trị',
+    title: 'Bác sĩ điều trị / Trưởng tua',
     department: 'Khoa Nhiễm',
     hospital: 'BV ĐKKV Thủ Đức',
-    phone: '0988.765.432'
+    phone: '0988.765.432',
+    role: 'admin',
+    pin: '123456'
   },
 
   DEFAULT_DOCTORS: [
@@ -52,10 +54,12 @@ const CONFIG = {
       email: 'nguyenhuudongy18@gmail.com',
       username: 'dongnh',
       full_name: 'BS. Nguyễn Hữu Đông',
-      title: 'Bác sĩ điều trị',
+      title: 'Bác sĩ điều trị / Trưởng tua',
       department: 'Khoa Nhiễm',
       hospital: 'BV ĐKKV Thủ Đức',
-      phone: '0988.765.432'
+      phone: '0988.765.432',
+      role: 'admin',
+      pin: '123456'
     }
   ],
 

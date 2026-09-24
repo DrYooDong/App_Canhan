@@ -162,6 +162,20 @@ class MedWardApp {
     }
   }
 
+  toggleViewMode() {
+    if (window.patientController && window.patientController.toggleMobileViewMode) {
+      window.patientController.toggleMobileViewMode();
+      const isTable = document.body.classList.contains('mobile-view-table');
+      const icon = document.getElementById('mobileViewModeIcon');
+      const text = document.getElementById('mobileViewModeText');
+      if (icon) icon.innerText = isTable ? '📋' : '📱';
+      if (text) text.innerText = isTable ? 'Bảng' : 'Thẻ';
+      if (window.showToast) {
+        window.showToast(isTable ? '📋 Đã chuyển sang chế độ Bảng' : '📱 Đã chuyển sang chế độ Thẻ');
+      }
+    }
+  }
+
   formatToDMY(dateObj) {
     const d = String(dateObj.getDate()).padStart(2, '0');
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');

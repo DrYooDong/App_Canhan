@@ -221,6 +221,9 @@ class HandoverController {
           <div class="ho-card-bottom">
             <span class="ho-doc-note">BS bàn giao: <strong>${this.escape(p.handover_by || 'BS điều trị')}</strong></span>
             <div class="ho-action-btns">
+              <button class="btn-icon" data-tooltip="Copy qua Zalo ca này" onclick="window.handoverController.copySinglePatientZalo('${p.id}')">
+                📋
+              </button>
               <button class="btn-icon" data-tooltip="Xác nhận đã xử trí xong" onclick="window.handoverController.markAsResolved('${p.id}')">
                 ✅
               </button>
@@ -234,79 +237,143 @@ class HandoverController {
     }).join('');
   }
 
-  // TẠO ĐỊNH DẠNG TIN NHẮN TÓM TẮT ĐỂ GỬI QUA ZALO / VIBER NHÓM TRỰC
+  // ==============================================================================
+  // ĐỊNH DẠNG TIN NHẮN TÓM TẮT NGẮN GỌN CHO ZALO
+  // TIÊU ĐỀ NGẮN GỌN NHẤT CÓ THỂ, TÊN BN, NĂM SINH, PHÒNG, CHẨN ĐOÁN, VẤN ĐỀ
+  // ==============================================================================
+  formatPatientZaloText(p, isSingle = true) {
+    if (!p) return '';
+    const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
+    const ns = p.nam_sinh_tuoi || '—';
+    const phong = p.phong_giuong || 'Chưa xếp phòng';
+    const cd = p.chan_doan || 'Chưa ghi';
+
+    const isCrit = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
+
+    let issues = [];
+    if (p.handover_issues && p.handover_issues.trim()) {
+      issues.push(p.handover_issues.trim());
+    }
+    if (p.handover_actions && p.handover_actions.trim()) {
+      issues.push('Cần làm: ' + p.handover_actions.trim());
+    }
+    if (issues.length === 0) {
+      if (p.cls_can_lam && p.cls_can_lam.trim()) issues.push('CLS: ' + p.cls_can_lam.trim());
+      if (p.them_thuoc && p.them_thuoc.trim()) issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
+    }
+    let vanDe = issues.length > 0 ? issues.join('; ') : 'Ổn định, theo dõi tiếp';
+    if (isCrit && !vanDe.includes('Báo động đỏ') && !vanDe.includes('NẶNG')) {
+      vanDe = `[🚨 Báo động đỏ] ${vanDe}`;
+    }
+
+    if (isSingle) {
+      return `📋 BÀN GIAO\n- BN: ${ten}\n- Năm sinh: ${ns}\n- Phòng: ${phong}\n- CĐ: ${cd}\n- Vấn đề: ${vanDe}`;
+    } else {
+      return `- BN: ${ten}\n- Năm sinh: ${ns}\n- Phòng: ${phong}\n- CĐ: ${cd}\n- Vấn đề: ${vanDe}`;
+    }
+  }
+
+  // TẠO ĐỊNH DẠNG BÀN GIAO TỔNG HỢP GỬI ZALO (TIÊU ĐỀ SIÊU NGẮN GỌN)
   generateZaloSummaryText() {
     const patients = window.patientController.patientList;
     const criticalList = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
     const pendingList = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING);
+    const allHandovers = [...criticalList, ...pendingList];
 
-    const nowStr = new Date().toLocaleString('vi-VN', {
-      hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric'
+    let dateStr = '';
+    const reportDateInput = document.getElementById('reportDate');
+    if (reportDateInput && reportDateInput.value) {
+      const parts = reportDateInput.value.split('-');
+      if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}`;
+      else dateStr = reportDateInput.value;
+    } else {
+      const now = new Date();
+      dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    }
+
+    if (allHandovers.length === 0) {
+      return `📋 BÀN GIAO TRỰC (${dateStr})\n- Không có ca bệnh tồn đọng hoặc nguy kịch.`;
+    }
+
+    let text = `📋 BÀN GIAO TRỰC (${dateStr})\n\n`;
+
+    allHandovers.forEach((p, idx) => {
+      const patientBody = this.formatPatientZaloText(p, false);
+      text += `${idx + 1}. ${patientBody}\n\n`;
     });
 
-    const docName = window.authController?.currentUser?.full_name || 'Bác sĩ điều trị';
-    const deptName = window.authController?.currentUser?.department || 'KHOA NHIỄM';
-
-    let text = `📋 [BÀN GIAO TUA TRỰC LÂM SÀNG - ${deptName.toUpperCase()}]\n`;
-    text += `⏰ Thời gian: ${nowStr}\n`;
-    text += `👨‍⚕️ BS bàn giao: ${docName}\n`;
-    text += `📊 Tổng số ca cần bàn giao: ${criticalList.length + pendingList.length} ca (🚨 ${criticalList.length} ca nặng, ⏳ ${pendingList.length} ca theo dõi)\n`;
-    text += `────────────────────\n\n`;
-
-    if (criticalList.length > 0) {
-      text += `🚨 DANH SÁCH BÁO ĐỘNG ĐỎ / BỆNH NẶNG:\n`;
-      criticalList.forEach((p, i) => {
-        text += `${i + 1}. [${p.phong_giuong}] ${p.ten.toUpperCase()} (${p.nam_sinh_tuoi})\n`;
-        text += `   • CĐ: ${p.chan_doan}\n`;
-        if (p.handover_issues) text += `   ⚠️ Vấn đề: ${p.handover_issues}\n`;
-        if (p.handover_actions) text += `   🎯 Cần làm: ${p.handover_actions}\n`;
-        text += `\n`;
-      });
-    }
-
-    if (pendingList.length > 0) {
-      text += `⏳ DANH SÁCH VẤN ĐỀ TỒN ĐỌNG / THEO DÕI SÁT:\n`;
-      pendingList.forEach((p, i) => {
-        text += `${i + 1}. [${p.phong_giuong}] ${p.ten.toUpperCase()} (${p.nam_sinh_tuoi})\n`;
-        text += `   • CĐ: ${p.chan_doan}\n`;
-        if (p.handover_issues) text += `   ⚠️ Tồn đọng: ${p.handover_issues}\n`;
-        if (p.handover_actions) text += `   🎯 Cần làm: ${p.handover_actions}\n`;
-        text += `\n`;
-      });
-    }
-
-    if (criticalList.length === 0 && pendingList.length === 0) {
-      text += `✅ Khoa hiện tại không có ca bệnh tồn đọng hoặc nguy kịch cần theo dõi đặc biệt.\n`;
-    }
-
-    text += `────────────────────\n`;
-    text += `👉 Xem chi tiết trên hệ thống MedWard Pro.`;
-
-    return text;
+    return text.trim();
   }
 
-  async copyHandoverToClipboard() {
-    const text = this.generateZaloSummaryText();
+  // HÀM SAO CHÉP CHUNG AN TOÀN CHO CẢ DESKTOP & MOBILE
+  async copyText(text, successMsg = '📋 Đã sao chép nội dung qua Zalo!') {
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
       } else {
         const textarea = document.createElement('textarea');
         textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
         document.body.appendChild(textarea);
+        textarea.focus();
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
       }
-
       if (window.showToast) {
-        window.showToast('📋 Đã sao chép nội dung bàn giao! Bạn có thể dán (Ctrl+V) vào Zalo / Viber.');
+        window.showToast(successMsg);
+      } else if (window.updateSaveStatus) {
+        window.updateSaveStatus(successMsg, 'saved');
       } else {
-        alert('Đã sao chép tóm tắt bàn giao vào bộ nhớ tạm!');
+        alert(successMsg);
       }
     } catch (e) {
-      alert('Không thể tự động sao chép. Vui lòng thử lại: ' + e.message);
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (window.showToast) window.showToast(successMsg);
     }
+  }
+
+  async copyHandoverToClipboard() {
+    const text = this.generateZaloSummaryText();
+    await this.copyText(text, '📋 Đã sao chép biên bản bàn giao qua Zalo!');
+  }
+
+  async copySinglePatientZalo(patientId) {
+    const p = window.patientController.patientList.find(item => item.id === patientId);
+    if (!p) return;
+    const text = this.formatPatientZaloText(p, true);
+    await this.copyText(text, `📋 Đã sao chép người bệnh ${p.ten || ''} qua Zalo!`);
+  }
+
+  async copyCurrentPatientHandoverZalo() {
+    if (!this.currentPatientId) return;
+    const p = window.patientController.patientList.find(item => item.id === this.currentPatientId);
+    if (!p) return;
+
+    const issues = document.getElementById('hoIssues')?.value.trim();
+    const actions = document.getElementById('hoActions')?.value.trim();
+    const selectedRadio = document.querySelector('input[name="hoStatusRadio"]:checked');
+    const status = selectedRadio ? selectedRadio.value : p.handover_status;
+
+    const tempP = {
+      ...p,
+      handover_status: status,
+      handover_issues: issues !== undefined ? issues : p.handover_issues,
+      handover_actions: actions !== undefined ? actions : p.handover_actions
+    };
+
+    const text = this.formatPatientZaloText(tempP, true);
+    await this.copyText(text, `📋 Đã sao chép bàn giao người bệnh ${p.ten || ''} qua Zalo!`);
   }
 
   printHandoverReport() {

@@ -1,7 +1,9 @@
 /* ==============================================================================
-   MEDWARD PRO - MOBILE-FIRST DESIGN (4-COLOR MINIMALIST PALETTE)
+   MEDWARD PRO - MOBILE-FIRST CLINICAL DESIGN & RESPONSIVE ARCHITECTURE
+   Optimized for Smartphones, Tablets, and Touch Clinical Rounds
    ============================================================================== */
 
+/* Khi ở chế độ Desktop, ẩn các thành phần riêng của Mobile */
 .mobile-cards-view {
   display: none;
 }
@@ -10,363 +12,744 @@
   display: none;
 }
 
+.mobile-clinical-header {
+  display: none;
+}
+
+.bottom-sheet-drag-handle {
+  display: none;
+}
+
+/* ==============================================================================
+   RESPONSIVE BREAKPOINT: SMARTPHONES & TABLETS (<= 840px)
+   ============================================================================== */
 @media screen and (max-width: 840px) {
+  html, body {
+    width: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    padding: 6px;
-    background-color: var(--bg-app);
-    padding-bottom: 68px; /* Dành chỗ cho Bottom Nav Bar */
+    padding: 0;
+    margin: 0;
+    background-color: #f1f5f9;
+    padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); /* Dành chỗ cho Bottom Nav Bar */
+    font-size: 13.5px;
   }
 
   .app-container {
-    padding: 10px 8px;
-    border-radius: var(--radius-sm);
+    padding: 6px 8px 16px;
+    margin: 0;
+    border-radius: 0;
     box-shadow: none;
     border: none;
     background: transparent;
     min-height: unset;
+    max-width: 100vw;
   }
 
-  /* TOP NAV */
-  .top-nav-bar {
-    background: #ffffff;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    margin-bottom: 10px;
-    gap: 8px;
-  }
-  .app-brand-titles .app-title-sub {
-    display: none;
-  }
-  .doc-header-role {
-    display: none;
-  }
-  .doc-header-name {
-    max-width: 90px;
-  }
-  .btn-cloud-sync .cloud-text {
-    display: none;
-  }
-  .btn-cloud-sync {
-    padding: 0 8px;
-  }
-
-  /* HOSPITAL HEADER */
-  .hospital-header {
-    background: #ffffff;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
+  /* ----------------------------------------------------------------------------
+     1. MOBILE CLINICAL HEADER (STICKY AT TOP)
+     ---------------------------------------------------------------------------- */
+  .mobile-clinical-header {
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .hospital-info {
-    text-align: center;
-    border-bottom: 1px dashed var(--border);
-    padding-bottom: 8px;
-  }
-  .hospital-info .unit-name { font-size: 11px; }
-  .hospital-info .hospital-title { font-size: 13px; }
-  .hospital-info .dept-name { font-size: 13px; }
-
-  .main-title-box {
-    padding: 0;
-    text-align: center;
-  }
-  .main-title {
-    font-size: 15px;
-    line-height: 1.3;
-  }
-  .sub-title {
-    font-size: 11px;
-  }
-
-  .meta-box {
-    text-align: left;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 8px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid #e2e8f0;
     padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    min-width: 100%;
+    margin: -6px -8px 8px -8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
-  .meta-item {
-    justify-content: flex-start;
-    font-size: 12px;
-    margin-bottom: 0;
-  }
-  .meta-item:last-child {
-    grid-column: span 2;
-    border-top: 1px dashed var(--border);
-    padding-top: 5px;
-    margin-top: 2px;
+
+  .mobile-brand-row {
     display: flex;
     justify-content: space-between;
-  }
-  .meta-item input[type="text"] {
-    width: 100%;
-    max-width: 140px;
+    align-items: center;
+    gap: 8px;
   }
 
-  /* TOOLBAR ON MOBILE (COMPACT MINIMALIST) */
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 8px;
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-  }
-  .toolbar-actions {
+  .mobile-brand-left {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    width: 100%;
-    gap: 5px;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .mobile-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .mobile-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .mobile-brand-name {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+  }
+
+  .mobile-brand-dept {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2563eb;
+    line-height: 1.2;
+  }
+
+  .mobile-brand-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .mobile-btn-action {
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-btn-action:active {
+    background: #f1f5f9;
+    transform: scale(0.97);
+  }
+
+  .mobile-btn-lock {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-color: #e2e8f0;
+    font-size: 14px;
+  }
+
+  .mobile-doc-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 8px 0 4px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 17px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-doc-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #1e40af;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-doc-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e3a8a;
+    max-width: 85px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ----------------------------------------------------------------------------
+     2. MOBILE WARD SUMMARY (CHỈ SỐ LÂM SÀNG NHANH)
+     ---------------------------------------------------------------------------- */
+  .mobile-ward-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     overflow-x: auto;
+    scrollbar-width: none;
     padding-bottom: 2px;
     -webkit-overflow-scrolling: touch;
   }
-  .toolbar-actions::-webkit-scrollbar {
+  .mobile-ward-summary::-webkit-scrollbar {
     display: none;
   }
-  .toolbar-divider {
-    height: 16px;
-  }
-  .btn-compact {
-    height: 30px;
-    padding: 0 10px;
-    font-size: 11.5px;
-  }
-  .doctor-select-wrapper {
-    height: 30px;
-    padding: 0 6px 0 8px;
-  }
-  .doctor-select-wrapper select {
-    font-size: 11.5px;
-  }
-  .toggle-pill-label {
-    height: 30px;
-    padding: 0 6px;
-    font-size: 11.5px;
-  }
-  .btn-icon-minimal {
-    width: 30px;
-    height: 30px;
-  }
-  .search-box {
-    margin-left: 0;
-    width: 100%;
-    height: 32px;
-  }
-  .search-box input {
-    width: 100%;
-    font-size: 12.5px;
-  }
 
-  /* STATUS BAR */
-  .status-bar {
-    flex-direction: column;
-    align-items: flex-start;
+  .mobile-summary-item {
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
-    font-size: 11px;
-    margin-bottom: 10px;
-    padding: 0 4px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  /* ẨN BẢNG DESKTOP KHI Ở TRÊN MOBILE */
-  .table-wrapper {
+  .mobile-summary-item strong, .mobile-summary-item span {
+    font-weight: 800;
+  }
+
+  .mobile-date-chip {
+    cursor: pointer;
+    background: #ffffff;
+    border-color: #cbd5e1;
+    font-family: inherit;
+  }
+
+  .mobile-date-chip:active {
+    background: #f1f5f9;
+  }
+
+  .mobile-summary-item.item-critical {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+
+  .mobile-summary-item.item-pending {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+  }
+
+  /* ----------------------------------------------------------------------------
+     3. MOBILE FILTER CHIPS (TẤT CẢ, NGUY KỊCH, CẦN BÀN GIAO, BUỒNG D1...)
+     ---------------------------------------------------------------------------- */
+  .mobile-filter-bar {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0;
+  }
+  .mobile-filter-bar::-webkit-scrollbar {
     display: none;
   }
 
-  /* CHẾ ĐỘ THẺ NGƯỜI BỆNH MOBILE */
+  .mobile-filter-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .mobile-filter-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .mobile-filter-chip:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-filter-chip.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+  }
+
+  .mobile-filter-chip.chip-critical.active {
+    background: #dc2626;
+    border-color: #dc2626;
+    box-shadow: 0 2px 5px rgba(220, 38, 38, 0.25);
+  }
+
+  .mobile-filter-chip.chip-pending.active {
+    background: #d97706;
+    border-color: #d97706;
+    box-shadow: 0 2px 5px rgba(217, 119, 6, 0.25);
+  }
+
+  /* ----------------------------------------------------------------------------
+     4. MOBILE SEARCH BAR
+     ---------------------------------------------------------------------------- */
+  .mobile-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mobile-search-wrapper svg {
+    position: absolute;
+    left: 11px;
+    color: #64748b;
+    pointer-events: none;
+  }
+
+  .mobile-search-wrapper input {
+    width: 100%;
+    height: 36px;
+    padding: 0 34px 0 32px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 13px;
+    color: #0f172a;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .mobile-search-wrapper input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+
+  .mobile-search-wrapper .btn-clear-search {
+    position: absolute;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #475569;
+    border: none;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ----------------------------------------------------------------------------
+     5. ẨN CÁC THANH DESKTOP TRÙNG LẶP TRÊN MOBILE
+     ---------------------------------------------------------------------------- */
+  .top-nav-bar {
+    display: none !important;
+  }
+
+  .hospital-header {
+    display: none !important;
+  }
+
+  .toolbar {
+    display: none !important;
+  }
+
+  .status-bar {
+    display: none !important;
+  }
+
+  /* ----------------------------------------------------------------------------
+     6. CHẾ ĐỘ THẺ BỆNH NHÂN (MOBILE CARDS VIEW)
+     ---------------------------------------------------------------------------- */
   .mobile-cards-view {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
 
   .mobile-patient-card {
     background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 13px 14px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     position: relative;
-    box-shadow: var(--shadow-sm);
-  }
-  .mobile-patient-card:active {
-    background: var(--bg-subtle);
-  }
-  .mobile-patient-card.card-critical {
-    border-left: 4px solid var(--critical-text);
-    border-color: var(--critical-border);
-    background: var(--critical-bg);
-  }
-  .mobile-patient-card.card-pending {
-    border-left: 4px solid var(--border-dark);
-    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    touch-action: manipulation;
   }
 
+  .mobile-patient-card.card-critical {
+    border-left: 5px solid #dc2626;
+    border-color: #fecaca;
+    background: #fffcfc;
+  }
+
+  .mobile-patient-card.card-pending {
+    border-left: 5px solid #d97706;
+    border-color: #fde68a;
+    background: #fffdf7;
+  }
+
+  /* Header thẻ: Buồng giường + Trạng thái bàn giao */
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
   }
+
   .card-room-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    color: var(--text-main);
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12.5px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    letter-spacing: 0.2px;
   }
 
+  .card-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+
+  .card-status-pill.status-critical {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+  }
+
+  .card-status-pill.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fcd34d;
+  }
+
+  .card-status-pill.status-none {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+  }
+
+  /* Tên bệnh nhân & Tuổi */
   .card-name-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
-    margin-bottom: 4px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 6px;
   }
+
   .patient-name {
-    font-size: 15px;
+    font-size: 15.5px;
     font-weight: 800;
-    color: var(--text-main);
+    color: #0f172a;
     text-transform: uppercase;
+    letter-spacing: 0.1px;
+    line-height: 1.3;
   }
+
   .patient-age {
-    font-size: 12px;
-    color: var(--text-muted);
+    font-size: 12.5px;
+    color: #64748b;
     font-weight: 600;
   }
 
-  .card-field {
+  /* Chẩn đoán */
+  .card-diagnosis-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: #1e293b;
+    line-height: 1.45;
+  }
+
+  .card-diagnosis-box strong {
+    color: #334155;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* 2 Tầng Lâm Sàng: CLS & Y Lệnh */
+  .card-clinical-grid {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
   }
-  .field-label {
-    font-size: 10.5px;
+
+  .card-tier-box {
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    padding: 7px 9px;
+    background: #ffffff;
+    font-size: 12.5px;
+  }
+
+  .card-tier-box.tier-cls {
+    border-left: 3px solid #0284c7;
+    background: #f0f9ff;
+  }
+
+  .card-tier-box.tier-yl {
+    border-left: 3px solid #16a34a;
+    background: #f0fdf4;
+  }
+
+  .card-tier-title {
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: var(--text-muted);
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  .field-content {
-    font-size: 13px;
-    color: var(--text-main);
+  .tier-cls .card-tier-title { color: #0369a1; }
+  .tier-yl .card-tier-title { color: #15803d; }
+
+  .card-tier-content {
+    color: #0f172a;
     line-height: 1.4;
     white-space: pre-wrap;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 5px 8px;
-    min-height: 32px;
+    word-break: break-word;
   }
 
-  .card-handover-box {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px;
+  .card-tier-highlight {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px dashed #cbd5e1;
+    font-weight: 700;
+    color: #b91c1c;
     font-size: 12px;
   }
-  .card-handover-box.critical-box {
-    border-color: var(--critical-border);
-    background: var(--critical-bg);
-  }
-  .handover-title {
-    font-weight: 800;
-    color: var(--critical-text);
-    margin-bottom: 3px;
-    font-size: 11px;
-  }
-  .handover-text {
-    margin-bottom: 2px;
-    color: var(--text-main);
-  }
-  .handover-meta {
-    font-size: 10.5px;
-    color: var(--text-muted);
-    font-style: italic;
-    margin-top: 3px;
+
+  /* Cảnh báo Bàn giao trực */
+  .card-handover-alert {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #9a3412;
+    line-height: 1.4;
   }
 
-  .card-footer-icons {
+  .card-handover-alert strong {
+    display: block;
+    font-size: 11.5px;
+    margin-bottom: 2px;
+    color: #c2410c;
+  }
+
+  /* Nút hành động trên thẻ */
+  .card-actions-row {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 2px;
-    border-top: 1px dashed var(--border);
-    padding-top: 6px;
-  }
-  .card-footer-icons .icon-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 8px;
+    flex-wrap: wrap;
   }
 
-  /* MODALS BOTTOM SHEET ON MOBILE */
+  .card-btn-action {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .card-btn-action:active {
+    background: #f1f5f9;
+  }
+
+  .card-btn-action.btn-handover {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+  }
+
+  .card-btn-action.btn-zalo {
+    border-color: #bae6fd;
+    background: #f0f9ff;
+    color: #0284c7;
+  }
+
+  .card-btn-action.btn-zalo:active {
+    background: #e0f2fe;
+  }
+
+  .card-btn-action.btn-danger {
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+
+  /* ----------------------------------------------------------------------------
+     7. CHẾ ĐỘ BẢNG TRÊN MOBILE (NẾU BÁC SĨ CHỌN XEM BẢNG)
+     ---------------------------------------------------------------------------- */
+  .table-wrapper {
+    display: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    margin-bottom: 20px;
+  }
+
+  body.mobile-view-table .table-wrapper {
+    display: block !important;
+  }
+
+  body.mobile-view-table .mobile-cards-view {
+    display: none !important;
+  }
+
+  /* ----------------------------------------------------------------------------
+     8. NATIVE BOTTOM SHEET MODALS (TRƯỢT TỪ DƯỚI LÊN)
+     ---------------------------------------------------------------------------- */
+  .bottom-sheet-drag-handle {
+    display: block;
+    width: 40px;
+    height: 5px;
+    background: #cbd5e1;
+    border-radius: 3px;
+    margin: 8px auto 6px;
+    flex-shrink: 0;
+  }
+
   .modal-overlay {
     align-items: flex-end;
     padding: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
+
   .modal-card {
-    max-width: 100%;
-    border-radius: 16px 16px 0 0;
-    max-height: 90vh;
-    overflow-x: hidden;
+    max-width: 100vw !important;
+    width: 100vw;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh;
+    padding: 4px 14px 18px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     transform: translateY(100%);
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.15);
   }
-  .auth-tabs-nav {
-    padding: 4px 8px 0;
-    gap: 4px;
-  }
-  .nav-tab-btn {
-    padding: 8px 6px;
-    font-size: 12px;
-  }
+
   .modal-overlay.active .modal-card {
     transform: translateY(0);
   }
+
+  .modal-header {
+    padding: 8px 4px 12px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .btn-close-modal {
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-body {
+    padding: 12px 4px 6px;
+  }
+
   .form-row {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
-  /* BOTTOM NAVIGATION BAR FOR PHONES (4-COLOR PALETTE) */
+  .auth-tabs-nav {
+    padding: 2px 4px 0;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .nav-tab-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ----------------------------------------------------------------------------
+     9. BOTTOM NAVIGATION BAR (5 NÚT NGÓN CÁI TIỆN LỢI TRÊN SMARTPHONE)
+     ---------------------------------------------------------------------------- */
   .bottom-nav-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100vw;
-    height: 56px;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background: #ffffff;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 999;
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   }
+
   .bottom-nav-item {
     display: flex;
     flex-direction: column;
@@ -374,44 +757,174 @@
     justify-content: center;
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: #64748b;
     font-size: 10px;
     font-weight: 600;
-    gap: 3px;
+    gap: 2px;
     cursor: pointer;
     flex: 1;
     height: 100%;
     transition: all 0.15s ease;
     font-family: inherit;
+    touch-action: manipulation;
     padding: 2px 0;
   }
+
   .bottom-nav-item .nav-icon {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2;
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.1;
     transition: transform 0.15s ease;
   }
+
   .bottom-nav-item.active {
-    color: var(--primary);
+    color: #2563eb;
   }
+
   .bottom-nav-item.active .nav-icon {
-    transform: scale(1.08);
+    transform: scale(1.1);
   }
-  .bottom-nav-item.critical-pulse {
-    color: var(--critical-text);
+
+  /* Nút Thêm NB nổi bật giữa thanh Bottom Bar */
+  .nav-item-add {
+    position: relative;
+    top: -10px;
   }
+
   .nav-item-add .nav-add-badge {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: var(--primary);
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(30, 58, 138, 0.25);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    border: 3px solid #ffffff;
+    transition: transform 0.15s ease;
   }
-  .nav-item-add .nav-add-badge svg {
-    stroke-width: 2.5;
+
+  .nav-item-add:active .nav-add-badge {
+    transform: scale(0.92);
+  }
+
+  .nav-item-add .nav-add-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: #1d4ed8;
+    margin-top: 1px;
+  }
+
+  /* ----------------------------------------------------------------------------
+     10. MÀN HÌNH MỞ KHÓA & ĐĂNG NHẬP TRÊN MOBILE (LOGIN GATE)
+     ---------------------------------------------------------------------------- */
+  .login-gate-overlay {
+    padding: 12px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-gate-card {
+    max-width: 100%;
+    width: min(390px, 94vw);
+    max-height: 94vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0;
+    border-radius: 16px;
+  }
+
+  .pattern-lock-wrap {
+    max-width: min(250px, 68vw);
+    max-height: min(250px, 68vw);
+    aspect-ratio: 1 / 1;
+    margin: 8px auto;
+  }
+
+  .pattern-lock-svg {
+    max-width: min(250px, 68vw);
+    max-height: min(250px, 68vw);
+  }
+
+  .gate-switch-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+    flex-wrap: wrap;
+  }
+
+  .btn-gate-link {
+    background: none;
+    border: none;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 6px;
+    touch-action: manipulation;
+  }
+
+  .btn-gate-link.primary-link {
+    color: #2563eb;
+    font-weight: 700;
+  }
+
+  .gate-quick-doctors-wrap {
+    padding: 0 16px 10px;
+  }
+
+  .gate-sub-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+
+  .gate-doc-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .gate-doc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .gate-doc-chip.active {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1e3a8a;
+  }
+
+  .gate-doc-chip-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }

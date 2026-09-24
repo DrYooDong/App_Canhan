@@ -33,7 +33,7 @@
   <div class="login-gate-card">
     <div class="login-gate-brand">
       <div class="login-gate-badge">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
         </svg>
       </div>
@@ -43,96 +43,293 @@
       </div>
     </div>
 
-    <div class="login-gate-banner">
-      <div class="login-gate-lock-icon">🔒</div>
-      <div>
-        <div class="login-gate-banner-title">Xác thực Bác sĩ điều trị</div>
-        <div class="login-gate-banner-sub">Bắt buộc đăng nhập để sử dụng và truy cập danh sách người bệnh</div>
-      </div>
-    </div>
-
-    <!-- THẺ THÔNG TIN BÁC SĨ -->
-    <div class="login-doctor-preview">
-      <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
-      <div class="login-doc-info">
-        <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
-        <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
-        <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> (nguyenhuudongy18@gmail.com)</div>
-      </div>
-    </div>
-
-    <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: VẼ HÌNH 9 NÚT HOẶC MÃ PIN -->
-    <div class="gate-mode-selector">
-      <button type="button" class="gate-mode-btn active" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <circle cx="5" cy="5" r="2.5"/><circle cx="12" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/>
-          <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
-          <circle cx="5" cy="19" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/>
-        </svg>
-        <span>Vẽ hình 9 nút</span>
-      </button>
-      <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span>Mã PIN số</span>
-      </button>
-    </div>
-
-    <!-- KHU VỰC 1: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
-    <div id="gatePatternContainer" class="gate-unlock-panel" style="display: block; padding: 0 20px 20px;">
-      <div id="gatePatternStatus" class="gate-pattern-status">
-        Vẽ hình nối các điểm để mở khoá
-      </div>
-
-      <div class="pattern-lock-wrap" id="patternLockWrap">
-        <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
-      </div>
-
-      <div class="pattern-hint-box">
-        <span>💡 <strong>Gợi ý mặc định:</strong> Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
-      </div>
-
-      <div class="pattern-action-row">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
-          🔄 Vẽ lại
-        </button>
-        <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
-          🔢 Nhập mã PIN
-        </button>
-      </div>
-
-      <div class="gate-security-note">
-        🛡️ Chế độ mở khoá nhanh bằng cử chỉ vẽ hình 9 nút giúp Bác sĩ vào ca trực tức thì.
-      </div>
-    </div>
-
-    <!-- KHU VỰC 2: FORM ĐĂNG NHẬP NHANH BẰNG PIN/PASSWORD -->
-    <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" class="gate-unlock-panel" style="display: none; padding: 0 20px 20px;">
-      <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
-
-      <div class="form-group" style="margin-bottom: 12px;">
-        <label for="gatePinInput" style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
-          <span>Mã PIN / Mật khẩu số:</span>
-          <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
-        </label>
-        <div class="pin-input-wrapper">
-          <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-          <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1" title="Hiện/ẩn mã PIN">👁️</button>
+    <!-- VIEW 1: MỞ KHÓA TIẾP TỤC TÀI KHOẢN BÁC SĨ (MẶC ĐỊNH) -->
+    <div id="gateViewUnlock" class="gate-sub-view">
+      <div class="login-gate-banner">
+        <div class="login-gate-lock-icon">🔒</div>
+        <div>
+          <div class="login-gate-banner-title">Mở khóa tiếp tục phiên làm việc</div>
+          <div class="login-gate-banner-sub">Xác thực để truy cập bảng theo dõi người bệnh</div>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-gate-submit">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span>ĐĂNG NHẬP ĐỂ SỬ DỤNG</span>
-      </button>
-
-      <div class="gate-security-note">
-        🛡️ Quy định bảo mật thông tin người bệnh: Vui lòng đăng nhập mã PIN hoặc vẽ hình mỗi khi vào trang web.
+      <!-- THẺ THÔNG TIN BÁC SĨ HIỆN TẠI -->
+      <div class="login-doctor-preview">
+        <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
+        <div class="login-doc-info">
+          <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
+          <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
+          <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> <span id="gateDocEmail">(nguyenhuudongy18@gmail.com)</span></div>
+        </div>
       </div>
-    </form>
+
+      <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: VẼ HÌNH 9 NÚT HOẶC MÃ PIN -->
+      <div class="gate-mode-selector">
+        <button type="button" class="gate-mode-btn active" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="5" cy="5" r="2.5"/><circle cx="12" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/>
+            <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
+            <circle cx="5" cy="19" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/>
+          </svg>
+          <span>Vẽ hình 9 nút</span>
+        </button>
+        <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>Mã PIN số</span>
+        </button>
+      </div>
+
+      <!-- KHU VỰC 1: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
+      <div id="gatePatternContainer" class="gate-unlock-panel" style="display: block; padding: 0 16px 14px;">
+        <div id="gatePatternStatus" class="gate-pattern-status">
+          Vẽ hình nối các điểm để mở khoá
+        </div>
+
+        <div class="pattern-lock-wrap" id="patternLockWrap">
+          <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+        </div>
+
+        <div class="pattern-hint-box">
+          <span>💡 Gợi ý: Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
+        </div>
+
+        <div class="pattern-action-row">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
+            🔄 Vẽ lại
+          </button>
+          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
+            🔢 Nhập mã PIN
+          </button>
+        </div>
+      </div>
+
+      <!-- KHU VỰC 2: FORM MỞ KHÓA BẰNG PIN/PASSWORD -->
+      <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
+        <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="gatePinInput" style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>Mã PIN / Mật khẩu số:</span>
+            <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
+          </label>
+          <div class="pin-input-wrapper">
+            <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1" title="Hiện/ẩn mã PIN">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-gate-submit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
+        </button>
+      </form>
+
+      <!-- DÒNG HÀNH ĐỘNG CHUYỂN TÀI KHOẢN HOẶC ĐĂNG KÝ -->
+      <div class="gate-switch-actions">
+        <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
+          🔄 Đăng nhập tài khoản Bác sĩ khác
+        </button>
+        <span class="gate-link-sep">•</span>
+        <button type="button" class="btn-gate-link primary-link" onclick="window.authController.showGateView('register')">
+          ➕ Đăng ký tài khoản mới
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 2: ĐĂNG NHẬP TÀI KHOẢN BÁC SĨ KHÁC -->
+    <div id="gateViewLogin" class="gate-sub-view" style="display: none;">
+      <div class="login-gate-banner">
+        <div class="login-gate-lock-icon">🔑</div>
+        <div>
+          <div class="login-gate-banner-title">Đăng nhập tài khoản Bác sĩ</div>
+          <div class="login-gate-banner-sub">Chọn hoặc nhập thông tin tài khoản để vào ca trực</div>
+        </div>
+      </div>
+
+      <!-- Danh sách bác sĩ đã lưu trên hệ thống để chọn nhanh -->
+      <div class="gate-quick-doctors-wrap">
+        <div class="gate-sub-label">Bác sĩ trong khoa:</div>
+        <div class="gate-doc-chips" id="gateDocChips">
+          <!-- Render bởi JS -->
+        </div>
+      </div>
+
+      <form id="gateOtherLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateOtherLogin();" style="padding: 0 16px 14px;">
+        <div id="gateOtherLoginMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập hoặc Email:</label>
+          <input type="text" id="gateOtherUser" class="form-control" placeholder="dongnh hoặc email..." autocapitalize="none" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; font-weight: 700; display: flex; justify-content: space-between;">
+            <span>Mật khẩu số (PIN):</span>
+            <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
+          </label>
+          <div class="pin-input-wrapper">
+            <input type="password" id="gateOtherPass" class="form-control" placeholder="Nhập PIN (chữ số)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+            <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gateOtherPass', this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-gate-submit">
+          🔑 ĐĂNG NHẬP VÀO CA TRỰC
+        </button>
+
+        <div class="gate-switch-actions">
+          <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
+            ⬅️ Quay lại mở khóa
+          </button>
+          <span class="gate-link-sep">•</span>
+          <button type="button" class="btn-gate-link primary-link" onclick="window.authController.showGateView('register')">
+            ➕ Đăng ký Bác sĩ mới
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- VIEW 3: ĐĂNG KÝ TÀI KHOẢN BÁC SĨ MỚI -->
+    <div id="gateViewRegister" class="gate-sub-view" style="display: none;">
+      <div class="login-gate-banner">
+        <div class="login-gate-lock-icon">📝</div>
+        <div>
+          <div class="login-gate-banner-title">Đăng ký tài khoản Bác sĩ mới</div>
+          <div class="login-gate-banner-sub">Tạo hồ sơ điều trị & không gian cá nhân trên MedWard Pro</div>
+        </div>
+      </div>
+
+      <form id="gateRegisterForm" onsubmit="event.preventDefault(); window.authController.handleGateRegister();" style="padding: 0 16px 14px;">
+        <div id="gateRegMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
+
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ <span style="color: var(--danger);">*</span>:</label>
+          <input type="text" id="regFullName" class="form-control" placeholder="VD: ThS.BS. Lê Văn Bình" required>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 8px;">
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập <span style="color: var(--danger);">*</span>:</label>
+            <input type="text" id="regUsername" class="form-control" placeholder="VD: binhlv" autocapitalize="none" required>
+            <small style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Tự gợi ý khi gõ tên</small>
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Mã PIN số <span style="color: var(--danger);">*</span>:</label>
+            <input type="password" id="regPin" class="form-control" placeholder="VD: 123456" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 8px;">
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Email:</label>
+            <input type="email" id="regEmail" class="form-control" placeholder="bacsi@gmail.com">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
+            <input type="tel" id="regPhone" class="form-control" placeholder="0909...">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
+            <input type="text" id="regDept" class="form-control" value="Khoa Nhiễm">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
+            <input type="text" id="regTitle" class="form-control" value="Bác sĩ điều trị">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-gate-submit">
+          ✨ HOÀN TẤT ĐĂNG KÝ &amp; VÀO LÀM VIỆC
+        </button>
+
+        <div class="gate-switch-actions">
+          <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
+            Đã có tài khoản? <strong>Đăng nhập</strong>
+          </button>
+          <span class="gate-link-sep">•</span>
+          <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
+            ⬅️ Quay lại mở khóa
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="gate-security-note">
+      🛡️ Dữ liệu bảo mật y tế: Chỉ bác sĩ điều trị và nhân viên y tế mới được quyền truy cập.
+    </div>
   </div>
 </div>
 
 <div class="app-container">
+
+  <!-- THANH ĐIỀU HƯỚNG & TRẠNG THÁI LÂM SÀNG DÀNH RIÊNG CHO THIẾT BỊ DI ĐỘNG (MOBILE) -->
+  <div class="mobile-clinical-header no-print">
+    <div class="mobile-brand-row">
+      <div class="mobile-brand-left">
+        <div class="app-logo-badge mobile-logo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <div class="mobile-brand-text">
+          <span class="mobile-brand-name">MedWard Pro</span>
+          <span class="mobile-brand-dept">Khoa Nhiễm</span>
+        </div>
+      </div>
+
+      <div class="mobile-brand-actions">
+        <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
+        <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()" title="Đổi chế độ xem (Thẻ / Bảng)">
+          <span id="mobileViewModeIcon">📱</span>
+          <span class="mobile-action-label" id="mobileViewModeText">Thẻ</span>
+        </button>
+
+        <!-- Pill Bác sĩ di động -->
+        <button class="mobile-doc-pill" onclick="window.authController.openAuthModal('workspace')" title="Không gian Bác sĩ">
+          <div class="mobile-doc-avatar" id="mobileDocAvatar">HĐ</div>
+          <span class="mobile-doc-name" id="mobileDocName">BS. Đông</span>
+        </button>
+
+        <!-- Khóa bảng -->
+        <button class="mobile-btn-action mobile-btn-lock" onclick="window.authController.handleLogout()" title="Khóa bảng & Đăng xuất">
+          🔒
+        </button>
+      </div>
+    </div>
+
+    <!-- Thanh tóm tắt nhanh số liệu đi buồng lâm sàng trên Mobile -->
+    <div class="mobile-ward-summary">
+      <button type="button" class="mobile-summary-item mobile-date-chip" onclick="window.medWardApp.openCalendarPicker()" title="Nhấn để đổi ngày">
+        📅 <span id="mobileSummaryDate">--/--/----</span>
+      </button>
+      <div class="mobile-summary-item">
+        👥 <span id="mobileSummaryTotal">0</span> NB
+      </div>
+      <div class="mobile-summary-item item-critical">
+        🚨 <span id="mobileSummaryCritical">0</span> Nặng
+      </div>
+      <div class="mobile-summary-item item-pending">
+        ⏳ <span id="mobileSummaryPending">0</span> Bàn giao
+      </div>
+    </div>
+
+    <!-- Thanh lọc nhanh lướt ngang theo Buồng & Trạng thái bệnh (Touch-friendly horizontal scroll) -->
+    <div class="mobile-filter-bar">
+      <div class="mobile-filter-chips" id="mobileFilterChips">
+        <!-- Sinh động bởi JavaScript: Tất cả, Báo động đỏ, Cần bàn giao, D1.14, D1.15... -->
+      </div>
+    </div>
+
+    <!-- Hộp tìm kiếm nhanh trên Mobile -->
+    <div class="mobile-search-wrapper">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..." oninput="window.patientController.handleMobileSearch(this.value)">
+      <button type="button" id="btnMobileClearSearch" class="btn-clear-search" onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
+    </div>
+  </div>
 
   <!-- 1. THANH TOP APP BAR: CLINICAL WORKSPACE & DOCTOR PROFILE -->
   <header class="top-nav-bar no-print">
@@ -363,31 +560,27 @@
 
 <!-- 8. BOTTOM NAVIGATION BAR (CỐ ĐỊNH TRÊN SMARTPHONE) -->
 <nav class="bottom-nav-bar no-print">
-  <button class="bottom-nav-item active" data-tab="all" data-tooltip-top="Bảng theo dõi người bệnh">
-    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="8" y1="11" x2="16" y2="11"></line><line x1="8" y1="15" x2="13" y2="15"></line></svg>
-    <span>Bảng theo dõi</span>
+  <button class="bottom-nav-item active" data-tab="patients" onclick="window.patientController.scrollToTop()">
+    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="8" y1="11" x2="16" y2="11"></line><line x1="8" y1="15" x2="13" y2="15"></line></svg>
+    <span>Bệnh nhân</span>
   </button>
-  <button class="bottom-nav-item" onclick="window.patientController.openNextDayModal()" data-tooltip-top="Chuyển ngày tiếp theo">
-    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
-    <span>Ngày kế</span>
+  <button class="bottom-nav-item" data-tab="handover_dash" onclick="window.handoverController.openHandoverDashboard()">
+    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <span>Bàn giao</span>
   </button>
-  <button class="bottom-nav-item nav-item-add" onclick="window.patientController.addPatient({ten: 'BỆNH NHÂN MỚI'})" data-tooltip-top="Thêm người bệnh mới">
+  <button class="bottom-nav-item nav-item-add" onclick="window.patientController.openAddPatientModal()" aria-label="Thêm người bệnh mới">
     <div class="nav-add-badge">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </div>
-    <span>Thêm NB</span>
+    <span class="nav-add-text">Thêm NB</span>
   </button>
-  <button class="bottom-nav-item" data-tab="handover_dash" data-tooltip-top="Biên bản bàn giao tua trực">
-    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-    <span>Tua trực</span>
+  <button class="bottom-nav-item" data-tab="nurse_print" onclick="window.patientController.openNursePrintModal()">
+    <span style="font-size: 19px; line-height: 1;">👩‍⚕️</span>
+    <span>Điều dưỡng</span>
   </button>
-  <button class="bottom-nav-item" onclick="window.patientController.openNursePrintModal()" data-tooltip-top="Phiếu Y lệnh &amp; CLS cho Điều dưỡng">
-    <span style="font-size: 18px; line-height: 1;">👩‍⚕️</span>
-    <span>In cho ĐD</span>
-  </button>
-  <button class="bottom-nav-item" data-tab="workspace" data-tooltip-top="Không gian Bác sĩ">
-    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path><circle cx="20" cy="10" r="2"></circle></svg>
-    <span>Không gian BS</span>
+  <button class="bottom-nav-item" data-tab="workspace" onclick="window.authController.openAuthModal('workspace')">
+    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <span>Bác sĩ</span>
   </button>
 </nav>
 
@@ -398,6 +591,7 @@
 <!-- MODAL 1: CHI TIẾT & CHỈNH SỬA NGƯỜI BỆNH -->
 <div class="modal-overlay" id="patientDetailModal">
   <div class="modal-card">
+    <div class="bottom-sheet-drag-handle"></div>
     <div class="modal-header">
       <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
       <button class="btn-close-modal" onclick="window.patientController.closePatientDetailModal()">&times;</button>
@@ -491,9 +685,16 @@
         <textarea id="editHandoverActions" class="form-control" rows="2" placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
-      <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
+    <div class="modal-footer" style="justify-content: space-between;">
+      <div>
+        <button class="btn btn-success" type="button" onclick="window.patientController.copyCurrentPatientZalo()" title="Sao chép thông tin người bệnh này gửi Zalo">
+          📋 Copy qua Zalo
+        </button>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
+        <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
+      </div>
     </div>
   </div>
 </div>
@@ -640,9 +841,16 @@
         <input type="text" id="hoDoctorFrom" class="form-control" placeholder="Họ tên BS bàn giao...">
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
-      <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn Giao</button>
+    <div class="modal-footer" style="justify-content: space-between;">
+      <div>
+        <button class="btn btn-success" type="button" onclick="window.handoverController.copyCurrentPatientHandoverZalo()" title="Sao chép tóm tắt bàn giao ca này gửi Zalo">
+          📋 Copy qua Zalo
+        </button>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn Giao</button>
+      </div>
     </div>
   </div>
 </div>
@@ -681,7 +889,7 @@
     <div class="modal-footer" style="justify-content: space-between;">
       <div>
         <button class="btn btn-success" id="btnCopyHandoverZalo" title="Sao chép định dạng tin nhắn để dán vào nhóm Zalo trực">
-          📋 Sao chép tóm tắt gửi Zalo/Viber
+          📋 Copy qua Zalo
         </button>
       </div>
       <div style="display: flex; gap: 8px;">
@@ -698,7 +906,8 @@
 
 <!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
 <div class="modal-overlay" id="authModal">
-  <div class="modal-card" style="max-width: 560px;">
+  <div class="modal-card" style="max-width: 580px;">
+    <div class="bottom-sheet-drag-handle"></div>
     <div class="modal-header">
       <div class="modal-title">🩺 Không Gian Làm Việc Bác Sĩ</div>
       <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
@@ -706,19 +915,26 @@
 
     <!-- Tab Bar trong Auth Modal -->
     <div class="auth-tabs-nav">
-      <button class="nav-tab-btn active" id="tabBtn_workspace" onclick="window.authController.switchAuthTab('workspace')">Không Gian BS. Đông</button>
+      <button class="nav-tab-btn active" id="tabBtn_workspace" onclick="window.authController.switchAuthTab('workspace')">Không Gian BS</button>
+      <button class="nav-tab-btn" id="tabBtn_doctors" onclick="window.authController.switchAuthTab('doctors')">Quản Lý Bác Sĩ</button>
       <button class="nav-tab-btn" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
       <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ BS</button>
     </div>
 
     <div class="modal-body">
-      <!-- 0. TAB KHÔNG GIAN BÁC SĨ (CHỈ DUY NHẤT BS. NGUYỄN HỮU ĐÔNG) -->
+      <!-- 0. TAB KHÔNG GIAN BÁC SĨ -->
       <div id="tabContent_workspace" class="auth-tab-content active">
         <!-- Render động qua AuthController.renderWorkspaceTab() -->
         <div id="workspaceContentArea"></div>
       </div>
 
-      <!-- 1. TAB ĐĂNG NHẬP -->
+      <!-- 1. TAB QUẢN LÝ BÁC SĨ & PHÂN QUYỀN (RBAC: BS ĐÔNG TOÀN QUYỀN) -->
+      <div id="tabContent_doctors" class="auth-tab-content" style="display: none;">
+        <!-- Render động qua AuthController.renderDoctorManagementTab() -->
+        <div id="doctorManagementArea"></div>
+      </div>
+
+      <!-- 2. TAB ĐĂNG NHẬP -->
       <div id="tabContent_login" class="auth-tab-content" style="display: none;">
         <div id="loginMessage" class="form-message"></div>
         <form id="loginForm">
@@ -732,11 +948,9 @@
             <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
             <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
           </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào Không Gian BS. Đông</button>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào Không Gian Bác Sĩ</button>
         </form>
       </div>
-
-
 
       <!-- 3. TAB HỒ SƠ BÁC SĨ -->
       <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
@@ -809,6 +1023,50 @@
   </div>
 </div>
 
+<!-- MODAL SỬA THÔNG TIN BÁC SĨ (DÀNH CHO BS ĐÔNG QUẢN TRỊ) -->
+<div class="modal-overlay" id="doctorEditModal" style="display: none;">
+  <div class="modal-card" style="max-width: 500px;">
+    <div class="bottom-sheet-drag-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">✏️ Chỉnh Sửa Hồ Sơ Bác Sĩ (BS. Đông Quản Trị)</div>
+      <button class="btn-close-modal" onclick="window.authController.closeDoctorEditModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="adminDoctorEditForm" onsubmit="event.preventDefault(); window.authController.handleAdminSaveDoctor();">
+        <input type="hidden" id="adminEditDocId">
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ:</label>
+          <input type="text" id="adminEditDocName" class="form-control" required>
+        </div>
+        <div class="form-row" style="margin-bottom: 10px;">
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
+            <input type="text" id="adminEditDocTitle" class="form-control">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
+            <input type="text" id="adminEditDocDept" class="form-control">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom: 10px;">
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
+            <input type="tel" id="adminEditDocPhone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px; font-weight: 700;">Đặt lại mã PIN:</label>
+            <input type="password" id="adminEditDocPin" class="form-control" placeholder="Để trống nếu không đổi" pattern="[0-9]*" inputmode="numeric">
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 14px;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Lưu Thay Đổi</button>
+          <button type="button" class="btn btn-secondary" onclick="window.authController.closeDoctorEditModal()">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL 5: CẤU HÌNH SUPABASE CLOUD & ĐỒNG BỘ LAPTOP - DI ĐỘNG -->
 <div class="modal-overlay" id="cloudSettingsModal">
   <div class="modal-card" style="max-width: 580px;">
@@ -864,8 +1122,8 @@
           </label>
         </div>
         <div class="nurse-action-btns">
-          <button class="btn btn-secondary btn-sm" onclick="window.patientController.copyNurseWorklistZalo()" data-tooltip="Sao chép nội dung để dán gửi nhóm Zalo Điều dưỡng">
-            📋 Copy gửi Zalo
+          <button class="btn btn-secondary btn-sm" onclick="window.patientController.copyNurseWorklistZalo()" data-tooltip="Sao chép nội dung ngắn gọn gửi nhóm Zalo Điều dưỡng">
+            📋 Copy qua Zalo
           </button>
           <button class="btn btn-primary btn-sm" onclick="window.patientController.printNurseWorklist()" data-tooltip="In trực tiếp phiếu này ra khổ giấy A4">
             🖨️ In Khổ A4

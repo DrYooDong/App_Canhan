@@ -9,6 +9,8 @@ class PatientController {
     this.isGroupedByRoom = true;
     this.currentFilterQuery = '';
     this.currentDoctorFilter = localStorage.getItem('medward_doctor_filter') || 'my_patients';
+    this.activeMobileFilter = 'all'; // 'all' | 'critical' | 'pending' | 'room:...'
+    this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
     this.autoSaveTimers = {};
 
     this.init();
@@ -16,6 +18,7 @@ class PatientController {
 
   async init() {
     this.loadSettings();
+    this.applyMobileViewMode();
     await this.reloadFromSource();
     this.setupRealtimeListener();
   }
@@ -42,20 +45,20 @@ class PatientController {
     // Nhận thông báo Realtime từ Supabase khi thiết bị khác thay đổi
     if (window.supabaseService) {
       window.supabaseService.onRealtimeUpdate(async (payload) => {
-        console.log('🔄 Bệnh nhân được cập nhật từ thiết bị khác:', payload);
-        
-        // Chống dội (Debounce 1000ms) để khi nhận nhiều sự kiện liên tiếp chỉ tải lại 1 lần duy nhất
+        // Nếu người dùng đang tập trung gõ phím trong ô soạn thảo, không làm gián đoạn
+        if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+          return;
+        }
+
+        // Chống dội (Debounce 2000ms) để khi nhận nhiều sự kiện liên tiếp chỉ tải lại 1 lần duy nhất
         if (this.realtimeDebounceTimer) {
           clearTimeout(this.realtimeDebounceTimer);
         }
-        
+
         this.realtimeDebounceTimer = setTimeout(async () => {
           await this.reloadFromSource(false);
           this.render();
-          if (window.showToast) {
-            window.showToast('📡 Dữ liệu vừa được cập nhật từ Cloud');
-          }
-        }, 1000);
+        }, 2000);
       });
     }
   }
@@ -966,13 +969,27 @@ class PatientController {
   }
 
   // ==============================================================================
-  // LỌC DANH SÁCH BỆNH NHÂN CỦA BÁC SĨ ĐIỀU TRỊ VÀ TỪ KHÓA TÌM KIẾM
+  // LỌC DANH SÁCH BỆNH NHÂN (HỖ TRỢ MOBILE FILTER CHIPS & TÌM KIẾM)
   // ==============================================================================
   getFilteredPatients() {
-    const q = this.currentFilterQuery.toLowerCase().trim();
-    if (!q) return this.patientList;
+    let list = this.patientList;
 
-    return this.patientList.filter(p => {
+    // Lọc theo Mobile Filter Chip nếu có
+    if (this.activeMobileFilter && this.activeMobileFilter !== 'all') {
+      if (this.activeMobileFilter === 'critical') {
+        list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
+      } else if (this.activeMobileFilter === 'pending') {
+        list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING || p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
+      } else if (this.activeMobileFilter.startsWith('room:')) {
+        const targetRoom = this.activeMobileFilter.replace('room:', '');
+        list = list.filter(p => this.extractRoomCode(p.phong_giuong) === targetRoom);
+      }
+    }
+
+    const q = this.currentFilterQuery.toLowerCase().trim();
+    if (!q) return list;
+
+    return list.filter(p => {
       return (p.phong_giuong || '').toLowerCase().includes(q) ||
              (p.ten || '').toLowerCase().includes(q) ||
              (p.doctor_name || '').toLowerCase().includes(q) ||
@@ -993,7 +1010,7 @@ class PatientController {
   render() {
     const filtered = this.getFilteredPatients();
 
-    // Cập nhật bộ đếm
+    // Cập nhật bộ đếm desktop
     const totalEl = document.getElementById('patientCount');
     if (totalEl) {
       totalEl.innerText = filtered.length;
@@ -1003,6 +1020,12 @@ class PatientController {
     if (window.authController && window.authController.updateHeaderPill) {
       window.authController.updateHeaderPill(filtered.length, this.patientList.length);
     }
+
+    // Cập nhật thanh tóm tắt Mobile (Mobile Clinical Header)
+    this.updateMobileSummaryBar();
+
+    // Cập nhật Mobile Filter Chips
+    this.renderMobileFilterChips();
 
     // Render Bảng Desktop
     this.renderDesktopTable(filtered);
@@ -1017,8 +1040,151 @@ class PatientController {
     }
   }
 
+  // CẬP NHẬT THANH TÓM TẮT TRÊN MOBILE CLINICAL HEADER
+  updateMobileSummaryBar() {
+    const totalEl = document.getElementById('mobileSummaryTotal');
+    const critEl = document.getElementById('mobileSummaryCritical');
+    const pendEl = document.getElementById('mobileSummaryPending');
+    const dateEl = document.getElementById('mobileSummaryDate');
+
+    const total = this.patientList.length;
+    const critical = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
+    const pending = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+
+    if (totalEl) totalEl.innerText = total;
+    if (critEl) critEl.innerText = critical;
+    if (pendEl) pendEl.innerText = pending;
+
+    if (dateEl) {
+      const repDateInput = document.getElementById('reportDate');
+      if (repDateInput && repDateInput.value) {
+        const parts = repDateInput.value.split('-');
+        if (parts.length === 3) {
+          dateEl.innerText = `${parts[2]}/${parts[1]}`;
+        } else {
+          dateEl.innerText = repDateInput.value;
+        }
+      } else {
+        const now = new Date();
+        dateEl.innerText = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      }
+    }
+  }
+
+  // RENDER DẢI FILTER CHIP TRÊN MOBILE
+  renderMobileFilterChips() {
+    const container = document.getElementById('mobileFilterChips');
+    if (!container) return;
+
+    const total = this.patientList.length;
+    const critical = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
+    const pending = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+
+    // Lấy danh sách các buồng hiện có
+    const rooms = {};
+    this.patientList.forEach(p => {
+      const r = this.extractRoomCode(p.phong_giuong);
+      if (r && r !== 'Chưa xếp phòng') {
+        rooms[r] = (rooms[r] || 0) + 1;
+      }
+    });
+    const sortedRooms = Object.keys(rooms).sort();
+
+    let html = `
+      <button class="mobile-filter-chip ${this.activeMobileFilter === 'all' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('all')">
+        Tất cả (${total})
+      </button>
+    `;
+
+    if (critical > 0) {
+      html += `
+        <button class="mobile-filter-chip chip-critical ${this.activeMobileFilter === 'critical' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('critical')">
+          🚨 Báo động đỏ (${critical})
+        </button>
+      `;
+    }
+
+    if (pending > 0) {
+      html += `
+        <button class="mobile-filter-chip chip-pending ${this.activeMobileFilter === 'pending' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('pending')">
+          ⏳ Cần bàn giao (${pending})
+        </button>
+      `;
+    }
+
+    sortedRooms.forEach(room => {
+      const chipKey = `room:${room}`;
+      html += `
+        <button class="mobile-filter-chip ${this.activeMobileFilter === chipKey ? 'active' : ''}" onclick="window.patientController.setMobileFilter('${chipKey}')">
+          🚪 ${this.escape(room)} (${rooms[room]})
+        </button>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  setMobileFilter(filterKey) {
+    this.activeMobileFilter = filterKey;
+    this.render();
+  }
+
+  // TÌM KIẾM TRÊN MOBILE
+  handleMobileSearch(query) {
+    this.currentFilterQuery = query || '';
+    const clearBtn = document.getElementById('btnMobileClearSearch');
+    if (clearBtn) {
+      clearBtn.style.display = query ? 'flex' : 'none';
+    }
+    // Đồng bộ ô search desktop nếu có
+    const deskSearch = document.getElementById('searchInput');
+    if (deskSearch && deskSearch.value !== query) {
+      deskSearch.value = query;
+    }
+    this.render();
+  }
+
+  clearMobileSearch() {
+    const input = document.getElementById('mobileSearchInput');
+    if (input) input.value = '';
+    this.handleMobileSearch('');
+  }
+
+  // CHUYỂN ĐỔI CHẾ ĐỘ XEM TRÊN MOBILE (THẺ VS BẢNG)
+  toggleMobileViewMode() {
+    this.mobileViewMode = (this.mobileViewMode === 'cards') ? 'table' : 'cards';
+    localStorage.setItem('medward_mobile_view_mode', this.mobileViewMode);
+    this.applyMobileViewMode();
+  }
+
+  applyMobileViewMode() {
+    const btn = document.getElementById('btnMobileToggleView');
+    const label = document.getElementById('mobileViewToggleLabel');
+    if (this.mobileViewMode === 'table') {
+      document.body.classList.add('mobile-view-table');
+      if (label) label.innerText = '📋 Bảng';
+    } else {
+      document.body.classList.remove('mobile-view-table');
+      if (label) label.innerText = '📱 Thẻ';
+    }
+  }
+
   scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // MỞ MODAL THÊM BỆNH NHÂN NHANH CHO MOBILE
+  openAddPatientModal() {
+    const newP = {
+      ten: 'BỆNH NHÂN MỚI',
+      phong_giuong: '',
+      chan_doan: '',
+      cls_hien_co: '',
+      cls_can_lam: '',
+      y_lenh: '',
+      them_thuoc: ''
+    };
+    this.addPatient(newP);
   }
 
   renderDesktopTable(filtered) {
@@ -1149,6 +1315,9 @@ class PatientController {
         </td>
         <td class="col-actions no-print">
           <div class="action-btn-group">
+            <button class="btn-table-action" data-tooltip="Copy qua Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
+              <span style="font-size: 11px;">📋</span>
+            </button>
             <button class="btn-table-action" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
@@ -1165,6 +1334,9 @@ class PatientController {
     });
   }
 
+  // ==============================================================================
+  // RENDER CHẾ ĐỘ THẺ NGƯỜI BỆNH TRÊN THIẾT BỊ DI ĐỘNG (MOBILE CARDS VIEW)
+  // ==============================================================================
   renderMobileCards(filtered) {
     const container = document.getElementById('mobileCardContainer');
     if (!container) return;
@@ -1172,10 +1344,10 @@ class PatientController {
 
     if (filtered.length === 0) {
       container.innerHTML = `
-        <div style="text-align: center; padding: 32px 16px; color: var(--text-muted); background: white; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-          <div style="font-size: 28px; margin-bottom: 6px;">📋</div>
-          <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">Chưa có bệnh nhân nào phù hợp</div>
-          <div style="font-size: 12px; margin-top: 4px;">Bấm nút + hoặc nạp Excel để thêm người bệnh.</div>
+        <div style="text-align: center; padding: 40px 16px; color: #64748b; background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 6px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+          <div style="font-weight: 800; color: #1e293b; font-size: 14px;">Chưa có bệnh nhân nào phù hợp</div>
+          <div style="font-size: 12px; margin-top: 4px; color: #64748b;">Chạm nút <strong>+ Thêm NB</strong> ở góc dưới để bắt đầu.</div>
         </div>
       `;
       return;
@@ -1183,85 +1355,106 @@ class PatientController {
 
     filtered.forEach((p) => {
       this.normalizePatientClsAndOrders(p);
-      const statusCfg = CONFIG.STATUS_CONFIG[p.handover_status] || CONFIG.STATUS_CONFIG.none;
       const isCritical = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
       const isPending = p.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
+
+      let statusPillHtml = '';
+      if (isCritical) {
+        statusPillHtml = `<span class="card-status-pill status-critical">🚨 BÁO ĐỘNG ĐỎ</span>`;
+      } else if (isPending) {
+        statusPillHtml = `<span class="card-status-pill status-pending">⏳ CẦN BÀN GIAO</span>`;
+      } else {
+        statusPillHtml = `<span class="card-status-pill status-none">✓ Ổn định</span>`;
+      }
 
       const card = document.createElement('div');
       card.className = `mobile-patient-card ${isCritical ? 'card-critical' : (isPending ? 'card-pending' : '')}`;
       card.dataset.id = p.id;
 
       card.innerHTML = `
+        <!-- HEADER THẺ: BUỒNG GIƯỜNG & TRẠNG THÁI -->
         <div class="card-header" onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-room-badge">
-            <span class="room-bed-text">${this.escape(p.phong_giuong || 'Chưa xếp')}</span>
+            <span>🚪</span>
+            <span>${this.escape(p.phong_giuong || 'Chưa xếp phòng')}</span>
           </div>
-          <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="event.stopPropagation(); window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
-            ${statusCfg.icon}
-          </button>
+          ${statusPillHtml}
         </div>
 
-        <div class="card-body" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+        <!-- THÂN THẺ: TÊN & CHẨN ĐOÁN -->
+        <div onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-name-row">
-            <h3 class="patient-name">${this.escape(p.ten || 'Chưa đặt tên')}</h3>
+            <h3 class="patient-name">${this.escape(p.ten || 'BỆNH NHÂN CHƯA TÊN')}</h3>
             <span class="patient-age">${this.escape(p.nam_sinh_tuoi || '')}</span>
           </div>
 
-          <div class="card-field">
-            <span class="field-label">Chẩn đoán:</span>
-            <div class="field-content">${this.escape(p.chan_doan || '—')}</div>
+          <div class="card-diagnosis-box" style="margin-bottom: 8px;">
+            <strong>Chẩn đoán:</strong>
+            ${this.escape(p.chan_doan || 'Chưa có chẩn đoán')}
           </div>
 
-          <div class="card-field">
-            <span class="field-label">Cận lâm sàng (CLS):</span>
-            <div class="mobile-cls-box">
-              <div class="mobile-cls-row">
-                <span class="mobile-sub-badge badge-present">✓ Hiện có:</span>
-                <span>${this.escape(p.cls_hien_co || '—')}</span>
+          <!-- 2 TẦNG LÂM SÀNG: CLS & Y LỆNH -->
+          <div class="card-clinical-grid">
+            <div class="card-tier-box tier-cls">
+              <div class="card-tier-title">
+                <span>🔬 Cận lâm sàng (CLS)</span>
               </div>
-              <div class="mobile-cls-row ${p.cls_can_lam ? 'mobile-highlight-pending' : ''}">
-                <span class="mobile-sub-badge badge-pending">⚡ Cần làm:</span>
-                <span class="${p.cls_can_lam ? 'text-pending-bold' : ''}">${this.escape(p.cls_can_lam || 'Không có')}</span>
+              <div class="card-tier-content">
+                <div><span style="font-weight: 700; color: #0284c7;">✓ Hiện có:</span> ${this.escape(p.cls_hien_co || '—')}</div>
+                ${p.cls_can_lam ? `
+                  <div class="card-tier-highlight">
+                    <span>⚡ Cần làm:</span> ${this.escape(p.cls_can_lam)}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <div class="card-tier-box tier-yl">
+              <div class="card-tier-title">
+                <span>💊 Y lệnh điều trị</span>
+              </div>
+              <div class="card-tier-content">
+                <div>${this.escape(p.y_lenh || '—')}</div>
+                ${p.them_thuoc ? `
+                  <div class="card-tier-highlight" style="color: #b45309;">
+                    <span>💊 Thêm thuốc:</span> ${this.escape(p.them_thuoc)}
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
 
-          <div class="card-field">
-            <span class="field-label">Y lệnh:</span>
-            <div class="field-content">${this.escape(p.y_lenh || '—')}</div>
-            ${p.them_thuoc ? `
-              <div class="mobile-them-thuoc-box">
-                <span class="mobile-sub-badge badge-extra">💊 Thêm thuốc:</span>
-                <span class="mobile-rx-val">${this.escape(p.them_thuoc)}</span>
-              </div>
-            ` : ''}
-          </div>
-
-          ${p.handover_issues || p.handover_actions ? `
-            <div class="card-handover-box ${isCritical ? 'critical-box' : ''}">
-              <div class="handover-title">🚨 BÀN GIAO TUA TRỰC:</div>
-              ${p.handover_issues ? `<div class="handover-text"><strong>Tồn đọng:</strong> ${this.escape(p.handover_issues)}</div>` : ''}
-              ${p.handover_actions ? `<div class="handover-text"><strong>Cần làm:</strong> ${this.escape(p.handover_actions)}</div>` : ''}
-              ${p.handover_by ? `<div class="handover-meta">BS: ${this.escape(p.handover_by)}</div>` : ''}
+          <!-- CẢNH BÁO BÀN GIAO TRỰC -->
+          ${(p.handover_issues || p.handover_actions) ? `
+            <div class="card-handover-alert" style="margin-top: 8px;">
+              <strong>🚨 BÀN GIAO CA TRỰC:</strong>
+              ${p.handover_issues ? `<div>⚠️ <em>Tồn đọng:</em> ${this.escape(p.handover_issues)}</div>` : ''}
+              ${p.handover_actions ? `<div>⚡ <em>Cần làm:</em> ${this.escape(p.handover_actions)}</div>` : ''}
             </div>
           ` : ''}
         </div>
 
-        <div class="card-footer-actions">
-          <button class="btn-card-action btn-card-ho" onclick="window.handoverController.openHandoverModal('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        <!-- HÀNG NÚT HÀNH ĐỘNG DỄ CHẠM NGÓN TAY -->
+        <div class="card-actions-row">
+          <button type="button" class="card-btn-action btn-handover" onclick="window.handoverController.openHandoverModal('${p.id}')">
+            <span>🚨</span>
             <span>Bàn giao</span>
           </button>
-          <button class="btn-card-action" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <button type="button" class="card-btn-action btn-zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
+            <span>📋</span>
+            <span>Zalo</span>
+          </button>
+          <button type="button" class="card-btn-action" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+            <span>✏️</span>
             <span>Chi tiết</span>
           </button>
-          <button class="btn-card-action btn-card-del" onclick="window.patientController.deletePatient('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <button type="button" class="card-btn-action btn-danger" onclick="window.patientController.deletePatient('${p.id}')">
+            <span>🗑️</span>
             <span>Xóa</span>
           </button>
         </div>
       `;
+
       container.appendChild(card);
     });
   }
@@ -1281,6 +1474,7 @@ class PatientController {
   }
 
   openPatientDetailModal(patientId) {
+    this.currentEditingPatientId = patientId;
     const p = this.patientList.find(item => item.id === patientId);
     if (!p) return;
 
@@ -1414,6 +1608,47 @@ class PatientController {
     this.closePatientDetailModal();
     if (window.updateSaveStatus) {
       window.updateSaveStatus('✓ Đã cập nhật thông tin người bệnh');
+    }
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG COPY QUA ZALO CHO NGƯỜI BỆNH
+  // ==============================================================================
+  copySinglePatientZalo(patientId) {
+    if (window.handoverController) {
+      window.handoverController.copySinglePatientZalo(patientId);
+    }
+  }
+
+  copyCurrentPatientZalo() {
+    if (!this.currentEditingPatientId) return;
+    const p = this.patientList.find(item => item.id === this.currentEditingPatientId);
+    if (!p) return;
+
+    const chanDoan = document.getElementById('editDiagnosis')?.value.trim();
+    const clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value.trim() : '';
+    const clsClVal = document.getElementById('editClsCanLam') ? document.getElementById('editClsCanLam').value.trim() : '';
+    const ylVal = document.getElementById('editOrders')?.value.trim();
+    const themThuocVal = document.getElementById('editThemThuoc') ? document.getElementById('editThemThuoc').value.trim() : '';
+    const hoStatus = document.getElementById('editHandoverStatus')?.value;
+    const hoIssues = document.getElementById('editHandoverIssues')?.value.trim();
+    const hoActions = document.getElementById('editHandoverActions')?.value.trim();
+
+    const tempP = {
+      ...p,
+      chan_doan: chanDoan || p.chan_doan,
+      cls_hien_co: clsHcVal || p.cls_hien_co,
+      cls_can_lam: clsClVal || p.cls_can_lam,
+      y_lenh: ylVal || p.y_lenh,
+      them_thuoc: themThuocVal || p.them_thuoc,
+      handover_status: hoStatus || p.handover_status,
+      handover_issues: hoIssues !== undefined ? hoIssues : p.handover_issues,
+      handover_actions: hoActions !== undefined ? hoActions : p.handover_actions
+    };
+
+    if (window.handoverController) {
+      const text = window.handoverController.formatPatientZaloText(tempP, true);
+      window.handoverController.copyText(text, `📋 Đã sao chép người bệnh ${p.ten || ''} qua Zalo!`);
     }
   }
 
@@ -1566,48 +1801,52 @@ class PatientController {
     }
 
     if (targetList.length === 0) {
-      if (window.updateSaveStatus) window.updateSaveStatus('ℹ️ Không có người bệnh nào có CLS cần làm hoặc Thêm thuốc để sao chép', 'warning');
+      if (window.showToast) window.showToast('ℹ️ Không có người bệnh nào có CLS cần làm hoặc Thêm thuốc');
+      else if (window.updateSaveStatus) window.updateSaveStatus('ℹ️ Không có người bệnh nào có CLS cần làm hoặc Thêm thuốc', 'warning');
       return;
     }
 
-    const todayStr = new Date().toLocaleDateString('vi-VN');
-    let text = `🏥 KHOA NHIỄM - BV ĐK KHU VỰC THỦ ĐỨC\n`;
-    text += `📋 PHIẾU Y LỆNH & CLS CHO ĐIỀU DƯỠNG (BS. Nguyễn Hữu Đông)\n`;
-    text += `📅 Ngày: ${todayStr} - Tổng cộng: ${targetList.length} người bệnh\n`;
-    text += `--------------------------------------------------\n`;
+    let dateStr = '';
+    const reportDateInput = document.getElementById('reportDate');
+    if (reportDateInput && reportDateInput.value) {
+      const parts = reportDateInput.value.split('-');
+      if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}`;
+      else dateStr = reportDateInput.value;
+    } else {
+      const now = new Date();
+      dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    }
+
+    let text = `📋 Y LỆNH ĐIỀU DƯỠNG (${dateStr})\n\n`;
 
     targetList.forEach((p, idx) => {
-      text += `${idx + 1}. [${p.phong_giuong || 'Chưa xếp'}] ${p.ten || 'BỆNH NHÂN'} - NS: ${p.nam_sinh_tuoi || '—'}\n`;
+      const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
+      const ns = p.nam_sinh_tuoi || '—';
+      const phong = p.phong_giuong || 'Chưa xếp phòng';
+      const cd = p.chan_doan || 'Chưa ghi';
+
+      let issues = [];
       if (p.cls_can_lam && p.cls_can_lam.trim()) {
-        text += `   🔬 CLS CẦN LÀM: ${p.cls_can_lam.trim()}\n`;
+        issues.push('CLS: ' + p.cls_can_lam.trim());
       }
       if (p.them_thuoc && p.them_thuoc.trim()) {
-        text += `   💊 THÊM THUỐC: ${p.them_thuoc.trim()}\n`;
+        issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
       }
-      if (!p.cls_can_lam?.trim() && !p.them_thuoc?.trim()) {
-        text += `   ✓ Y lệnh thường quy, không thêm mới\n`;
+      if (issues.length === 0 && p.y_lenh && p.y_lenh.trim()) {
+        issues.push('Y lệnh: ' + p.y_lenh.trim());
       }
-      text += `\n`;
+      const vanDe = issues.length > 0 ? issues.join('; ') : 'Thực hiện y lệnh thường quy';
+
+      text += `${idx + 1}. - BN: ${ten}\n- Năm sinh: ${ns}\n- Phòng: ${phong}\n- CĐ: ${cd}\n- Vấn đề: ${vanDe}\n\n`;
     });
 
-    text += `--------------------------------------------------\n`;
-    text += `👉 Đề nghị Điều dưỡng ca trực tiếp nhận, thực hiện và phản hồi sau khi hoàn tất. Trân trọng!`;
-
-    navigator.clipboard.writeText(text).then(() => {
-      if (window.updateSaveStatus) {
-        window.updateSaveStatus('📋 Đã sao chép nội dung phiếu Điều dưỡng! Bạn có thể dán (Ctrl+V) vào nhóm Zalo của khoa.', 'saved');
-      }
-    }).catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (window.updateSaveStatus) {
-        window.updateSaveStatus('📋 Đã sao chép nội dung phiếu Điều dưỡng! Bạn có thể dán (Ctrl+V) vào nhóm Zalo của khoa.', 'saved');
-      }
-    });
+    if (window.handoverController && window.handoverController.copyText) {
+      window.handoverController.copyText(text.trim(), '📋 Đã sao chép y lệnh Điều dưỡng qua Zalo!');
+    } else {
+      navigator.clipboard.writeText(text.trim()).then(() => {
+        if (window.showToast) window.showToast('📋 Đã sao chép y lệnh Điều dưỡng qua Zalo!');
+      });
+    }
   }
 
   escape(str) {

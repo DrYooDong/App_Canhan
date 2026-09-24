@@ -181,9 +181,8 @@ class SupabaseService {
   }
 
   notifyRealtimeSubscribers(payload) {
-    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 2.5 giây, bỏ qua để tránh phản xạ lặp (echo loop)
-    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 2500)) {
-      console.log('⚡ Bỏ qua phản xạ realtime từ chính thiết bị này (chống lặp)');
+    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 4 giây, bỏ qua để tránh phản xạ lặp (echo loop)
+    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 4000)) {
       return;
     }
 
@@ -208,11 +207,9 @@ class SupabaseService {
           { event: '*', schema: 'public', table: 'patients' },
           (payload) => {
             // Kiểm tra xem sự kiện có bắt nguồn từ lượt lưu của chính thiết bị này không
-            if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 2500)) {
-              console.log('⚡ Bỏ qua sự kiện Realtime từ chính thiết bị này (chống lặp đồng bộ)');
+            if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 4000)) {
               return;
             }
-            console.log('⚡ Realtime sync received từ thiết bị khác:', payload);
             this.lastSyncedAt = new Date();
             this.notifyStateChange();
             this.notifyRealtimeSubscribers(payload);
@@ -734,38 +731,6 @@ class SupabaseService {
             syncedData = individuallySaved;
           }
         }
-
-        // 4. DỌN DẸP BỆNH NHÂN ĐÃ BỊ XÓA
-        try {
-          const keepIdSet = new Set(deduplicatedRecords.map(r => r.id));
-          let q = this.client.from('patients').select('id');
-          if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
-            q = q.eq('user_id', currentUser.id);
-          }
-          const { data: remoteRows, error: fetchErr } = await q;
-          if (!fetchErr && remoteRows && remoteRows.length > 0) {
-            const staleIds = remoteRows.map(r => r.id).filter(id => !keepIdSet.has(id));
-            if (staleIds.length > 0) {
-              for (let i = 0; i < staleIds.length; i += 50) {
-                const chunk = staleIds.slice(i, i + 50);
-                await this.client.from('patients').delete().in('id', chunk).catch(() => {});
-              }
-            }
-          }
-        } catch (pruneErr) {
-          // Bỏ qua lỗi dọn dẹp ID cũ
-        }
-      } else {
-        // Trường hợp danh sách rỗng (người dùng xóa hết bệnh nhân)
-        try {
-          let delQ = this.client.from('patients').delete();
-          if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
-            delQ = delQ.eq('user_id', currentUser.id);
-          } else {
-            delQ = delQ.neq('ten', '___PROTECT_EMPTY_GUARD___');
-          }
-          await delQ;
-        } catch (e) {}
       }
 
       // Đồng bộ ngược lại vào local cache và controller
