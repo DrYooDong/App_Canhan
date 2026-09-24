@@ -81,6 +81,10 @@ class PatientController {
       }
     }
 
+    if (!data || data.length === 0) {
+      data = CONFIG.SAMPLE_PATIENTS ? JSON.parse(JSON.stringify(CONFIG.SAMPLE_PATIENTS)) : [];
+    }
+
     this.patientList = data || [];
 
     // Tự động chuẩn hóa phòng/giường thành dạng ngắn gọn (VD: D1.14-3) và bổ sung created_at nếu thiếu
@@ -987,46 +991,6 @@ class PatientController {
   // RENDER GIAO DIỆN CHÍNH
   // ==============================================================================
   render() {
-    const isLoggedIn = !!window.authController?.isLoggedIn;
-
-    // NẾU CHƯA ĐĂNG NHẬP: KHÓA BẢO MẬT BẢNG THEO DÕI VÀ DỮ LIỆU
-    if (!isLoggedIn) {
-      const tbody = document.getElementById('patientTableBody');
-      const cardList = document.getElementById('mobileCardContainer') || document.getElementById('patientCardList');
-      const totalEl = document.getElementById('patientCount');
-      const emptyMsg = document.getElementById('emptyMessage');
-      if (emptyMsg) emptyMsg.style.display = 'none';
-      if (totalEl) totalEl.innerText = '0';
-
-      if (tbody) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
-              <div style="font-size: 32px; margin-bottom: 10px;">🔒</div>
-              <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">HỒ SƠ BỆNH ÁN ĐÃ KHÓA BẢO MẬT</div>
-              <div style="font-size: 13px; max-width: 440px; margin: 0 auto; line-height: 1.5;">Vui lòng đăng nhập mã PIN để mở khóa và làm việc với danh sách người bệnh của BS. Nguyễn Hữu Đông.</div>
-              <button class="btn btn-primary" onclick="window.authController.showGateOverlay()" style="margin-top: 16px; display: inline-flex; align-items: center; gap: 6px;">
-                🔑 Nhập mã PIN đăng nhập
-              </button>
-            </td>
-          </tr>
-        `;
-      }
-      if (cardList) {
-        cardList.innerHTML = `
-          <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: var(--radius); border: 1.5px solid var(--border);">
-            <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
-            <div style="font-size: 15px; font-weight: 800; color: var(--text-main);">Hồ sơ bệnh án đã khóa</div>
-            <div style="font-size: 12.5px; margin-top: 4px; line-height: 1.4;">Vui lòng đăng nhập mã PIN để mở khóa bảng theo dõi.</div>
-            <button class="btn btn-primary" onclick="window.authController.showGateOverlay()" style="margin-top: 14px; width: 100%; justify-content: center;">
-              🔑 Nhập mã PIN đăng nhập
-            </button>
-          </div>
-        `;
-      }
-      return;
-    }
-
     const filtered = this.getFilteredPatients();
 
     // Cập nhật bộ đếm
@@ -1049,7 +1013,7 @@ class PatientController {
     // Kiểm tra empty state
     const emptyMsg = document.getElementById('emptyMessage');
     if (emptyMsg) {
-      emptyMsg.style.display = filtered.length === 0 ? 'block' : 'none';
+      emptyMsg.style.display = 'none';
     }
   }
 
@@ -1061,6 +1025,19 @@ class PatientController {
     const tbody = document.getElementById('patientTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr class="empty-table-row">
+          <td colspan="9" style="text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 13.5px; background: #ffffff;">
+            <div style="font-size: 28px; margin-bottom: 8px;">📋</div>
+            <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px; font-size: 14px;">Chưa có bệnh nhân nào phù hợp</div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">Bấm nút <strong>+ Thêm NB (Ctrl+N)</strong> hoặc nạp dữ liệu từ Excel để bắt đầu theo dõi.</div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
 
     let lastRoomCode = null;
     const roomCounts = {};
@@ -1192,6 +1169,17 @@ class PatientController {
     const container = document.getElementById('mobileCardContainer');
     if (!container) return;
     container.innerHTML = '';
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 32px 16px; color: var(--text-muted); background: white; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="font-size: 28px; margin-bottom: 6px;">📋</div>
+          <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">Chưa có bệnh nhân nào phù hợp</div>
+          <div style="font-size: 12px; margin-top: 4px;">Bấm nút + hoặc nạp Excel để thêm người bệnh.</div>
+        </div>
+      `;
+      return;
+    }
 
     filtered.forEach((p) => {
       this.normalizePatientClsAndOrders(p);
