@@ -241,30 +241,36 @@ class HandoverController {
   // ĐỊNH DẠNG TIN NHẮN TÓM TẮT NGẮN GỌN CHO ZALO
   // TIÊU ĐỀ NGẮN GỌN NHẤT CÓ THỂ, TÊN BN, NĂM SINH, PHÒNG, CHẨN ĐOÁN, VẤN ĐỀ
   // ==============================================================================
+  extractPatientProblem(p) {
+    if (!p) return 'Theo dõi thường quy';
+    let issues = [];
+    if (p.handover_issues && p.handover_issues.trim()) {
+      issues.push(p.handover_issues.trim());
+    }
+    if (p.handover_actions && p.handover_actions.trim()) {
+      issues.push('Xử trí: ' + p.handover_actions.trim());
+    }
+    if (issues.length === 0) {
+      if (p.cls_can_lam && p.cls_can_lam.trim()) issues.push('CLS: ' + p.cls_can_lam.trim());
+      if (p.them_thuoc && p.them_thuoc.trim()) issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
+      if (p.y_lenh && p.y_lenh.trim()) issues.push('Y lệnh: ' + p.y_lenh.trim());
+    }
+    let res = issues.length > 0 ? issues.join('; ') : 'Theo dõi thường quy';
+    if (p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) {
+      if (!res.includes('Báo động đỏ') && !res.includes('NẶNG')) {
+        res = `[🚨 NẶNG] ${res}`;
+      }
+    }
+    return res;
+  }
+
   formatPatientZaloText(p, isSingle = true) {
     if (!p) return '';
     const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
     const ns = p.nam_sinh_tuoi || '—';
     const phong = p.phong_giuong || 'Chưa xếp phòng';
     const cd = p.chan_doan || 'Chưa ghi';
-
-    const isCrit = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
-
-    let issues = [];
-    if (p.handover_issues && p.handover_issues.trim()) {
-      issues.push(p.handover_issues.trim());
-    }
-    if (p.handover_actions && p.handover_actions.trim()) {
-      issues.push('Cần làm: ' + p.handover_actions.trim());
-    }
-    if (issues.length === 0) {
-      if (p.cls_can_lam && p.cls_can_lam.trim()) issues.push('CLS: ' + p.cls_can_lam.trim());
-      if (p.them_thuoc && p.them_thuoc.trim()) issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
-    }
-    let vanDe = issues.length > 0 ? issues.join('; ') : 'Ổn định, theo dõi tiếp';
-    if (isCrit && !vanDe.includes('Báo động đỏ') && !vanDe.includes('NẶNG')) {
-      vanDe = `[🚨 Báo động đỏ] ${vanDe}`;
-    }
+    const vanDe = this.extractPatientProblem(p);
 
     if (isSingle) {
       return `📋 BÀN GIAO\n- BN: ${ten}\n- Năm sinh: ${ns}\n- Phòng: ${phong}\n- CĐ: ${cd}\n- Vấn đề: ${vanDe}`;
@@ -292,10 +298,10 @@ class HandoverController {
     }
 
     if (allHandovers.length === 0) {
-      return `📋 BÀN GIAO TRỰC (${dateStr})\n- Không có ca bệnh tồn đọng hoặc nguy kịch.`;
+      return `📋 BÀN GIAO (${dateStr})\n- Không có ca bệnh tồn đọng hoặc nguy kịch.`;
     }
 
-    let text = `📋 BÀN GIAO TRỰC (${dateStr})\n\n`;
+    let text = `📋 BÀN GIAO (${dateStr})\n\n`;
 
     allHandovers.forEach((p, idx) => {
       const patientBody = this.formatPatientZaloText(p, false);

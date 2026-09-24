@@ -63,47 +63,23 @@
         </div>
       </div>
 
-      <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: VẼ HÌNH 9 NÚT HOẶC MÃ PIN -->
+      <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (WEB LAPTOP) HOẶC VẼ HÌNH 9 NÚT (DI ĐỘNG / TABLET) -->
       <div class="gate-mode-selector">
-        <button type="button" class="gate-mode-btn active" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
+        <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>Mã PIN (Web Laptop)</span>
+        </button>
+        <button type="button" class="gate-mode-btn" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="5" cy="5" r="2.5"/><circle cx="12" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/>
             <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
             <circle cx="5" cy="19" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/>
           </svg>
-          <span>Vẽ hình 9 nút</span>
-        </button>
-        <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          <span>Mã PIN số</span>
+          <span>9 Nút (Di động / Tablet)</span>
         </button>
       </div>
 
-      <!-- KHU VỰC 1: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
-      <div id="gatePatternContainer" class="gate-unlock-panel" style="display: block; padding: 0 16px 14px;">
-        <div id="gatePatternStatus" class="gate-pattern-status">
-          Vẽ hình nối các điểm để mở khoá
-        </div>
-
-        <div class="pattern-lock-wrap" id="patternLockWrap">
-          <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
-        </div>
-
-        <div class="pattern-hint-box">
-          <span>💡 Gợi ý: Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
-        </div>
-
-        <div class="pattern-action-row">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
-            🔄 Vẽ lại
-          </button>
-          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
-            🔢 Nhập mã PIN
-          </button>
-        </div>
-      </div>
-
-      <!-- KHU VỰC 2: FORM MỞ KHÓA BẰNG PIN/PASSWORD -->
+      <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH CHO LAPTOP/PC) -->
       <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
         <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
 
@@ -122,7 +98,37 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
           <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
         </button>
+
+        <div style="text-align: center; margin-top: 10px;">
+          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
+            🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
+          </button>
+        </div>
       </form>
+
+      <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK - MẶC ĐỊNH CHO DI ĐỘNG/TABLET) -->
+      <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
+        <div id="gatePatternStatus" class="gate-pattern-status">
+          Vẽ hình nối các điểm để mở khoá
+        </div>
+
+        <div class="pattern-lock-wrap" id="patternLockWrap">
+          <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+        </div>
+
+        <div class="pattern-hint-box">
+          <span>💡 Gợi ý: Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
+        </div>
+
+        <div class="pattern-action-row">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
+            🔄 Vẽ lại
+          </button>
+          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
+            🔢 Nhập mã PIN (Bàn phím)
+          </button>
+        </div>
+      </div>
 
       <!-- DÒNG HÀNH ĐỘNG CHUYỂN TÀI KHOẢN HOẶC ĐĂNG KÝ -->
       <div class="gate-switch-actions">
@@ -281,6 +287,12 @@
       </div>
 
       <div class="mobile-brand-actions">
+        <!-- Nút Nạp Excel nhanh trên Mobile -->
+        <button class="mobile-btn-action mobile-btn-excel" onclick="document.getElementById('excelFileInput').click()" title="Nhập danh sách từ Excel (.xlsx, .xls)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+          <span class="mobile-action-label">Excel</span>
+        </button>
+
         <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
         <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()" title="Đổi chế độ xem (Thẻ / Bảng)">
           <span id="mobileViewModeIcon">📱</span>
@@ -323,11 +335,17 @@
       </div>
     </div>
 
-    <!-- Hộp tìm kiếm nhanh trên Mobile -->
-    <div class="mobile-search-wrapper">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..." oninput="window.patientController.handleMobileSearch(this.value)">
-      <button type="button" id="btnMobileClearSearch" class="btn-clear-search" onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
+    <!-- Hộp tìm kiếm nhanh & Nút Nạp Excel trên Mobile -->
+    <div class="mobile-search-row">
+      <div class="mobile-search-wrapper">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..." oninput="window.patientController.handleMobileSearch(this.value)">
+        <button type="button" id="btnMobileClearSearch" class="btn-clear-search" onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
+      </div>
+      <button type="button" class="btn-mobile-excel" onclick="document.getElementById('excelFileInput').click()" title="Nhập danh sách từ Excel (.xlsx, .xls)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+        <span>Excel</span>
+      </button>
     </div>
   </div>
 
@@ -553,7 +571,15 @@
 
   <!-- Thông báo rỗng -->
   <div id="emptyMessage" class="empty-state" style="display: none;">
-    Chưa có bệnh nhân nào phù hợp. Hãy bấm nút <strong>📂</strong> để nạp Excel hoặc nút <strong>➕</strong> để thêm người bệnh mới!
+    <div>Chưa có người bệnh nào trong danh sách.</div>
+    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
+        📊 Nạp từ file Excel (.xlsx)
+      </button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
+        ➕ Tiếp nhận người bệnh mới
+      </button>
+    </div>
   </div>
 
 </div>
@@ -598,6 +624,17 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="editPatientId">
+
+      <!-- BANNER NẠP NHANH TỪ FILE EXCEL -->
+      <div class="modal-excel-shortcut" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+        <div style="font-size: 12px; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+          <span>📊</span>
+          <span>Nạp nhanh danh sách từ file Excel (.xlsx)?</span>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="document.getElementById('excelFileInput').click(); window.patientController.closePatientDetailModal();" style="background: #16a34a; color: white; border: none; font-weight: 700; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; white-space: nowrap; cursor: pointer;">
+          Chọn file Excel
+        </button>
+      </div>
 
       <div class="form-row">
         <div class="form-group">

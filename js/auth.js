@@ -140,6 +140,23 @@ class AuthController {
     }
   }
 
+  // ============================================================================
+  // NHẬN DIỆN THIẾT BỊ: WEB LAPTOP (MÃ PIN) VS DI ĐỘNG / MÁY TÍNH BẢNG (9 NÚT)
+  // ============================================================================
+  isMobileOrTablet() {
+    const ua = navigator.userAgent || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
+    const isIPadOS = (navigator.platform === 'MacIntel' || ua.includes('Macintosh')) && navigator.maxTouchPoints > 1;
+    const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isSmallScreen = window.innerWidth <= 1024;
+    return isMobileUA || isIPadOS || (hasTouch && isSmallScreen);
+  }
+
+  getDeviceUnlockMode() {
+    // Yêu cầu: Web laptop là nhập mã PIN ('pin'), Di động hoặc máy tính bảng là mở khóa 9 nút ('pattern')
+    return this.isMobileOrTablet() ? 'pattern' : 'pin';
+  }
+
   showGateView(viewName) {
     this.currentGateView = viewName;
     const vUnlock = document.getElementById('gateViewUnlock');
@@ -152,8 +169,11 @@ class AuthController {
 
     if (viewName === 'unlock') {
       this.updateGateDoctorPreview();
-      const preferredMode = localStorage.getItem('medward_unlock_mode') || 'pattern';
-      this.switchGateMode(preferredMode);
+      // Tự động chọn phương thức theo thiết bị:
+      // Web laptop: Nhập mã PIN
+      // Di động hoặc máy tính bảng: Mở khóa vẽ hình 9 nút
+      const targetMode = this.getDeviceUnlockMode();
+      this.switchGateMode(targetMode);
     } else if (viewName === 'login') {
       this.renderGateDoctorChips();
       const userInp = document.getElementById('gateOtherUser');
@@ -219,8 +239,6 @@ class AuthController {
     const panelPin = document.getElementById('gateLoginForm');
     const pinInput = document.getElementById('gatePinInput');
 
-    localStorage.setItem('medward_unlock_mode', mode);
-
     if (mode === 'pattern') {
       if (btnPattern) btnPattern.classList.add('active');
       if (btnPin) btnPin.classList.remove('active');
@@ -236,7 +254,10 @@ class AuthController {
       if (panelPattern) panelPattern.style.display = 'none';
       if (panelPin) panelPin.style.display = 'block';
       if (pinInput) {
-        setTimeout(() => pinInput.focus(), 100);
+        setTimeout(() => {
+          pinInput.focus();
+          pinInput.select();
+        }, 120);
       }
     }
   }
@@ -387,7 +408,7 @@ class AuthController {
     }, 600);
   }
 
-  unlockSession(doctor = null) {
+  async unlockSession(doctor = null) {
     sessionStorage.setItem('medward_session_unlocked', 'true');
     this.isLoggedIn = true;
 
@@ -402,8 +423,7 @@ class AuthController {
     this.checkLoginGate();
 
     if (window.patientController) {
-      window.patientController.updateDoctorFilterDropdown();
-      window.patientController.render();
+      await window.patientController.switchWorkspaceDoctor(this.activeDoctor.id);
     }
 
     if (window.showToast) {
@@ -550,11 +570,12 @@ class AuthController {
     docs.forEach(doc => {
       const isDong = this.isDongAdmin(doc);
       const isCurrent = doc.id === currentDoc.id || doc.username === currentDoc.username;
+      const stats = window.patientController?.calculateDoctorStorageUsage?.(doc.id) || { patientsCount: 0, usedFormatted: '0 KB', percent: '0' };
 
       html += `
         <div style="background: #ffffff; border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
           <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
               ${this.getInitials(doc.full_name)}
             </div>
             <div style="min-width: 0;">
@@ -566,14 +587,17 @@ class AuthController {
               <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
                 ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
               </div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">
-                Tài khoản: <strong>${this.escape(doc.username || '')}</strong> ${doc.phone ? '• ĐT: ' + this.escape(doc.phone) : ''}
+              <div style="font-size: 11.5px; color: #2563eb; font-weight: 600; margin-top: 3px;">
+                🎮 Không gian riêng: <strong>${stats.patientsCount} NB</strong> • Bộ nhớ: <strong>${stats.usedFormatted} / 100 MB</strong>
               </div>
             </div>
           </div>
 
           <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
             ${isAdmin ? `
+              <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này">
+                👁️ Xem
+              </button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.authController.openDoctorEditModal('${doc.id || doc.username}')" title="Sửa thông tin">
                 ✏️ Sửa
               </button>
@@ -759,25 +783,42 @@ class AuthController {
     if (!container) return;
 
     const doc = this.getActiveDoctor();
+    const isAdmin = this.isDongAdmin(doc);
     const patients = window.patientController?.patientList || [];
     const myCount = patients.length;
     const criticalCount = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
     const pendingCount = patients.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+    const storageStats = window.patientController?.calculateDoctorStorageUsage?.(doc.id) || {
+      usedFormatted: '0 KB',
+      maxFormatted: '100 MB',
+      remainingFormatted: '100 MB',
+      percent: '0',
+      percentNum: 0,
+      patientsBytesFormatted: '0 KB',
+      logsBytesFormatted: '0 KB',
+      profileBytesFormatted: '0 KB'
+    };
+
+    const isAllMode = window.patientController?.activeWorkspaceDoctorId === 'all';
+    const effectiveDoc = window.patientController?.getEffectiveDoctor?.()?.doctor || doc;
 
     let html = `
       <div class="doctor-workspace-status-card logged-in" style="background: #ffffff; border: 1.5px solid var(--primary); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.08);">
         <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="quick-doc-avatar" style="width: 46px; height: 46px; font-size: 16px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800;">
+            <div class="quick-doc-avatar" style="width: 48px; height: 48px; font-size: 16px; background: ${isAdmin ? '#1e3a8a' : 'var(--primary)'}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800;">
               ${this.getInitials(doc.full_name)}
             </div>
             <div>
-              <div style="font-size: 15px; font-weight: 800; color: var(--text-main);">${this.escape(doc.full_name)}</div>
+              <div style="font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <span>${this.escape(doc.full_name)}</span>
+                ${isAdmin ? '<span style="background: #fef3c7; color: #92400e; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">👑 Quản trị viên (Admin)</span>' : '<span style="background: #e0f2fe; color: #0369a1; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">🩺 Bác sĩ điều trị</span>'}
+              </div>
               <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
                 ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
               </div>
               <div style="font-size: 11.5px; color: var(--text-muted);">
-                Tài khoản: <strong>${this.escape(doc.username || '')}</strong> ${doc.email ? `(${this.escape(doc.email)})` : ''}
+                Tài khoản: <strong>${this.escape(doc.username || '')}</strong> (ID: <code>${this.escape(doc.id || '')}</code>)
               </div>
             </div>
           </div>
@@ -785,6 +826,48 @@ class AuthController {
             ✓ Đang trực
           </span>
         </div>
+
+        <!-- BẢNG ĐIỀU KHIỂN DUNG LƯỢNG LƯU TRỮ 100MB (GAME-STYLE SAVE SLOT HUD) -->
+        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1e293b;">
+              <span>🎮 DUNG LƯỢNG KHÔNG GIAN RIÊNG:</span>
+              <span style="color: #2563eb;">${storageStats.usedFormatted} / 100 MB</span>
+            </div>
+            <span style="font-size: 11.5px; font-weight: 700; color: #64748b;">${storageStats.percent}%</span>
+          </div>
+
+          <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+            <div style="width: ${Math.max(2, Math.min(100, storageStats.percentNum * 20))}%; height: 100%; background: ${storageStats.isFull ? '#ef4444' : (storageStats.isNearLimit ? '#f59e0b' : '#3b82f6')}; transition: width 0.3s ease;"></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11.5px; color: #475569;">
+            <div>🗂️ Bệnh nhân: <strong>${storageStats.patientsBytesFormatted}</strong> (${storageStats.patientsCount} NB)</div>
+            <div>📋 Nhật ký giao ban: <strong>${storageStats.logsBytesFormatted}</strong></div>
+            <div>👤 Hồ sơ cá nhân: <strong>${storageStats.profileBytesFormatted}</strong></div>
+            <div style="color: #059669;">🟢 Còn trống: <strong>${storageStats.remainingFormatted}</strong></div>
+          </div>
+        </div>
+
+        ${isAdmin ? `
+          <!-- KHU VỰC ĐẶC QUYỀN QUẢN TRỊ VIÊN -->
+          <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1d4ed8;">
+                <span>👑 ĐIỀU HÀNH KHÔNG GIAN CỦA ADMIN</span>
+              </div>
+              <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                Hiện tại: ${isAllMode ? '🌐 Toàn Khoa' : effectiveDoc.full_name}
+              </span>
+            </div>
+            <p style="font-size: 11.5px; color: #1e3a8a; margin: 0 0 10px 0; line-height: 1.4;">
+              Mỗi tài khoản ID có 100MB riêng biệt. Quản trị viên có thể chuyển đổi để xem hoặc hỗ trợ bất kỳ Bác sĩ nào trong khoa.
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" onclick="window.authController.closeAuthModal(); window.patientController.openAdminWorkspaceSwitcherModal();" style="width: 100%; justify-content: center; font-weight: 700;">
+              🎮 Mở Bảng Chuyển Đổi Không Gian Bác Sĩ
+            </button>
+          </div>
+        ` : ''}
 
         <div class="ws-stats-row" style="display: flex; gap: 8px; margin: 12px 0;">
           <div style="flex: 1; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border); text-align: center;">
@@ -802,6 +885,12 @@ class AuthController {
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+          <!-- Nút Nạp Excel tiện lợi cho Bác sĩ trên di động & máy tính bảng -->
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" style="width: 100%; justify-content: center; font-weight: 700; height: 38px; background: #f0fdf4; border-color: #86efac; color: #166534; display: flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+            <span>Nhập danh sách người bệnh từ file Excel (.xlsx)</span>
+          </button>
+
           <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
             🩺 Vào Bảng Theo Dõi &amp; Y Lệnh
           </button>
@@ -960,6 +1049,15 @@ class AuthController {
         userInput.value = userInput.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
       });
     }
+
+    // Tự động thích ứng chế độ mở khóa khi thay đổi kích thước/thiết bị
+    window.addEventListener('resize', () => {
+      const overlay = document.getElementById('loginGateOverlay');
+      if (overlay && overlay.style.display !== 'none' && this.currentGateView === 'unlock') {
+        const targetMode = this.getDeviceUnlockMode();
+        this.switchGateMode(targetMode);
+      }
+    });
   }
 
   openCloudSettingsModal() {

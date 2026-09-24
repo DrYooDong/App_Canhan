@@ -11,6 +11,7 @@ class PatientController {
     this.currentDoctorFilter = localStorage.getItem('medward_doctor_filter') || 'my_patients';
     this.activeMobileFilter = 'all'; // 'all' | 'critical' | 'pending' | 'room:...'
     this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
+    this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
 
     this.init();
@@ -21,6 +22,7 @@ class PatientController {
     this.applyMobileViewMode();
     await this.reloadFromSource();
     this.setupRealtimeListener();
+    this.updateStorageHudUI();
   }
 
   loadSettings() {
@@ -45,12 +47,10 @@ class PatientController {
     // Nhận thông báo Realtime từ Supabase khi thiết bị khác thay đổi
     if (window.supabaseService) {
       window.supabaseService.onRealtimeUpdate(async (payload) => {
-        // Nếu người dùng đang tập trung gõ phím trong ô soạn thảo, không làm gián đoạn
         if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
           return;
         }
 
-        // Chống dội (Debounce 2000ms) để khi nhận nhiều sự kiện liên tiếp chỉ tải lại 1 lần duy nhất
         if (this.realtimeDebounceTimer) {
           clearTimeout(this.realtimeDebounceTimer);
         }
@@ -63,34 +63,123 @@ class PatientController {
     }
   }
 
-  async reloadFromSource(showNotice = true) {
-    let data = null;
-    if (window.supabaseService) {
+  // ==============================================================================
+  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN (ISOLATED WORKSPACE & 100MB SAVE SLOT)
+  // ==============================================================================
+  getDoctorSpaceKey(docId) {
+    if (!docId) return 'medward_patients_v2';
+    return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_patients';
+  }
+
+  getEffectiveDoctor() {
+    const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const isAdmin = window.authController?.isDongAdmin?.(activeDoc);
+
+    if (!isAdmin || !this.activeWorkspaceDoctorId || this.activeWorkspaceDoctorId === 'my_space') {
+      return { doctor: activeDoc, isAll: false, isAdmin: !!isAdmin };
+    }
+
+    if (this.activeWorkspaceDoctorId === 'all') {
+      return { doctor: activeDoc, isAll: true, isAdmin: true };
+    }
+
+    const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
+    const targetDoc = allDocs.find(d => d.id === this.activeWorkspaceDoctorId || d.username === this.activeWorkspaceDoctorId) || activeDoc;
+    return { doctor: targetDoc, isAll: false, isAdmin: true };
+  }
+
+  loadDoctorPatients(docId) {
+    const key = this.getDoctorSpaceKey(docId);
+    const local = localStorage.getItem(key);
+    if (local !== null) {
       try {
-        data = await window.supabaseService.fetchPatients();
-      } catch (err) {
-        console.warn('Lỗi khi tải từ Supabase, chuyển sang cache offline:', err);
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        return [];
       }
     }
 
-    if (!data || data.length === 0) {
-      const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
-      if (local) {
+    // Nếu là BS. Đông và chưa khởi tạo partition riêng, nạp từ cache cũ hoặc sample
+    if (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId }))) {
+      const oldCache = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+      if (oldCache) {
         try {
-          data = JSON.parse(local);
-        } catch (e) {
-          console.error('Lỗi đọc local cache:', e);
+          const parsed = JSON.parse(oldCache);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(key, JSON.stringify(parsed));
+            return parsed;
+          }
+        } catch (e) {}
+      }
+      const samples = CONFIG.SAMPLE_PATIENTS ? JSON.parse(JSON.stringify(CONFIG.SAMPLE_PATIENTS)) : [];
+      localStorage.setItem(key, JSON.stringify(samples));
+      return samples;
+    }
+
+    // MỌI TÀI KHOẢN BÁC SĨ KHÁC (VD: Hồ Thế Bảo) BẮT ĐẦU VỚI MẢNG RỖNG []
+    // Hoàn toàn độc lập, không thấy danh sách của BS. Đông!
+    localStorage.setItem(key, JSON.stringify([]));
+    return [];
+  }
+
+  async reloadFromSource(showNotice = true) {
+    const { doctor, isAll, isAdmin } = this.getEffectiveDoctor();
+    let data = null;
+
+    if (isAll) {
+      // Chế độ Quản trị viên xem toàn bộ khoa: Tổng hợp người bệnh từ tất cả các bác sĩ
+      const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
+      const aggregated = [];
+      const seenIds = new Set();
+      allDocs.forEach(d => {
+        const docPts = this.loadDoctorPatients(d.id);
+        docPts.forEach(p => {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            aggregated.push({
+              ...p,
+              doctor_name: p.doctor_name || d.full_name,
+              doctor_id: p.doctor_id || d.id
+            });
+          }
+        });
+      });
+      data = aggregated;
+    } else {
+      // Chế độ Không gian riêng của từng Bác sĩ (VD: BS. Hồ Thế Bảo hoặc BS. Nguyễn Hữu Đông)
+      if (window.supabaseService && window.supabaseService.isCloudEnabled) {
+        try {
+          const cloudData = await window.supabaseService.fetchPatients();
+          if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+            const docId = doctor.id;
+            const docNameLower = (doctor.full_name || '').toLowerCase().trim();
+            const matched = cloudData.filter(p => {
+              const pDocId = p.doctor_id || p.handover_by_id || p.user_id;
+              const pDocName = (p.doctor_name || p.handover_by || '').toLowerCase().trim();
+              if (docId === 'doc_dongnh' || (isAdmin && docId === 'doc_dongnh')) {
+                return pDocId === 'doc_dongnh' || pDocName.includes('đông') || pDocName.includes('dong');
+              }
+              return pDocId === docId || pDocName === docNameLower;
+            });
+            if (matched.length > 0) {
+              data = matched;
+              localStorage.setItem(this.getDoctorSpaceKey(doctor.id), JSON.stringify(matched));
+            }
+          }
+        } catch (err) {
+          console.warn('Lưu ý kết nối Cloud:', err);
         }
       }
-    }
 
-    if (!data || data.length === 0) {
-      data = CONFIG.SAMPLE_PATIENTS ? JSON.parse(JSON.stringify(CONFIG.SAMPLE_PATIENTS)) : [];
+      if (!data) {
+        data = this.loadDoctorPatients(doctor.id);
+      }
     }
 
     this.patientList = data || [];
 
-    // Tự động chuẩn hóa phòng/giường thành dạng ngắn gọn (VD: D1.14-3) và bổ sung created_at nếu thiếu
+    // Tự động chuẩn hóa phòng/giường và bảo toàn Bác sĩ điều trị phụ trách
     let cleaned = false;
     const nowIso = new Date().toISOString();
     this.patientList.forEach(p => {
@@ -101,26 +190,28 @@ class PatientController {
           cleaned = true;
         }
       }
-      // Chuẩn hóa Bác sĩ điều trị duy nhất về BS. Nguyễn Hữu Đông
-      if (p.doctor_name !== 'BS. Nguyễn Hữu Đông') {
-        p.doctor_name = 'BS. Nguyễn Hữu Đông';
+
+      // Bảo toàn thông tin Bác sĩ phụ trách người bệnh
+      if (!p.doctor_name) {
+        p.doctor_name = doctor.full_name || 'BS. Nguyễn Hữu Đông';
         cleaned = true;
       }
-      if (!p.handover_by || p.handover_by !== 'BS. Nguyễn Hữu Đông') {
-        p.handover_by = 'BS. Nguyễn Hữu Đông';
+      if (!p.doctor_id) {
+        p.doctor_id = doctor.id || 'doc_dongnh';
         cleaned = true;
       }
-      // Dọn sạch cột Y lệnh nếu bị dính tên Bác sĩ điều trị do nạp file Excel trước đây
+      if (!p.handover_by) {
+        p.handover_by = p.doctor_name;
+        cleaned = true;
+      }
+
+      // Dọn sạch cột Y lệnh nếu bị dính tên Bác sĩ điều trị
       if (p.y_lenh) {
         const ylLower = p.y_lenh.trim().toLowerCase();
         const isDocName = ylLower.startsWith('bs.') || 
                           ylLower.startsWith('bs ') || 
                           ylLower.startsWith('bác sĩ') || 
                           ylLower.startsWith('bác sỹ') || 
-                          ylLower.includes('nguyễn hữu đông') || 
-                          ylLower.includes('hữu đông') ||
-                          ylLower.includes('bác sĩ điều trị') ||
-                          ylLower.includes('bs điều trị') ||
                           ylLower === (p.doctor_name || '').trim().toLowerCase() ||
                           ylLower === (p.handover_by || '').trim().toLowerCase();
         if (isDocName) {
@@ -141,56 +232,209 @@ class PatientController {
 
     if (cleaned) {
       this.saveLocalCache();
-      // TUYỆT ĐỐI KHÔNG GỌI syncBatchPatients ở đây để tránh vòng lặp đồng bộ vô tận (infinite loop)
     }
 
     this.updateDoctorFilterDropdown();
     this.render();
+    this.updateStorageHudUI();
 
     if (showNotice && window.updateSaveStatus) {
-      window.updateSaveStatus('✓ Đã tải dữ liệu bệnh nhân');
+      const spaceLabel = isAll ? 'Toàn Khoa' : doctor.full_name;
+      window.updateSaveStatus(`✓ Đã vào Không gian: ${spaceLabel} (${this.patientList.length} NB)`);
     }
   }
 
-  // Phân tách Cận lâm sàng (Hiện có & Cần làm) và Y lệnh (Y lệnh & Thêm thuốc)
+  // ==============================================================================
+  // CHUẨN HÓA CẬN LÂM SÀNG (HIỆN CÓ / CẦN LÀM) VÀ Y LỆNH (THÊM THUỐC)
+  // ==============================================================================
   normalizePatientClsAndOrders(p) {
     if (!p) return;
 
-    // 1. Phân tách Cận lâm sàng thành 2 phần: Hiện có & Cần làm
-    let rawCls = (p.cls || '').trim();
-    if (rawCls.includes('[Hiện có]:') || rawCls.includes('[Cần làm]:')) {
-      const mHienCo = rawCls.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
-      const mCanLam = rawCls.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
-      p.cls_hien_co = mHienCo ? mHienCo[1].trim() : '';
-      p.cls_can_lam = mCanLam ? mCanLam[1].trim() : '';
-    } else if (p.cls_hien_co && (p.cls_hien_co.includes('[Hiện có]:') || p.cls_hien_co.includes('[Cần làm]:'))) {
-      const mHienCo = p.cls_hien_co.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
-      const mCanLam = p.cls_hien_co.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
-      p.cls_hien_co = mHienCo ? mHienCo[1].trim() : '';
-      p.cls_can_lam = mCanLam ? mCanLam[1].trim() : (p.cls_can_lam || '');
-    } else if (p.cls_hien_co === undefined && p.cls_can_lam === undefined) {
-      p.cls_hien_co = rawCls;
-      p.cls_can_lam = '';
-    } else {
-      p.cls_hien_co = (p.cls_hien_co || '').trim();
-      p.cls_can_lam = (p.cls_can_lam || '').trim();
+    // Đảm bảo các thuộc tính chuỗi luôn tồn tại
+    if (typeof p.cls_hien_co !== 'string') p.cls_hien_co = p.cls_hien_co ? String(p.cls_hien_co) : '';
+    if (typeof p.cls_can_lam !== 'string') p.cls_can_lam = p.cls_can_lam ? String(p.cls_can_lam) : '';
+    if (typeof p.cls !== 'string') p.cls = p.cls ? String(p.cls) : '';
+    if (typeof p.y_lenh !== 'string') p.y_lenh = p.y_lenh ? String(p.y_lenh) : '';
+    if (typeof p.them_thuoc !== 'string') p.them_thuoc = p.them_thuoc ? String(p.them_thuoc) : '';
+
+    // Nếu chưa phân tách cls_hien_co và cls_can_lam nhưng có cột cls tổng hợp
+    if (!p.cls_hien_co && !p.cls_can_lam && p.cls) {
+      const clsText = p.cls;
+      if (clsText.includes('[Hiện có]:') || clsText.includes('[Cần làm]:')) {
+        const hcMatch = clsText.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
+        const clMatch = clsText.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
+        p.cls_hien_co = hcMatch ? hcMatch[1].trim() : '';
+        p.cls_can_lam = clMatch ? clMatch[1].trim() : '';
+      } else if (clsText.includes('⚡ Cần làm:')) {
+        const parts = clsText.split(/⚡ Cần làm:/i);
+        p.cls_hien_co = parts[0].trim();
+        p.cls_can_lam = parts[1] ? parts[1].trim() : '';
+      } else {
+        p.cls_hien_co = clsText.trim();
+        p.cls_can_lam = '';
+      }
     }
 
-    // 2. Phân tách Y lệnh và Thêm thuốc
-    let rawYl = (p.y_lenh || '').trim();
-    if (rawYl.includes('[Thêm thuốc]:')) {
-      const parts = rawYl.split(/\[Thêm thuốc\]:/i);
-      p.y_lenh = (parts[0] || '').trim();
-      p.them_thuoc = (parts[1] || '').trim();
-    } else if (p.them_thuoc === undefined) {
-      p.them_thuoc = '';
-    } else {
-      p.them_thuoc = (p.them_thuoc || '').trim();
+    // Đồng bộ ngược lại cls từ cls_hien_co và cls_can_lam
+    if (p.cls_hien_co || p.cls_can_lam) {
+      const hc = (p.cls_hien_co || '').trim();
+      const cl = (p.cls_can_lam || '').trim();
+      if (hc && cl) {
+        p.cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+      } else if (cl) {
+        p.cls = `[Cần làm]: ${cl}`;
+      } else {
+        p.cls = hc;
+      }
+    }
+
+    // Nếu có [Thêm thuốc] trong y_lenh nhưng cột them_thuoc đang rỗng
+    if (!p.them_thuoc && p.y_lenh) {
+      if (p.y_lenh.includes('[Thêm thuốc]:')) {
+        const parts = p.y_lenh.split(/\[Thêm thuốc\]:/i);
+        p.y_lenh = parts[0].trim();
+        p.them_thuoc = parts[1] ? parts[1].trim() : '';
+      } else if (p.y_lenh.includes('💊 Thêm thuốc:')) {
+        const parts = p.y_lenh.split(/💊 Thêm thuốc:/i);
+        p.y_lenh = parts[0].trim();
+        p.them_thuoc = parts[1] ? parts[1].trim() : '';
+      }
+    }
+
+    // Xử lý y_lenh nếu lỡ dính tên bác sĩ
+    if (p.y_lenh) {
+      const ylLower = p.y_lenh.trim().toLowerCase();
+      const isDocName = ylLower.startsWith('bs.') || 
+                        ylLower.startsWith('bs ') || 
+                        ylLower.startsWith('bác sĩ') || 
+                        ylLower.startsWith('bác sỹ') || 
+                        ylLower === (p.doctor_name || '').trim().toLowerCase() ||
+                        ylLower === (p.handover_by || '').trim().toLowerCase();
+      if (isDocName) {
+        p.y_lenh = '';
+      }
     }
   }
 
   saveLocalCache() {
-    localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
+    const { doctor, isAll } = this.getEffectiveDoctor();
+    if (isAll) {
+      const partitionMap = {};
+      this.patientList.forEach(p => {
+        const dId = p.doctor_id || p.handover_by_id || 'doc_dongnh';
+        if (!partitionMap[dId]) partitionMap[dId] = [];
+        partitionMap[dId].push(p);
+      });
+      Object.keys(partitionMap).forEach(dId => {
+        localStorage.setItem(this.getDoctorSpaceKey(dId), JSON.stringify(partitionMap[dId]));
+      });
+    } else {
+      const key = this.getDoctorSpaceKey(doctor.id);
+      localStorage.setItem(key, JSON.stringify(this.patientList));
+      if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
+      }
+    }
+    this.updateStorageHudUI();
+  }
+
+  // TÍNH TOÁN DUNG LƯỢNG LƯU TRỮ 100MB CHO TỪNG TÀI KHOẢN (SAVE SLOT HUD)
+  calculateDoctorStorageUsage(targetDocId = null) {
+    const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const doc = targetDocId
+      ? (window.authController?.getKnownDoctors?.()?.find(d => d.id === targetDocId || d.username === targetDocId) || { id: targetDocId, full_name: 'Bác sĩ', storage_limit_mb: 100 })
+      : activeDoc;
+    const docId = doc.id || 'doc_dongnh';
+
+    const spaceKey = this.getDoctorSpaceKey(docId);
+    const patientsJson = localStorage.getItem(spaceKey) || '[]';
+    const patientsBytes = new Blob([patientsJson]).size;
+
+    let logsBytes = 0;
+    try {
+      const allLogs = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.HANDOVER_LOGS) || '[]');
+      const docLogs = allLogs.filter(l => l.doctor_id === docId || l.doctor_name === doc.full_name || l.handover_by === doc.full_name);
+      logsBytes = new Blob([JSON.stringify(docLogs)]).size;
+    } catch (e) {}
+
+    const profileBytes = new Blob([JSON.stringify(doc)]).size;
+    const totalBytes = patientsBytes + logsBytes + profileBytes;
+    const maxBytes = (doc.storage_limit_mb || CONFIG.STORAGE_LIMIT_MB || 100) * 1024 * 1024;
+    const percentNum = (totalBytes / maxBytes) * 100;
+    const remainingBytes = Math.max(0, maxBytes - totalBytes);
+
+    let patientsCount = 0;
+    try { patientsCount = JSON.parse(patientsJson).length; } catch (e) {}
+
+    return {
+      docId,
+      docName: doc.full_name || 'Bác sĩ',
+      role: doc.role || 'doctor',
+      isAdmin: window.authController?.isDongAdmin?.(doc),
+      totalBytes,
+      maxBytes,
+      percent: percentNum.toFixed(2),
+      percentNum,
+      usedFormatted: this.formatBytes(totalBytes),
+      maxFormatted: '100 MB',
+      remainingFormatted: this.formatBytes(remainingBytes),
+      patientsCount,
+      patientsBytesFormatted: this.formatBytes(patientsBytes),
+      logsBytesFormatted: this.formatBytes(logsBytes),
+      profileBytesFormatted: this.formatBytes(profileBytes),
+      isNearLimit: percentNum >= 85,
+      isFull: percentNum >= 99
+    };
+  }
+
+  formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 KB';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  // CẬP NHẬT GIAO DIỆN THANH CHỈ BÁO DUNG LƯỢNG 100MB (HEADER & WORKSPACE)
+  updateStorageHudUI() {
+    const stats = this.calculateDoctorStorageUsage();
+
+    // 1. Header Storage Pill
+    const hudEl = document.getElementById('headerStorageHud');
+    const textEl = document.getElementById('headerStorageText');
+    const barEl = document.getElementById('headerStorageBarFill');
+
+    if (hudEl && textEl && barEl) {
+      hudEl.style.display = 'inline-flex';
+      textEl.innerText = `${stats.usedFormatted} / 100 MB`;
+      const fillW = Math.max(2, Math.min(100, stats.percentNum * 20));
+      barEl.style.width = `${fillW}%`;
+      hudEl.setAttribute('data-tooltip', `🎮 Dung lượng tài khoản: ${stats.usedFormatted} / 100 MB (${stats.percent}%)\nSố bệnh nhân: ${stats.patientsCount} | Còn trống: ${stats.remainingFormatted}`);
+    }
+
+    // 2. Mobile summary storage
+    const mobStorage = document.getElementById('mobileSummaryStorage');
+    if (mobStorage) {
+      mobStorage.innerText = `💾 ${stats.usedFormatted} / 100MB`;
+    }
+
+    // 3. Workspace tab in AuthModal nếu đang mở
+    const wsArea = document.getElementById('workspaceContentArea');
+    if (window.authController && wsArea && document.getElementById('authModal')?.classList?.contains('active')) {
+      window.authController.renderWorkspaceTab();
+    }
+  }
+
+  async switchWorkspaceDoctor(docId) {
+    const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const isAdmin = window.authController?.isDongAdmin?.(activeDoc);
+
+    if (!isAdmin && docId !== 'my_space' && docId !== activeDoc.id) {
+      this.activeWorkspaceDoctorId = 'my_space';
+    } else {
+      this.activeWorkspaceDoctorId = docId;
+    }
+
+    await this.reloadFromSource(false);
   }
 
   // ==============================================================================
@@ -426,12 +670,131 @@ class PatientController {
   }
 
   updateDoctorFilterDropdown() {
-    const activeDoc = window.authController?.getActiveDoctor?.();
-    const docName = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
+    const { doctor, isAll, isAdmin } = this.getEffectiveDoctor();
+    const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
     const subTitleEl = document.querySelector('.sub-title');
     const wsText = document.getElementById('currentWorkspaceText');
-    if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${docName} • ${activeDoc?.department || 'Khoa Nhiễm'})`;
-    if (wsText) wsText.innerText = docName;
+
+    let labelText = '';
+    if (isAll) {
+      labelText = '🌐 Toàn Khoa (Tất cả BS)';
+      if (subTitleEl) subTitleEl.innerText = `(🌐 Toàn Khoa: Giám sát toàn bộ người bệnh • Quản trị viên: ${activeDoc.full_name})`;
+    } else {
+      const roleBadge = doctor.role === 'admin' ? '👑 ' : '🩺 ';
+      labelText = `${roleBadge}${doctor.full_name}`;
+      if (subTitleEl) subTitleEl.innerText = `(Không gian điều trị riêng: ${doctor.full_name} • ${doctor.role === 'admin' ? 'Quản trị viên' : 'Bác sĩ điều trị'} • 100MB)`;
+    }
+
+    if (wsText) {
+      wsText.innerHTML = `
+        <span style="font-weight: 700;">${this.escape(labelText)}</span>
+        ${isAdmin ? '<span style="font-size: 10px; margin-left: 4px; opacity: 0.8;" title="Chuyển không gian làm việc">▾</span>' : ''}
+      `;
+      wsText.style.cursor = 'pointer';
+      wsText.onclick = () => {
+        if (isAdmin) {
+          window.patientController.openAdminWorkspaceSwitcherModal();
+        } else {
+          window.authController.openAuthModal('workspace');
+        }
+      };
+    }
+  }
+
+  // MODAL CHUYỂN ĐỔI KHÔNG GIAN DÀNH CHO ADMIN
+  openAdminWorkspaceSwitcherModal() {
+    let modal = document.getElementById('adminWorkspaceModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'adminWorkspaceModal';
+      modal.className = 'modal-overlay';
+      modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px;';
+      document.body.appendChild(modal);
+    }
+
+    const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
+    const currentMode = this.activeWorkspaceDoctorId || 'my_space';
+
+    let docsHtml = '';
+    allDocs.forEach(d => {
+      const stats = this.calculateDoctorStorageUsage(d.id);
+      const isSelected = (currentMode === d.id) || (currentMode === 'my_space' && d.id === activeDoc.id);
+      const isDong = window.authController?.isDongAdmin?.(d);
+
+      docsHtml += `
+        <div onclick="window.patientController.switchWorkspaceDoctor('${d.id}'); window.patientController.closeAdminWorkspaceSwitcherModal();"
+             style="background: ${isSelected ? '#eff6ff' : '#ffffff'}; border: 1.5px solid ${isSelected ? '#2563eb' : '#e2e8f0'}; border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s ease;"
+             onmouseover="this.style.borderColor='#2563eb'" onmouseout="if(!${isSelected}) this.style.borderColor='#e2e8f0'">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+              ${window.authController?.getInitials?.(d.full_name) || 'BS'}
+            </div>
+            <div>
+              <div style="font-size: 13.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                <span>${this.escape(d.full_name)}</span>
+                ${isDong ? '<span style="background: #fef3c7; color: #92400e; font-size: 10px; padding: 1px 6px; border-radius: 6px; font-weight: 700;">Admin</span>' : ''}
+              </div>
+              <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                Tài khoản: <strong>${this.escape(d.username || '')}</strong> • ${this.escape(d.department || 'Khoa Nhiễm')}
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 12.5px; font-weight: 700; color: #2563eb;">${stats.patientsCount} người bệnh</div>
+            <div style="font-size: 11px; color: #64748b;">💾 ${stats.usedFormatted} / 100MB</div>
+          </div>
+        </div>
+      `;
+    });
+
+    const isAllSelected = currentMode === 'all';
+
+    modal.innerHTML = `
+      <div style="background: #ffffff; border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; animation: modalFadeIn 0.2s ease;">
+        <div style="background: #1e3a8a; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">🎮</span>
+            <div>
+              <div style="font-size: 15px; font-weight: 800;">Chuyển Không Gian Làm Việc</div>
+              <div style="font-size: 11.5px; opacity: 0.9;">Đặc quyền Quản trị viên (Admin: ${this.escape(activeDoc.full_name)})</div>
+            </div>
+          </div>
+          <button onclick="window.patientController.closeAdminWorkspaceSwitcherModal()" style="background: transparent; border: none; color: white; font-size: 20px; cursor: pointer;">✕</button>
+        </div>
+        <div style="padding: 16px 20px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+          <!-- Nút Toàn Khoa -->
+          <div onclick="window.patientController.switchWorkspaceDoctor('all'); window.patientController.closeAdminWorkspaceSwitcherModal();"
+               style="background: ${isAllSelected ? '#eff6ff' : '#f8fafc'}; border: 1.5px solid ${isAllSelected ? '#2563eb' : '#cbd5e1'}; border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 38px; height: 38px; border-radius: 50%; background: #059669; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                🌐
+              </div>
+              <div>
+                <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Toàn Khoa (Tất cả Bác sĩ)</div>
+                <div style="font-size: 11.5px; color: #64748b;">Giám sát toàn bộ người bệnh đang theo dõi trong khoa</div>
+              </div>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; color: #059669;">Tổng quan</span>
+          </div>
+
+          <div style="font-size: 11.5px; font-weight: 700; color: #64748b; margin-top: 4px; text-transform: uppercase;">
+            Không gian riêng từng tài khoản (100MB / ID):
+          </div>
+          ${docsHtml}
+        </div>
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 20px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="window.patientController.closeAdminWorkspaceSwitcherModal()">Đóng</button>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+  }
+
+  closeAdminWorkspaceSwitcherModal() {
+    const modal = document.getElementById('adminWorkspaceModal');
+    if (modal) modal.style.display = 'none';
   }
 
   quickAssignDoctor(patientId, event) {
@@ -700,13 +1063,17 @@ class PatientController {
       return;
     }
 
-    const activeDoc = window.authController?.getActiveDoctor?.();
-    const myDocName = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
-    const targetDoc = myDocName;
+    const { doctor } = this.getEffectiveDoctor();
+    const myDocName = doctor.full_name || 'BS. Nguyễn Hữu Đông';
+    const myDocId = doctor.id || 'doc_dongnh';
 
     const newPatient = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-      user_id: activeDoc?.id || null,
+      user_id: myDocId,
+      doctor_id: myDocId,
+      doctor_name: myDocName,
+      handover_by_id: myDocId,
+      handover_by: myDocName,
       phong_giuong: this.cleanRoomBedString(patientData.phong_giuong || 'D1.14-1'),
       ten: (patientData.ten || 'BỆNH NHÂN MỚI').trim(),
       nam_sinh_tuoi: (patientData.nam_sinh_tuoi || '').trim(),
@@ -719,8 +1086,6 @@ class PatientController {
       handover_status: patientData.handover_status || CONFIG.HANDOVER_STATUS.NONE,
       handover_issues: patientData.handover_issues || '',
       handover_actions: patientData.handover_actions || '',
-      doctor_name: targetDoc,
-      handover_by: targetDoc,
       handover_at: patientData.handover_at || null,
       sort_order: this.patientList.length,
       created_at: new Date().toISOString(),
@@ -745,12 +1110,17 @@ class PatientController {
 
     const idx = this.patientList.findIndex(p => p.id === patientId);
     const baseRoom = idx >= 0 ? this.cleanRoomBedString(this.patientList[idx].phong_giuong) : 'D1.14-1';
-    const activeDoc = window.authController?.getActiveDoctor?.();
-    const myDoc = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
+    const { doctor } = this.getEffectiveDoctor();
+    const myDoc = doctor.full_name || 'BS. Nguyễn Hữu Đông';
+    const myDocId = doctor.id || 'doc_dongnh';
 
     const newP = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-      user_id: activeDoc?.id || null,
+      user_id: myDocId,
+      doctor_id: myDocId,
+      doctor_name: myDoc,
+      handover_by_id: myDocId,
+      handover_by: myDoc,
       phong_giuong: baseRoom,
       ten: 'BỆNH NHÂN MỚI',
       nam_sinh_tuoi: '',
@@ -763,8 +1133,6 @@ class PatientController {
       handover_status: CONFIG.HANDOVER_STATUS.NONE,
       handover_issues: '',
       handover_actions: '',
-      doctor_name: myDoc,
-      handover_by: myDoc,
       sort_order: idx + 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -1193,12 +1561,36 @@ class PatientController {
     tbody.innerHTML = '';
 
     if (filtered.length === 0) {
+      if (this.patientList.length === 0) {
+        const { doctor } = this.getEffectiveDoctor();
+        tbody.innerHTML = `
+          <tr class="empty-table-row">
+            <td colspan="9" style="text-align: center; padding: 48px 20px; background: #ffffff;">
+              <div style="max-width: 480px; margin: 0 auto; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 26px 20px;">
+                <div style="font-size: 38px; margin-bottom: 8px;">🎮</div>
+                <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
+                  Không gian điều trị riêng: ${this.escape(doctor.full_name)}
+                </div>
+                <div style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px;">
+                  Mỗi tài khoản ID là một không gian lưu trữ độc lập (<strong>100MB / ID</strong>).<br>
+                  Chưa có người bệnh nào trong không gian này. Dữ liệu của bạn được cách ly an toàn.
+                </div>
+                <button class="btn btn-primary" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700; padding: 8px 18px; margin: 0 auto;">
+                  ➕ Tiếp nhận người bệnh đầu tiên (Ctrl+N)
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
       tbody.innerHTML = `
         <tr class="empty-table-row">
           <td colspan="9" style="text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 13.5px; background: #ffffff;">
             <div style="font-size: 28px; margin-bottom: 8px;">📋</div>
-            <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px; font-size: 14px;">Chưa có bệnh nhân nào phù hợp</div>
-            <div style="font-size: 12.5px; color: var(--text-muted);">Bấm nút <strong>+ Thêm NB (Ctrl+N)</strong> hoặc nạp dữ liệu từ Excel để bắt đầu theo dõi.</div>
+            <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px; font-size: 14px;">Chưa có bệnh nhân nào phù hợp bộ lọc</div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">Bấm nút <strong>+ Thêm NB (Ctrl+N)</strong> hoặc xóa từ khóa tìm kiếm.</div>
           </td>
         </tr>
       `;
@@ -1343,11 +1735,39 @@ class PatientController {
     container.innerHTML = '';
 
     if (filtered.length === 0) {
+      if (this.patientList.length === 0) {
+        const { doctor } = this.getEffectiveDoctor();
+        container.innerHTML = `
+          <div style="text-align: center; padding: 36px 16px; color: #64748b; background: white; border-radius: 12px; border: 1.5px dashed #cbd5e1; margin-top: 6px;">
+            <div style="font-size: 36px; margin-bottom: 8px;">🎮</div>
+            <div style="font-weight: 800; color: #1e293b; font-size: 15px; margin-bottom: 4px;">Không gian riêng: ${this.escape(doctor.full_name)}</div>
+            <div style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 14px;">Mỗi tài khoản ID có 100MB lưu trữ dữ liệu độc lập.<br>Chưa có người bệnh nào trong không gian này.</div>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="font-weight: 700; background: #f0fdf4; border-color: #86efac; color: #166534;">
+                📊 Nhập từ file Excel (.xlsx)
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
+                ➕ Tiếp nhận người bệnh đầu tiên
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = `
         <div style="text-align: center; padding: 40px 16px; color: #64748b; background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 6px;">
           <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
           <div style="font-weight: 800; color: #1e293b; font-size: 14px;">Chưa có bệnh nhân nào phù hợp</div>
-          <div style="font-size: 12px; margin-top: 4px; color: #64748b;">Chạm nút <strong>+ Thêm NB</strong> ở góc dưới để bắt đầu.</div>
+          <div style="font-size: 12px; margin: 6px 0 14px 0; color: #64748b;">Chạm nút <strong>+ Thêm NB</strong> hoặc nạp nhanh danh sách từ file Excel.</div>
+          <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="font-weight: 700; background: #f0fdf4; border-color: #86efac; color: #166534;">
+              📊 Nhập từ file Excel (.xlsx)
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
+              ➕ Thêm NB mới
+            </button>
+          </div>
         </div>
       `;
       return;
@@ -1817,7 +2237,7 @@ class PatientController {
       dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     }
 
-    let text = `📋 Y LỆNH ĐIỀU DƯỠNG (${dateStr})\n\n`;
+    let text = `📋 Y LỆNH (${dateStr})\n\n`;
 
     targetList.forEach((p, idx) => {
       const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();

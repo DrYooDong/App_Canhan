@@ -404,9 +404,19 @@ class SupabaseService {
   }
 
   async fetchDepartmentDoctors() {
-    // Chỉ giữ duy nhất BS. Nguyễn Hữu Đông, loại bỏ hoàn toàn các bác sĩ khác
+    let docs = [];
+    try {
+      const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES);
+      if (saved) docs = JSON.parse(saved);
+    } catch (e) {}
+
     const defaultDoctor = { ...(CONFIG.DEFAULT_DEMO_DOCTOR || CONFIG.DEFAULT_DOCTORS[0]) };
-    let localList = [defaultDoctor];
+    const dongIdx = docs.findIndex(d => (d.username === 'dongnh' || d.id === 'doc_dongnh' || (d.email && d.email.includes('dong'))));
+    if (dongIdx === -1) {
+      docs.unshift(defaultDoctor);
+    } else {
+      docs[dongIdx] = { ...defaultDoctor, ...docs[dongIdx], role: 'admin', storage_limit_mb: 100 };
+    }
 
     if (this.isCloudEnabled && this.client) {
       try {
@@ -415,24 +425,26 @@ class SupabaseService {
           .select('*')
           .order('full_name', { ascending: true });
         if (!error && data && data.length > 0) {
-          // Chỉ lấy profile khớp với BS. Đông
-          const dongProfile = data.find(p => {
-            const name = (p.full_name || '').toLowerCase();
-            const email = (p.email || '').toLowerCase();
-            const user = (p.username || '').toLowerCase();
-            return name.includes('đông') || name.includes('dong') || email.includes('dong') || user.includes('dong');
+          data.forEach(p => {
+            const isDong = (p.username === 'dongnh' || (p.email && p.email.includes('dong')) || (p.full_name && p.full_name.toLowerCase().includes('đông')));
+            const existingIdx = docs.findIndex(d => d.id === p.id || (p.username && d.username === p.username) || (p.email && d.email === p.email));
+            const docObj = {
+              id: p.id || 'doc_' + (p.username || Date.now()),
+              username: p.username || (p.email ? p.email.split('@')[0] : 'bs'),
+              full_name: p.full_name || 'Bác sĩ điều trị',
+              title: p.title || 'Bác sĩ điều trị',
+              department: p.department || 'Khoa Nhiễm',
+              hospital: p.hospital || 'BV ĐKKV Thủ Đức',
+              phone: p.phone || '',
+              role: isDong ? 'admin' : (p.role || 'doctor'),
+              storage_limit_mb: 100
+            };
+            if (existingIdx >= 0) {
+              docs[existingIdx] = { ...docs[existingIdx], ...docObj };
+            } else {
+              docs.push(docObj);
+            }
           });
-
-          if (dongProfile) {
-            defaultDoctor.id = dongProfile.id;
-            defaultDoctor.full_name = dongProfile.full_name || 'BS. Nguyễn Hữu Đông';
-            defaultDoctor.email = dongProfile.email || 'nguyenhuudongy18@gmail.com';
-            defaultDoctor.username = dongProfile.username || 'dongnh';
-            defaultDoctor.department = dongProfile.department || 'Khoa Nhiễm';
-            defaultDoctor.hospital = dongProfile.hospital || 'BV ĐKKV Thủ Đức';
-            defaultDoctor.title = dongProfile.title || 'Bác sĩ điều trị';
-            if (dongProfile.phone) defaultDoctor.phone = dongProfile.phone;
-          }
         }
       } catch (err) {
         console.warn('Lỗi lấy thông tin bác sĩ từ cloud:', err);
@@ -440,17 +452,21 @@ class SupabaseService {
     }
 
     try {
-      localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify([defaultDoctor]));
+      localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(docs));
     } catch (e) {}
 
-    return [defaultDoctor];
+    return docs;
   }
 
   // ================= PATIENT DATA OPERATIONS =================
 
-  async fetchPatients() {
+  async fetchPatients(targetDoctor = null) {
     this.isSyncing = true;
     this.notifyStateChange();
+
+    const activeDoc = targetDoctor || window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const isAdmin = window.authController?.isDongAdmin?.(activeDoc);
+    const viewingMode = window.patientController?.activeWorkspaceDoctorId || 'my_space';
 
     if (!this.isCloudEnabled || !this.client) {
       this.isSyncing = false;
@@ -479,7 +495,6 @@ class SupabaseService {
         localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(data));
         return data;
       } else {
-        // Nếu trên cloud chưa có dữ liệu, trả về cache local nếu có
         const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
         return local ? JSON.parse(local) : [];
       }

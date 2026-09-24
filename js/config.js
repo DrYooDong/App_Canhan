@@ -16,8 +16,12 @@ const CONFIG = {
     SUPABASE_CONFIG: 'medward_supabase_config_v2',
     HANDOVER_LOGS: 'medward_handover_logs_v2',
     DOCTOR_WORKSPACES: 'medward_doctor_workspaces_v2',
-    ACTIVE_WORKSPACE: 'medward_active_workspace_v2'
+    ACTIVE_WORKSPACE: 'medward_active_workspace_v2',
+    DOCTOR_SPACE_PREFIX: 'medward_doc_space_'
   },
+
+  // DUNG LƯỢNG LƯU TRỮ CHO MỖI TÀI KHOẢN / ID (100MB SAVE SLOT)
+  STORAGE_LIMIT_MB: 100,
 
   // CẤU HÌNH SUPABASE CLOUD CỐ ĐỊNH (PERMANENT REALTIME SYNC)
   DEFAULT_SUPABASE: {
@@ -34,7 +38,7 @@ const CONFIG = {
     subTitle: '(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)'
   },
 
-  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (BS. ĐÔNG LÀ QUẢN TRỊ VIÊN)
+  // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (BS. ĐÔNG LÀ QUẢN TRỊ VIÊN "admin")
   DEFAULT_DEMO_DOCTOR: {
     id: 'doc_dongnh',
     email: 'nguyenhuudongy18@gmail.com',
@@ -45,7 +49,8 @@ const CONFIG = {
     hospital: 'BV ĐKKV Thủ Đức',
     phone: '0988.765.432',
     role: 'admin',
-    pin: '123456'
+    pin: '123456',
+    storage_limit_mb: 100
   },
 
   DEFAULT_DOCTORS: [
@@ -59,7 +64,8 @@ const CONFIG = {
       hospital: 'BV ĐKKV Thủ Đức',
       phone: '0988.765.432',
       role: 'admin',
-      pin: '123456'
+      pin: '123456',
+      storage_limit_mb: 100
     }
   ],
 
