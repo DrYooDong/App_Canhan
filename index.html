@@ -287,12 +287,6 @@
       </div>
 
       <div class="mobile-brand-actions">
-        <!-- Nút Nạp Excel nhanh trên Mobile -->
-        <button class="mobile-btn-action mobile-btn-excel" onclick="document.getElementById('excelFileInput').click()" title="Nhập danh sách từ Excel (.xlsx, .xls)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-          <span class="mobile-action-label">Excel</span>
-        </button>
-
         <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
         <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()" title="Đổi chế độ xem (Thẻ / Bảng)">
           <span id="mobileViewModeIcon">📱</span>
@@ -335,7 +329,7 @@
       </div>
     </div>
 
-    <!-- Hộp tìm kiếm nhanh & Nút Nạp Excel trên Mobile -->
+    <!-- Hộp tìm kiếm nhanh & Cụm nút Nạp Excel / Sao lưu trên Mobile -->
     <div class="mobile-search-row">
       <div class="mobile-search-wrapper">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -345,6 +339,10 @@
       <button type="button" class="btn-mobile-excel" onclick="document.getElementById('excelFileInput').click()" title="Nhập danh sách từ Excel (.xlsx, .xls)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
         <span>Excel</span>
+      </button>
+      <button type="button" class="btn-mobile-excel btn-mobile-backup" onclick="window.patientController.openExportBackupModal()" title="Xuất file / Sao lưu chống mất dữ liệu">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>Lưu</span>
       </button>
     </div>
   </div>
@@ -452,7 +450,12 @@
 
       <button class="btn-compact btn-subtle" onclick="document.getElementById('excelFileInput').click()" data-tooltip="Nạp danh sách từ file Excel (.xlsx)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-        <span>Excel</span>
+        <span>Nạp Excel</span>
+      </button>
+
+      <button class="btn-compact btn-subtle btn-export-highlight" onclick="window.patientController.openExportBackupModal()" data-tooltip="Xuất file Excel (.xlsx) / CSV sao lưu dự phòng chống mất dữ liệu">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>Xuất File / Sao Lưu</span>
       </button>
 
       <button class="btn-compact btn-subtle" onclick="window.print()" data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế) (Ctrl+P)">
@@ -461,21 +464,13 @@
       </button>
 
       <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()" data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng (Ctrl+Shift+P)">
-        <span style="font-size: 13px;">👩‍⚕️</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
         <span>In Điều dưỡng</span>
       </button>
 
       <div class="toolbar-divider"></div>
 
-      <!-- NHÓM 3: THÔNG TIN BÁC SĨ ĐIỀU TRỊ -->
-      <div class="doctor-badge-toolbar" data-tooltip="Bác sĩ điều trị phụ trách">
-        <span class="doctor-badge-icon">🩺</span>
-        <span class="doctor-badge-name">BS. Nguyễn Hữu Đông</span>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- NHÓM 4: CÁC NÚT TIỆN ÍCH TINH GỌN (COMPACT GHOST ICONS) -->
+      <!-- NHÓM 3: CÁC NÚT TIỆN ÍCH TINH GỌN (COMPACT GHOST ICONS) -->
       <div class="utility-icon-group">
         <!-- Phím tắt lâm sàng -->
         <button class="btn-icon-minimal" id="btnShortcutsHelp" onclick="window.medWardApp.openShortcutsModal()" data-tooltip="Danh sách phím tắt lâm sàng (F1, Ctrl+N, Ctrl+P...)">
@@ -519,7 +514,7 @@
 
   <!-- 5. THANH TRẠNG THÁI -->
   <div class="status-bar no-print">
-    <span id="saveStatus" class="status-tag">🟢 Đang tải hệ thống...</span>
+    <span id="saveStatus" class="status-tag" style="display: none;">🟢 Đang tải hệ thống...</span>
     <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop & Điện thoại!</span>
   </div>
 
@@ -576,6 +571,9 @@
       <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
         📊 Nạp từ file Excel (.xlsx)
       </button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.openExportBackupModal()" style="background: #eff6ff; border-color: #bfdbfe; color: #1e40af; font-weight: 700;">
+        🛡️ Sao lưu / Xuất file
+      </button>
       <button type="button" class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
         ➕ Tiếp nhận người bệnh mới
       </button>
@@ -601,7 +599,7 @@
     <span class="nav-add-text">Thêm NB</span>
   </button>
   <button class="bottom-nav-item" data-tab="nurse_print" onclick="window.patientController.openNursePrintModal()">
-    <span style="font-size: 19px; line-height: 1;">👩‍⚕️</span>
+    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
     <span>Điều dưỡng</span>
   </button>
   <button class="bottom-nav-item" data-tab="workspace" onclick="window.authController.openAuthModal('workspace')">
@@ -624,17 +622,6 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="editPatientId">
-
-      <!-- BANNER NẠP NHANH TỪ FILE EXCEL -->
-      <div class="modal-excel-shortcut" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
-        <div style="font-size: 12px; color: #166534; font-weight: 600; display: flex; align-items: center; gap: 5px;">
-          <span>📊</span>
-          <span>Nạp nhanh danh sách từ file Excel (.xlsx)?</span>
-        </div>
-        <button type="button" class="btn btn-sm" onclick="document.getElementById('excelFileInput').click(); window.patientController.closePatientDetailModal();" style="background: #16a34a; color: white; border: none; font-weight: 700; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; white-space: nowrap; cursor: pointer;">
-          Chọn file Excel
-        </button>
-      </div>
 
       <div class="form-row">
         <div class="form-group">
@@ -1284,6 +1271,11 @@
             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
           </tr>
           <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>E</kbd></td>
+            <td><strong>Xuất File Excel (.xlsx) / CSV</strong> sao lưu dự phòng</td>
+            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+          </tr>
+          <tr>
             <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
             <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
@@ -1334,6 +1326,62 @@
       <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
         Đóng
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 9: XUẤT FILE & SAO LƯU DỰ PHÒNG CHỐNG MẤT DỮ LIỆU (.XLSX / .CSV) -->
+<div class="modal-overlay" id="exportBackupModal">
+  <div class="modal-card" style="max-width: 540px;">
+    <div class="bottom-sheet-drag-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">🛡️</span>
+        <span>Sao Lưu &amp; Xuất File Dự Phòng</span>
+      </div>
+      <button class="btn-close-modal" onclick="window.patientController.closeExportBackupModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;">
+        <div style="font-weight: 700; color: #166534; font-size: 13.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+          <span>🛡️</span>
+          <span>Bảo vệ &amp; Dự phòng dữ liệu an toàn</span>
+        </div>
+        <div style="font-size: 12px; color: #15803d; line-height: 1.5;">
+          Xuất toàn bộ danh sách người bệnh hiện tại thành file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong> để lưu trữ về máy tính / điện thoại. Nếu lỡ thao tác nhầm hoặc sự cố mạng, bạn có thể bấm <strong>"Nạp Excel"</strong> để khôi phục lại 100% dữ liệu ngay lập tức!
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: #334155; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span>Số người bệnh sẽ xuất: </span>
+          <strong id="exportBackupPatientCount" style="color: #1e3a8a; font-size: 14px;">0</strong> người bệnh
+        </div>
+        <div style="color: #64748b; font-size: 11px;">
+          Đầy đủ 12 cột lâm sàng
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Nút Xuất Excel -->
+        <button type="button" class="btn" onclick="window.patientController.exportToExcel(); window.patientController.closeExportBackupModal();" style="background: #16a34a; color: white; border: none; font-weight: 700; height: 44px; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2); cursor: pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+          <span>Tải file Excel (.xlsx) - Khuyên dùng</span>
+        </button>
+
+        <!-- Nút Xuất CSV -->
+        <button type="button" class="btn btn-secondary" onclick="window.patientController.exportToCSV(); window.patientController.closeExportBackupModal();" style="border: 1.5px solid #cbd5e1; font-weight: 700; height: 42px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: white; color: #1e293b; cursor: pointer;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Tải file CSV (.csv) - Chuẩn UTF-8 Tiếng Việt</span>
+        </button>
+      </div>
+
+      <div style="margin-top: 14px; font-size: 11.5px; color: #64748b; text-align: center;">
+        💡 <em>File tải về bao gồm Buồng/Giường, Họ tên, Năm sinh, Chẩn đoán, CLS Hiện có, CLS Cần làm, Y lệnh, Thêm thuốc, Tình trạng bàn giao...</em>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: flex-end;">
+      <button type="button" class="btn btn-secondary" onclick="window.patientController.closeExportBackupModal()">Đóng</button>
     </div>
   </div>
 </div>

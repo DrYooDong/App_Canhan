@@ -69,10 +69,10 @@ class MedWardApp {
         // Ctrl + F: Tìm kiếm nhanh bệnh nhân
         if (lowerKey === 'f') {
           e.preventDefault();
-          const searchInput = document.getElementById('patientSearchInput');
+          const searchInput = document.getElementById('searchInput') || document.getElementById('mobileSearchInput');
           if (searchInput) {
             searchInput.focus();
-            searchInput.select();
+            searchInput.select?.();
           }
           return;
         }
@@ -88,6 +88,13 @@ class MedWardApp {
         if (lowerKey === 'd') {
           e.preventDefault();
           window.patientController?.openNextDayModal?.();
+          return;
+        }
+
+        // Ctrl + E: Mở hộp thoại Xuất file Excel (.xlsx) / CSV sao lưu chống mất dữ liệu
+        if (lowerKey === 'e') {
+          e.preventDefault();
+          window.patientController?.openExportBackupModal?.();
           return;
         }
 
@@ -109,6 +116,7 @@ class MedWardApp {
     window.patientController?.closePatientDetailModal?.();
     window.patientController?.closeNextDayModal?.();
     window.patientController?.closeNursePrintModal?.();
+    window.patientController?.closeExportBackupModal?.();
     window.handoverController?.closeHandoverModal?.();
     window.handoverController?.closeHandoverDashboard?.();
     window.authController?.closeAuthModal?.();
@@ -163,16 +171,37 @@ class MedWardApp {
   }
 
   toggleViewMode() {
-    if (window.patientController && window.patientController.toggleMobileViewMode) {
-      window.patientController.toggleMobileViewMode();
+    // 1. Nếu là mobile (màn hình hẹp hoặc đã kích hoạt mobile view)
+    if (window.innerWidth <= 768) {
+      if (window.patientController && window.patientController.toggleMobileViewMode) {
+        window.patientController.toggleMobileViewMode();
+      }
       const isTable = document.body.classList.contains('mobile-view-table');
       const icon = document.getElementById('mobileViewModeIcon');
       const text = document.getElementById('mobileViewModeText');
       if (icon) icon.innerText = isTable ? '📋' : '📱';
       if (text) text.innerText = isTable ? 'Bảng' : 'Thẻ';
       if (window.showToast) {
-        window.showToast(isTable ? '📋 Đã chuyển sang chế độ Bảng' : '📱 Đã chuyển sang chế độ Thẻ');
+        window.showToast(isTable ? '📋 Chế độ xem: Bảng' : '📱 Chế độ xem: Thẻ');
       }
+      return;
+    }
+
+    // 2. Chế độ Desktop
+    const tableWrapper = document.getElementById('tableWrapper');
+    const cardsContainer = document.getElementById('mobileCardContainer');
+    if (!tableWrapper || !cardsContainer) return;
+
+    if (this.viewMode === 'cards') {
+      this.viewMode = 'table';
+      tableWrapper.style.display = 'block';
+      cardsContainer.style.display = 'none';
+      window.showToast?.('💻 Chế độ xem: Bảng đầy đủ');
+    } else {
+      this.viewMode = 'cards';
+      tableWrapper.style.display = 'none';
+      cardsContainer.style.display = 'flex';
+      window.showToast?.('📱 Chế độ xem: Thẻ người bệnh');
     }
   }
 
@@ -308,24 +337,6 @@ class MedWardApp {
     window.addEventListener('beforeprint', () => {
       this.updatePrintDateNote();
     });
-  }
-
-  toggleViewMode() {
-    const tableWrapper = document.getElementById('tableWrapper');
-    const cardsContainer = document.getElementById('mobileCardContainer');
-    if (!tableWrapper || !cardsContainer) return;
-
-    if (this.viewMode === 'table') {
-      this.viewMode = 'cards';
-      tableWrapper.style.display = 'none';
-      cardsContainer.style.display = 'flex';
-      window.showToast?.('📱 Chế độ xem: Thẻ người bệnh');
-    } else {
-      this.viewMode = 'table';
-      tableWrapper.style.display = 'block';
-      cardsContainer.style.display = 'none';
-      window.showToast?.('💻 Chế độ xem: Bảng đầy đủ');
-    }
   }
 
   switchTab(tabName) {

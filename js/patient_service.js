@@ -1708,7 +1708,7 @@ class PatientController {
         <td class="col-actions no-print">
           <div class="action-btn-group">
             <button class="btn-table-action" data-tooltip="Copy qua Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
-              <span style="font-size: 11px;">📋</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
             <button class="btn-table-action" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -1745,6 +1745,9 @@ class PatientController {
             <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="font-weight: 700; background: #f0fdf4; border-color: #86efac; color: #166534;">
                 📊 Nhập từ file Excel (.xlsx)
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="window.patientController.openExportBackupModal()" style="font-weight: 700; background: #eff6ff; border-color: #bfdbfe; color: #1e40af;">
+                🛡️ Sao lưu / Xuất file
               </button>
               <button class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
                 ➕ Tiếp nhận người bệnh đầu tiên
@@ -1861,15 +1864,15 @@ class PatientController {
             <span>Bàn giao</span>
           </button>
           <button type="button" class="card-btn-action btn-zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
-            <span>📋</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>Zalo</span>
           </button>
           <button type="button" class="card-btn-action" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-            <span>✏️</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             <span>Chi tiết</span>
           </button>
           <button type="button" class="card-btn-action btn-danger" onclick="window.patientController.deletePatient('${p.id}')">
-            <span>🗑️</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             <span>Xóa</span>
           </button>
         </div>
@@ -2266,6 +2269,157 @@ class PatientController {
       navigator.clipboard.writeText(text.trim()).then(() => {
         if (window.showToast) window.showToast('📋 Đã sao chép y lệnh Điều dưỡng qua Zalo!');
       });
+    }
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG XUẤT FILE EXCEL (.XLSX) VÀ FILE .CSV DỰ PHÒNG CHỐNG MẤT DỮ LIỆU
+  // ==============================================================================
+  openExportBackupModal() {
+    const modal = document.getElementById('exportBackupModal');
+    if (!modal) return;
+    const countEl = document.getElementById('exportBackupPatientCount');
+    if (countEl) {
+      countEl.innerText = this.patientList ? this.patientList.length : 0;
+    }
+    modal.classList.add('active');
+  }
+
+  closeExportBackupModal() {
+    const modal = document.getElementById('exportBackupModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  getExportFilename(extension = 'xlsx') {
+    let dateStr = '';
+    const reportDateInput = document.getElementById('reportDate');
+    if (reportDateInput && reportDateInput.value) {
+      const parts = reportDateInput.value.split('-');
+      if (parts.length === 3) dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      else dateStr = reportDateInput.value.replace(/[\/\\]/g, '-');
+    } else {
+      const now = new Date();
+      dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+    }
+
+    const { doctor } = this.getEffectiveDoctor();
+    const docSlug = (doctor?.username || 'bacsi').replace(/[^a-zA-Z0-9_]/g, '');
+    return `DanhSachNguoiBenh_${docSlug}_${dateStr}.${extension}`;
+  }
+
+  getExportDataRows() {
+    this.patientList.forEach(p => this.normalizePatientClsAndOrders(p));
+    
+    return this.patientList.map((p, idx) => {
+      let trangThaiGiao = 'Bình thường';
+      if (p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) trangThaiGiao = '🚨 Nguy kịch (Báo động đỏ)';
+      else if (p.handover_status === CONFIG.HANDOVER_STATUS.PENDING) trangThaiGiao = '⏳ Cần bàn giao / Theo dõi sát';
+
+      return {
+        'STT': idx + 1,
+        'Buồng - Giường': p.phong_giuong || '',
+        'Họ và tên': p.ten || '',
+        'Năm sinh / Tuổi': p.nam_sinh_tuoi || '',
+        'Chẩn đoán': p.chan_doan || '',
+        'CLS Hiện có': p.cls_hien_co || p.cls || '',
+        'CLS Cần làm': p.cls_can_lam || '',
+        'Y lệnh điều trị': p.y_lenh || '',
+        'Thêm thuốc': p.them_thuoc || '',
+        'Trạng thái bàn giao': trangThaiGiao,
+        'Vấn đề tồn đọng': p.handover_issues || '',
+        'Xử trí / Cần làm tiếp': p.handover_actions || '',
+        'Bác sĩ điều trị': p.doctor_name || 'BS. Nguyễn Hữu Đông'
+      };
+    });
+  }
+
+  exportToExcel() {
+    if (!this.patientList || this.patientList.length === 0) {
+      if (window.showToast) window.showToast('⚠️ Danh sách hiện đang trống, chưa có người bệnh để xuất file!');
+      return;
+    }
+
+    const filename = this.getExportFilename('xlsx');
+    const rows = this.getExportDataRows();
+
+    try {
+      if (typeof XLSX !== 'undefined') {
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+
+        // Tự động căn chỉnh độ rộng cột thẩm mỹ
+        const colWidths = [
+          { wch: 6 },  // STT
+          { wch: 16 }, // Buồng - Giường
+          { wch: 25 }, // Họ và tên
+          { wch: 16 }, // Năm sinh / Tuổi
+          { wch: 38 }, // Chẩn đoán
+          { wch: 32 }, // CLS Hiện có
+          { wch: 24 }, // CLS Cần làm
+          { wch: 36 }, // Y lệnh điều trị
+          { wch: 22 }, // Thêm thuốc
+          { wch: 24 }, // Trạng thái bàn giao
+          { wch: 32 }, // Vấn đề tồn đọng
+          { wch: 32 }, // Xử trí / Cần làm tiếp
+          { wch: 22 }  // Bác sĩ điều trị
+        ];
+        worksheet['!cols'] = colWidths;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'DS_NguoiBenh');
+        XLSX.writeFile(workbook, filename);
+
+        if (window.showToast) {
+          window.showToast(`✓ Đã tải file sao lưu Excel: ${filename}`);
+        }
+      } else {
+        // Fallback sang CSV nếu thư viện XLSX chưa nạp kịp
+        this.exportToCSV();
+      }
+    } catch (err) {
+      console.error('Lỗi xuất Excel:', err);
+      // Fallback xuất CSV chống mất dữ liệu
+      this.exportToCSV();
+    }
+  }
+
+  exportToCSV() {
+    if (!this.patientList || this.patientList.length === 0) {
+      if (window.showToast) window.showToast('⚠️ Danh sách hiện đang trống, chưa có người bệnh để xuất file!');
+      return;
+    }
+
+    const filename = this.getExportFilename('csv');
+    const rows = this.getExportDataRows();
+    if (rows.length === 0) return;
+
+    const headers = Object.keys(rows[0]);
+    
+    // Định dạng CSV chuẩn với BOM (\uFEFF) để Excel mở hiển thị đúng tiếng Việt có dấu
+    let csvContent = '\uFEFF';
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\r\n';
+
+    rows.forEach(row => {
+      const line = headers.map(header => {
+        let val = row[header];
+        if (val === null || val === undefined) val = '';
+        val = String(val).replace(/"/g, '""');
+        return `"${val}"`;
+      }).join(',');
+      csvContent += line + '\r\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã tải file sao lưu CSV: ${filename}`);
     }
   }
 

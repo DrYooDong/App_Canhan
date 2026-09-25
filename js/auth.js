@@ -886,10 +886,16 @@ class AuthController {
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
           <!-- Nút Nạp Excel tiện lợi cho Bác sĩ trên di động & máy tính bảng -->
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" style="width: 100%; justify-content: center; font-weight: 700; height: 38px; background: #f0fdf4; border-color: #86efac; color: #166534; display: flex; align-items: center; gap: 6px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-            <span>Nhập danh sách người bệnh từ file Excel (.xlsx)</span>
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #f0fdf4; border-color: #86efac; color: #166534; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+              <span>Nạp Excel</span>
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="window.patientController.openExportBackupModal(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #eff6ff; border-color: #bfdbfe; color: #1e40af; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Xuất / Sao Lưu</span>
+            </button>
+          </div>
 
           <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
             🩺 Vào Bảng Theo Dõi &amp; Y Lệnh
