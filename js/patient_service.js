@@ -260,6 +260,11 @@ class PatientController {
 
     if (cleaned) {
       this.saveLocalCache();
+      if (window.supabaseService) {
+        window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+          console.warn('Lỗi đồng bộ chuẩn hóa dữ liệu lên Cloud:', err);
+        });
+      }
     }
 
     this.updateDoctorFilterDropdown();
@@ -467,43 +472,70 @@ class PatientController {
 
   // ==============================================================================
   // CHUẨN HÓA PHÒNG / GIƯỜNG NGẮN GỌN (VD: D1.14 - G03 -> D1.14-3, Phòng 14 Giường 3 -> 14-3)
+  // Lọc sạch toàn bộ các từ: "DỊCH VỤ", "NHIEMDV", "KHOA NHIỄM DỊCH VỤ", "DV", v.v.
   // ==============================================================================
   cleanRoomBedString(str) {
     if (!str) return '';
     let s = String(str).trim();
 
-    // 1. Loại bỏ tiền tố khoa như NHIEM, KHOA NHIEM, NHIEMCLY
-    s = s.replace(/^(?:KHOA\s*)?NHI[ỄE]M(?=CLY|\d|[A-Za-z])/i, '');
-    s = s.replace(/^\s*[-_]\s*/, '').trim();
+    // 1. Loại bỏ các tiền tố khoa, đơn vị, dịch vụ thường gặp trong file xuất bệnh viện (HIS):
+    // "KHOA NHIỄM DỊCH VỤ", "NHIEMDV", "NHIỄMDV", "NHIEM DV", "DỊCH VỤ", "DICH VU", "DV", "NHIEMCLY", "CLY", "NHIEM", "NHIỄM", "KHOA"
+    s = s.replace(/^(?:KHOA\s*)?NHI[ỄE]M[\s_.-]*(?:D[ỊI]CH[\s_.-]*V[ỤU]|DV|CLY)?[\s_.:\/-]*/i, '');
+    s = s.replace(/^(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU)[\s_.:\/-]*/i, '');
+    s = s.replace(/^DV(?:[\s_.:\/-]+|(?=[A-Za-z0-9]))/i, '');
+    s = s.replace(/^CLY[\s_.:\/-]*/i, '');
+    s = s.replace(/^KHOA[\s_.:\/-]*/i, '');
 
-    // 2. Định dạng chuẩn: Buồng/Phòng - Giường -> Phòng-Giường
-    // Khớp: D1.14 - G03, D1.14 - 3, Phòng 14 - Giường 03, P.14 - G.03, CLY13 - G01, 14-03
-    const match = s.match(/^(?:(?:Phòng|Buồng|P\.?)\s*)?([A-Za-z0-9.]+)\s*[-–—/]\s*(?:(?:Giường|G\.?)\s*)?([0-9A-Za-z]+)$/i);
+    // Lọc thêm nếu các từ "DỊCH VỤ", "DICH VU", "NHIEMDV", "NHIỄMDV", "DV" còn sót lại ở bất kỳ vị trí nào
+    s = s.replace(/\b(?:KHOA\s*)?NHI[ỄE]M[\s_.-]*(?:D[ỊI]CH[\s_.-]*V[ỤU]|DV|CLY)?\b/gi, ' ');
+    s = s.replace(/\b(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU)\b/gi, ' ');
+    s = s.replace(/\bDV\b/gi, ' ');
+
+    // Loại bỏ các tiền tố buồng / phòng
+    s = s.replace(/^(?:Phòng|Buồng|Phong|Buong|P\.?|B\.?)[\s.:_-]*/i, '');
+    s = s.replace(/^[\s_.:\/-]+/, '').replace(/[\s_.:\/-]+$/, '').trim();
+
+    if (!s) return '';
+
+    // 2. Chuẩn hóa dạng phòng có tiền tố D1.xx:
+    // Nếu có chữ thường d1.xx -> viết hoa D1.xx
+    s = s.replace(/^d1\./i, 'D1.');
+
+    // 3. Khớp dạng: Buồng/Phòng - Giường -> Phòng-Giường
+    // VD: D1.01 - G01, D1.01 - 01, D1.01 - 1, D1.01 Giường 02, D1.01 / G01, D1.01 / 01
+    const match = s.match(/^([A-Za-z0-9.]+)\s*[-–—/,\s]\s*(?:(?:Giường|G\.?)\s*)?([0-9A-Za-z]+)$/i);
     if (match) {
       let room = match[1].trim();
       let bed = match[2].trim();
+      // Bỏ tiền tố G ở giường (G03 -> 3, G1 -> 1)
+      bed = bed.replace(/^G0*([0-9]+)/i, '$1');
       // Bỏ số 0 đầu giường (03 -> 3, 01 -> 1)
       if (/^0+[1-9]\d*$/.test(bed)) {
         bed = bed.replace(/^0+/, '');
       }
-      bed = bed.replace(/^G0*([1-9]\d*)$/i, '$1');
       return `${room}-${bed}`;
     }
 
-    // 3. Khớp dạng dính liền: D1.14-G03 hoặc D1.14-03
+    // 4. Khớp dạng dính liền: D1.01-G03 hoặc D1.01-03 hoặc D1.01-3
     const match2 = s.match(/^([A-Za-z0-9.]+)-G?0*([0-9]+)$/i);
     if (match2) {
       return `${match2[1]}-${match2[2]}`;
     }
 
-    // 4. Chỉ có Giường: Giường 03 -> G3
+    // 5. Khớp dạng 3 phân đoạn chấm: D1.01.01 -> D1.01-1 (D1.01 là phòng, 01 là giường)
+    const matchDotBed = s.match(/^([A-Za-z0-9]+\.[0-9]+)\.G?0*([0-9]+)$/i);
+    if (matchDotBed) {
+      return `${matchDotBed[1]}-${matchDotBed[2]}`;
+    }
+
+    // 6. Chỉ có Giường: Giường 03 -> G3
     const match3 = s.match(/^(?:Giường|G\.?)\s*[-_]?\s*0*([0-9]+[A-Za-z]?)$/i);
     if (match3) {
       return `G${match3[1]}`;
     }
 
-    // 5. Chỉ có Phòng: Phòng 14 -> 14
-    const match4 = s.match(/^(?:Phòng|Buồng|P\.?)\s*([A-Za-z0-9.]+)$/i);
+    // 7. Chỉ có Phòng: D1.01, 14
+    const match4 = s.match(/^([A-Za-z0-9.]+)$/i);
     if (match4) {
       return match4[1];
     }
