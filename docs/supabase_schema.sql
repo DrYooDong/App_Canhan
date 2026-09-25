@@ -8,6 +8,7 @@
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text,
+  username text,
   full_name text not null default '',
   title text default 'Bác sĩ điều trị',
   department text default 'Khoa Nhiễm',
@@ -16,6 +17,10 @@ create table if not exists public.profiles (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Bổ sung cột username nếu bảng profiles đã tồn tại từ trước
+alter table public.profiles add column if not exists username text;
+create index if not exists idx_profiles_username on public.profiles(username);
 
 -- 2. BẢNG DANH SÁCH BỆNH NHÂN & Y LỆNH (PATIENTS)
 create table if not exists public.patients (

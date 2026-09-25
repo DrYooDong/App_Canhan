@@ -152,15 +152,37 @@ class PatientController {
         try {
           const cloudData = await window.supabaseService.fetchPatients();
           if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
-            const docId = doctor.id;
+            const docId = String(doctor.id || '').toLowerCase().trim();
+            const docUsername = String(doctor.username || '').toLowerCase().trim();
+            const docEmail = String(doctor.email || '').toLowerCase().trim();
             const docNameLower = (doctor.full_name || '').toLowerCase().trim();
+
+            const isDongTarget = docId === 'doc_dongnh' || 
+                                 docUsername === 'dongnh' || 
+                                 docEmail.includes('dong') || 
+                                 docNameLower.includes('đông') || 
+                                 docNameLower.includes('dong');
+
             const matched = cloudData.filter(p => {
-              const pDocId = p.doctor_id || p.handover_by_id || p.user_id;
+              const pDocId = String(p.doctor_id || '').toLowerCase().trim();
+              const pUserId = String(p.user_id || '').toLowerCase().trim();
+              const pHandoverId = String(p.handover_by_id || '').toLowerCase().trim();
               const pDocName = (p.doctor_name || p.handover_by || '').toLowerCase().trim();
-              if (docId === 'doc_dongnh' || (isAdmin && docId === 'doc_dongnh')) {
-                return pDocId === 'doc_dongnh' || pDocName.includes('đông') || pDocName.includes('dong');
+
+              if (isDongTarget) {
+                return pDocId === 'doc_dongnh' || 
+                       pDocId === docId ||
+                       pUserId === docId ||
+                       pDocName.includes('đông') || 
+                       pDocName.includes('dong') ||
+                       (!pDocName && !pDocId);
               }
-              return pDocId === docId || pDocName === docNameLower;
+
+              return pDocId === docId || 
+                     pUserId === docId || 
+                     pHandoverId === docId ||
+                     (docUsername && (pDocId === docUsername || pDocName.includes(docUsername))) ||
+                     (docNameLower && (pDocName === docNameLower || pDocName.includes(docNameLower)));
             });
             if (matched.length > 0) {
               data = matched;
@@ -518,7 +540,9 @@ class PatientController {
     this.patientList.forEach((p, i) => p.sort_order = i);
     this.saveLocalCache();
     if (syncCloud && window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList);
+      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+        console.warn('Lỗi đồng bộ sắp xếp lên cloud:', err);
+      });
     }
     this.render();
 
@@ -822,7 +846,9 @@ class PatientController {
       this.patientList[idx].handover_by = newDoc.trim();
       this.patientList[idx].updated_at = new Date().toISOString();
       this.saveLocalCache();
-      window.supabaseService.savePatient(this.patientList[idx]);
+      window.supabaseService.savePatient(this.patientList[idx]).catch(err => {
+        console.warn('Lỗi đồng bộ chuyển bác sĩ lên cloud:', err);
+      });
       this.updateDoctorFilterDropdown();
       this.render();
       if (window.showToast) {
@@ -1027,7 +1053,9 @@ class PatientController {
 
     // Đồng bộ lên Supabase Cloud
     if (window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList);
+      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+        console.warn('Lỗi đồng bộ ngày mới lên cloud:', err);
+      });
     }
 
     this.closeNextDayModal();
@@ -1083,12 +1111,13 @@ class PatientController {
     const myDocName = doctor.full_name || 'BS. Nguyễn Hữu Đông';
     const myDocId = doctor.id || 'doc_dongnh';
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const newPatient = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-      user_id: myDocId,
+      user_id: uuidRegex.test(myDocId) ? myDocId : null,
       doctor_id: myDocId,
       doctor_name: myDocName,
-      handover_by_id: myDocId,
+      handover_by_id: uuidRegex.test(myDocId) ? myDocId : null,
       handover_by: myDocName,
       phong_giuong: this.cleanRoomBedString(patientData.phong_giuong || 'D1.14-1'),
       ten: (patientData.ten || 'BỆNH NHÂN MỚI').trim(),
@@ -1130,12 +1159,13 @@ class PatientController {
     const myDoc = doctor.full_name || 'BS. Nguyễn Hữu Đông';
     const myDocId = doctor.id || 'doc_dongnh';
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const newP = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-      user_id: myDocId,
+      user_id: uuidRegex.test(myDocId) ? myDocId : null,
       doctor_id: myDocId,
       doctor_name: myDoc,
-      handover_by_id: myDocId,
+      handover_by_id: uuidRegex.test(myDocId) ? myDocId : null,
       handover_by: myDoc,
       phong_giuong: baseRoom,
       ten: 'BỆNH NHÂN MỚI',
@@ -1161,7 +1191,9 @@ class PatientController {
     }
 
     this.saveLocalCache();
-    window.supabaseService.syncBatchPatients(this.patientList);
+    window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+      console.warn('Lỗi đồng bộ thêm dòng lên cloud:', err);
+    });
     this.updateDoctorFilterDropdown();
     this.render();
   }

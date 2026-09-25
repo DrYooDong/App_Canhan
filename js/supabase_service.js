@@ -78,14 +78,16 @@ class SupabaseService {
       // Nếu đã lưu phiên người dùng
       const savedDoctor = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
       const email = savedDoctor?.email || 'nguyenhuudongy18@gmail.com';
-      const savedPin = localStorage.getItem('medward_doctor_pin') || '123456';
+      const savedPin = localStorage.getItem('medward_doctor_pin') || savedDoctor?.pin;
 
-      const { data, error } = await this.client.auth.signInWithPassword({
-        email: email,
-        password: savedPin
-      });
-      if (!error && data?.session) {
-        return data.session;
+      if (savedPin) {
+        const { data, error } = await this.client.auth.signInWithPassword({
+          email: email,
+          password: String(savedPin).trim()
+        });
+        if (!error && data?.session) {
+          return data.session;
+        }
       }
     } catch (e) {
       // Bỏ qua lỗi kết nối phiên để không gây nghẽn truy vấn dữ liệu
@@ -105,8 +107,10 @@ class SupabaseService {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SUPABASE_CONFIG, JSON.stringify(defaultConf));
         this.client = window.supabase.createClient(defaultConf.url, defaultConf.key);
         this.isCloudEnabled = true;
-        this.setupRealtimeSubscription();
-        this.notifyStateChange();
+        this.ensureSession().finally(() => {
+          this.setupRealtimeSubscription();
+          this.notifyStateChange();
+        });
         return { success: true, message: 'Đã khôi phục về cấu hình Supabase Cloud mặc định' };
       }
 
@@ -132,8 +136,10 @@ class SupabaseService {
       }));
       this.client = client;
       this.isCloudEnabled = true;
-      this.setupRealtimeSubscription();
-      this.notifyStateChange();
+      this.ensureSession().finally(() => {
+        this.setupRealtimeSubscription();
+        this.notifyStateChange();
+      });
       return { success: true, message: 'Kết nối Supabase Cloud thành công!' };
     } catch (e) {
       return { success: false, message: 'Lỗi thiết lập Supabase: ' + e.message };
@@ -181,8 +187,8 @@ class SupabaseService {
   }
 
   notifyRealtimeSubscribers(payload) {
-    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 4 giây, bỏ qua để tránh phản xạ lặp (echo loop)
-    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 4000)) {
+    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 3.5 giây, bỏ qua để tránh phản xạ lặp (echo loop)
+    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 3500)) {
       return;
     }
 
@@ -201,18 +207,25 @@ class SupabaseService {
 
     try {
       this.realtimeChannel = this.client
-        .channel('public:patients')
+        .channel('public:medward_realtime')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'patients' },
           (payload) => {
-            // Kiểm tra xem sự kiện có bắt nguồn từ lượt lưu của chính thiết bị này không
-            if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 4000)) {
-              return;
-            }
             this.lastSyncedAt = new Date();
             this.notifyStateChange();
             this.notifyRealtimeSubscribers(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'department_settings' },
+          (payload) => {
+            this.lastSyncedAt = new Date();
+            this.notifyStateChange();
+            if (window.loadHospitalMetadata) {
+              window.loadHospitalMetadata();
+            }
           }
         )
         .subscribe((status) => {
@@ -289,6 +302,7 @@ class SupabaseService {
         await this.client.from('profiles').upsert({
           id: data.user.id,
           email: data.user.email,
+          username: cleanUsername,
           full_name: doctorData.full_name || '',
           title: doctorData.title || 'Bác sĩ điều trị',
           department: doctorData.department || 'Khoa Nhiễm',
@@ -597,6 +611,18 @@ class SupabaseService {
     // Đảm bảo sort_order là số
     if (typeof out.sort_order !== 'number' || isNaN(out.sort_order)) {
       out.sort_order = 0;
+    }
+
+    // Đảm bảo các trường uuid chỉ giữ giá trị khi đúng chuẩn UUID RFC4122 (tránh lỗi Postgres: 22P02 invalid input syntax for type uuid)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (out.id && !uuidRegex.test(out.id)) {
+      out.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+    }
+    if (out.user_id && !uuidRegex.test(out.user_id)) {
+      delete out.user_id;
+    }
+    if (out.handover_by_id && !uuidRegex.test(out.handover_by_id)) {
+      delete out.handover_by_id;
     }
 
     return out;

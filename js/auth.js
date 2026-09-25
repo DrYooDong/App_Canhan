@@ -79,6 +79,20 @@ class AuthController {
 
     this.knownDoctors = list;
     this.saveKnownDoctors();
+
+    // Đồng bộ thêm danh sách bác sĩ từ Supabase Cloud profiles nếu có mạng
+    if (window.supabaseService && window.supabaseService.isCloudEnabled) {
+      window.supabaseService.fetchDepartmentDoctors().then(cloudDocs => {
+        if (cloudDocs && cloudDocs.length > 0) {
+          this.knownDoctors = cloudDocs;
+          this.saveKnownDoctors();
+          if (window.patientController?.updateDoctorFilterDropdown) {
+            window.patientController.updateDoctorFilterDropdown();
+          }
+        }
+      }).catch(() => {});
+    }
+
     return this.knownDoctors;
   }
 
