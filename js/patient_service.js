@@ -174,6 +174,12 @@ class PatientController {
 
       if (!data) {
         data = this.loadDoctorPatients(doctor.id);
+        // Nếu có danh sách trong bộ nhớ máy (như vừa nạp file Excel) mà Cloud chưa có, tự động đồng bộ ngay lên Supabase
+        if (window.supabaseService && window.supabaseService.isCloudEnabled && Array.isArray(data) && data.length > 0) {
+          setTimeout(() => {
+            window.supabaseService.syncBatchPatients(data);
+          }, 400);
+        }
       }
     }
 

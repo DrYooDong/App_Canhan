@@ -1089,9 +1089,15 @@ class AuthController {
     const res = window.supabaseService?.configure?.(url, key);
     if (res?.success) {
       this.showMsg(msgEl, res.message, 'success');
-      setTimeout(() => {
+      setTimeout(async () => {
         this.closeCloudSettingsModal();
         if (window.patientController) {
+          if (window.patientController.patientList && window.patientController.patientList.length > 0) {
+            await window.supabaseService?.syncBatchPatients?.(window.patientController.patientList);
+            if (window.showToast) {
+              window.showToast(`✓ Đã đồng bộ ${window.patientController.patientList.length} người bệnh lên Supabase Cloud mới!`);
+            }
+          }
           window.patientController.reloadFromSource();
         }
       }, 1000);

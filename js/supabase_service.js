@@ -26,8 +26,8 @@ class SupabaseService {
       } catch (err) {}
     }
 
-    // Nếu trong LocalStorage chưa có hoặc rỗng, tự động lấy cấu hình cố định mặc định
-    if (!conf || !conf.url || !conf.key) {
+    // Tự động chuyển đổi nếu chưa có cấu hình hoặc đang lưu cấu hình của project cũ
+    if (!conf || !conf.url || !conf.key || conf.url.includes('iqkrdzeymxdrqdvfjnyt')) {
       if (CONFIG.DEFAULT_SUPABASE?.URL && CONFIG.DEFAULT_SUPABASE?.KEY) {
         conf = {
           url: CONFIG.DEFAULT_SUPABASE.URL,

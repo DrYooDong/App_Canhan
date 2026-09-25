@@ -25,8 +25,8 @@ const CONFIG = {
 
   // CẤU HÌNH SUPABASE CLOUD CỐ ĐỊNH (PERMANENT REALTIME SYNC)
   DEFAULT_SUPABASE: {
-    URL: 'https://iqkrdzeymxdrqdvfjnyt.supabase.co',
-    KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxa3JkemV5bXhkcnFkdmZqbnl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5OTU3MjgsImV4cCI6MjEwNTU3MTcyOH0.POFtPFoT3fUN7ZeDHOFbBPvo19gSzEQvmij5G9o8eos'
+    URL: 'https://vowgqkxlhsienxcgkrnd.supabase.co',
+    KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvd2dxa3hsaHNpZW54Y2drcm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDcyMjcsImV4cCI6MjEwNTg4MzIyN30.508ijUnafRo_dC1PDKMitVl_yvFApaprgucf9hMgJUw'
   },
 
   // DEFAULT HOSPITAL META
