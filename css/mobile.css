@@ -143,6 +143,12 @@
     transform: scale(0.97);
   }
 
+  .mobile-action-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
   .mobile-btn-lock {
     width: 34px;
     height: 34px;

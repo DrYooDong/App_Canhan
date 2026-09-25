@@ -146,6 +146,11 @@ body {
   border-color: var(--border-dark);
   color: var(--text-main);
 }
+.cloud-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
 .cloud-status-dot {
   width: 7px;
   height: 7px;
@@ -1307,18 +1312,33 @@ textarea.form-control {
 }
 .ho-stat-card {
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px;
   text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ho-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 .ho-stat-card.crit {
   border-color: var(--critical-border);
   background: var(--critical-bg);
   color: var(--critical-text);
 }
-.stat-number { font-size: 22px; font-weight: 800; }
-.stat-title { font-size: 11.5px; font-weight: 600; }
+.ho-stat-card.pend {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+}
+.ho-stat-card.done {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #15803d;
+}
+.stat-number, .ho-stat-num { font-size: 22px; font-weight: 800; }
+.stat-title, .ho-stat-label { font-size: 11.5px; font-weight: 600; }
 
 .ho-summary-card {
   background: #ffffff;
@@ -1367,6 +1387,12 @@ textarea.form-control {
   align-items: center;
   margin-bottom: 6px;
 }
+.ho-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .badge-bed {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
@@ -1396,6 +1422,7 @@ textarea.form-control {
 .ho-issue-row { margin-bottom: 4px; }
 .ho-label { font-weight: 700; display: inline-block; min-width: 120px; color: var(--text-main); }
 .ho-label.red { color: var(--critical-text); }
+.ho-label.green { color: #166534; }
 
 .ho-card-bottom {
   display: flex;
@@ -1405,6 +1432,11 @@ textarea.form-control {
   color: var(--text-muted);
   border-top: 1px dashed var(--border);
   padding-top: 6px;
+}
+.ho-action-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 /* ==============================================================================
@@ -1432,6 +1464,12 @@ textarea.form-control {
   background: var(--primary);
   color: #ffffff;
   border-color: var(--primary);
+}
+.abbr-table-wrapper {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 .abbr-table {
   width: 100%;
@@ -1960,12 +1998,27 @@ textarea.form-control {
   line-height: 1.3;
   display: block;
 }
+.date-picker-input {
+  width: 140px;
+  font-weight: 700;
+  text-align: center;
+}
 .next-day-patient-list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
   padding: 0 4px;
+}
+.list-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.list-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 .next-day-patient-table-wrap {
   max-height: 280px;
@@ -2122,6 +2175,10 @@ textarea.form-control {
   color: var(--text-muted);
   margin-top: 1px;
 }
+.gate-sub-view {
+  display: flex;
+  flex-direction: column;
+}
 .login-doctor-preview {
   display: flex;
   align-items: center;
@@ -2145,6 +2202,12 @@ textarea.form-control {
   font-weight: 800;
   flex-shrink: 0;
   box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+}
+.login-doc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 .login-doc-name {
   font-size: 15px;
@@ -2219,6 +2282,91 @@ textarea.form-control {
   margin-top: 14px;
   text-align: center;
   padding: 0 10px;
+}
+.gate-unlock-panel {
+  padding: 0 16px 14px;
+}
+.gate-switch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 16px 16px;
+  flex-wrap: wrap;
+}
+.btn-gate-link {
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+.btn-gate-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.btn-gate-link.primary-link {
+  color: var(--primary);
+  font-weight: 700;
+}
+.gate-link-sep {
+  color: var(--border-dark);
+  font-size: 12px;
+  user-select: none;
+}
+.gate-quick-doctors-wrap {
+  padding: 0 20px 14px;
+}
+.gate-sub-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+.gate-doc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gate-doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  transition: all 0.15s ease;
+}
+.gate-doc-chip:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+.gate-doc-chip-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 /* ==============================================================================
@@ -2695,6 +2843,11 @@ body.app-locked .app-container {
   flex-wrap: wrap;
   gap: 10px;
 }
+.nurse-filter-toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .nurse-toggle-label {
   display: inline-flex;
   align-items: center;
@@ -2874,5 +3027,169 @@ body.app-locked .app-container {
   font-size: 13px;
   color: #0f172a;
 }
+
+/* ==============================================================================
+   MODAL CARD UTILITIES & HELPER SIZES
+   ============================================================================== */
+.modal-card.modal-xl {
+  max-width: 980px;
+  width: 95%;
+}
+.modal-card.modal-lg {
+  max-width: 620px;
+  width: 95%;
+}
+.modal-card.modal-md {
+  max-width: 520px;
+  width: 95%;
+}
+.modal-title-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.modal-footer-end {
+  justify-content: flex-end;
+}
+
+/* PROFILE PATTERN LOCK SETTING */
+.pattern-profile-setting {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* DOCTOR WORKSPACE STATUS & METRICS */
+.doctor-workspace-status-card {
+  margin-bottom: 16px;
+}
+.ws-stats-row {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+/* ==============================================================================
+   EXPORT / BACKUP MODAL STYLES (SAO LƯU DỰ PHÒNG DỮ LIỆU)
+   ============================================================================== */
+.modal-export-card {
+  max-width: 520px;
+  width: 95%;
+}
+.export-shield-banner {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.export-shield-header {
+  font-weight: 700;
+  color: #166534;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.export-shield-desc {
+  font-size: 12px;
+  color: #15803d;
+  line-height: 1.5;
+}
+.export-count-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.export-count-num {
+  color: #1e3a8a;
+  font-size: 14px;
+}
+.export-count-sub {
+  color: #64748b;
+  font-size: 11px;
+}
+.export-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.btn-export-excel {
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  height: 44px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-export-excel:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(22, 163, 74, 0.25);
+}
+.btn-export-csv {
+  background: #ffffff;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  font-weight: 700;
+  height: 42px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-export-csv:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.export-hint-note {
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* TABLE ROW & WORKSPACE UTILITIES */
+.patient-row {
+  transition: background-color 0.15s ease;
+}
+.empty-table-row td {
+  text-align: center;
+  padding: 30px 16px;
+  color: var(--text-muted);
+}
+.ws-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.ho-badge-room {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 
 

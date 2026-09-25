@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
@@ -13,7 +14,8 @@
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231e3a8a' width='100' height='100' rx='20'/><path d='M50 20v60M20 50h60' stroke='white' stroke-width='14' stroke-linecap='round'/></svg>">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231e3a8a' width='100' height='100' rx='20'/><path d='M50 20v60M20 50h60' stroke='white' stroke-width='14' stroke-linecap='round'/></svg>">
 
   <!-- Thư viện SheetJS đọc file Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -26,1377 +28,1668 @@
   <link rel="stylesheet" href="css/mobile.css">
   <link rel="stylesheet" href="css/print.css">
 </head>
+
 <body>
 
-<!-- MÀN HÌNH ĐĂNG NHẬP BẢO MẬT BẮT BUỘC KHI VÀO TRANG WEB -->
-<div id="loginGateOverlay" class="login-gate-overlay" style="display: none;">
-  <div class="login-gate-card">
-    <div class="login-gate-brand">
-      <div class="login-gate-badge">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-        </svg>
-      </div>
-      <div>
-        <div class="login-gate-hospital">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
-        <div class="login-gate-dept">KHOA NHIỄM • BẢNG THEO DÕI NỘI TRÚ</div>
-      </div>
-    </div>
-
-    <!-- VIEW 1: MỞ KHÓA TIẾP TỤC TÀI KHOẢN BÁC SĨ (MẶC ĐỊNH) -->
-    <div id="gateViewUnlock" class="gate-sub-view">
-      <div class="login-gate-banner">
-        <div class="login-gate-lock-icon">🔒</div>
-        <div>
-          <div class="login-gate-banner-title">Mở khóa tiếp tục phiên làm việc</div>
-          <div class="login-gate-banner-sub">Xác thực để truy cập bảng theo dõi người bệnh</div>
-        </div>
-      </div>
-
-      <!-- THẺ THÔNG TIN BÁC SĨ HIỆN TẠI -->
-      <div class="login-doctor-preview">
-        <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
-        <div class="login-doc-info">
-          <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
-          <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
-          <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> <span id="gateDocEmail">(nguyenhuudongy18@gmail.com)</span></div>
-        </div>
-      </div>
-
-      <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (WEB LAPTOP) HOẶC VẼ HÌNH 9 NÚT (DI ĐỘNG / TABLET) -->
-      <div class="gate-mode-selector">
-        <button type="button" class="gate-mode-btn" id="btnGateModePin" onclick="window.authController.switchGateMode('pin')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          <span>Mã PIN (Web Laptop)</span>
-        </button>
-        <button type="button" class="gate-mode-btn" id="btnGateModePattern" onclick="window.authController.switchGateMode('pattern')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="5" cy="5" r="2.5"/><circle cx="12" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/>
-            <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
-            <circle cx="5" cy="19" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/>
+  <!-- MÀN HÌNH ĐĂNG NHẬP BẢO MẬT BẮT BUỘC KHI VÀO TRANG WEB -->
+  <div id="loginGateOverlay" class="login-gate-overlay" style="display: none;">
+    <div class="login-gate-card">
+      <div class="login-gate-brand">
+        <div class="login-gate-badge">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
-          <span>9 Nút (Di động / Tablet)</span>
-        </button>
-      </div>
-
-      <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH CHO LAPTOP/PC) -->
-      <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
-        <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
-
-        <div class="form-group" style="margin-bottom: 12px;">
-          <label for="gatePinInput" style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span>Mã PIN / Mật khẩu số:</span>
-            <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
-          </label>
-          <div class="pin-input-wrapper">
-            <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-            <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1" title="Hiện/ẩn mã PIN">👁️</button>
-          </div>
         </div>
-
-        <button type="submit" class="btn btn-primary btn-gate-submit">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
-        </button>
-
-        <div style="text-align: center; margin-top: 10px;">
-          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
-            🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
-          </button>
-        </div>
-      </form>
-
-      <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK - MẶC ĐỊNH CHO DI ĐỘNG/TABLET) -->
-      <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
-        <div id="gatePatternStatus" class="gate-pattern-status">
-          Vẽ hình nối các điểm để mở khoá
-        </div>
-
-        <div class="pattern-lock-wrap" id="patternLockWrap">
-          <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
-        </div>
-
-        <div class="pattern-hint-box">
-          <span>💡 Gợi ý: Nối hình chữ <strong>L</strong> (1 ➔ 4 ➔ 7 ➔ 8 ➔ 9) hoặc chữ <strong>Z</strong></span>
-        </div>
-
-        <div class="pattern-action-row">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
-            🔄 Vẽ lại
-          </button>
-          <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.switchGateMode('pin')">
-            🔢 Nhập mã PIN (Bàn phím)
-          </button>
-        </div>
-      </div>
-
-      <!-- DÒNG HÀNH ĐỘNG CHUYỂN TÀI KHOẢN HOẶC ĐĂNG KÝ -->
-      <div class="gate-switch-actions">
-        <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
-          🔄 Đăng nhập tài khoản Bác sĩ khác
-        </button>
-        <span class="gate-link-sep">•</span>
-        <button type="button" class="btn-gate-link primary-link" onclick="window.authController.showGateView('register')">
-          ➕ Đăng ký tài khoản mới
-        </button>
-      </div>
-    </div>
-
-    <!-- VIEW 2: ĐĂNG NHẬP TÀI KHOẢN BÁC SĨ KHÁC -->
-    <div id="gateViewLogin" class="gate-sub-view" style="display: none;">
-      <div class="login-gate-banner">
-        <div class="login-gate-lock-icon">🔑</div>
         <div>
-          <div class="login-gate-banner-title">Đăng nhập tài khoản Bác sĩ</div>
-          <div class="login-gate-banner-sub">Chọn hoặc nhập thông tin tài khoản để vào ca trực</div>
+          <div class="login-gate-hospital">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
+          <div class="login-gate-dept">KHOA NHIỄM • BẢNG THEO DÕI NỘI TRÚ</div>
         </div>
       </div>
 
-      <!-- Danh sách bác sĩ đã lưu trên hệ thống để chọn nhanh -->
-      <div class="gate-quick-doctors-wrap">
-        <div class="gate-sub-label">Bác sĩ trong khoa:</div>
-        <div class="gate-doc-chips" id="gateDocChips">
-          <!-- Render bởi JS -->
-        </div>
-      </div>
-
-      <form id="gateOtherLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateOtherLogin();" style="padding: 0 16px 14px;">
-        <div id="gateOtherLoginMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
-
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập hoặc Email:</label>
-          <input type="text" id="gateOtherUser" class="form-control" placeholder="dongnh hoặc email..." autocapitalize="none" required>
-        </div>
-
-        <div class="form-group" style="margin-bottom: 12px;">
-          <label style="font-size: 12px; font-weight: 700; display: flex; justify-content: space-between;">
-            <span>Mật khẩu số (PIN):</span>
-            <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
-          </label>
-          <div class="pin-input-wrapper">
-            <input type="password" id="gateOtherPass" class="form-control" placeholder="Nhập PIN (chữ số)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-            <button type="button" class="btn-toggle-pin" onclick="window.authController.togglePinVisibility('gateOtherPass', this)" tabindex="-1">👁️</button>
+      <!-- VIEW 1: MỞ KHÓA TIẾP TỤC TÀI KHOẢN BÁC SĨ (MẶC ĐỊNH) -->
+      <div id="gateViewUnlock" class="gate-sub-view">
+        <div class="login-gate-banner">
+          <div class="login-gate-lock-icon">🔒</div>
+          <div>
+            <div class="login-gate-banner-title">Mở khóa tiếp tục phiên làm việc</div>
+            <div class="login-gate-banner-sub">Xác thực để truy cập bảng theo dõi người bệnh</div>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-gate-submit">
-          🔑 ĐĂNG NHẬP VÀO CA TRỰC
-        </button>
+        <!-- THẺ THÔNG TIN BÁC SĨ HIỆN TẠI -->
+        <div class="login-doctor-preview">
+          <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
+          <div class="login-doc-info">
+            <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
+            <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
+            <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> <span
+                id="gateDocEmail">(nguyenhuudongy18@gmail.com)</span></div>
+          </div>
+        </div>
 
-        <div class="gate-switch-actions">
-          <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
-            ⬅️ Quay lại mở khóa
+        <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (WEB LAPTOP) HOẶC VẼ HÌNH 9 NÚT (DI ĐỘNG / TABLET) -->
+        <div class="gate-mode-selector">
+          <button type="button" class="gate-mode-btn" id="btnGateModePin"
+            onclick="window.authController.switchGateMode('pin')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Mã PIN (Web Laptop)</span>
           </button>
-          <span class="gate-link-sep">•</span>
-          <button type="button" class="btn-gate-link primary-link" onclick="window.authController.showGateView('register')">
-            ➕ Đăng ký Bác sĩ mới
+          <button type="button" class="gate-mode-btn" id="btnGateModePattern"
+            onclick="window.authController.switchGateMode('pattern')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="5" cy="5" r="2.5" />
+              <circle cx="12" cy="5" r="2.5" />
+              <circle cx="19" cy="5" r="2.5" />
+              <circle cx="5" cy="12" r="2.5" />
+              <circle cx="12" cy="12" r="2.5" />
+              <circle cx="19" cy="12" r="2.5" />
+              <circle cx="5" cy="19" r="2.5" />
+              <circle cx="12" cy="19" r="2.5" />
+              <circle cx="19" cy="19" r="2.5" />
+            </svg>
+            <span>9 Nút (Di động / Tablet)</span>
           </button>
         </div>
-      </form>
-    </div>
 
-    <!-- VIEW 3: ĐĂNG KÝ TÀI KHOẢN BÁC SĨ MỚI -->
-    <div id="gateViewRegister" class="gate-sub-view" style="display: none;">
-      <div class="login-gate-banner">
-        <div class="login-gate-lock-icon">📝</div>
-        <div>
-          <div class="login-gate-banner-title">Đăng ký tài khoản Bác sĩ mới</div>
-          <div class="login-gate-banner-sub">Tạo hồ sơ điều trị & không gian cá nhân trên MedWard Pro</div>
+        <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH CHO LAPTOP/PC) -->
+        <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();"
+          class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
+          <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="gatePinInput"
+              style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <span>Mã PIN / Mật khẩu số:</span>
+              <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);"></span>
+            </label>
+            <div class="pin-input-wrapper">
+              <input type="password" id="gatePinInput" class="form-control gate-pin-input" placeholder="Nhập mã PIN"
+                pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <button type="button" class="btn-toggle-pin"
+                onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1"
+                title="Hiện/ẩn mã PIN">👁️</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-gate-submit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
+          </button>
+
+          <div style="text-align: center; margin-top: 10px;">
+            <button type="button" class="btn btn-subtle btn-sm"
+              onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
+              🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
+            </button>
+          </div>
+        </form>
+
+        <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK - MẶC ĐỊNH CHO DI ĐỘNG/TABLET) -->
+        <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
+          <div id="gatePatternStatus" class="gate-pattern-status">
+            Vẽ hình nối các điểm để mở khoá
+          </div>
+
+          <div class="pattern-lock-wrap" id="patternLockWrap">
+            <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+          </div>
+
+          <div class="pattern-hint-box">
+            <span>💡 Gợi ý: Nối hình chữ</span>
+          </div>
+
+          <div class="pattern-action-row">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
+              🔄 Vẽ lại
+            </button>
+          </div>
         </div>
-      </div>
 
-      <form id="gateRegisterForm" onsubmit="event.preventDefault(); window.authController.handleGateRegister();" style="padding: 0 16px 14px;">
-        <div id="gateRegMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
-
-        <div class="form-group" style="margin-bottom: 8px;">
-          <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ <span style="color: var(--danger);">*</span>:</label>
-          <input type="text" id="regFullName" class="form-control" placeholder="VD: ThS.BS. Lê Văn Bình" required>
-        </div>
-
-        <div class="form-row" style="margin-bottom: 8px;">
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập <span style="color: var(--danger);">*</span>:</label>
-            <input type="text" id="regUsername" class="form-control" placeholder="VD: binhlv" autocapitalize="none" required>
-            <small style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Tự gợi ý khi gõ tên</small>
-          </div>
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Mã PIN số <span style="color: var(--danger);">*</span>:</label>
-            <input type="password" id="regPin" class="form-control" placeholder="VD: 123456" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-bottom: 8px;">
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Email:</label>
-            <input type="email" id="regEmail" class="form-control" placeholder="bacsi@gmail.com">
-          </div>
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
-            <input type="tel" id="regPhone" class="form-control" placeholder="0909...">
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-bottom: 12px;">
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
-            <input type="text" id="regDept" class="form-control" value="Khoa Nhiễm">
-          </div>
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
-            <input type="text" id="regTitle" class="form-control" value="Bác sĩ điều trị">
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-gate-submit">
-          ✨ HOÀN TẤT ĐĂNG KÝ &amp; VÀO LÀM VIỆC
-        </button>
-
+        <!-- DÒNG HÀNH ĐỘNG CHUYỂN TÀI KHOẢN HOẶC ĐĂNG KÝ -->
         <div class="gate-switch-actions">
           <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
-            Đã có tài khoản? <strong>Đăng nhập</strong>
+            🔄 Đăng nhập tài khoản Bác sĩ khác
           </button>
           <span class="gate-link-sep">•</span>
-          <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
-            ⬅️ Quay lại mở khóa
+          <button type="button" class="btn-gate-link primary-link"
+            onclick="window.authController.showGateView('register')">
+            ➕ Đăng ký tài khoản mới
           </button>
         </div>
-      </form>
-    </div>
+      </div>
 
-    <div class="gate-security-note">
-      🛡️ Dữ liệu bảo mật y tế: Chỉ bác sĩ điều trị và nhân viên y tế mới được quyền truy cập.
+      <!-- VIEW 2: ĐĂNG NHẬP TÀI KHOẢN BÁC SĨ KHÁC -->
+      <div id="gateViewLogin" class="gate-sub-view" style="display: none;">
+        <div class="login-gate-banner">
+          <div class="login-gate-lock-icon">🔑</div>
+          <div>
+            <div class="login-gate-banner-title">Đăng nhập tài khoản Bác sĩ</div>
+            <div class="login-gate-banner-sub">Chọn hoặc nhập thông tin tài khoản để vào ca trực</div>
+          </div>
+        </div>
+
+        <!-- Danh sách bác sĩ đã lưu trên hệ thống để chọn nhanh -->
+        <div class="gate-quick-doctors-wrap">
+          <div class="gate-sub-label">Bác sĩ trong khoa:</div>
+          <div class="gate-doc-chips" id="gateDocChips">
+            <!-- Render bởi JS -->
+          </div>
+        </div>
+
+        <form id="gateOtherLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateOtherLogin();"
+          style="padding: 0 16px 14px;">
+          <div id="gateOtherLoginMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập hoặc Email:</label>
+            <input type="text" id="gateOtherUser" class="form-control" placeholder="dongnh hoặc email..."
+              autocapitalize="none" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; display: flex; justify-content: space-between;">
+              <span>Mật khẩu số (PIN):</span>
+              <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);"></span>
+            </label>
+            <div class="pin-input-wrapper">
+              <input type="password" id="gateOtherPass" class="form-control" placeholder="Nhập PIN (chữ số)"
+                pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+              <button type="button" class="btn-toggle-pin"
+                onclick="window.authController.togglePinVisibility('gateOtherPass', this)" tabindex="-1">👁️</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-gate-submit">
+            🔑 ĐĂNG NHẬP VÀO CA TRỰC
+          </button>
+
+          <div class="gate-switch-actions">
+            <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
+              ⬅️ Quay lại mở khóa
+            </button>
+            <span class="gate-link-sep">•</span>
+            <button type="button" class="btn-gate-link primary-link"
+              onclick="window.authController.showGateView('register')">
+              ➕ Đăng ký Bác sĩ mới
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- VIEW 3: ĐĂNG KÝ TÀI KHOẢN BÁC SĨ MỚI -->
+      <div id="gateViewRegister" class="gate-sub-view" style="display: none;">
+        <div class="login-gate-banner">
+          <div class="login-gate-lock-icon">📝</div>
+          <div>
+            <div class="login-gate-banner-title">Đăng ký tài khoản Bác sĩ mới</div>
+            <div class="login-gate-banner-sub">Tạo hồ sơ điều trị & không gian cá nhân trên MedWard Pro</div>
+          </div>
+        </div>
+
+        <form id="gateRegisterForm" onsubmit="event.preventDefault(); window.authController.handleGateRegister();"
+          style="padding: 0 16px 14px;">
+          <div id="gateRegMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
+
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ <span
+                style="color: var(--danger);">*</span>:</label>
+            <input type="text" id="regFullName" class="form-control" placeholder="VD: ThS.BS. Lê Văn Bình" required>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 8px;">
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập <span
+                  style="color: var(--danger);">*</span>:</label>
+              <input type="text" id="regUsername" class="form-control" placeholder="VD: binhlv" autocapitalize="none"
+                required>
+              <small style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Tự gợi ý
+                khi
+                gõ tên</small>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Mã PIN số <span
+                  style="color: var(--danger);">*</span>:</label>
+              <input type="password" id="regPin" class="form-control" placeholder="Nhập PIN" pattern="[0-9]*"
+                inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 8px;">
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Email:</label>
+              <input type="email" id="regEmail" class="form-control" placeholder="bacsi@gmail.com">
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
+              <input type="tel" id="regPhone" class="form-control" placeholder="0909...">
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 12px;">
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
+              <input type="text" id="regDept" class="form-control" value="Khoa Nhiễm">
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
+              <input type="text" id="regTitle" class="form-control" value="Bác sĩ điều trị">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-gate-submit">
+            ✨ HOÀN TẤT ĐĂNG KÝ &amp; VÀO LÀM VIỆC
+          </button>
+
+          <div class="gate-switch-actions">
+            <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
+              Đã có tài khoản? <strong>Đăng nhập</strong>
+            </button>
+            <span class="gate-link-sep">•</span>
+            <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('unlock')">
+              ⬅️ Quay lại mở khóa
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="gate-security-note">
+        🛡️ Dữ liệu bảo mật y tế: Chỉ bác sĩ điều trị và nhân viên y tế mới được quyền truy cập.
+      </div>
     </div>
   </div>
-</div>
 
-<div class="app-container">
+  <div class="app-container">
 
-  <!-- THANH ĐIỀU HƯỚNG & TRẠNG THÁI LÂM SÀNG DÀNH RIÊNG CHO THIẾT BỊ DI ĐỘNG (MOBILE) -->
-  <div class="mobile-clinical-header no-print">
-    <div class="mobile-brand-row">
-      <div class="mobile-brand-left">
-        <div class="app-logo-badge mobile-logo">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    <!-- THANH ĐIỀU HƯỚNG & TRẠNG THÁI LÂM SÀNG DÀNH RIÊNG CHO THIẾT BỊ DI ĐỘNG (MOBILE) -->
+    <div class="mobile-clinical-header no-print">
+      <div class="mobile-brand-row">
+        <div class="mobile-brand-left">
+          <div class="app-logo-badge mobile-logo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </div>
+          <div class="mobile-brand-text">
+            <span class="mobile-brand-name">MedWard Pro</span>
+            <span class="mobile-brand-dept">Khoa Nhiễm</span>
+          </div>
+        </div>
+
+        <div class="mobile-brand-actions">
+          <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
+          <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()"
+            title="Đổi chế độ xem (Thẻ / Bảng)">
+            <span id="mobileViewModeIcon">📱</span>
+            <span class="mobile-action-label" id="mobileViewModeText">Thẻ</span>
+          </button>
+
+          <!-- Pill Bác sĩ di động -->
+          <button class="mobile-doc-pill" onclick="window.authController.openAuthModal('workspace')"
+            title="Không gian Bác sĩ">
+            <div class="mobile-doc-avatar" id="mobileDocAvatar">HĐ</div>
+            <span class="mobile-doc-name" id="mobileDocName">BS. Đông</span>
+          </button>
+
+          <!-- Khóa bảng -->
+          <button class="mobile-btn-action mobile-btn-lock" onclick="window.authController.handleLogout()"
+            title="Khóa bảng & Đăng xuất">
+            🔒
+          </button>
+        </div>
+      </div>
+
+      <!-- Thanh tóm tắt nhanh số liệu đi buồng lâm sàng trên Mobile -->
+      <div class="mobile-ward-summary">
+        <button type="button" class="mobile-summary-item mobile-date-chip"
+          onclick="window.medWardApp.openCalendarPicker()" title="Nhấn để đổi ngày">
+          📅 <span id="mobileSummaryDate">--/--/----</span>
+        </button>
+        <div class="mobile-summary-item">
+          👥 <span id="mobileSummaryTotal">0</span> NB
+        </div>
+        <div class="mobile-summary-item item-critical">
+          🚨 <span id="mobileSummaryCritical">0</span> Nặng
+        </div>
+        <div class="mobile-summary-item item-pending">
+          ⏳ <span id="mobileSummaryPending">0</span> Bàn giao
+        </div>
+      </div>
+
+      <!-- Thanh lọc nhanh lướt ngang theo Buồng & Trạng thái bệnh (Touch-friendly horizontal scroll) -->
+      <div class="mobile-filter-bar">
+        <div class="mobile-filter-chips" id="mobileFilterChips">
+          <!-- Sinh động bởi JavaScript: Tất cả, Báo động đỏ, Cần bàn giao, D1.14, D1.15... -->
+        </div>
+      </div>
+
+      <!-- Hộp tìm kiếm nhanh & Cụm nút Nạp Excel / Sao lưu trên Mobile -->
+      <div class="mobile-search-row">
+        <div class="mobile-search-wrapper">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..."
+            oninput="window.patientController.handleMobileSearch(this.value)">
+          <button type="button" id="btnMobileClearSearch" class="btn-clear-search"
+            onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
+        </div>
+        <button type="button" class="btn-mobile-excel" onclick="document.getElementById('excelFileInput').click()"
+          title="Nhập danh sách từ Excel (.xlsx, .xls)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <polyline points="9 15 12 12 15 15"></polyline>
+          </svg>
+          <span>Excel</span>
+        </button>
+        <button type="button" class="btn-mobile-excel btn-mobile-backup"
+          onclick="window.patientController.openExportBackupModal()" title="Xuất file / Sao lưu chống mất dữ liệu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Lưu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. THANH TOP APP BAR: CLINICAL WORKSPACE & DOCTOR PROFILE -->
+    <header class="top-nav-bar no-print">
+      <div class="brand-section">
+        <div class="app-logo-badge">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
         </div>
-        <div class="mobile-brand-text">
-          <span class="mobile-brand-name">MedWard Pro</span>
-          <span class="mobile-brand-dept">Khoa Nhiễm</span>
+        <div class="app-brand-titles">
+          <span class="app-title-main">MedWard Pro</span>
+          <span class="app-title-sub">Bảng Nội Trú &amp; Bàn Giao Trực</span>
         </div>
       </div>
 
-      <div class="mobile-brand-actions">
-        <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
-        <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()" title="Đổi chế độ xem (Thẻ / Bảng)">
-          <span id="mobileViewModeIcon">📱</span>
-          <span class="mobile-action-label" id="mobileViewModeText">Thẻ</span>
+      <div class="user-quick-bar">
+        <!-- Nút Trạng thái Cloud Sync tinh gọn -->
+        <button class="btn-cloud-sync" id="cloudSyncIndicator" onclick="window.authController.openCloudSettingsModal()"
+          data-tooltip="Trạng thái Cloud (Nhấn để cấu hình)">
+          <span class="cloud-status-dot"></span>
+          <span class="cloud-text">Cloud</span>
         </button>
 
-        <!-- Pill Bác sĩ di động -->
-        <button class="mobile-doc-pill" onclick="window.authController.openAuthModal('workspace')" title="Không gian Bác sĩ">
-          <div class="mobile-doc-avatar" id="mobileDocAvatar">HĐ</div>
-          <span class="mobile-doc-name" id="mobileDocName">BS. Đông</span>
-        </button>
-
-        <!-- Khóa bảng -->
-        <button class="mobile-btn-action mobile-btn-lock" onclick="window.authController.handleLogout()" title="Khóa bảng & Đăng xuất">
-          🔒
-        </button>
-      </div>
-    </div>
-
-    <!-- Thanh tóm tắt nhanh số liệu đi buồng lâm sàng trên Mobile -->
-    <div class="mobile-ward-summary">
-      <button type="button" class="mobile-summary-item mobile-date-chip" onclick="window.medWardApp.openCalendarPicker()" title="Nhấn để đổi ngày">
-        📅 <span id="mobileSummaryDate">--/--/----</span>
-      </button>
-      <div class="mobile-summary-item">
-        👥 <span id="mobileSummaryTotal">0</span> NB
-      </div>
-      <div class="mobile-summary-item item-critical">
-        🚨 <span id="mobileSummaryCritical">0</span> Nặng
-      </div>
-      <div class="mobile-summary-item item-pending">
-        ⏳ <span id="mobileSummaryPending">0</span> Bàn giao
-      </div>
-    </div>
-
-    <!-- Thanh lọc nhanh lướt ngang theo Buồng & Trạng thái bệnh (Touch-friendly horizontal scroll) -->
-    <div class="mobile-filter-bar">
-      <div class="mobile-filter-chips" id="mobileFilterChips">
-        <!-- Sinh động bởi JavaScript: Tất cả, Báo động đỏ, Cần bàn giao, D1.14, D1.15... -->
-      </div>
-    </div>
-
-    <!-- Hộp tìm kiếm nhanh & Cụm nút Nạp Excel / Sao lưu trên Mobile -->
-    <div class="mobile-search-row">
-      <div class="mobile-search-wrapper">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..." oninput="window.patientController.handleMobileSearch(this.value)">
-        <button type="button" id="btnMobileClearSearch" class="btn-clear-search" onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
-      </div>
-      <button type="button" class="btn-mobile-excel" onclick="document.getElementById('excelFileInput').click()" title="Nhập danh sách từ Excel (.xlsx, .xls)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-        <span>Excel</span>
-      </button>
-      <button type="button" class="btn-mobile-excel btn-mobile-backup" onclick="window.patientController.openExportBackupModal()" title="Xuất file / Sao lưu chống mất dữ liệu">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        <span>Lưu</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- 1. THANH TOP APP BAR: CLINICAL WORKSPACE & DOCTOR PROFILE -->
-  <header class="top-nav-bar no-print">
-    <div class="brand-section">
-      <div class="app-logo-badge">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-        </svg>
-      </div>
-      <div class="app-brand-titles">
-        <span class="app-title-main">MedWard Pro</span>
-        <span class="app-title-sub">Bảng Nội Trú &amp; Bàn Giao Trực</span>
-      </div>
-    </div>
-
-    <div class="user-quick-bar">
-      <!-- Nút Trạng thái Cloud Sync tinh gọn -->
-      <button class="btn-cloud-sync" id="cloudSyncIndicator" onclick="window.authController.openCloudSettingsModal()" data-tooltip="Trạng thái Cloud (Nhấn để cấu hình)">
-        <span class="cloud-status-dot"></span>
-        <span class="cloud-text">Cloud</span>
-      </button>
-
-      <!-- Pill Không Gian Bác Sĩ (Hiển thị khi Bác sĩ đã đăng nhập) -->
-      <div class="doctor-workspace-header-pill" id="userProfileBadge" onclick="window.authController.openAuthModal('workspace')" data-tooltip="Không gian Bác sĩ (Nhấn để chuyển / quản lý)">
-        <div class="doc-avatar-circle" id="headerDocAvatar">HĐ</div>
-        <div class="doc-header-info">
-          <span class="doc-header-name" id="headerDocName">BS. Nguyễn Hữu Đông</span>
-          <span class="doc-header-role" id="headerDocRole">Bác sĩ điều trị</span>
+        <!-- Pill Không Gian Bác Sĩ (Hiển thị khi Bác sĩ đã đăng nhập) -->
+        <div class="doctor-workspace-header-pill" id="userProfileBadge"
+          onclick="window.authController.openAuthModal('workspace')"
+          data-tooltip="Không gian Bác sĩ (Nhấn để chuyển / quản lý)">
+          <div class="doc-avatar-circle" id="headerDocAvatar">HĐ</div>
+          <div class="doc-header-info">
+            <span class="doc-header-name" id="headerDocName">BS. Nguyễn Hữu Đông</span>
+            <span class="doc-header-role" id="headerDocRole">Bác sĩ điều trị</span>
+          </div>
+          <svg class="pill-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
-        <svg class="pill-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+
+        <!-- Nút Khóa Bảng & Đăng Xuất -->
+        <button class="btn-lock-board" id="btnLockBoard" onclick="window.authController.handleLogout()"
+          data-tooltip="Khóa bảng theo dõi &amp; Đăng xuất">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>Khóa</span>
+        </button>
+
+        <!-- Nút Đăng Nhập Bác Sĩ (Hiển thị khi chưa đăng nhập) -->
+        <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.showGateOverlay()"
+          style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Đăng nhập BS</span>
+        </button>
       </div>
+    </header>
 
-      <!-- Nút Khóa Bảng & Đăng Xuất -->
-      <button class="btn-lock-board" id="btnLockBoard" onclick="window.authController.handleLogout()" data-tooltip="Khóa bảng theo dõi &amp; Đăng xuất">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span>Khóa</span>
-      </button>
+    <!-- 2. TIÊU ĐỀ KHOA PHÒNG / BỆNH VIỆN -->
+    <div class="hospital-header">
+      <div class="hospital-info">
+        <div class="unit-name" contenteditable="true">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
+        <div class="hospital-title" contenteditable="true">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
+        <div class="dept-name" contenteditable="true">KHOA: NHIỄM</div>
+      </div>
+      <div class="main-title-box">
+        <div class="main-title" contenteditable="true">BẢNG THEO DÕI &amp; Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
+        <div class="sub-title" contenteditable="true">(Không gian điều trị riêng: BS. Nguyễn Hữu Đông • Khoa Nhiễm)
+        </div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-item">
+          <label>Ngày: </label>
+          <div class="date-wrapper">
+            <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10">
+            <input type="date" id="nativeDatePicker" tabindex="-1">
+            <button type="button" class="btn-calendar-trigger" onclick="window.medWardApp.openCalendarPicker()"
+              data-tooltip="Chọn ngày từ lịch">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="meta-item" id="workspaceMetaItem">
+          <label>Không gian: </label>
+          <span id="currentWorkspaceText" class="workspace-pill-tag">BS. Nguyễn Hữu Đông</span>
+        </div>
+        <div class="meta-item">
+          <span>Tổng số NB: <strong id="patientCount">0</strong></span>
+        </div>
+      </div>
+    </div>
 
-      <!-- Nút Đăng Nhập Bác Sĩ (Hiển thị khi chưa đăng nhập) -->
-      <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.showGateOverlay()" style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        <span>Đăng nhập BS</span>
-      </button>
-    </div>
-  </header>
+    <!-- 3. THANH ĐIỀU KHIỂN & CÔNG CỤ TINH GỌN (MINIMALIST COMPACT TOOLBAR) -->
+    <div class="toolbar no-print">
+      <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
 
-  <!-- 2. TIÊU ĐỀ KHOA PHÒNG / BỆNH VIỆN -->
-  <div class="hospital-header">
-    <div class="hospital-info">
-      <div class="unit-name" contenteditable="true">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
-      <div class="hospital-title" contenteditable="true">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
-      <div class="dept-name" contenteditable="true">KHOA: NHIỄM</div>
-    </div>
-    <div class="main-title-box">
-      <div class="main-title" contenteditable="true">BẢNG THEO DÕI &amp; Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
-      <div class="sub-title" contenteditable="true">(Không gian điều trị riêng: BS. Nguyễn Hữu Đông • Khoa Nhiễm)</div>
-    </div>
-    <div class="meta-box">
-      <div class="meta-item">
-        <label>Ngày: </label>
-        <div class="date-wrapper">
-          <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10">
-          <input type="date" id="nativeDatePicker" tabindex="-1">
-          <button type="button" class="btn-calendar-trigger" onclick="window.medWardApp.openCalendarPicker()" data-tooltip="Chọn ngày từ lịch">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      <div class="toolbar-actions">
+        <!-- NHÓM 1: NÚT HÀNH ĐỘNG CHÍNH (PRIMARY CTA) -->
+        <button class="btn-compact btn-primary" onclick="window.patientController.openAddPatientModal()"
+          data-tooltip="Thêm bệnh nhân mới &amp; Nhập liệu">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Thêm NB</span>
+        </button>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS) -->
+        <button class="btn-compact btn-subtle" id="btnNextDayRollover"
+          onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày điều trị tiếp theo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+          </svg>
+          <span>Ngày kế</span>
+        </button>
+
+        <button class="btn-compact btn-subtle btn-handover-highlight"
+          onclick="window.handoverController.openHandoverDashboard()"
+          data-tooltip="Biên bản bàn giao tua trực &amp; Xuất Zalo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            <line x1="12" y1="11" x2="12" y2="17"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Bàn giao</span>
+        </button>
+
+        <button class="btn-compact btn-subtle" onclick="document.getElementById('excelFileInput').click()"
+          data-tooltip="Nạp danh sách từ file Excel (.xlsx)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <polyline points="9 15 12 12 15 15"></polyline>
+          </svg>
+          <span>Nạp Excel</span>
+        </button>
+
+        <button class="btn-compact btn-subtle btn-export-highlight"
+          onclick="window.patientController.openExportBackupModal()"
+          data-tooltip="Xuất file Excel (.xlsx) / CSV sao lưu dự phòng chống mất dữ liệu">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Xuất File / Sao Lưu</span>
+        </button>
+
+        <button class="btn-compact btn-subtle" onclick="window.print()"
+          data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          <span>In A4</span>
+        </button>
+
+        <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()"
+          data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+            <line x1="12" y1="9" x2="12" y2="15"></line>
+            <line x1="9" y1="12" x2="15" y2="12"></line>
+          </svg>
+          <span>In ĐD</span>
+        </button>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- NHÓM 3: CÁC NÚT TIỆN ÍCH TINH GỌN (COMPACT GHOST ICONS) -->
+        <div class="utility-icon-group">
+          <!-- Phím tắt lâm sàng -->
+          <button class="btn-icon-minimal" id="btnShortcutsHelp" onclick="window.medWardApp.openShortcutsModal()"
+            data-tooltip="Danh sách phím tắt lâm sàng (F1, Ctrl+N, Ctrl+P...)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <line x1="6" y1="8" x2="6.01" y2="8"></line>
+              <line x1="10" y1="8" x2="10.01" y2="8"></line>
+              <line x1="14" y1="8" x2="14.01" y2="8"></line>
+              <line x1="18" y1="8" x2="18.01" y2="8"></line>
+              <line x1="6" y1="12" x2="6.01" y2="12"></line>
+              <line x1="18" y1="12" x2="18.01" y2="12"></line>
+              <line x1="8" y1="16" x2="16" y2="16"></line>
+            </svg>
+          </button>
+
+          <!-- Sắp xếp buồng giường -->
+          <button class="btn-icon-minimal" id="btnSortPatients" data-tooltip="Sắp xếp theo buồng &amp; giường">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <path d="M3 6h18M3 12h12M3 18h6"></path>
+            </svg>
+          </button>
+
+          <!-- Đổi chế độ xem (Bảng / Thẻ) -->
+          <button class="btn-icon-minimal" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()"
+            data-tooltip="Đổi chế độ xem (Bảng 💻 / Thẻ 📱)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+
+          <!-- Từ điển viết tắt Y khoa -->
+          <button class="btn-icon-minimal" onclick="window.medWardApp.openAbbreviationModal()"
+            data-tooltip="Từ điển viết tắt Y khoa">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </button>
+
+          <!-- Checkbox Gom buồng dạng Pill -->
+          <label class="toggle-pill-label" data-tooltip="Gom nhóm các giường cùng buồng">
+            <input type="checkbox" id="toggleRoomGroup" checked>
+            <span>Gom buồng</span>
+          </label>
+
+          <!-- Xóa danh sách -->
+          <button class="btn-icon-minimal btn-clear-minimal" onclick="window.patientController.clearAll()"
+            data-tooltip="Xóa danh sách">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
           </button>
         </div>
       </div>
-      <div class="meta-item" id="workspaceMetaItem">
-        <label>Không gian: </label>
-        <span id="currentWorkspaceText" class="workspace-pill-tag">BS. Nguyễn Hữu Đông</span>
-      </div>
-      <div class="meta-item">
-        <span>Tổng số NB: <strong id="patientCount">0</strong></span>
-      </div>
-    </div>
-  </div>
 
-  <!-- 3. THANH ĐIỀU KHIỂN & CÔNG CỤ TINH GỌN (MINIMALIST COMPACT TOOLBAR) -->
-  <div class="toolbar no-print">
-    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
-
-    <div class="toolbar-actions">
-      <!-- NHÓM 1: NÚT HÀNH ĐỘNG CHÍNH (PRIMARY CTA) -->
-      <button class="btn-compact btn-primary" onclick="window.patientController.openAddPatientModal()" data-tooltip="Thêm bệnh nhân mới &amp; Nhập liệu (Ctrl+N)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Thêm NB (Ctrl+N)</span>
-      </button>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS) -->
-      <button class="btn-compact btn-subtle" id="btnNextDayRollover" onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày điều trị tiếp theo (Ctrl+D)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
-        <span>Ngày kế</span>
-      </button>
-
-      <button class="btn-compact btn-subtle btn-handover-highlight" onclick="window.handoverController.openHandoverDashboard()" data-tooltip="Biên bản bàn giao tua trực &amp; Xuất Zalo (Ctrl+H)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-        <span>Bàn giao</span>
-      </button>
-
-      <button class="btn-compact btn-subtle" onclick="document.getElementById('excelFileInput').click()" data-tooltip="Nạp danh sách từ file Excel (.xlsx)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-        <span>Nạp Excel</span>
-      </button>
-
-      <button class="btn-compact btn-subtle btn-export-highlight" onclick="window.patientController.openExportBackupModal()" data-tooltip="Xuất file Excel (.xlsx) / CSV sao lưu dự phòng chống mất dữ liệu">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        <span>Xuất File / Sao Lưu</span>
-      </button>
-
-      <button class="btn-compact btn-subtle" onclick="window.print()" data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế) (Ctrl+P)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        <span>In A4 (Ctrl+P)</span>
-      </button>
-
-      <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()" data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng (Ctrl+Shift+P)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
-        <span>In Điều dưỡng</span>
-      </button>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- NHÓM 3: CÁC NÚT TIỆN ÍCH TINH GỌN (COMPACT GHOST ICONS) -->
-      <div class="utility-icon-group">
-        <!-- Phím tắt lâm sàng -->
-        <button class="btn-icon-minimal" id="btnShortcutsHelp" onclick="window.medWardApp.openShortcutsModal()" data-tooltip="Danh sách phím tắt lâm sàng (F1, Ctrl+N, Ctrl+P...)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="6" y1="12" x2="6.01" y2="12"></line><line x1="18" y1="12" x2="18.01" y2="12"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
-        </button>
-
-        <!-- Sắp xếp buồng giường -->
-        <button class="btn-icon-minimal" id="btnSortPatients" data-tooltip="Sắp xếp theo buồng &amp; giường">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line><path d="M3 6h18M3 12h12M3 18h6"></path></svg>
-        </button>
-
-        <!-- Đổi chế độ xem (Bảng / Thẻ) -->
-        <button class="btn-icon-minimal" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()" data-tooltip="Đổi chế độ xem (Bảng 💻 / Thẻ 📱)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        </button>
-
-        <!-- Từ điển viết tắt Y khoa -->
-        <button class="btn-icon-minimal" onclick="window.medWardApp.openAbbreviationModal()" data-tooltip="Từ điển viết tắt Y khoa">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-        </button>
-
-        <!-- Checkbox Gom buồng dạng Pill -->
-        <label class="toggle-pill-label" data-tooltip="Gom nhóm các giường cùng buồng">
-          <input type="checkbox" id="toggleRoomGroup" checked>
-          <span>Gom buồng</span>
-        </label>
-
-        <!-- Xóa danh sách -->
-        <button class="btn-icon-minimal btn-clear-minimal" onclick="window.patientController.clearAll()" data-tooltip="Xóa danh sách">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-        </button>
+      <!-- Ô TÌM KIẾM TINH GỌN -->
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Tìm người bệnh, buồng, CĐ...">
       </div>
     </div>
 
-    <!-- Ô TÌM KIẾM TINH GỌN -->
-    <div class="search-box">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="text" id="searchInput" placeholder="Tìm người bệnh, buồng, CĐ...">
+    <!-- 5. THANH TRẠNG THÁI -->
+    <div class="status-bar no-print">
+      <span id="saveStatus" class="status-tag" style="display: none;">🟢 Đang tải hệ thống...</span>
+      <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop
+        &
+        Điện thoại!</span>
     </div>
-  </div>
 
-  <!-- 5. THANH TRẠNG THÁI -->
-  <div class="status-bar no-print">
-    <span id="saveStatus" class="status-tag" style="display: none;">🟢 Đang tải hệ thống...</span>
-    <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop & Điện thoại!</span>
-  </div>
-
-  <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
-  <div class="print-date-note">
-    <span id="printDateDisplay">Ngày: 21/09/2026</span>
-  </div>
-
-  <!-- 6. CHẾ ĐỘ XEM 1: BẢNG DÀNH CHO DESKTOP / LAPTOP / IN ẤN -->
-  <div class="table-wrapper" id="tableWrapper">
-    <table class="med-table" id="patientTable">
-      <thead>
-        <tr>
-          <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
-          <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
-          <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span><span class="th-sub">Người bệnh</span></th>
-          <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span><span class="th-sub">Năm sinh</span></th>
-          <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN ĐOÁN</span><span class="th-sub">Xác định • Kèm theo</span></th>
-          <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span class="th-title">CẬN LÂM SÀNG</span><span class="th-sub">✓ Hiện có • ⚡ Cần làm</span></th>
-          <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
-          <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
-          <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
-        </tr>
-      </thead>
-      <tbody id="patientTableBody">
-        <!-- Render bởi JavaScript -->
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Khối chữ ký in A4 chuẩn y tế (Chỉ xuất hiện khi in) -->
-  <div class="print-signature-block">
-    <div class="print-sign-col">
-      <div class="print-sign-role">ĐIỀU DƯỠNG TRỰC</div>
-      <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
+    <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
+    <div class="print-date-note">
+      <span id="printDateDisplay">Ngày: 21/09/2026</span>
     </div>
-    <div class="print-sign-col">
-      <div class="print-sign-date" id="printSignatureDate">Ngày ..... tháng ..... năm 202...</div>
-      <div class="print-sign-role">BÁC SĨ ĐIỀU TRỊ / TRỰC</div>
-      <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
-      <div class="print-sign-name" id="printSignatureDoctorName"></div>
+
+    <!-- 6. CHẾ ĐỘ XEM 1: BẢNG DÀNH CHO DESKTOP / LAPTOP / IN ẤN -->
+    <div class="table-wrapper" id="tableWrapper">
+      <table class="med-table" id="patientTable">
+        <thead>
+          <tr>
+            <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
+            <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span
+                class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
+            <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp;
+                Tên</span><span class="th-sub">Người bệnh</span></th>
+            <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span><span
+                class="th-sub">Năm sinh</span></th>
+            <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN
+                ĐOÁN</span><span class="th-sub">Xác định • Kèm theo</span></th>
+            <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span
+                class="th-title">CẬN LÂM SÀNG</span><span class="th-sub">✓ Hiện có • ⚡ Cần làm</span></th>
+            <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y
+                LỆNH
+                ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
+            <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span
+                class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
+            <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
+          </tr>
+        </thead>
+        <tbody id="patientTableBody">
+          <!-- Render bởi JavaScript -->
+        </tbody>
+      </table>
     </div>
+
+    <!-- Khối chữ ký in A4 chuẩn y tế (Chỉ xuất hiện khi in) -->
+    <div class="print-signature-block">
+      <div class="print-sign-col">
+        <div class="print-sign-role">ĐIỀU DƯỠNG TRỰC</div>
+        <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
+      </div>
+      <div class="print-sign-col">
+        <div class="print-sign-date" id="printSignatureDate">Ngày ..... tháng ..... năm 202...</div>
+        <div class="print-sign-role">BÁC SĨ ĐIỀU TRỊ / TRỰC</div>
+        <div class="print-sign-hint">(Ký và ghi rõ họ tên)</div>
+        <div class="print-sign-name" id="printSignatureDoctorName"></div>
+      </div>
+    </div>
+
+    <!-- 7. CHẾ ĐỘ XEM 2: THẺ DÀNH CHO SMARTPHONE & THIẾT BỊ DI ĐỘNG -->
+    <div class="mobile-cards-view" id="mobileCardContainer">
+      <!-- Render danh sách thẻ người bệnh bởi JavaScript -->
+    </div>
+
+    <!-- Thông báo rỗng -->
+    <div id="emptyMessage" class="empty-state" style="display: none;">
+      <div>Chưa có người bệnh nào trong danh sách.</div>
+      <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary btn-sm"
+          onclick="document.getElementById('excelFileInput').click()"
+          style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
+          📊 Nạp từ file Excel (.xlsx)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm"
+          onclick="window.patientController.openExportBackupModal()"
+          style="background: #eff6ff; border-color: #bfdbfe; color: #1e40af; font-weight: 700;">
+          🛡️ Sao lưu / Xuất file
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()"
+          style="font-weight: 700;">
+          ➕ Tiếp nhận người bệnh mới
+        </button>
+      </div>
+    </div>
+
   </div>
 
-  <!-- 7. CHẾ ĐỘ XEM 2: THẺ DÀNH CHO SMARTPHONE & THIẾT BỊ DI ĐỘNG -->
-  <div class="mobile-cards-view" id="mobileCardContainer">
-    <!-- Render danh sách thẻ người bệnh bởi JavaScript -->
-  </div>
+  <!-- 8. BOTTOM NAVIGATION BAR (CỐ ĐỊNH TRÊN SMARTPHONE) -->
+  <nav class="bottom-nav-bar no-print">
+    <button class="bottom-nav-item active" data-tab="patients" onclick="window.patientController.scrollToTop()">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        <line x1="8" y1="11" x2="16" y2="11"></line>
+        <line x1="8" y1="15" x2="13" y2="15"></line>
+      </svg>
+      <span>Bệnh nhân</span>
+    </button>
+    <button class="bottom-nav-item" data-tab="handover_dash"
+      onclick="window.handoverController.openHandoverDashboard()">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        <line x1="12" y1="11" x2="12" y2="17"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <span>Bàn giao</span>
+    </button>
+    <button class="bottom-nav-item nav-item-add" onclick="window.patientController.openAddPatientModal()"
+      aria-label="Thêm người bệnh mới">
+      <div class="nav-add-badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+          stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </div>
+      <span class="nav-add-text">Thêm NB</span>
+    </button>
+    <button class="bottom-nav-item" data-tab="nurse_print" onclick="window.patientController.openNursePrintModal()">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+        <line x1="12" y1="9" x2="12" y2="15"></line>
+        <line x1="9" y1="12" x2="15" y2="12"></line>
+      </svg>
+      <span>Điều dưỡng</span>
+    </button>
+    <button class="bottom-nav-item" data-tab="workspace" onclick="window.authController.openAuthModal('workspace')">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      <span>Bác sĩ</span>
+    </button>
+  </nav>
 
-  <!-- Thông báo rỗng -->
-  <div id="emptyMessage" class="empty-state" style="display: none;">
-    <div>Chưa có người bệnh nào trong danh sách.</div>
-    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
-        📊 Nạp từ file Excel (.xlsx)
-      </button>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.openExportBackupModal()" style="background: #eff6ff; border-color: #bfdbfe; color: #1e40af; font-weight: 700;">
-        🛡️ Sao lưu / Xuất file
-      </button>
-      <button type="button" class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
-        ➕ Tiếp nhận người bệnh mới
-      </button>
-    </div>
-  </div>
-
-</div>
-
-<!-- 8. BOTTOM NAVIGATION BAR (CỐ ĐỊNH TRÊN SMARTPHONE) -->
-<nav class="bottom-nav-bar no-print">
-  <button class="bottom-nav-item active" data-tab="patients" onclick="window.patientController.scrollToTop()">
-    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="8" y1="11" x2="16" y2="11"></line><line x1="8" y1="15" x2="13" y2="15"></line></svg>
-    <span>Bệnh nhân</span>
-  </button>
-  <button class="bottom-nav-item" data-tab="handover_dash" onclick="window.handoverController.openHandoverDashboard()">
-    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-    <span>Bàn giao</span>
-  </button>
-  <button class="bottom-nav-item nav-item-add" onclick="window.patientController.openAddPatientModal()" aria-label="Thêm người bệnh mới">
-    <div class="nav-add-badge">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-    </div>
-    <span class="nav-add-text">Thêm NB</span>
-  </button>
-  <button class="bottom-nav-item" data-tab="nurse_print" onclick="window.patientController.openNursePrintModal()">
-    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
-    <span>Điều dưỡng</span>
-  </button>
-  <button class="bottom-nav-item" data-tab="workspace" onclick="window.authController.openAuthModal('workspace')">
-    <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-    <span>Bác sĩ</span>
-  </button>
-</nav>
-
-<!-- ==============================================================================
+  <!-- ==============================================================================
      MODALS
      ============================================================================== -->
 
-<!-- MODAL 1: CHI TIẾT & CHỈNH SỬA NGƯỜI BỆNH -->
-<div class="modal-overlay" id="patientDetailModal">
-  <div class="modal-card">
-    <div class="bottom-sheet-drag-handle"></div>
-    <div class="modal-header">
-      <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
-      <button class="btn-close-modal" onclick="window.patientController.closePatientDetailModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="editPatientId">
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Buồng - Giường (P/G):</label>
-          <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.14-3">
-        </div>
-        <div class="form-group">
-          <label>Năm sinh / Tuổi (NS):</label>
-          <input type="text" id="editAgeYear" class="form-control" placeholder="VD: 2003 (23)">
-        </div>
+  <!-- MODAL 1: CHI TIẾT & CHỈNH SỬA NGƯỜI BỆNH -->
+  <div class="modal-overlay" id="patientDetailModal">
+    <div class="modal-card">
+      <div class="bottom-sheet-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
+        <button class="btn-close-modal" onclick="window.patientController.closePatientDetailModal()">&times;</button>
       </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPatientId">
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Họ và tên người bệnh (Họ tên NB):</label>
-          <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA" style="font-weight: 700; text-transform: uppercase;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Buồng - Giường (P/G):</label>
+            <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.14-3">
+          </div>
+          <div class="form-group">
+            <label>Năm sinh / Tuổi (NS):</label>
+            <input type="text" id="editAgeYear" class="form-control" placeholder="VD: 2003 (23)">
+          </div>
         </div>
-        <div class="form-group">
-          <label>🩺 Bác sĩ điều trị / Phụ trách:</label>
-          <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. Nguyễn Hữu Đông">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Họ và tên người bệnh (Họ tên NB):</label>
+            <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA"
+              style="font-weight: 700; text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label>🩺 Bác sĩ điều trị / Phụ trách:</label>
+            <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. Nguyễn Hữu Đông">
+          </div>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label>Chẩn đoán (CĐ):</label>
-        <textarea id="editDiagnosis" class="form-control" rows="2" placeholder="Chẩn đoán xác định / kèm theo (gõ tắt: sxh, vp, dtd, tha, nkh...)"></textarea>
-        <div class="quick-tags-box" id="diagQuickTags"></div>
-      </div>
+        <div class="form-group">
+          <label>Chẩn đoán (CĐ):</label>
+          <textarea id="editDiagnosis" class="form-control" rows="2"
+            placeholder="Chẩn đoán xác định / kèm theo (gõ tắt: sxh, vp, dtd, tha, nkh...)"></textarea>
+          <div class="quick-tags-box" id="diagQuickTags"></div>
+        </div>
 
-      <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
-      <div class="form-row">
-        <div class="form-group" style="flex: 1;">
-          <label style="color: #0369a1; font-weight: 700; display: flex; align-items: center; gap: 4px;">
-            <span>🔬 CLS - HIỆN CÓ:</span>
-            <small style="font-weight: 400; color: var(--text-muted);">(KQ đã trả về)</small>
+        <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label style="color: #0369a1; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <span>🔬 CLS - HIỆN CÓ:</span>
+              <small style="font-weight: 400; color: var(--text-muted);">(KQ đã trả về)</small>
+            </label>
+            <textarea id="editClsHienCo" class="form-control" rows="2"
+              placeholder="Kết quả CLS hiện có (gõ tắt: ctm, shm, dgd, xq, sa...)"></textarea>
+            <div class="quick-tags-box" id="clsHienCoQuickTags"></div>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label style="color: #b45309; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <span>⚡ CLS - CẦN LÀM:</span>
+              <small style="font-weight: 400; color: #b45309;">(Chỉ định cho Điều dưỡng)</small>
+            </label>
+            <textarea id="editClsCanLam" class="form-control" rows="2"
+              placeholder="Xét nghiệm / CĐHA cần thực hiện (gõ tắt: ctm, shm, cm, xq...)"></textarea>
+            <div class="quick-tags-box" id="clsCanLamQuickTags"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
+          <textarea id="editOrders" class="form-control" rows="2"
+            placeholder="Thuốc, dịch truyền, chế độ theo dõi (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
+          <div class="quick-tags-box" id="ordersQuickTags"></div>
+        </div>
+
+        <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
+        <div class="form-group"
+          style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
+          <label style="color: #15803d; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng thực hiện):</span>
           </label>
-          <textarea id="editClsHienCo" class="form-control" rows="2" placeholder="Kết quả CLS hiện có (gõ tắt: ctm, shm, dgd, xq, sa...)"></textarea>
-          <div class="quick-tags-box" id="clsHienCoQuickTags"></div>
+          <textarea id="editThemThuoc" class="form-control" rows="2"
+            placeholder="Thuốc bổ sung trong ngày, thuốc hạ sốt, kháng sinh thêm, dịch truyền..."></textarea>
+          <div class="quick-tags-box" id="themThuocQuickTags"></div>
         </div>
-        <div class="form-group" style="flex: 1;">
-          <label style="color: #b45309; font-weight: 700; display: flex; align-items: center; gap: 4px;">
-            <span>⚡ CLS - CẦN LÀM:</span>
-            <small style="font-weight: 400; color: #b45309;">(Chỉ định cho Điều dưỡng)</small>
-          </label>
-          <textarea id="editClsCanLam" class="form-control" rows="2" placeholder="Xét nghiệm / CĐHA cần thực hiện (gõ tắt: ctm, shm, cm, xq...)"></textarea>
-          <div class="quick-tags-box" id="clsCanLamQuickTags"></div>
+
+        <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
+
+        <!-- MỤC BÀN GIAO TRỰC TRONG MODAL CHI TIẾT -->
+        <div class="form-group">
+          <label>🚨 Trạng thái bàn giao tua trực (BG):</label>
+          <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
+            <option value="none">🟢 Bình thường / Ổn định</option>
+            <option value="pending">⏳ Cần bàn giao / Vấn đề tồn đọng</option>
+            <option value="critical">🚨 Báo động đỏ / Bệnh nặng theo dõi sát</option>
+            <option value="resolved">✅ Đã xử trí xong</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>⚠️ Vấn đề lâm sàng tồn đọng / Chưa giải quyết xong:</label>
+          <textarea id="editHandoverIssues" class="form-control" rows="2"
+            placeholder="VD: Đang sốt 39.5°C chưa hạ; Chờ KQ cấy máu; HA dao động..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>🎯 Y lệnh & Hành động tua trực cần xử trí:</label>
+          <textarea id="editHandoverActions" class="form-control" rows="2"
+            placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
         </div>
       </div>
-
-      <div class="form-group">
-        <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
-        <textarea id="editOrders" class="form-control" rows="2" placeholder="Thuốc, dịch truyền, chế độ theo dõi (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
-        <div class="quick-tags-box" id="ordersQuickTags"></div>
-      </div>
-
-      <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
-      <div class="form-group" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
-        <label style="color: #15803d; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-          <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng thực hiện):</span>
-        </label>
-        <textarea id="editThemThuoc" class="form-control" rows="2" placeholder="Thuốc bổ sung trong ngày, thuốc hạ sốt, kháng sinh thêm, dịch truyền..."></textarea>
-        <div class="quick-tags-box" id="themThuocQuickTags"></div>
-      </div>
-
-      <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
-
-      <!-- MỤC BÀN GIAO TRỰC TRONG MODAL CHI TIẾT -->
-      <div class="form-group">
-        <label>🚨 Trạng thái bàn giao tua trực (BG):</label>
-        <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
-          <option value="none">🟢 Bình thường / Ổn định</option>
-          <option value="pending">⏳ Cần bàn giao / Vấn đề tồn đọng</option>
-          <option value="critical">🚨 Báo động đỏ / Bệnh nặng theo dõi sát</option>
-          <option value="resolved">✅ Đã xử trí xong</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>⚠️ Vấn đề lâm sàng tồn đọng / Chưa giải quyết xong:</label>
-        <textarea id="editHandoverIssues" class="form-control" rows="2" placeholder="VD: Đang sốt 39.5°C chưa hạ; Chờ KQ cấy máu; HA dao động..."></textarea>
-      </div>
-
-      <div class="form-group">
-        <label>🎯 Y lệnh & Hành động tua trực cần xử trí:</label>
-        <textarea id="editHandoverActions" class="form-control" rows="2" placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
-      </div>
-    </div>
-    <div class="modal-footer" style="justify-content: space-between;">
-      <div>
-        <button class="btn btn-success" type="button" onclick="window.patientController.copyCurrentPatientZalo()" title="Sao chép thông tin người bệnh này gửi Zalo">
-          📋 Copy qua Zalo
-        </button>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
-        <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div>
+          <button class="btn btn-success" type="button" onclick="window.patientController.copyCurrentPatientZalo()"
+            title="Sao chép thông tin người bệnh này gửi Zalo">
+            📋 Copy qua Zalo
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
+          <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông
+            Tin</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- MODAL: CHUYỂN DANH SÁCH SANG NGÀY TIẾP THEO (CHO NGƯỜI BỆNH CHƯA XUẤT VIỆN) -->
-<div class="modal-overlay" id="nextDayModal">
-  <div class="modal-card modal-lg">
-    <div class="modal-header">
-      <div class="modal-title">⏭️ Chuyển Danh Sách Sang Ngày Tiếp Theo</div>
-      <button class="btn-close-modal" onclick="window.patientController.closeNextDayModal()">&times;</button>
+  <!-- MODAL: CHUYỂN DANH SÁCH SANG NGÀY TIẾP THEO (CHO NGƯỜI BỆNH CHƯA XUẤT VIỆN) -->
+  <div class="modal-overlay" id="nextDayModal">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">⏭️ Chuyển Danh Sách Sang Ngày Tiếp Theo</div>
+        <button class="btn-close-modal" onclick="window.patientController.closeNextDayModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="next-day-banner">
+          <div class="date-step-box">
+            <div class="step-item">
+              <span class="step-label">Ngày hiện tại:</span>
+              <strong id="nextDayCurrentDate" class="step-date">--/--/----</strong>
+            </div>
+            <span class="step-arrow">➔</span>
+            <div class="step-item">
+              <span class="step-label">Ngày tiếp theo:</span>
+              <input type="text" id="nextDayTargetDate" class="form-control date-picker-input" placeholder="dd/mm/yyyy">
+            </div>
+          </div>
+          <p class="step-desc">Tự động giữ lại các người bệnh còn đang nằm viện, tăng ngày bệnh trong chẩn đoán và
+            chuẩn
+            bị danh sách đi buồng cho ngày mới.</p>
+        </div>
+
+        <div class="next-day-options-grid">
+          <label class="custom-checkbox-card">
+            <input type="checkbox" id="chkAutoIncrementDay" checked>
+            <div>
+              <strong>Tăng số ngày bệnh (+1 ngày)</strong>
+              <span>VD: "SXH ngày 4" ➔ "ngày 5", "Viêm phổi N3" ➔ "N4", "Hậu phẫu ngày 1" ➔ "ngày 2"</span>
+            </div>
+          </label>
+          <label class="custom-checkbox-card">
+            <input type="checkbox" id="chkFilterDischarged" checked
+              onchange="window.patientController.handleDischargeFilterToggle(this.checked)">
+            <div>
+              <strong>Tự động lọc bỏ người bệnh đã xuất viện</strong>
+              <span>Tự động bỏ chọn các ca ghi chú "ra viện", "xuất viện", "xin về", "chuyển viện"</span>
+            </div>
+          </label>
+          <label class="custom-checkbox-card">
+            <input type="checkbox" id="chkResetHandover" checked>
+            <div>
+              <strong>Làm mới bàn giao trực (giữ ca báo động đỏ)</strong>
+              <span>Đặt các ca ổn định về bình thường, giữ lại ca 🚨 nguy kịch để theo dõi tiếp</span>
+            </div>
+          </label>
+          <label class="custom-checkbox-card">
+            <input type="checkbox" id="chkKeepOrders" checked>
+            <div>
+              <strong>Kế thừa y lệnh cũ</strong>
+              <span>Giữ lại y lệnh hiện tại làm bản nháp để bác sĩ đi buồng điều chỉnh tiếp</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="next-day-patient-list-header">
+          <div class="list-title">
+            <strong>Danh sách người bệnh tiếp tục điều trị (<span id="nextDaySelectedCount">0</span>/<span
+                id="nextDayTotalCount">0</span>)</strong>
+          </div>
+          <div class="list-actions">
+            <button type="button" class="btn btn-sm btn-secondary"
+              onclick="window.patientController.toggleAllNextDayPatients(true)">Chọn tất cả</button>
+            <button type="button" class="btn btn-sm btn-secondary"
+              onclick="window.patientController.toggleAllNextDayPatients(false)">Bỏ chọn hết</button>
+          </div>
+        </div>
+
+        <div class="next-day-patient-table-wrap">
+          <table class="next-day-table">
+            <thead>
+              <tr>
+                <th style="width: 44px; text-align: center;">Chọn</th>
+                <th style="width: 80px;">P/G</th>
+                <th style="width: 170px;">Họ và tên</th>
+                <th style="width: 120px;">Bác sĩ</th>
+                <th>Chẩn đoán: Hiện tại ➔ Ngày mới</th>
+                <th style="width: 100px; text-align: center;">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="nextDayPatientTableBody">
+              <!-- Render bởi JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="window.patientController.closeNextDayModal()">Hủy</button>
+        <button class="btn btn-primary btn-rollover" onclick="window.patientController.executeNextDayRollover()">
+          ⏭️ Xác Nhận Chuyển Sang Ngày Mới
+        </button>
+      </div>
     </div>
-    <div class="modal-body">
-      <div class="next-day-banner">
-        <div class="date-step-box">
-          <div class="step-item">
-            <span class="step-label">Ngày hiện tại:</span>
-            <strong id="nextDayCurrentDate" class="step-date">--/--/----</strong>
-          </div>
-          <span class="step-arrow">➔</span>
-          <div class="step-item">
-            <span class="step-label">Ngày tiếp theo:</span>
-            <input type="text" id="nextDayTargetDate" class="form-control date-picker-input" placeholder="dd/mm/yyyy" style="width: 140px; font-weight: 700; text-align: center;">
+  </div>
+
+  <!-- MODAL 2: THIẾT LẬP BÀN GIAO CA TRỰC CHO 1 NGƯỜI BỆNH -->
+  <div class="modal-overlay" id="handoverModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">🚨 Thiết Lập Bàn Giao Ca Trực</div>
+        <button class="btn-close-modal" onclick="window.handoverController.closeHandoverModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="hoPatientHeader"
+          style="margin-bottom: 14px; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-light);">
+          <!-- Tóm tắt tên, buồng, chẩn đoán -->
+        </div>
+
+        <div class="form-group">
+          <label>Mức độ bàn giao:</label>
+          <div class="status-radio-group">
+            <label class="status-radio-item">
+              <input type="radio" name="hoStatusRadio" value="none">
+              <span>🟢 Ổn định (Không cần bàn giao)</span>
+            </label>
+            <label class="status-radio-item">
+              <input type="radio" name="hoStatusRadio" value="pending">
+              <span>⏳ Cần theo dõi sát / Tồn đọng</span>
+            </label>
+            <label class="status-radio-item">
+              <input type="radio" name="hoStatusRadio" value="critical">
+              <span>🚨 Báo động đỏ (Nguy kịch / Nặng)</span>
+            </label>
+            <label class="status-radio-item">
+              <input type="radio" name="hoStatusRadio" value="resolved">
+              <span>✅ Đã xử trí xong trong tua</span>
+            </label>
           </div>
         </div>
-        <p class="step-desc">Tự động giữ lại các người bệnh còn đang nằm viện, tăng ngày bệnh trong chẩn đoán và chuẩn bị danh sách đi buồng cho ngày mới.</p>
-      </div>
 
-      <div class="next-day-options-grid">
-        <label class="custom-checkbox-card">
-          <input type="checkbox" id="chkAutoIncrementDay" checked>
-          <div>
-            <strong>Tăng số ngày bệnh (+1 ngày)</strong>
-            <span>VD: "SXH ngày 4" ➔ "ngày 5", "Viêm phổi N3" ➔ "N4", "Hậu phẫu ngày 1" ➔ "ngày 2"</span>
-          </div>
-        </label>
-        <label class="custom-checkbox-card">
-          <input type="checkbox" id="chkFilterDischarged" checked onchange="window.patientController.handleDischargeFilterToggle(this.checked)">
-          <div>
-            <strong>Tự động lọc bỏ người bệnh đã xuất viện</strong>
-            <span>Tự động bỏ chọn các ca ghi chú "ra viện", "xuất viện", "xin về", "chuyển viện"</span>
-          </div>
-        </label>
-        <label class="custom-checkbox-card">
-          <input type="checkbox" id="chkResetHandover" checked>
-          <div>
-            <strong>Làm mới bàn giao trực (giữ ca báo động đỏ)</strong>
-            <span>Đặt các ca ổn định về bình thường, giữ lại ca 🚨 nguy kịch để theo dõi tiếp</span>
-          </div>
-        </label>
-        <label class="custom-checkbox-card">
-          <input type="checkbox" id="chkKeepOrders" checked>
-          <div>
-            <strong>Kế thừa y lệnh cũ</strong>
-            <span>Giữ lại y lệnh hiện tại làm bản nháp để bác sĩ đi buồng điều chỉnh tiếp</span>
-          </div>
-        </label>
-      </div>
-
-      <div class="next-day-patient-list-header">
-        <div class="list-title">
-          <strong>Danh sách người bệnh tiếp tục điều trị (<span id="nextDaySelectedCount">0</span>/<span id="nextDayTotalCount">0</span>)</strong>
+        <div class="form-group">
+          <label>⚠️ Vấn đề tồn đọng / Chưa giải quyết xong:</label>
+          <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề chưa xong..."></textarea>
+          <div class="quick-tags-box" id="handoverIssueQuickTags"></div>
         </div>
-        <div class="list-actions">
-          <button type="button" class="btn btn-sm btn-secondary" onclick="window.patientController.toggleAllNextDayPatients(true)">Chọn tất cả</button>
-          <button type="button" class="btn btn-sm btn-secondary" onclick="window.patientController.toggleAllNextDayPatients(false)">Bỏ chọn hết</button>
+
+        <div class="form-group">
+          <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
+          <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận hành động ca trực..."></textarea>
+          <div class="quick-tags-box" id="handoverActionQuickTags"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Bác sĩ bàn giao:</label>
+          <input type="text" id="hoDoctorFrom" class="form-control" placeholder="Họ tên BS bàn giao...">
         </div>
       </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div>
+          <button class="btn btn-success" type="button"
+            onclick="window.handoverController.copyCurrentPatientHandoverZalo()"
+            title="Sao chép tóm tắt bàn giao ca này gửi Zalo">
+            📋 Copy qua Zalo
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
+          <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn
+            Giao</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      <div class="next-day-patient-table-wrap">
-        <table class="next-day-table">
+  <!-- MODAL 3: DASHBOARD TỔNG HỢP BÀN GIAO TUA TRỰC -->
+  <div class="modal-overlay" id="handoverDashboardModal">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <div class="modal-title">📊 Biên Bản Bàn Giao Tua Trực Lâm Sàng</div>
+        <button class="btn-close-modal" onclick="window.handoverController.closeHandoverDashboard()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Thống kê ca bệnh -->
+        <div class="handover-stat-cards">
+          <div class="ho-stat-card crit">
+            <div class="stat-number" id="statCriticalCount">0</div>
+            <div class="stat-title">🚨 Báo động đỏ (Nặng)</div>
+          </div>
+          <div class="ho-stat-card pend">
+            <div class="stat-number" id="statPendingCount">0</div>
+            <div class="stat-title">⏳ Cần theo dõi sát</div>
+          </div>
+          <div class="ho-stat-card done">
+            <div class="stat-number" id="statResolvedCount">0</div>
+            <div class="stat-title">✅ Đã xử trí xong</div>
+          </div>
+        </div>
+
+        <!-- Danh sách ca cần bàn giao -->
+        <div id="handoverDashboardList"></div>
+
+        <div id="handoverDashboardEmpty" class="empty-state" style="display: none;">
+          🎉 Tuyệt vời! Hiện tại khoa không có ca bệnh nào còn tồn đọng hoặc cần bàn giao đặc biệt.
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div>
+          <button class="btn btn-success" id="btnCopyHandoverZalo"
+            title="Sao chép định dạng tin nhắn để dán vào nhóm Zalo trực">
+            📋 Copy qua Zalo
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" id="btnPrintHandoverReport">
+            🖨️ In biên bản trực
+          </button>
+          <button class="btn btn-primary" onclick="window.handoverController.closeHandoverDashboard()">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="bottom-sheet-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title">🩺 Không Gian Làm Việc Bác Sĩ</div>
+        <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
+      </div>
+
+      <!-- Tab Bar trong Auth Modal -->
+      <div class="auth-tabs-nav">
+        <button class="nav-tab-btn active" id="tabBtn_workspace"
+          onclick="window.authController.switchAuthTab('workspace')">Không Gian BS</button>
+        <button class="nav-tab-btn" id="tabBtn_doctors" onclick="window.authController.switchAuthTab('doctors')">Quản
+          Lý
+          Bác Sĩ</button>
+        <button class="nav-tab-btn" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng
+          Nhập</button>
+        <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ
+          BS</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- 0. TAB KHÔNG GIAN BÁC SĨ -->
+        <div id="tabContent_workspace" class="auth-tab-content active">
+          <!-- Render động qua AuthController.renderWorkspaceTab() -->
+          <div id="workspaceContentArea"></div>
+        </div>
+
+        <!-- 1. TAB QUẢN LÝ BÁC SĨ & PHÂN QUYỀN (RBAC: BS ĐÔNG TOÀN QUYỀN) -->
+        <div id="tabContent_doctors" class="auth-tab-content" style="display: none;">
+          <!-- Render động qua AuthController.renderDoctorManagementTab() -->
+          <div id="doctorManagementArea"></div>
+        </div>
+
+        <!-- 2. TAB ĐĂNG NHẬP -->
+        <div id="tabContent_login" class="auth-tab-content" style="display: none;">
+          <div id="loginMessage" class="form-message"></div>
+          <form id="loginForm">
+            <div class="form-group">
+              <label>Tài khoản Bác sĩ:</label>
+              <input type="text" id="loginUsername" class="form-control" value="dongnh" placeholder="dongnh"
+                autocapitalize="none" required>
+              <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">Tài khoản:
+                <strong>dongnh</strong> (nguyenhuudongy18@gmail.com)</small>
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu số</label>
+              <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số"
+                pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+              <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu
+                chỉ bao gồm các chữ số</small>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào
+              Không Gian Bác Sĩ</button>
+          </form>
+        </div>
+
+        <!-- 3. TAB HỒ SƠ BÁC SĨ -->
+        <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
+          <div id="profileMessage" class="form-message"></div>
+          <form id="profileForm">
+            <div class="form-group">
+              <label>Họ và tên Bác sĩ:</label>
+              <input type="text" id="profFullName" class="form-control" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Chức danh:</label>
+                <input type="text" id="profTitle" class="form-control" value="Bác sĩ điều trị">
+              </div>
+              <div class="form-group">
+                <label>Khoa / Phòng:</label>
+                <input type="text" id="profDept" class="form-control" value="Khoa Nhiễm">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Bệnh viện:</label>
+              <input type="text" id="profHospital" class="form-control" value="Bệnh viện Đa khoa Khu vực Thủ Đức">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Số ĐT liên hệ trực:</label>
+                <input type="text" id="profPhone" class="form-control">
+              </div>
+              <div class="form-group">
+                <label>Tài khoản Bác sĩ:</label>
+                <input type="text" id="profUsername" class="form-control" disabled style="background: #f1f5f9;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu số (PIN) đăng nhập Không Gian:</label>
+              <input type="password" id="profPin" class="form-control"
+                placeholder="Để trống nếu không đổi (Mặc định: 123456)" pattern="[0-9]*" inputmode="numeric"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu
+                chỉ bao gồm các chữ số để vào nhanh không gian riêng</small>
+            </div>
+
+            <!-- CÀI ĐẶT HÌNH VẼ 9 NÚT (PATTERN LOCK) -->
+            <div class="pattern-profile-setting"
+              style="margin: 12px 0 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <span
+                  style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                  <span>🔲 Hình vẽ mở khoá 9 nút:</span>
+                </span>
+                <span id="currentPatternBadge"
+                  style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 600;">
+                  Mặc định: Chữ L hoặc Z
+                </span>
+              </div>
+              <p style="font-size: 11.8px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
+                Cho phép Bác sĩ mở khoá nhanh bằng cử chỉ vẽ hình (Pattern Lock) thay cho việc bấm mã PIN mỗi lần vào
+                trang web.
+              </p>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="window.patternLock?.openPatternChangeModal()">
+                  🎨 Thiết lập hình vẽ mới
+                </button>
+                <button type="button" class="btn btn-subtle btn-sm"
+                  onclick="window.patternLock?.resetToDefaultPattern()">
+                  Khôi phục mặc định (Chữ L)
+                </button>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: 14px;">
+              <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
+              <button type="button" class="btn btn-danger" id="btnLogout"
+                onclick="window.authController.handleLogout()">Đăng Xuất</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SỬA THÔNG TIN BÁC SĨ (DÀNH CHO BS ĐÔNG QUẢN TRỊ) -->
+  <div class="modal-overlay" id="doctorEditModal" style="display: none;">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="bottom-sheet-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title">✏️ Chỉnh Sửa Hồ Sơ Bác Sĩ (BS. Đông Quản Trị)</div>
+        <button class="btn-close-modal" onclick="window.authController.closeDoctorEditModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="adminDoctorEditForm"
+          onsubmit="event.preventDefault(); window.authController.handleAdminSaveDoctor();">
+          <input type="hidden" id="adminEditDocId">
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ:</label>
+            <input type="text" id="adminEditDocName" class="form-control" required>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
+              <input type="text" id="adminEditDocTitle" class="form-control">
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
+              <input type="text" id="adminEditDocDept" class="form-control">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
+              <input type="tel" id="adminEditDocPhone" class="form-control">
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700;">Đặt lại mã PIN:</label>
+              <input type="password" id="adminEditDocPin" class="form-control" placeholder="Để trống nếu không đổi"
+                pattern="[0-9]*" inputmode="numeric">
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 14px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Lưu Thay Đổi</button>
+            <button type="button" class="btn btn-secondary"
+              onclick="window.authController.closeDoctorEditModal()">Hủy</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CẤU HÌNH SUPABASE CLOUD & ĐỒNG BỘ LAPTOP - DI ĐỘNG -->
+  <div class="modal-overlay" id="cloudSettingsModal">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <div class="modal-title">☁️ Cấu Hình Đồng Bộ Supabase Cloud</div>
+        <button class="btn-close-modal" onclick="window.authController.closeCloudSettingsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="cloudConfigMessage" class="form-message"></div>
+
+        <div
+          style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px; color: #166534;">
+          <strong>📡 Cơ chế hoạt động:</strong><br>
+          Khi điền <strong>Supabase URL</strong> và <strong>Anon Key</strong>, ứng dụng sẽ kích hoạt tính năng
+          <strong>Đồng bộ thời gian thực (Realtime)</strong>: dữ liệu bạn nhập trên Laptop sẽ lập tức hiện trên Điện
+          thoại khi đi buồng bệnh và ngược lại!
+        </div>
+
+        <form id="cloudConfigForm">
+          <div class="form-group">
+            <label>Supabase Project URL:</label>
+            <input type="url" id="cfgSupabaseUrl" class="form-control" value="https://vowgqkxlhsienxcgkrnd.supabase.co"
+              placeholder="https://xyzcompany.supabase.co">
+          </div>
+          <div class="form-group">
+            <label>Supabase Anon (Public) Key:</label>
+            <textarea id="cfgSupabaseKey" class="form-control" rows="3"
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvd2dxa3hsaHNpZW54Y2drcm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDcyMjcsImV4cCI6MjEwNTg4MzIyN30.508ijUnafRo_dC1PDKMitVl_yvFApaprgucf9hMgJUw</textarea>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+            <em>* Cấu hình Supabase này đã được cố định mặc định cho dự án. Mọi thiết bị Laptop & Điện thoại mở web
+              đều
+              sẽ tự động kết nối và đồng bộ 2 chiều!</em>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu & Kiểm Tra Kết Nối Cloud</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: PHIẾU THỰC HIỆN Y LỆNH & CLS CHO ĐIỀU DƯỠNG -->
+  <div class="modal-overlay" id="nursePrintModal">
+    <div class="modal-card modal-xl">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">👩‍⚕️</span>
+          <span>Phiếu Thực Hiện Y Lệnh &amp; Chỉ Định CLS Cho Điều Dưỡng</span>
+        </div>
+        <button class="btn-close-modal" onclick="window.patientController.closeNursePrintModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <!-- Thanh công cụ điều khiển trong modal -->
+        <div class="nurse-print-toolbar">
+          <div class="nurse-filter-toggles">
+            <label class="nurse-toggle-label">
+              <input type="checkbox" id="nurseFilterOnlyPending" checked
+                onchange="window.patientController.renderNursePrintPreview()">
+              <span>Chỉ lọc người bệnh có <strong>CLS cần làm</strong> hoặc <strong>Thêm thuốc</strong> (<span
+                  id="nursePendingCount" style="color: #b45309; font-weight: 700;">0</span> NB)</span>
+            </label>
+          </div>
+          <div class="nurse-action-btns">
+            <button class="btn btn-secondary btn-sm" onclick="window.patientController.copyNurseWorklistZalo()"
+              data-tooltip="Sao chép nội dung ngắn gọn gửi nhóm Zalo Điều dưỡng">
+              📋 Copy qua Zalo
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="window.patientController.printNurseWorklist()"
+              data-tooltip="In trực tiếp phiếu này ra khổ giấy A4">
+              🖨️ In Khổ A4
+            </button>
+          </div>
+        </div>
+
+        <!-- Khu vực hiển thị phiếu xem trước & in ấn -->
+        <div id="nursePrintArea" class="nurse-print-area">
+          <!-- Render bởi JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          💡 <em>Tổng hợp đúng 02 phần: <strong>CLS cần làm</strong> và <strong>Thêm thuốc</strong> + Họ tên, Năm
+            sinh,
+            Phòng để Điều dưỡng ca trực thực hiện.</em>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="window.patientController.closeNursePrintModal()">Đóng</button>
+          <button class="btn btn-primary" onclick="window.patientController.printNurseWorklist()"
+            style="display: inline-flex; align-items: center; gap: 6px;">
+            🖨️ In Phiếu Cho Điều Dưỡng
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: TỪ ĐIỂN VIẾT TẮT Y KHOA & TRA CỨU NHANH -->
+  <div class="modal-overlay" id="abbreviationModal">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div class="modal-title">📖 Quy Chuẩn & Từ Điển Viết Tắt Lâm Sàng</div>
+        <button class="btn-close-modal" onclick="window.medWardApp.closeAbbreviationModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div
+          style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--text-main);">
+          💡 <strong>Cơ chế tự động mở rộng (Smart Auto-Expand):</strong> Khi bạn gõ từ viết tắt (VD:
+          <code>sxh</code>,
+          <code>vp</code>, <code>dtd</code>, <code>ctm</code>, <code>ttm</code>, <code>para</code>...) trực tiếp vào
+          bảng hoặc cửa sổ chi tiết, hệ thống sẽ tự động chuyển thành thuật ngữ y khoa đầy đủ khi nhấn
+          <kbd>Enter</kbd>
+          hoặc rời ô!
+        </div>
+
+        <!-- Tìm kiếm & Bộ lọc phân loại -->
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+          <input type="text" id="abbrSearchInput" class="form-control"
+            placeholder="Tìm từ viết tắt, tên bệnh, xét nghiệm, y lệnh..." style="flex: 1; min-width: 220px;">
+          <div class="abbr-category-tabs" id="abbrCategoryTabs">
+            <button type="button" class="btn-filter-pill active" data-cat="all">Tất cả</button>
+            <button type="button" class="btn-filter-pill" data-cat="Chẩn đoán thường gặp">CĐ</button>
+            <button type="button" class="btn-filter-pill" data-cat="Cận lâm sàng & Xét nghiệm">CLS</button>
+            <button type="button" class="btn-filter-pill" data-cat="Y lệnh & Điều trị">Y Lệnh</button>
+          </div>
+        </div>
+
+        <!-- Bảng danh sách từ viết tắt -->
+        <div class="abbr-table-wrapper">
+          <table class="abbr-table" id="abbrListTable">
+            <thead>
+              <tr>
+                <th style="width: 22%;">Chữ viết tắt</th>
+                <th style="width: 43%;">Thuật ngữ đầy đủ</th>
+                <th style="width: 35%;">Diễn giải lâm sàng</th>
+              </tr>
+            </thead>
+            <tbody id="abbrTableBody">
+              <!-- Render bởi JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="window.medWardApp.closeAbbreviationModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: BẢNG PHÍM TẮT LÂM SÀNG TOÀN CỤC (GLOBAL SHORTCUTS) -->
+  <div class="modal-overlay" id="shortcutsModal">
+    <div class="modal-card" style="max-width: 620px;">
+      <div class="modal-header">
+        <div class="modal-title">⌨️ Phím Tắt Thao Tác Nhanh Lâm Sàng</div>
+        <button class="btn-close-modal" onclick="window.medWardApp.closeShortcutsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div
+          style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: #1e40af;">
+          ⚡ <strong>Tối ưu tốc độ làm việc:</strong> Sử dụng các phím tắt bên dưới giúp Bác sĩ đi buồng, nhập liệu và
+          ra
+          y lệnh nhanh hơn gấp 3 lần mà không cần rê chuột.
+        </div>
+
+        <table class="shortcuts-table">
           <thead>
             <tr>
-              <th style="width: 44px; text-align: center;">Chọn</th>
-              <th style="width: 80px;">P/G</th>
-              <th style="width: 170px;">Họ và tên</th>
-              <th style="width: 120px;">Bác sĩ</th>
-              <th>Chẩn đoán: Hiện tại ➔ Ngày mới</th>
-              <th style="width: 100px; text-align: center;">Trạng thái</th>
+              <th style="width: 170px;">Phím tắt</th>
+              <th>Hành động lâm sàng</th>
+              <th style="width: 110px; text-align: center;">Phạm vi</th>
             </tr>
           </thead>
-          <tbody id="nextDayPatientTableBody">
-            <!-- Render bởi JavaScript -->
+          <tbody>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+              <td><strong>Thêm người bệnh mới</strong> &amp; Mở ngay cửa sổ nhập liệu</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
+              <td><strong>In bảng theo dõi A4</strong> (hoặc in phiếu nếu đang ở tab Điều dưỡng)</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
+              <td><strong>Mở giao diện In cho Điều dưỡng</strong> (phiếu Y lệnh &amp; CLS)</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>F</kbd></td>
+              <td><strong>Tìm kiếm nhanh</strong> (focus ô tìm kiếm họ tên, buồng, CĐ)</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>H</kbd></td>
+              <td><strong>Mở Bảng bàn giao tua trực</strong> &amp; Xuất mẫu Zalo</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>D</kbd></td>
+              <td><strong>Chuyển sang ngày điều trị kế tiếp</strong> (Rollover)</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>E</kbd></td>
+              <td><strong>Xuất File Excel (.xlsx) / CSV</strong> sao lưu dự phòng</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+              <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>Esc</kbd></td>
+              <td><strong>Đóng nhanh</strong> bất kỳ cửa sổ / modal nào đang mở</td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
+            <tr>
+              <td><kbd>F1</kbd> hoặc <kbd>Ctrl</kbd> + <kbd>/</kbd></td>
+              <td><strong>Mở bảng danh mục phím tắt này</strong></td>
+              <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+            </tr>
           </tbody>
         </table>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="window.patientController.closeNextDayModal()">Hủy</button>
-      <button class="btn btn-primary btn-rollover" onclick="window.patientController.executeNextDayRollover()">
-        ⏭️ Xác Nhận Chuyển Sang Ngày Mới
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL 2: THIẾT LẬP BÀN GIAO CA TRỰC CHO 1 NGƯỜI BỆNH -->
-<div class="modal-overlay" id="handoverModal">
-  <div class="modal-card">
-    <div class="modal-header">
-      <div class="modal-title">🚨 Thiết Lập Bàn Giao Ca Trực</div>
-      <button class="btn-close-modal" onclick="window.handoverController.closeHandoverModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div id="hoPatientHeader" style="margin-bottom: 14px; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-light);">
-        <!-- Tóm tắt tên, buồng, chẩn đoán -->
-      </div>
-
-      <div class="form-group">
-        <label>Mức độ bàn giao:</label>
-        <div class="status-radio-group">
-          <label class="status-radio-item">
-            <input type="radio" name="hoStatusRadio" value="none">
-            <span>🟢 Ổn định (Không cần bàn giao)</span>
-          </label>
-          <label class="status-radio-item">
-            <input type="radio" name="hoStatusRadio" value="pending">
-            <span>⏳ Cần theo dõi sát / Tồn đọng</span>
-          </label>
-          <label class="status-radio-item">
-            <input type="radio" name="hoStatusRadio" value="critical">
-            <span>🚨 Báo động đỏ (Nguy kịch / Nặng)</span>
-          </label>
-          <label class="status-radio-item">
-            <input type="radio" name="hoStatusRadio" value="resolved">
-            <span>✅ Đã xử trí xong trong tua</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>⚠️ Vấn đề tồn đọng / Chưa giải quyết xong:</label>
-        <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề chưa xong..."></textarea>
-        <div class="quick-tags-box" id="handoverIssueQuickTags"></div>
-      </div>
-
-      <div class="form-group">
-        <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
-        <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận hành động ca trực..."></textarea>
-        <div class="quick-tags-box" id="handoverActionQuickTags"></div>
-      </div>
-
-      <div class="form-group">
-        <label>Bác sĩ bàn giao:</label>
-        <input type="text" id="hoDoctorFrom" class="form-control" placeholder="Họ tên BS bàn giao...">
-      </div>
-    </div>
-    <div class="modal-footer" style="justify-content: space-between;">
-      <div>
-        <button class="btn btn-success" type="button" onclick="window.handoverController.copyCurrentPatientHandoverZalo()" title="Sao chép tóm tắt bàn giao ca này gửi Zalo">
-          📋 Copy qua Zalo
-        </button>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
-        <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn Giao</button>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="window.medWardApp.closeShortcutsModal()">Đã Hiểu</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- MODAL 3: DASHBOARD TỔNG HỢP BÀN GIAO TUA TRỰC -->
-<div class="modal-overlay" id="handoverDashboardModal">
-  <div class="modal-card" style="max-width: 780px;">
-    <div class="modal-header">
-      <div class="modal-title">📊 Biên Bản Bàn Giao Tua Trực Lâm Sàng</div>
-      <button class="btn-close-modal" onclick="window.handoverController.closeHandoverDashboard()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <!-- Thống kê ca bệnh -->
-      <div class="handover-stat-cards">
-        <div class="ho-stat-card crit">
-          <div class="stat-number" id="statCriticalCount">0</div>
-          <div class="stat-title">🚨 Báo động đỏ (Nặng)</div>
+  <!-- MODAL 8: CÀI ĐẶT / ĐỔI HÌNH VẼ MỞ KHÓA 9 NÚT (PATTERN RECORDER) -->
+  <div class="modal-overlay" id="patternChangeModal">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title">🎨 Thiết Lập Hình Vẽ Mở Khóa (9 Nút)</div>
+        <button class="btn-close-modal" onclick="window.patternLock?.closePatternChangeModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div id="patternRecordStatus" class="gate-pattern-status" style="margin-bottom: 12px;">
+          Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)
         </div>
-        <div class="ho-stat-card pend">
-          <div class="stat-number" id="statPendingCount">0</div>
-          <div class="stat-title">⏳ Cần theo dõi sát</div>
+
+        <div class="pattern-lock-wrap" id="patternRecordWrap" style="margin: 0 auto 14px;">
+          <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
         </div>
-        <div class="ho-stat-card done">
-          <div class="stat-number" id="statResolvedCount">0</div>
-          <div class="stat-title">✅ Đã xử trí xong</div>
+
+        <div
+          style="font-size: 12px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+          💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần nữa để
+            xác
+            nhận an toàn.</em>
         </div>
       </div>
-
-      <!-- Danh sách ca cần bàn giao -->
-      <div id="handoverDashboardList"></div>
-
-      <div id="handoverDashboardEmpty" class="empty-state" style="display: none;">
-        🎉 Tuyệt vời! Hiện tại khoa không có ca bệnh nào còn tồn đọng hoặc cần bàn giao đặc biệt.
-      </div>
-    </div>
-    <div class="modal-footer" style="justify-content: space-between;">
-      <div>
-        <button class="btn btn-success" id="btnCopyHandoverZalo" title="Sao chép định dạng tin nhắn để dán vào nhóm Zalo trực">
-          📋 Copy qua Zalo
+      <div class="modal-footer" style="display: flex; justify-content: space-between;">
+        <button type="button" class="btn btn-subtle"
+          onclick="window.patternLock?.resetToDefaultPattern(); window.patternLock?.closePatternChangeModal();">
+          Về mặc định (Chữ L)
         </button>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" id="btnPrintHandoverReport">
-          🖨️ In biên bản trực
-        </button>
-        <button class="btn btn-primary" onclick="window.handoverController.closeHandoverDashboard()">
+        <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
           Đóng
         </button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
-<div class="modal-overlay" id="authModal">
-  <div class="modal-card" style="max-width: 580px;">
-    <div class="bottom-sheet-drag-handle"></div>
-    <div class="modal-header">
-      <div class="modal-title">🩺 Không Gian Làm Việc Bác Sĩ</div>
-      <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
-    </div>
-
-    <!-- Tab Bar trong Auth Modal -->
-    <div class="auth-tabs-nav">
-      <button class="nav-tab-btn active" id="tabBtn_workspace" onclick="window.authController.switchAuthTab('workspace')">Không Gian BS</button>
-      <button class="nav-tab-btn" id="tabBtn_doctors" onclick="window.authController.switchAuthTab('doctors')">Quản Lý Bác Sĩ</button>
-      <button class="nav-tab-btn" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
-      <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ BS</button>
-    </div>
-
-    <div class="modal-body">
-      <!-- 0. TAB KHÔNG GIAN BÁC SĨ -->
-      <div id="tabContent_workspace" class="auth-tab-content active">
-        <!-- Render động qua AuthController.renderWorkspaceTab() -->
-        <div id="workspaceContentArea"></div>
+  <!-- MODAL 9: XUẤT FILE & SAO LƯU DỰ PHÒNG CHỐNG MẤT DỮ LIỆU (.XLSX / .CSV) -->
+  <div class="modal-overlay" id="exportBackupModal">
+    <div class="modal-card modal-export-card">
+      <div class="bottom-sheet-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-title-icon">🛡️</span>
+          <span>Sao Lưu &amp; Xuất File Dự Phòng</span>
+        </div>
+        <button class="btn-close-modal" onclick="window.patientController.closeExportBackupModal()">&times;</button>
       </div>
-
-      <!-- 1. TAB QUẢN LÝ BÁC SĨ & PHÂN QUYỀN (RBAC: BS ĐÔNG TOÀN QUYỀN) -->
-      <div id="tabContent_doctors" class="auth-tab-content" style="display: none;">
-        <!-- Render động qua AuthController.renderDoctorManagementTab() -->
-        <div id="doctorManagementArea"></div>
-      </div>
-
-      <!-- 2. TAB ĐĂNG NHẬP -->
-      <div id="tabContent_login" class="auth-tab-content" style="display: none;">
-        <div id="loginMessage" class="form-message"></div>
-        <form id="loginForm">
-          <div class="form-group">
-            <label>Tài khoản Bác sĩ:</label>
-            <input type="text" id="loginUsername" class="form-control" value="dongnh" placeholder="dongnh" autocapitalize="none" required>
-            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">Tài khoản: <strong>dongnh</strong> (nguyenhuudongy18@gmail.com)</small>
+      <div class="modal-body">
+        <div class="export-shield-banner">
+          <div class="export-shield-header">
+            <span>🛡️</span>
+            <span>Bảo vệ &amp; Dự phòng dữ liệu an toàn</span>
           </div>
-          <div class="form-group">
-            <label>Mật khẩu số (Mặc định: 123456):</label>
-            <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số (VD: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số</small>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào Không Gian Bác Sĩ</button>
-        </form>
-      </div>
-
-      <!-- 3. TAB HỒ SƠ BÁC SĨ -->
-      <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
-        <div id="profileMessage" class="form-message"></div>
-        <form id="profileForm">
-          <div class="form-group">
-            <label>Họ và tên Bác sĩ:</label>
-            <input type="text" id="profFullName" class="form-control" required>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Chức danh:</label>
-              <input type="text" id="profTitle" class="form-control" value="Bác sĩ điều trị">
-            </div>
-            <div class="form-group">
-              <label>Khoa / Phòng:</label>
-              <input type="text" id="profDept" class="form-control" value="Khoa Nhiễm">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Bệnh viện:</label>
-            <input type="text" id="profHospital" class="form-control" value="Bệnh viện Đa khoa Khu vực Thủ Đức">
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Số ĐT liên hệ trực:</label>
-              <input type="text" id="profPhone" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Tài khoản Bác sĩ:</label>
-              <input type="text" id="profUsername" class="form-control" disabled style="background: #f1f5f9;">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Mật khẩu số (PIN) đăng nhập Không Gian:</label>
-            <input type="password" id="profPin" class="form-control" placeholder="Để trống nếu không đổi (Mặc định: 123456)" pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-            <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu chỉ bao gồm các chữ số để vào nhanh không gian riêng</small>
-          </div>
-
-          <!-- CÀI ĐẶT HÌNH VẼ 9 NÚT (PATTERN LOCK) -->
-          <div class="pattern-profile-setting" style="margin: 12px 0 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                <span>🔲 Hình vẽ mở khoá 9 nút:</span>
-              </span>
-              <span id="currentPatternBadge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 600;">
-                Mặc định: Chữ L hoặc Z
-              </span>
-            </div>
-            <p style="font-size: 11.8px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
-              Cho phép Bác sĩ mở khoá nhanh bằng cử chỉ vẽ hình (Pattern Lock) thay cho việc bấm mã PIN mỗi lần vào trang web.
-            </p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.openPatternChangeModal()">
-                🎨 Thiết lập hình vẽ mới
-              </button>
-              <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.resetToDefaultPattern()">
-                Khôi phục mặc định (Chữ L)
-              </button>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 8px; margin-top: 14px;">
-            <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
-            <button type="button" class="btn btn-danger" id="btnLogout" onclick="window.authController.handleLogout()">Đăng Xuất</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL SỬA THÔNG TIN BÁC SĨ (DÀNH CHO BS ĐÔNG QUẢN TRỊ) -->
-<div class="modal-overlay" id="doctorEditModal" style="display: none;">
-  <div class="modal-card" style="max-width: 500px;">
-    <div class="bottom-sheet-drag-handle"></div>
-    <div class="modal-header">
-      <div class="modal-title">✏️ Chỉnh Sửa Hồ Sơ Bác Sĩ (BS. Đông Quản Trị)</div>
-      <button class="btn-close-modal" onclick="window.authController.closeDoctorEditModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <form id="adminDoctorEditForm" onsubmit="event.preventDefault(); window.authController.handleAdminSaveDoctor();">
-        <input type="hidden" id="adminEditDocId">
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ:</label>
-          <input type="text" id="adminEditDocName" class="form-control" required>
-        </div>
-        <div class="form-row" style="margin-bottom: 10px;">
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Chức vụ / Học vị:</label>
-            <input type="text" id="adminEditDocTitle" class="form-control">
-          </div>
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Khoa / Phòng:</label>
-            <input type="text" id="adminEditDocDept" class="form-control">
+          <div class="export-shield-desc">
+            Xuất toàn bộ danh sách người bệnh hiện tại thành file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong> để lưu trữ về máy tính / điện thoại. Nếu lỡ thao tác nhầm hoặc sự cố mạng, bạn có thể bấm <strong>"Nạp Excel"</strong> để khôi phục lại 100% dữ liệu ngay lập tức!
           </div>
         </div>
-        <div class="form-row" style="margin-bottom: 10px;">
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
-            <input type="tel" id="adminEditDocPhone" class="form-control">
+
+        <div class="export-count-panel">
+          <div>
+            <span>Số người bệnh sẽ xuất: </span>
+            <strong id="exportBackupPatientCount" class="export-count-num">0</strong> người bệnh
           </div>
-          <div class="form-group">
-            <label style="font-size: 12px; font-weight: 700;">Đặt lại mã PIN:</label>
-            <input type="password" id="adminEditDocPin" class="form-control" placeholder="Để trống nếu không đổi" pattern="[0-9]*" inputmode="numeric">
+          <div class="export-count-sub">
+            Đầy đủ 12 cột lâm sàng
           </div>
         </div>
-        <div style="display: flex; gap: 8px; margin-top: 14px;">
-          <button type="submit" class="btn btn-primary" style="flex: 1;">💾 Lưu Thay Đổi</button>
-          <button type="button" class="btn btn-secondary" onclick="window.authController.closeDoctorEditModal()">Hủy</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
-<!-- MODAL 5: CẤU HÌNH SUPABASE CLOUD & ĐỒNG BỘ LAPTOP - DI ĐỘNG -->
-<div class="modal-overlay" id="cloudSettingsModal">
-  <div class="modal-card" style="max-width: 580px;">
-    <div class="modal-header">
-      <div class="modal-title">☁️ Cấu Hình Đồng Bộ Supabase Cloud</div>
-      <button class="btn-close-modal" onclick="window.authController.closeCloudSettingsModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div id="cloudConfigMessage" class="form-message"></div>
-
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px; color: #166534;">
-        <strong>📡 Cơ chế hoạt động:</strong><br>
-        Khi điền <strong>Supabase URL</strong> và <strong>Anon Key</strong>, ứng dụng sẽ kích hoạt tính năng <strong>Đồng bộ thời gian thực (Realtime)</strong>: dữ liệu bạn nhập trên Laptop sẽ lập tức hiện trên Điện thoại khi đi buồng bệnh và ngược lại!
-      </div>
-
-      <form id="cloudConfigForm">
-        <div class="form-group">
-          <label>Supabase Project URL:</label>
-          <input type="url" id="cfgSupabaseUrl" class="form-control" value="https://vowgqkxlhsienxcgkrnd.supabase.co" placeholder="https://xyzcompany.supabase.co">
-        </div>
-        <div class="form-group">
-          <label>Supabase Anon (Public) Key:</label>
-          <textarea id="cfgSupabaseKey" class="form-control" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvd2dxa3hsaHNpZW54Y2drcm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDcyMjcsImV4cCI6MjEwNTg4MzIyN30.508ijUnafRo_dC1PDKMitVl_yvFApaprgucf9hMgJUw</textarea>
-        </div>
-
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-          <em>* Cấu hình Supabase này đã được cố định mặc định cho dự án. Mọi thiết bị Laptop & Điện thoại mở web đều sẽ tự động kết nối và đồng bộ 2 chiều!</em>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu & Kiểm Tra Kết Nối Cloud</button>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL 5: PHIẾU THỰC HIỆN Y LỆNH & CLS CHO ĐIỀU DƯỠNG -->
-<div class="modal-overlay" id="nursePrintModal">
-  <div class="modal-card modal-xl" style="max-width: 980px; width: 95%;">
-    <div class="modal-header">
-      <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;">👩‍⚕️</span>
-        <span>Phiếu Thực Hiện Y Lệnh &amp; Chỉ Định CLS Cho Điều Dưỡng</span>
-      </div>
-      <button class="btn-close-modal" onclick="window.patientController.closeNursePrintModal()">&times;</button>
-    </div>
-    <div class="modal-body" style="padding: 16px;">
-      <!-- Thanh công cụ điều khiển trong modal -->
-      <div class="nurse-print-toolbar">
-        <div class="nurse-filter-toggles">
-          <label class="nurse-toggle-label">
-            <input type="checkbox" id="nurseFilterOnlyPending" checked onchange="window.patientController.renderNursePrintPreview()">
-            <span>Chỉ lọc người bệnh có <strong>CLS cần làm</strong> hoặc <strong>Thêm thuốc</strong> (<span id="nursePendingCount" style="color: #b45309; font-weight: 700;">0</span> NB)</span>
-          </label>
-        </div>
-        <div class="nurse-action-btns">
-          <button class="btn btn-secondary btn-sm" onclick="window.patientController.copyNurseWorklistZalo()" data-tooltip="Sao chép nội dung ngắn gọn gửi nhóm Zalo Điều dưỡng">
-            📋 Copy qua Zalo
+        <div class="export-btn-group">
+          <!-- Nút Xuất Excel -->
+          <button type="button" class="btn btn-export-excel"
+            onclick="window.patientController.exportToExcel(); window.patientController.closeExportBackupModal();">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <polyline points="9 15 12 12 15 15"></polyline>
+            </svg>
+            <span>Tải file Excel (.xlsx) - Khuyên dùng</span>
           </button>
-          <button class="btn btn-primary btn-sm" onclick="window.patientController.printNurseWorklist()" data-tooltip="In trực tiếp phiếu này ra khổ giấy A4">
-            🖨️ In Khổ A4
+
+          <!-- Nút Xuất CSV -->
+          <button type="button" class="btn btn-export-csv"
+            onclick="window.patientController.exportToCSV(); window.patientController.closeExportBackupModal();">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Tải file CSV (.csv) - Chuẩn UTF-8 Tiếng Việt</span>
           </button>
         </div>
-      </div>
 
-      <!-- Khu vực hiển thị phiếu xem trước & in ấn -->
-      <div id="nursePrintArea" class="nurse-print-area">
-        <!-- Render bởi JavaScript -->
+        <div class="export-hint-note">
+          💡 <em>File tải về bao gồm Buồng/Giường, Họ tên, Năm sinh, Chẩn đoán, CLS Hiện có, CLS Cần làm, Y lệnh, Thêm thuốc, Tình trạng bàn giao...</em>
+        </div>
       </div>
-    </div>
-    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <div style="font-size: 12px; color: var(--text-muted);">
-        💡 <em>Tổng hợp đúng 02 phần: <strong>CLS cần làm</strong> và <strong>Thêm thuốc</strong> + Họ tên, Năm sinh, Phòng để Điều dưỡng ca trực thực hiện.</em>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" onclick="window.patientController.closeNursePrintModal()">Đóng</button>
-        <button class="btn btn-primary" onclick="window.patientController.printNurseWorklist()" style="display: inline-flex; align-items: center; gap: 6px;">
-          🖨️ In Phiếu Cho Điều Dưỡng
-        </button>
+      <div class="modal-footer modal-footer-end">
+        <button type="button" class="btn btn-secondary"
+          onclick="window.patientController.closeExportBackupModal()">Đóng</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- MODAL 6: TỪ ĐIỂN VIẾT TẮT Y KHOA & TRA CỨU NHANH -->
-<div class="modal-overlay" id="abbreviationModal">
-  <div class="modal-card" style="max-width: 720px;">
-    <div class="modal-header">
-      <div class="modal-title">📖 Quy Chuẩn & Từ Điển Viết Tắt Lâm Sàng</div>
-      <button class="btn-close-modal" onclick="window.medWardApp.closeAbbreviationModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--text-main);">
-        💡 <strong>Cơ chế tự động mở rộng (Smart Auto-Expand):</strong> Khi bạn gõ từ viết tắt (VD: <code>sxh</code>, <code>vp</code>, <code>dtd</code>, <code>ctm</code>, <code>ttm</code>, <code>para</code>...) trực tiếp vào bảng hoặc cửa sổ chi tiết, hệ thống sẽ tự động chuyển thành thuật ngữ y khoa đầy đủ khi nhấn <kbd>Enter</kbd> hoặc rời ô!
-      </div>
+  <!-- Global Toast Notification -->
+  <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
 
-      <!-- Tìm kiếm & Bộ lọc phân loại -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-        <input type="text" id="abbrSearchInput" class="form-control" placeholder="Tìm từ viết tắt, tên bệnh, xét nghiệm, y lệnh..." style="flex: 1; min-width: 220px;">
-        <div class="abbr-category-tabs" id="abbrCategoryTabs">
-          <button type="button" class="btn-filter-pill active" data-cat="all">Tất cả</button>
-          <button type="button" class="btn-filter-pill" data-cat="Chẩn đoán thường gặp">CĐ</button>
-          <button type="button" class="btn-filter-pill" data-cat="Cận lâm sàng & Xét nghiệm">CLS</button>
-          <button type="button" class="btn-filter-pill" data-cat="Y lệnh & Điều trị">Y Lệnh</button>
-        </div>
-      </div>
-
-      <!-- Bảng danh sách từ viết tắt -->
-      <div class="abbr-table-wrapper" style="max-height: 380px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
-        <table class="abbr-table" id="abbrListTable">
-          <thead>
-            <tr>
-              <th style="width: 22%;">Chữ viết tắt</th>
-              <th style="width: 43%;">Thuật ngữ đầy đủ</th>
-              <th style="width: 35%;">Diễn giải lâm sàng</th>
-            </tr>
-          </thead>
-          <tbody id="abbrTableBody">
-            <!-- Render bởi JavaScript -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="window.medWardApp.closeAbbreviationModal()">Đóng</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL 7: BẢNG PHÍM TẮT LÂM SÀNG TOÀN CỤC (GLOBAL SHORTCUTS) -->
-<div class="modal-overlay" id="shortcutsModal">
-  <div class="modal-card" style="max-width: 620px;">
-    <div class="modal-header">
-      <div class="modal-title">⌨️ Phím Tắt Thao Tác Nhanh Lâm Sàng</div>
-      <button class="btn-close-modal" onclick="window.medWardApp.closeShortcutsModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: #1e40af;">
-        ⚡ <strong>Tối ưu tốc độ làm việc:</strong> Sử dụng các phím tắt bên dưới giúp Bác sĩ đi buồng, nhập liệu và ra y lệnh nhanh hơn gấp 3 lần mà không cần rê chuột.
-      </div>
-
-      <table class="shortcuts-table">
-        <thead>
-          <tr>
-            <th style="width: 170px;">Phím tắt</th>
-            <th>Hành động lâm sàng</th>
-            <th style="width: 110px; text-align: center;">Phạm vi</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
-            <td><strong>Thêm người bệnh mới</strong> &amp; Mở ngay cửa sổ nhập liệu</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
-            <td><strong>In bảng theo dõi A4</strong> (hoặc in phiếu nếu đang ở tab Điều dưỡng)</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
-            <td><strong>Mở giao diện In cho Điều dưỡng</strong> (phiếu Y lệnh &amp; CLS)</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>F</kbd></td>
-            <td><strong>Tìm kiếm nhanh</strong> (focus ô tìm kiếm họ tên, buồng, CĐ)</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>H</kbd></td>
-            <td><strong>Mở Bảng bàn giao tua trực</strong> &amp; Xuất mẫu Zalo</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>D</kbd></td>
-            <td><strong>Chuyển sang ngày điều trị kế tiếp</strong> (Rollover)</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>E</kbd></td>
-            <td><strong>Xuất File Excel (.xlsx) / CSV</strong> sao lưu dự phòng</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
-            <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>Esc</kbd></td>
-            <td><strong>Đóng nhanh</strong> bất kỳ cửa sổ / modal nào đang mở</td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-          <tr>
-            <td><kbd>F1</kbd> hoặc <kbd>Ctrl</kbd> + <kbd>/</kbd></td>
-            <td><strong>Mở bảng danh mục phím tắt này</strong></td>
-            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="window.medWardApp.closeShortcutsModal()">Đã Hiểu</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL 8: CÀI ĐẶT / ĐỔI HÌNH VẼ MỞ KHÓA 9 NÚT (PATTERN RECORDER) -->
-<div class="modal-overlay" id="patternChangeModal">
-  <div class="modal-card" style="max-width: 440px;">
-    <div class="modal-header">
-      <div class="modal-title">🎨 Thiết Lập Hình Vẽ Mở Khóa (9 Nút)</div>
-      <button class="btn-close-modal" onclick="window.patternLock?.closePatternChangeModal()">&times;</button>
-    </div>
-    <div class="modal-body" style="text-align: center;">
-      <div id="patternRecordStatus" class="gate-pattern-status" style="margin-bottom: 12px;">
-        Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)
-      </div>
-
-      <div class="pattern-lock-wrap" id="patternRecordWrap" style="margin: 0 auto 14px;">
-        <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
-      </div>
-
-      <div style="font-size: 12px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
-        💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần nữa để xác nhận an toàn.</em>
-      </div>
-    </div>
-    <div class="modal-footer" style="display: flex; justify-content: space-between;">
-      <button type="button" class="btn btn-subtle" onclick="window.patternLock?.resetToDefaultPattern(); window.patternLock?.closePatternChangeModal();">
-        Về mặc định (Chữ L)
-      </button>
-      <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
-        Đóng
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL 9: XUẤT FILE & SAO LƯU DỰ PHÒNG CHỐNG MẤT DỮ LIỆU (.XLSX / .CSV) -->
-<div class="modal-overlay" id="exportBackupModal">
-  <div class="modal-card" style="max-width: 540px;">
-    <div class="bottom-sheet-drag-handle"></div>
-    <div class="modal-header">
-      <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;">🛡️</span>
-        <span>Sao Lưu &amp; Xuất File Dự Phòng</span>
-      </div>
-      <button class="btn-close-modal" onclick="window.patientController.closeExportBackupModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;">
-        <div style="font-weight: 700; color: #166534; font-size: 13.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-          <span>🛡️</span>
-          <span>Bảo vệ &amp; Dự phòng dữ liệu an toàn</span>
-        </div>
-        <div style="font-size: 12px; color: #15803d; line-height: 1.5;">
-          Xuất toàn bộ danh sách người bệnh hiện tại thành file <strong>Excel (.xlsx)</strong> hoặc <strong>CSV (.csv)</strong> để lưu trữ về máy tính / điện thoại. Nếu lỡ thao tác nhầm hoặc sự cố mạng, bạn có thể bấm <strong>"Nạp Excel"</strong> để khôi phục lại 100% dữ liệu ngay lập tức!
-        </div>
-      </div>
-
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: #334155; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <span>Số người bệnh sẽ xuất: </span>
-          <strong id="exportBackupPatientCount" style="color: #1e3a8a; font-size: 14px;">0</strong> người bệnh
-        </div>
-        <div style="color: #64748b; font-size: 11px;">
-          Đầy đủ 12 cột lâm sàng
-        </div>
-      </div>
-
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <!-- Nút Xuất Excel -->
-        <button type="button" class="btn" onclick="window.patientController.exportToExcel(); window.patientController.closeExportBackupModal();" style="background: #16a34a; color: white; border: none; font-weight: 700; height: 44px; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2); cursor: pointer;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-          <span>Tải file Excel (.xlsx) - Khuyên dùng</span>
-        </button>
-
-        <!-- Nút Xuất CSV -->
-        <button type="button" class="btn btn-secondary" onclick="window.patientController.exportToCSV(); window.patientController.closeExportBackupModal();" style="border: 1.5px solid #cbd5e1; font-weight: 700; height: 42px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: white; color: #1e293b; cursor: pointer;">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          <span>Tải file CSV (.csv) - Chuẩn UTF-8 Tiếng Việt</span>
-        </button>
-      </div>
-
-      <div style="margin-top: 14px; font-size: 11.5px; color: #64748b; text-align: center;">
-        💡 <em>File tải về bao gồm Buồng/Giường, Họ tên, Năm sinh, Chẩn đoán, CLS Hiện có, CLS Cần làm, Y lệnh, Thêm thuốc, Tình trạng bàn giao...</em>
-      </div>
-    </div>
-    <div class="modal-footer" style="justify-content: flex-end;">
-      <button type="button" class="btn btn-secondary" onclick="window.patientController.closeExportBackupModal()">Đóng</button>
-    </div>
-  </div>
-</div>
-
-<!-- Global Toast Notification -->
-<div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
-
-<!-- Scripts -->
-<script src="js/config.js?v=2.2"></script>
-<script src="js/supabase_service.js?v=2.2"></script>
-<script src="js/pattern_lock.js?v=2.2"></script>
-<script src="js/auth.js?v=2.2"></script>
-<script src="js/patient_service.js?v=2.2"></script>
-<script src="js/handover_service.js?v=2.2"></script>
-<script src="js/app.js?v=2.2"></script>
+  <!-- Scripts -->
+  <script src="js/config.js?v=2.2"></script>
+  <script src="js/supabase_service.js?v=2.2"></script>
+  <script src="js/pattern_lock.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.2"></script>
+  <script src="js/patient_service.js?v=2.2"></script>
+  <script src="js/handover_service.js?v=2.2"></script>
+  <script src="js/app.js?v=2.2"></script>
 
 </body>
+
 </html>

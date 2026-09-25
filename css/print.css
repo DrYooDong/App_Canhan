@@ -40,10 +40,9 @@
     margin: 0 !important;
   }
 
-  /* ẨN TOÀN BỘ TIÊU ĐỀ, THANH CÔNG CỤ, VÀ CHỮ KÝ - CHỈ GIỮ LẠI BẢNG DỮ LIỆU */
+  /* ẨN TOÀN BỘ TIÊU ĐỀ, THANH CÔNG CỤ - CHỈ GIỮ LẠI BẢNG DỮ LIỆU & CHỮ KÝ */
   .top-nav-bar,
   .hospital-header,
-  .print-signature-block,
   .nav-tabs-wrapper,
   .toolbar,
   .status-bar,
@@ -54,7 +53,6 @@
   .app-toast,
   .empty-state,
   #emptyMessage,
-  .print-date-note,
   .btn-calendar-trigger,
   #nativeDatePicker,
   .no-print,
@@ -304,7 +302,9 @@
   }
 
   /* KHI CHỈ IN BIÊN BẢN BÀN GIAO CA TRỰC */
-  body.printing-handover-only .table-wrapper {
+  body.printing-handover-only .table-wrapper,
+  body.printing-handover-only .print-signature-block,
+  body.printing-handover-only .print-date-note {
     display: none !important;
   }
 
@@ -578,28 +578,52 @@
     font-size: 9pt !important;
   }
 
-  /* KHỐI CHỮ KÝ VÀ NGÀY IN (NẾU HIỂN THỊ) */
+  /* KHỐI CHỮ KÝ VÀ NGÀY IN (HIỂN THỊ KHI IN BẢNG A4) */
   .print-date-note {
-    font-size: 10.5pt !important;
+    display: block !important;
+    font-size: 10pt !important;
     font-weight: 600 !important;
+    margin-bottom: 6px !important;
+    text-align: right !important;
   }
   .print-signature-block {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-top: 24px !important;
+    padding: 0 40px !important;
+    page-break-inside: avoid !important;
     font-size: 10.5pt !important;
   }
+  .print-sign-col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 42% !important;
+    text-align: center !important;
+  }
   .print-sign-role {
-    font-size: 10.5pt !important;
+    font-size: 11pt !important;
     font-weight: 800 !important;
+    text-transform: uppercase !important;
+    color: #000000 !important;
+    margin-bottom: 2px !important;
   }
   .print-sign-hint {
     font-size: 9pt !important;
     font-style: italic !important;
+    color: #444444 !important;
+    margin-bottom: 45px !important;
   }
   .print-sign-date {
     font-size: 9.5pt !important;
     font-style: italic !important;
+    color: #000000 !important;
+    margin-bottom: 3px !important;
   }
   .print-sign-name {
     font-size: 11pt !important;
     font-weight: 700 !important;
+    color: #000000 !important;
   }
 }

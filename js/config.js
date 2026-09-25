@@ -41,7 +41,7 @@ const CONFIG = {
   // DANH SÁCH BÁC SĨ MẶC ĐỊNH & KHÔNG GIAN BÁC SĨ (BS. ĐÔNG LÀ QUẢN TRỊ VIÊN "admin")
   DEFAULT_DEMO_DOCTOR: {
     id: 'doc_dongnh',
-    email: 'nguyenhuudongy18@gmail.com',
+    email: '',
     username: 'dongnh',
     full_name: 'BS. Nguyễn Hữu Đông',
     title: 'Bác sĩ điều trị / Trưởng tua',
@@ -56,7 +56,7 @@ const CONFIG = {
   DEFAULT_DOCTORS: [
     {
       id: 'doc_dongnh',
-      email: 'nguyenhuudongy18@gmail.com',
+      email: '',
       username: 'dongnh',
       full_name: 'BS. Nguyễn Hữu Đông',
       title: 'Bác sĩ điều trị / Trưởng tua',
@@ -121,19 +121,7 @@ const CONFIG = {
       { abbr: 'vgc', full: 'Viêm gan cấp', desc: 'Viêm gan cấp' },
       { abbr: 'vgb', full: 'Viêm gan B mạn', desc: 'Viêm gan siêu vi B mạn' },
       { abbr: 'vgvc', full: 'Viêm gan C mạn', desc: 'Viêm gan siêu vi C mạn' },
-      { abbr: 'st', full: 'Suy tim mạn', desc: 'Suy tim mạn tính' },
-      { abbr: 'stm', full: 'Suy tim mạn', desc: 'Suy tim mạn tính' },
-      { abbr: 'stc', full: 'Suy thận cấp', desc: 'Tổn thương thận cấp' },
-      { abbr: 'tbmm', full: 'Tai biến mạch máu não', desc: 'Đột quỵ não / TBMM' },
-      { abbr: 'tbmn', full: 'Tai biến mạch máu não', desc: 'Đột quỵ não / TBMN' },
-      { abbr: 'xhth', full: 'Xuất huyết tiêu hóa', desc: 'Xuất huyết tiêu hóa' },
-      { abbr: 'xhtq', full: 'Xuất huyết tiêu hóa trên', desc: 'Xuất huyết tiêu hóa trên' },
-      { abbr: 'sv', full: 'Sốt siêu vi', desc: 'Sốt siêu vi' },
-      { abbr: 'ssv', full: 'Sốt siêu vi', desc: 'Sốt siêu vi' },
-      { abbr: 'nmct', full: 'Nhồi máu cơ tim', desc: 'Nhồi máu cơ tim cấp' },
-      { abbr: 'tmcb', full: 'Thiếu máu cơ tim', desc: 'Bệnh tim thiếu máu cục bộ' },
-      { abbr: 'rllp', full: 'Rối loạn lipid máu', desc: 'Rối loạn chuyển hóa lipid' },
-      { abbr: 'gout', full: 'Gout cấp', desc: 'Cơn gout cấp' }
+      { abbr: 'xhth', full: 'Xuất huyết tiêu hóa', desc: 'Xuất huyết tiêu hóa' }
     ],
     'Cận lâm sàng & Xét nghiệm': [
       { abbr: 'ctm', full: 'CTM', desc: 'Tổng phân tích tế bào máu ngoại vi' },
@@ -148,11 +136,9 @@ const CONFIG = {
       { abbr: 'sat', full: 'Siêu âm tim', desc: 'Siêu âm tim Doppler' },
       { abbr: 'satt', full: 'Siêu âm tim', desc: 'Siêu âm tim Doppler' },
       { abbr: 'cm', full: 'Cấy máu', desc: 'Cấy máu tìm vi khuẩn' },
-      { abbr: 'cdam', full: 'Cấy đàm', desc: 'Cấy đàm làm kháng sinh đồ' },
       { abbr: 'cđam', full: 'Cấy đàm', desc: 'Cấy đàm làm kháng sinh đồ' },
       { abbr: 'cntt', full: 'Cấy nước tiểu', desc: 'Cấy nước tiểu định danh' },
       { abbr: 'ecg', full: 'Điện tâm đồ', desc: 'Điện tâm đồ 12 chuyển đạo' },
-      { abbr: 'đtđ', full: 'Điện tâm đồ', desc: 'Điện tâm đồ (ECG)' },
       { abbr: 'tc', full: 'Tiểu cầu', desc: 'Số lượng tiểu cầu' },
       { abbr: 'bc', full: 'Bạch cầu', desc: 'Số lượng bạch cầu' },
       { abbr: 'hct', full: 'Hct', desc: 'Dung tích hồng cầu Hematocrit' },
@@ -160,11 +146,7 @@ const CONFIG = {
       { abbr: 'dhmm', full: 'Đường huyết mao mạch', desc: 'Đường huyết mao mạch test nhanh' },
       { abbr: 'tptnt', full: 'Tổng phân tích nước tiểu', desc: 'Tổng phân tích nước tiểu 10 thông số' },
       { abbr: 'kmdm', full: 'Khí máu động mạch', desc: 'Khí máu động mạch' },
-      { abbr: 'dnt', full: 'Dịch não tủy', desc: 'Xét nghiệm dịch não tủy' },
-      { abbr: 'ast/alt', full: 'Men gan AST/ALT', desc: 'Men gan AST (GOT) & ALT (GPT)' },
-      { abbr: 'ure/cre', full: 'Ure & Creatinine', desc: 'Chức năng thận Ure & Creatinine' },
-      { abbr: 'crp', full: 'CRP định lượng', desc: 'Protein phản ứng C' },
-      { abbr: 'pct', full: 'Procalcitonin', desc: 'Định lượng Procalcitonin' }
+      { abbr: 'dnt', full: 'Dịch não tủy', desc: 'Xét nghiệm dịch não tủy' }
     ],
     'Y lệnh & Điều trị': [
       { abbr: 'ttm', full: 'TTM', desc: 'Truyền tĩnh mạch' },
@@ -182,13 +164,7 @@ const CONFIG = {
       { abbr: 'nacl', full: 'Natri Clorid 0.9% 500ml', desc: 'Dịch truyền Natri Clorid 0.9%' },
       { abbr: 'g5', full: 'Glucose 5% 500ml', desc: 'Dịch truyền Glucose 5%' },
       { abbr: 'ceftri', full: 'Ceftriaxone 2g IV', desc: 'Kháng sinh Ceftriaxone' },
-      { abbr: 'cipro', full: 'Ciprofloxacin 400mg TTM', desc: 'Kháng sinh Ciprofloxacin' },
-      { abbr: 'oresol', full: 'Bù Oresol uống rải rác', desc: 'Bù nước & điện giải bằng đường uống' },
-      { abbr: 'td_sh', full: 'Theo dõi sinh hiệu mỗi 4h', desc: 'Theo dõi mạch, nhiệt độ, HA' },
-      { abbr: 'td_spo2', full: 'Đo SpO2 & Mạch mỗi 2h', desc: 'Theo dõi độ bão hòa oxy' },
-      { abbr: 'an_chao', full: 'Ăn cháo loãng nguội', desc: 'Chế độ ăn người bệnh tiêu hóa' },
-      { abbr: 'an_nhat', full: 'Ăn nhạt giảm muối', desc: 'Chế độ ăn tim mạch, thận' },
-      { abbr: 'nghi', full: 'Nghỉ ngơi tại giường', desc: 'Hạn chế vận động gắng sức' }
+      { abbr: 'cipro', full: 'Ciprofloxacin 400mg TTM', desc: 'Kháng sinh Ciprofloxacin' }
     ]
   },
 
@@ -210,16 +186,12 @@ const CONFIG = {
     LABS: [
       'CTM: BC, TC, Hct',
       'Sinh hóa: Men gan, Ure, Creatinine',
-      'Điện giải đồ (Na, K, Cl)',
       'X-Quang tim phổi thẳng',
-      'Siêu âm ổ bụng tổng quát',
-      'Chờ kết quả cấy máu',
-      'CT-Scanner ngực'
+      'Siêu âm ổ bụng tổng quát'
     ],
     LABS_HIEN_CO: [
       'CTM: BC 12k, TC 180k, Hct 38%',
       'Men gan AST/ALT 45/52 U/L',
-      'ĐGĐ: Na 136, K 3.8, Cl 102',
       'CRP: 28 mg/L, PCT: 0.18',
       'X-Quang phổi: thâm nhiễm đáy phổi (P)',
       'Siêu âm bụng: Gan nhiễm mỡ độ 1',
@@ -234,8 +206,7 @@ const CONFIG = {
       'Khí máu động mạch (ABG)',
       'Siêu âm ổ bụng tổng quát kiểm tra',
       'Siêu âm tim Doppler',
-      'CT-Scanner lồng ngực có cản quang',
-      'Tổng phân tích nước tiểu 10 thông số'
+      'CT-Scanner lồng ngực có cản quang'
     ],
     ORDERS: [
       'Ringer Lactate 500ml TTM',
@@ -243,19 +214,14 @@ const CONFIG = {
       'Paracetamol 500mg (khi sốt >= 38.5°C)',
       'Ceftriaxone 2g IV/ngày',
       'Khí dung Salbutamol 5mg x 2 lần',
-      'Theo dõi sinh hiệu mỗi 4h',
-      'Đo SpO2 & Mạch mỗi 2h',
-      'Bù dịch Oresol uống rải rác'
+      'Theo dõi sinh hiệu mỗi 4h'
     ],
     THEM_THUOC: [
       'Thêm Paracetamol 500mg 1 viên uống khi sốt >= 38.5°C',
       'Thêm Ceftriaxone 1g x 2 lọ tiêm TMC (cữ 08h - 16h)',
       'Thêm Natri Clorid 0.9% 500ml TTM XL g/p',
       'Thêm Khí dung Ventolin 2.5mg + Pulmicort 0.5mg x 2 cữ',
-      'Thêm Esomeprazole 40mg 1 lọ tiêm TMC sáng',
-      'Thêm Oresol 245 pha 1 gói/200ml uống rải rác',
-      'Thêm Spasfon 40mg 1 ống tiêm bắp khi đau bụng',
-      'Đổi sang Meropenem 1g x 3 lọ TTM mỗi 8h'
+      'Thêm Esomeprazole 40mg 1 lọ tiêm TMC sáng'
     ],
     ISSUES: [
       'Chưa có KQ cấy máu',
@@ -263,18 +229,11 @@ const CONFIG = {
       'HA dao động',
       'Chờ hội chẩn Ngoại',
       'Chưa chụp xong CT scan',
-      'SpO2 giảm khi thở khí phòng',
-      'Tiểu cầu giảm thấp',
       'Chờ KQ Men gan & ĐGĐ'
     ],
     ACTIONS: [
-      'Đo SpO2 & Mạch mỗi 2h',
       'Theo dõi sinh hiệu mỗi 4h',
-      'Lấy lại ĐGĐ lúc 22h',
       'Hạ sốt nếu T° >= 38.5°C',
-      'Báo BS trực nếu HA < 90/60',
-      'Bù dịch Ringer Lactate 500ml',
-      'Kiểm tra tri giác trước ngủ',
       'Tiếp tục kháng sinh cữ tối'
     ]
   },
@@ -282,7 +241,7 @@ const CONFIG = {
   // HÀM TỰ ĐỘNG MỞ RỘNG TỪ VIẾT TẮT Y KHOA THÔNG MINH (SINGLE-PASS & IDEMPOTENT)
   expandMedicalText(text) {
     if (!text || typeof text !== 'string') return text;
-    
+
     // Khởi tạo map tra cứu nhanh
     const lookup = CONFIG.ABBREVIATIONS;
     if (!lookup || Object.keys(lookup).length === 0) return text;
@@ -313,9 +272,9 @@ const CONFIG = {
   // HÀM TẠO UUID CHUẨN POSTGRESQL (RFC4122 v4)
   generateUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      try { return crypto.randomUUID(); } catch (e) {}
+      try { return crypto.randomUUID(); } catch (e) { }
     }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       const r = Math.random() * 16 | 0;
       const v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
