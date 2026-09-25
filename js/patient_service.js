@@ -1039,7 +1039,16 @@ class PatientController {
   // ==============================================================================
   // CRUD CƠ BẢN
   // ==============================================================================
+  flushActiveInput() {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      try {
+        document.activeElement.blur();
+      } catch (e) {}
+    }
+  }
+
   async openAddPatientModal() {
+    this.flushActiveInput();
     if (!window.authController?.isLoggedIn) {
       window.authController?.showGateOverlay?.();
       return;
@@ -1058,6 +1067,7 @@ class PatientController {
   }
 
   async addPatient(patientData = {}) {
+    this.flushActiveInput();
     if (!window.authController?.isLoggedIn) {
       window.authController?.showGateOverlay?.();
       return;
@@ -1254,10 +1264,13 @@ class PatientController {
       ngay_sinh: headerRow.findIndex(c => c === 'ns' || c === 'dob' || c.includes('ngày sinh') || (c.includes('năm sinh') && !c.includes('tuổi'))),
       tuoi: headerRow.findIndex(c => c === 'tuổi' || c === 'age' || (c.includes('tuổi') && !c.includes('năm sinh'))),
       nam_sinh_tuoi: headerRow.findIndex(c => c === 'ns (tuổi)' || c === 'ns/tuổi' || ((c.includes('năm sinh') || c.includes('year') || c.includes('ns')) && (c.includes('tuổi') || c.includes('age')))),
-      chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('(a)') || c.includes('diagnosis')),
-      cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm')),
-      y_lenh: -1, // Lúc nhập Excel luôn để trống cột Y lệnh theo yêu cầu
-      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị') || c.includes('bác sĩ điều trị') || c.includes('điều trị'))
+      chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('chan doan') || c.includes('(a)') || c.includes('diagnosis')),
+      cls_hien_co: headerRow.findIndex(c => c.includes('hiện có') || c === 'cls_hien_co'),
+      cls_can_lam: headerRow.findIndex(c => c.includes('cần làm') || c === 'cls_can_lam'),
+      cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm') || c.includes('cls')),
+      y_lenh: headerRow.findIndex(c => c === 'yl' || c.includes('y lệnh') || c.includes('y lenh') || c.includes('điều trị')),
+      them_thuoc: headerRow.findIndex(c => c.includes('thêm thuốc') || c.includes('them thuoc') || c.includes('bổ sung thuốc') || c === 'them_thuoc'),
+      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị') || c.includes('bác sĩ điều trị'))
     };
 
     const activeDoc = window.authController?.getActiveDoctor?.();
@@ -1301,15 +1314,51 @@ class PatientController {
       }
 
       let cdVal = mapping.chan_doan !== -1 ? String(row[mapping.chan_doan] || '').trim() : '';
+      let clsHcVal = mapping.cls_hien_co !== -1 ? String(row[mapping.cls_hien_co] || '').trim() : '';
+      let clsClVal = mapping.cls_can_lam !== -1 ? String(row[mapping.cls_can_lam] || '').trim() : '';
       let clsVal = mapping.cls !== -1 ? String(row[mapping.cls] || '').trim() : '';
-      // Cột Y lệnh: Để trống cột y lệnh lúc nạp file Excel (không đưa tên Bác sĩ điều trị vào y lệnh)
-      let ylVal = '';
-      let docVal = 'BS. Nguyễn Hữu Đông';
+      if (!clsHcVal && clsVal) {
+        if (clsVal.includes('[Hiện có]:') || clsVal.includes('[Cần làm]:')) {
+          const hcMatch = clsVal.match(/\[Hiện có\]:\s*([\s\S]*?)(?=\n\[Cần làm\]:|$)/i);
+          const clMatch = clsVal.match(/\[Cần làm\]:\s*([\s\S]*?)$/i);
+          clsHcVal = hcMatch ? hcMatch[1].trim() : '';
+          clsClVal = clMatch ? clMatch[1].trim() : '';
+        } else {
+          clsHcVal = clsVal;
+        }
+      }
+
+      let ylVal = mapping.y_lenh !== -1 ? String(row[mapping.y_lenh] || '').trim() : '';
+      let themThuocVal = mapping.them_thuoc !== -1 ? String(row[mapping.them_thuoc] || '').trim() : '';
+      if (!themThuocVal && ylVal && ylVal.includes('[Thêm thuốc]:')) {
+        const parts = ylVal.split(/\[Thêm thuốc\]:/i);
+        ylVal = parts[0].trim();
+        themThuocVal = parts[1] ? parts[1].trim() : '';
+      }
+
+      // Chỉ bỏ qua Y lệnh nếu ô đó CHỈ LÀ tên Bác sĩ (tránh việc nạp nhầm cột Bác sĩ vào Y lệnh)
+      if (ylVal) {
+        const ylLower = ylVal.toLowerCase();
+        if (ylLower === 'bs. nguyễn hữu đông' || ylLower === 'bác sĩ điều trị' || ylLower === 'bs điều trị') {
+          ylVal = '';
+        }
+      }
+
+      let docVal = (mapping.bac_si !== -1 && row[mapping.bac_si]) ? String(row[mapping.bac_si]).trim() : myDoc;
+      if (!docVal) docVal = myDoc;
 
       if (CONFIG.expandMedicalText) {
         cdVal = CONFIG.expandMedicalText(cdVal);
-        clsVal = CONFIG.expandMedicalText(clsVal);
+        clsHcVal = CONFIG.expandMedicalText(clsHcVal);
+        clsClVal = CONFIG.expandMedicalText(clsClVal);
+        ylVal = CONFIG.expandMedicalText(ylVal);
+        themThuocVal = CONFIG.expandMedicalText(themThuocVal);
       }
+
+      let combinedCls = '';
+      if (clsHcVal && clsClVal) combinedCls = `[Hiện có]: ${clsHcVal}\n[Cần làm]: ${clsClVal}`;
+      else if (clsClVal) combinedCls = `[Cần làm]: ${clsClVal}`;
+      else combinedCls = clsHcVal;
 
       results.push({
         id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
@@ -1317,11 +1366,11 @@ class PatientController {
         ten: tenVal,
         nam_sinh_tuoi: namSinhTuoiVal,
         chan_doan: cdVal,
-        cls: clsVal,
-        cls_hien_co: clsVal,
-        cls_can_lam: '',
+        cls: combinedCls,
+        cls_hien_co: clsHcVal,
+        cls_can_lam: clsClVal,
         y_lenh: ylVal,
-        them_thuoc: '',
+        them_thuoc: themThuocVal,
         doctor_name: docVal,
         handover_by: docVal,
         handover_status: CONFIG.HANDOVER_STATUS.NONE,
@@ -1539,20 +1588,6 @@ class PatientController {
 
   scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // MỞ MODAL THÊM BỆNH NHÂN NHANH CHO MOBILE
-  openAddPatientModal() {
-    const newP = {
-      ten: 'BỆNH NHÂN MỚI',
-      phong_giuong: '',
-      chan_doan: '',
-      cls_hien_co: '',
-      cls_can_lam: '',
-      y_lenh: '',
-      them_thuoc: ''
-    };
-    this.addPatient(newP);
   }
 
   renderDesktopTable(filtered) {

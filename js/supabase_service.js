@@ -491,7 +491,12 @@ class SupabaseService {
 
       if (error) throw error;
       if (data && data.length > 0) {
-        // Cache lại vào localStorage để phòng khi mất mạng
+        // Tự động phân tách chuẩn hóa CLS và Y lệnh nếu database cũ chỉ có cột tổng hợp cls/y_lenh
+        data.forEach(p => {
+          if (window.patientController && typeof window.patientController.normalizePatientClsAndOrders === 'function') {
+            window.patientController.normalizePatientClsAndOrders(p);
+          }
+        });
         localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(data));
         return data;
       } else {
@@ -511,7 +516,9 @@ class SupabaseService {
   sanitizePatientForSupabase(p) {
     const allowedCols = [
       'id', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
-      'chan_doan', 'cls', 'y_lenh', 'sort_order', 'handover_status',
+      'chan_doan', 'cls', 'cls_hien_co', 'cls_can_lam', 'y_lenh', 'them_thuoc',
+      'doctor_id', 'doctor_name',
+      'sort_order', 'handover_status',
       'handover_issues', 'handover_actions', 'handover_by', 'handover_by_id',
       'handover_at', 'handover_resolved_by', 'handover_resolved_at',
       'created_at', 'updated_at'
@@ -522,34 +529,47 @@ class SupabaseService {
         out[col] = p[col];
       }
     }
-    // Gán doctor_name vào handover_by để đồng bộ xuyên suốt
-    if (p.doctor_name && !out.handover_by) {
-      out.handover_by = p.doctor_name;
+    // Gán doctor_name và doctor_id để đồng bộ xuyên suốt
+    if (p.doctor_name) {
+      out.doctor_name = p.doctor_name;
+      if (!out.handover_by) out.handover_by = p.doctor_name;
+    }
+    if (p.doctor_id) {
+      out.doctor_id = p.doctor_id;
     }
 
-    // Đóng gói cấu trúc 2 phần CLS (Hiện có & Cần làm) vào cột cls để tương thích hoàn toàn cơ sở dữ liệu
-    if (p.cls_hien_co !== undefined || p.cls_can_lam !== undefined) {
-      const hc = (p.cls_hien_co || '').trim();
-      const cl = (p.cls_can_lam || '').trim();
-      if (hc && cl) {
-        out.cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
-      } else if (cl) {
-        out.cls = `[Cần làm]: ${cl}`;
-      } else {
-        out.cls = hc;
-      }
+    // Đảm bảo các trường CLS chi tiết luôn tồn tại
+    if (p.cls_hien_co !== undefined && p.cls_hien_co !== null) {
+      out.cls_hien_co = String(p.cls_hien_co).trim();
+    }
+    if (p.cls_can_lam !== undefined && p.cls_can_lam !== null) {
+      out.cls_can_lam = String(p.cls_can_lam).trim();
     }
 
-    // Đóng gói Thêm thuốc vào cột y_lenh để tương thích cơ sở dữ liệu
-    if (p.them_thuoc) {
-      const baseYl = (p.y_lenh || '').trim();
-      const extraRx = String(p.them_thuoc).trim();
-      if (extraRx) {
-        if (baseYl) {
-          out.y_lenh = `${baseYl}\n[Thêm thuốc]: ${extraRx}`;
-        } else {
-          out.y_lenh = `[Thêm thuốc]: ${extraRx}`;
-        }
+    // Đóng gói cấu trúc 2 phần CLS vào cột cls tổng hợp để tương thích ngược 100%
+    const hc = (out.cls_hien_co || p.cls_hien_co || '').trim();
+    const cl = (out.cls_can_lam || p.cls_can_lam || '').trim();
+    if (hc && cl) {
+      out.cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+    } else if (cl) {
+      out.cls = `[Cần làm]: ${cl}`;
+    } else if (hc) {
+      out.cls = hc;
+    }
+
+    // Đảm bảo trường Thêm thuốc chi tiết luôn tồn tại
+    if (p.them_thuoc !== undefined && p.them_thuoc !== null) {
+      out.them_thuoc = String(p.them_thuoc).trim();
+    }
+
+    // Đóng gói Thêm thuốc vào cột y_lenh tổng hợp để tương thích ngược
+    const baseYl = (out.y_lenh || p.y_lenh || '').trim();
+    const extraRx = (out.them_thuoc || p.them_thuoc || '').trim();
+    if (extraRx) {
+      if (baseYl && !baseYl.includes('[Thêm thuốc]:')) {
+        out.y_lenh = `${baseYl}\n[Thêm thuốc]: ${extraRx}`;
+      } else if (!baseYl) {
+        out.y_lenh = `[Thêm thuốc]: ${extraRx}`;
       }
     }
 
@@ -748,10 +768,18 @@ class SupabaseService {
         }
       }
 
-      // Đồng bộ ngược lại vào local cache và controller
-      localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
-      if (window.patientController) {
-        window.patientController.patientList = syncedData;
+      // Đồng bộ ngược lại vào local cache và controller nhưng BẢO TOÀN toàn bộ các trường chi tiết
+      if (window.patientController && Array.isArray(window.patientController.patientList)) {
+        syncedData.forEach((sItem, sIdx) => {
+          if (window.patientController.patientList[sIdx] && sItem.id) {
+            window.patientController.patientList[sIdx].id = sItem.id;
+            if (sItem.created_at) window.patientController.patientList[sIdx].created_at = sItem.created_at;
+            if (sItem.updated_at) window.patientController.patientList[sIdx].updated_at = sItem.updated_at;
+          }
+        });
+        window.patientController.saveLocalCache();
+      } else {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
       }
 
       this.batchSyncLock = false;

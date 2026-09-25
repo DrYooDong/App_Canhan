@@ -133,10 +133,10 @@
     white-space: nowrap !important;
   }
 
-  /* ĐỘ RỘNG CÁC CỘT TRÊN BẢN IN A4 LANDSCAPE */
+  /* ĐỘ RỘNG CÁC CỘT TRÊN BẢN IN A4 LANDSCAPE (TỔNG CỘNG VỪA KHÍT 100%) */
   table.med-table th.col-stt,
   table.med-table td.col-stt {
-    width: 32px !important;
+    width: 3.5% !important;
     text-align: center !important;
     font-size: 10pt !important;
     vertical-align: middle !important;
@@ -144,7 +144,7 @@
 
   table.med-table th.col-room,
   table.med-table td.col-room {
-    width: 78px !important;
+    width: 8.5% !important;
     text-align: center !important;
     font-weight: 700 !important;
     font-size: 10.5pt !important;
@@ -152,7 +152,7 @@
 
   table.med-table th.col-name,
   table.med-table td.col-name {
-    width: 145px !important;
+    width: 16% !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     font-size: 10.5pt !important;
@@ -160,28 +160,28 @@
 
   table.med-table th.col-birth,
   table.med-table td.col-birth {
-    width: 65px !important;
+    width: 7% !important;
     text-align: center !important;
     font-size: 9.5pt !important;
   }
 
   table.med-table th.col-cd,
   table.med-table td.col-cd {
-    width: 30% !important;
+    width: 21% !important;
     font-size: 10pt !important;
     line-height: 1.35 !important;
   }
 
   table.med-table th.col-cls,
   table.med-table td.col-cls {
-    width: 28% !important;
+    width: 21% !important;
     font-size: 10pt !important;
     line-height: 1.35 !important;
   }
 
   table.med-table th.col-yl,
   table.med-table td.col-yl {
-    width: 42% !important;
+    width: 23% !important;
     font-size: 10pt !important;
     line-height: 1.35 !important;
   }
