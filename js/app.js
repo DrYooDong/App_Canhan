@@ -265,7 +265,13 @@ class MedWardApp {
       try {
         const meta = JSON.parse(savedMetaStr);
         if (meta.date && document.getElementById('reportDate')) {
-          document.getElementById('reportDate').value = meta.date;
+          const parsed = CONFIG.parseDate ? CONFIG.parseDate(meta.date) : new Date();
+          const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS || 2) : new Date(Date.now() - 2 * 86400000);
+          if (parsed && !isNaN(parsed.getTime()) && parsed >= cutoff) {
+            document.getElementById('reportDate').value = meta.date;
+          } else {
+            document.getElementById('reportDate').value = this.formatToDMY(new Date());
+          }
         }
         if (meta.unit && document.querySelector('.unit-name')) {
           document.querySelector('.unit-name').innerText = meta.unit;

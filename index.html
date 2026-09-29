@@ -740,6 +740,28 @@
       </div>
     </div>
 
+    <!-- BANNER GỢI Ý CHUYỂN DỮ LIỆU THÔNG MINH KHI QUA NGÀY MỚI -->
+    <div id="smartRolloverPrompt" class="smart-rollover-prompt no-print" style="display: none;">
+      <div class="s-prompt-body">
+        <div class="s-prompt-icon">⚡</div>
+        <div class="s-prompt-text">
+          <div class="s-prompt-title" id="smartRolloverTitle">Qua ngày mới: Phát hiện dữ liệu ca trực hôm trước</div>
+          <div class="s-prompt-desc" id="smartRolloverDesc">Hệ thống có thể tự động tăng ngày bệnh trong chẩn đoán (+1), lọc bỏ các ca đã ra viện và giữ nguyên các y lệnh tiếp tục điều trị.</div>
+        </div>
+      </div>
+      <div class="s-prompt-actions">
+        <button type="button" class="btn btn-primary btn-sm btn-smart-rollover-now" onclick="window.patientController.autoRolloverFromPreviousDay()">
+          ⚡ Tự Động Chuyển Ngay (1 Click)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.openNextDayModal()">
+          ⚙️ Xem Trước &amp; Tùy Chỉnh
+        </button>
+        <button type="button" class="btn btn-subtle btn-sm" onclick="window.patientController.dismissSmartRolloverPrompt()">
+          ✕ Để Sau
+        </button>
+      </div>
+    </div>
+
     <!-- 6. CHẾ ĐỘ XEM 1: BẢNG DÀNH CHO DESKTOP / LAPTOP / IN ẤN -->
     <div class="table-wrapper" id="tableWrapper">
       <table class="med-table" id="patientTable">
@@ -1079,11 +1101,16 @@
           </table>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="window.patientController.closeNextDayModal()">Hủy</button>
-        <button class="btn btn-primary btn-rollover" onclick="window.patientController.executeNextDayRollover()">
-          ⏭️ Xác Nhận Chuyển Sang Ngày Mới
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <button type="button" class="btn btn-success btn-smart-rollover-now" onclick="window.patientController.autoRolloverFromPreviousDay(); window.patientController.closeNextDayModal();" title="Tự động tăng ngày bệnh, loại bỏ ca xuất viện, giữ nguyên y lệnh và chuyển ngay">
+          ⚡ Chuyển Thông Minh (1 Click)
         </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" onclick="window.patientController.closeNextDayModal()">Hủy</button>
+          <button type="button" class="btn btn-primary btn-rollover" onclick="window.patientController.executeNextDayRollover()">
+            ⏭️ Xác Nhận Chuyển Danh Sách Đã Chọn
+          </button>
+        </div>
       </div>
     </div>
   </div>

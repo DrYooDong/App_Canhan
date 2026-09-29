@@ -32,6 +32,7 @@ class PatientController {
     this.setupRealtimeListener();
     this.updateStorageHudUI();
     this.purgeOlderData().catch(() => {});
+    this.checkSmartRolloverPrompt();
   }
 
   loadSettings() {
@@ -214,20 +215,40 @@ class PatientController {
   }
 
   saveLocalCache() {
-    const { doctor } = this.getEffectiveDoctor();
+    const { doctor, isAll } = this.getEffectiveDoctor();
     const docId = doctor.id || 'doc_dongnh';
     const targetIso = this.currentDateIso || this.todayIso;
 
-    // Lưu vào partition ngày cụ thể
+    // 1. Luôn lưu vào partition ngày cụ thể (cho ngày đang mở)
     const dailyKey = this.getDailyStorageKey(docId, targetIso);
     localStorage.setItem(dailyKey, JSON.stringify(this.patientList));
     this.dailyPatientsMap[targetIso] = this.patientList;
 
-    // Nếu đang xem Hôm nay, đồng bộ cả vào main slot
-    if (targetIso === this.todayIso) {
-      localStorage.setItem(this.getDoctorSpaceKey(docId), JSON.stringify(this.patientList));
-      localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
+    // 2. Phân chia không gian bác sĩ và đồng bộ cache chính nếu là Hôm nay
+    if (isAll) {
+      const partitionMap = {};
+      this.patientList.forEach(p => {
+        const dId = p.doctor_id || p.handover_by_id || 'doc_dongnh';
+        if (!partitionMap[dId]) partitionMap[dId] = [];
+        partitionMap[dId].push(p);
+      });
+      Object.keys(partitionMap).forEach(dId => {
+        localStorage.setItem(this.getDailyStorageKey(dId, targetIso), JSON.stringify(partitionMap[dId]));
+        if (targetIso === this.todayIso) {
+          localStorage.setItem(this.getDoctorSpaceKey(dId), JSON.stringify(partitionMap[dId]));
+        }
+      });
+    } else {
+      if (targetIso === this.todayIso) {
+        const key = this.getDoctorSpaceKey(doctor.id);
+        localStorage.setItem(key, JSON.stringify(this.patientList));
+        if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
+          localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
+        }
+      }
     }
+
+    this.updateStorageHudUI();
   }
 
   async reloadFromSource(showNotice = true, targetDateIso = this.currentDateIso) {
@@ -241,10 +262,18 @@ class PatientController {
       try {
         const cloudData = await window.supabaseService.fetchPatients(doctor, targetIso);
         if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
-          // Phân loại cloudData theo ngày vào bộ nhớ đệm
+          // Phân loại cloudData theo ngày vào bộ nhớ đệm (chuẩn hóa theo múi giờ Việt Nam)
           this.dailyPatientsMap = {};
           cloudData.forEach(p => {
-            const pDateIso = (p.created_at || '').substring(0, 10) || this.todayIso;
+            let pDateIso = this.todayIso;
+            if (p.created_at) {
+              const dt = new Date(p.created_at);
+              if (!isNaN(dt.getTime())) {
+                pDateIso = CONFIG.formatYMD(dt);
+              } else {
+                pDateIso = String(p.created_at).substring(0, 10);
+              }
+            }
             if (!this.dailyPatientsMap[pDateIso]) this.dailyPatientsMap[pDateIso] = [];
             this.dailyPatientsMap[pDateIso].push(p);
           });
@@ -317,6 +346,7 @@ class PatientController {
     this.updateStorageHudUI();
     this.renderDateSwitcherUI();
     this.renderHistoricalBanner();
+    this.checkSmartRolloverPrompt();
 
     if (showNotice && window.updateSaveStatus) {
       const spaceLabel = isAll ? 'Toàn Khoa' : doctor.full_name;
@@ -506,28 +536,6 @@ class PatientController {
         p.y_lenh = '';
       }
     }
-  }
-
-  saveLocalCache() {
-    const { doctor, isAll } = this.getEffectiveDoctor();
-    if (isAll) {
-      const partitionMap = {};
-      this.patientList.forEach(p => {
-        const dId = p.doctor_id || p.handover_by_id || 'doc_dongnh';
-        if (!partitionMap[dId]) partitionMap[dId] = [];
-        partitionMap[dId].push(p);
-      });
-      Object.keys(partitionMap).forEach(dId => {
-        localStorage.setItem(this.getDoctorSpaceKey(dId), JSON.stringify(partitionMap[dId]));
-      });
-    } else {
-      const key = this.getDoctorSpaceKey(doctor.id);
-      localStorage.setItem(key, JSON.stringify(this.patientList));
-      if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
-      }
-    }
-    this.updateStorageHudUI();
   }
 
   // TÍNH TOÁN DUNG LƯỢNG LƯU TRỮ 100MB CHO TỪNG TÀI KHOẢN (SAVE SLOT HUD)
@@ -1049,28 +1057,223 @@ class PatientController {
   }
 
   // ==============================================================================
-  // TÍNH NĂNG CHUYỂN NGÀY TIẾP THEO (NEXT DAY ROLLOVER)
+  // TÍNH NĂNG CHUYỂN NGÀY TIẾP THEO (NEXT DAY ROLLOVER) & TỰ ĐỘNG THÔNG MINH
   // ==============================================================================
   incrementIllnessDay(diagnosis) {
-    if (!diagnosis) return '';
+    if (!diagnosis || typeof diagnosis !== 'string') return diagnosis || '';
     let str = diagnosis;
 
-    // 1. Dạng "ngày X" -> "ngày X+1" (VD: "SXH ngày 4" -> "SXH ngày 5")
-    str = str.replace(/(ng[àa]y\s*)(\d+)/gi, (match, prefix, day) => {
+    // 1. Dạng "ngày X" hoặc "ngay X" (VD: "SXH ngày 4" -> "SXH ngày 5", "bệnh ngày 2" -> "bệnh ngày 3", "ngày 3 bệnh" -> "ngày 4 bệnh")
+    str = str.replace(/(\bng[àa]y\s*)(\d+)/gi, (match, prefix, day) => {
       return prefix + (parseInt(day, 10) + 1);
     });
 
-    // 2. Dạng "NX" hoặc "DX" (VD: "VP N3" -> "VP N4", "N1" -> "N2", "D3" -> "D4", "HP N2" -> "HP N3")
-    str = str.replace(/\b(N|D|HP|H[ẬA]U PH[ẪA]U N)(\s*)(\d+)\b/gi, (match, prefix, space, day) => {
-      return prefix + space + (parseInt(day, 10) + 1);
+    // 2. Dạng "NX" hoặc "DX" hoặc tiền tố lâm sàng: "SXH N4", "VP N3", "HP N2", "KS N4", "Sốt D3", "(N1)", "- N2" (chỉ khớp 1 lần)
+    str = str.replace(/(\b(?:HP|H[ẬA]U\s*PH[ẪA]U|KS|KH[ÁA]NG\s*SINH|S[ỐO]T)?\s*\b[ND]\s*)(\d+)\b/gi, (match, prefix, day) => {
+      return prefix + (parseInt(day, 10) + 1);
     });
 
     return str;
   }
 
   isDischargedPatient(p) {
-    const text = `${p.chan_doan || ''} ${p.y_lenh || ''} ${p.handover_issues || ''} ${p.handover_actions || ''}`.toLowerCase();
-    return /ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|chuy[ểe]n\s*vi[ệe]n|xin\s*v[ềe]|t[ửu]\s*vong/.test(text);
+    if (!p) return false;
+    const combined = [
+      p.chan_doan,
+      p.y_lenh,
+      p.them_thuoc,
+      p.handover_issues,
+      p.handover_actions,
+      p.cls_can_lam
+    ].filter(Boolean).join(' ').normalize('NFC').toLowerCase();
+
+    // Lọc bỏ triệt để các ca có ghi chú liên quan xuất viện, chuyển viện, xin về, tử vong
+    return /\b(?:ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|cho\s*ra|cho\s*xu[ấa]t|h[ẹe]n\s*t[áa]i\s*kh[áa]m|xin\s*v[ềe]|chuy[ểe]n\s*vi[ệe]n|chuy[ểe]n\s*khoa|chuy[ểe]n\s*tr[ạa]i|chuy[ểe]n\s*tuy[ếe]n|chuy[ểe]n\s*h[ồo]i\s*s[ứu]c|chuy[ểe]n\s*icu|t[ửu]\s*vong)\b/i.test(combined);
+  }
+
+  // TỰ ĐỘNG CHUYỂN DỮ LIỆU THÔNG MINH SANG NGÀY MỚI (1-CLICK SMART ROLLOVER)
+  async smartAutoRollover(fromIso = null, toIso = null) {
+    const { doctor } = this.getEffectiveDoctor();
+    const today = new Date();
+    const targetIso = toIso || this.currentDateIso || this.todayIso;
+    const targetDMY = CONFIG.formatDMY(targetIso);
+
+    // Xác định ngày nguồn
+    let sourceIso = fromIso;
+    if (!sourceIso) {
+      const targetDateObj = CONFIG.parseDate(targetIso);
+      const prevDate = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate() - 1, 12, 0, 0);
+      sourceIso = CONFIG.formatYMD(prevDate);
+    }
+
+    // 1. Tìm danh sách người bệnh nguồn
+    let sourcePatients = this.dailyPatientsMap[sourceIso];
+    if (!sourcePatients || sourcePatients.length === 0) {
+      sourcePatients = this.loadDoctorPatients(doctor.id, sourceIso);
+    }
+
+    if (!sourcePatients || sourcePatients.length === 0) {
+      for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS || 2); offset++) {
+        const checkDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset, 12, 0, 0);
+        const checkIso = CONFIG.formatYMD(checkDate);
+        const candidates = this.dailyPatientsMap[checkIso] || this.loadDoctorPatients(doctor.id, checkIso);
+        if (candidates && candidates.length > 0) {
+          sourcePatients = candidates;
+          sourceIso = checkIso;
+          break;
+        }
+      }
+    }
+
+    if (!sourcePatients || sourcePatients.length === 0) {
+      if (window.showToast) {
+        window.showToast('⚠️ Không tìm thấy dữ liệu ca trực hôm trước để tự động chuyển.');
+      }
+      return false;
+    }
+
+    const sourceDMY = CONFIG.formatDMY(sourceIso);
+    let dischargedCount = 0;
+    let transferredCount = 0;
+    const newPatients = [];
+    const nowIso = new Date().toISOString();
+
+    // 2. Chuyển thông minh từng người bệnh
+    sourcePatients.forEach((p) => {
+      // Tự động lọc bỏ các ca đã ra viện / xuất viện / xin về / tử vong / chuyển viện
+      if (this.isDischargedPatient(p)) {
+        dischargedCount++;
+        return;
+      }
+
+      // Tăng ngày bệnh thông minh
+      const newDiag = this.incrementIllnessDay(p.chan_doan);
+
+      // Kế thừa 100% y lệnh điều trị và thuốc
+      const retainedYlenh = p.y_lenh || '';
+      const retainedThemThuoc = p.them_thuoc || '';
+
+      // Giữ kết quả CLS
+      const retainedClsHc = p.cls_hien_co || '';
+      const retainedClsCl = p.cls_can_lam || '';
+
+      // Bàn giao: giữ cảnh báo ca Báo động đỏ (critical)
+      const isCritical = p.handover_status === 'critical' || p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
+      const nextStatus = isCritical ? CONFIG.HANDOVER_STATUS.CRITICAL : CONFIG.HANDOVER_STATUS.NONE;
+      const nextIssues = isCritical ? (p.handover_issues || '') : '';
+      const nextActions = isCritical ? (p.handover_actions || '') : '';
+
+      const nextP = {
+        ...p,
+        id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
+        phong_giuong: this.cleanRoomBedString(p.phong_giuong),
+        chan_doan: newDiag,
+        y_lenh: retainedYlenh,
+        them_thuoc: retainedThemThuoc,
+        cls_hien_co: retainedClsHc,
+        cls_can_lam: retainedClsCl,
+        cls: p.cls || '',
+        handover_status: nextStatus,
+        handover_issues: nextIssues,
+        handover_actions: nextActions,
+        doctor_id: p.doctor_id || doctor.id || 'doc_dongnh',
+        doctor_name: p.doctor_name || doctor.full_name || 'BS. Nguyễn Hữu Đông',
+        handover_by: p.handover_by || doctor.full_name,
+        sort_order: newPatients.length,
+        created_at: `${targetIso}T12:00:00.000Z`,
+        updated_at: nowIso
+      };
+
+      this.normalizePatientClsAndOrders(nextP);
+      newPatients.push(nextP);
+      transferredCount++;
+    });
+
+    // 3. Lưu vào partition ngày mới
+    this.patientList = newPatients;
+    this.dailyPatientsMap[targetIso] = newPatients;
+    this.saveLocalCache();
+
+    // 4. Đồng bộ lên Supabase Cloud
+    if (window.supabaseService) {
+      window.supabaseService.syncBatchPatients(newPatients, targetIso, doctor.id).catch(err => {
+        console.warn('Lỗi đồng bộ chuyển ngày thông minh lên cloud:', err);
+      });
+    }
+
+    // 5. Tự động xóa dữ liệu cũ hơn 2 ngày
+    await this.purgeOlderData();
+
+    // 6. Cập nhật giao diện
+    this.hideSmartRolloverPrompt();
+    this.updateDoctorFilterDropdown();
+    this.render();
+
+    const info = `⚡ Đã tự động chuyển ${transferredCount} người bệnh từ ngày ${sourceDMY} sang ${targetDMY} (tăng ngày bệnh, giữ nguyên y lệnh, lọc ${dischargedCount} ca xuất viện)!`;
+    if (window.showToast) window.showToast(`✓ ${info}`);
+    if (window.updateSaveStatus) window.updateSaveStatus(`✓ ${info}`);
+
+    return true;
+  }
+
+  hideSmartRolloverPrompt() {
+    const prompt = document.getElementById('smartRolloverPrompt');
+    if (prompt) prompt.style.display = 'none';
+  }
+
+  dismissSmartRolloverPrompt() {
+    this.hideSmartRolloverPrompt();
+  }
+
+  async autoRolloverFromPreviousDay() {
+    return await this.smartAutoRollover(this.pendingRolloverSourceIso || null, this.currentDateIso);
+  }
+
+  checkSmartRolloverPrompt() {
+    const prompt = document.getElementById('smartRolloverPrompt');
+    if (!prompt) return;
+
+    if (this.patientList.length > 0) {
+      prompt.style.display = 'none';
+      return;
+    }
+
+    const { doctor } = this.getEffectiveDoctor();
+    const today = new Date();
+
+    let foundPrevPatients = null;
+    let foundPrevIso = null;
+
+    for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS || 2); offset++) {
+      const prevDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset, 12, 0, 0);
+      const prevIso = CONFIG.formatYMD(prevDate);
+      const prevList = this.dailyPatientsMap[prevIso] || this.loadDoctorPatients(doctor.id, prevIso);
+      if (prevList && prevList.length > 0) {
+        foundPrevPatients = prevList;
+        foundPrevIso = prevIso;
+        break;
+      }
+    }
+
+    if (foundPrevPatients && foundPrevPatients.length > 0) {
+      this.pendingRolloverSourceIso = foundPrevIso;
+      const prevDMY = CONFIG.formatDMY(foundPrevIso);
+      const activeCandidates = foundPrevPatients.filter(p => !this.isDischargedPatient(p));
+      const dischargedNum = foundPrevPatients.length - activeCandidates.length;
+
+      const titleEl = document.getElementById('smartRolloverTitle');
+      const descEl = document.getElementById('smartRolloverDesc');
+      if (titleEl) {
+        titleEl.innerHTML = `Qua ngày mới (${this.currentDateStr}): Phát hiện ca trực ngày ${prevDMY} có <strong>${foundPrevPatients.length} người bệnh</strong>`;
+      }
+      if (descEl) {
+        descEl.innerHTML = `Tự động chuyển thông minh: <strong>${activeCandidates.length} người bệnh tiếp tục điều trị</strong> (tăng ngày bệnh, giữ nguyên y lệnh), loại bỏ <strong>${dischargedNum} ca đã ra viện</strong>.`;
+      }
+
+      prompt.style.display = 'flex';
+    } else {
+      prompt.style.display = 'none';
+    }
   }
 
   openNextDayModal() {
@@ -1203,6 +1406,7 @@ class PatientController {
 
     // 2. Xây dựng danh sách bệnh nhân cho ngày mới
     const newPatients = [];
+    const nowIso = new Date().toISOString();
     this.patientList.forEach((p) => {
       if (selectedIds.has(p.id)) {
         const nextP = {
@@ -1210,14 +1414,25 @@ class PatientController {
           id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
           phong_giuong: this.cleanRoomBedString(p.phong_giuong),
           chan_doan: autoInc ? this.incrementIllnessDay(p.chan_doan) : p.chan_doan,
-          y_lenh: keepOrders ? p.y_lenh : '',
+          // Giữ nguyên y lệnh điều trị và thuốc
+          y_lenh: keepOrders ? (p.y_lenh || '') : '',
+          them_thuoc: keepOrders ? (p.them_thuoc || '') : '',
+          // Giữ kết quả CLS
+          cls_hien_co: p.cls_hien_co || '',
+          cls_can_lam: p.cls_can_lam || '',
+          cls: p.cls || '',
+          // Bàn giao: giữ nguyên ca báo động đỏ (critical)
           handover_status: resetHandover ? (p.handover_status === 'critical' ? 'critical' : 'none') : p.handover_status,
-          handover_issues: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_issues,
-          handover_actions: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_actions,
+          handover_issues: resetHandover && p.handover_status !== 'critical' ? '' : (p.handover_issues || ''),
+          handover_actions: resetHandover && p.handover_status !== 'critical' ? '' : (p.handover_actions || ''),
+          doctor_id: p.doctor_id || doctor.id || 'doc_dongnh',
+          doctor_name: p.doctor_name || doctor.full_name || 'BS. Nguyễn Hữu Đông',
+          handover_by: p.handover_by || doctor.full_name,
           sort_order: newPatients.length,
           created_at: `${targetDateIso}T12:00:00.000Z`,
-          updated_at: new Date().toISOString()
+          updated_at: nowIso
         };
+        this.normalizePatientClsAndOrders(nextP);
         newPatients.push(nextP);
       }
     });
@@ -1251,6 +1466,7 @@ class PatientController {
     this.closeNextDayModal();
     this.updateDoctorFilterDropdown();
     this.render();
+    this.hideSmartRolloverPrompt();
 
     if (window.showToast) {
       window.showToast(`✓ Đã chuyển ${newPatients.length} người bệnh sang ngày ${targetDateDMY}!`);
@@ -1729,16 +1945,28 @@ class PatientController {
     if (btnToday) btnToday.classList.toggle('active', cur === iso(today));
     if (btnNext) btnNext.classList.toggle('active', cur === iso(dPlus1));
 
-    // Cập nhật trạng thái active cho mobile chips
+    // Cập nhật trạng thái active & nhãn ngày cho mobile chips
     const mobMinus2 = document.getElementById('btnMobDateMinus2');
     const mobMinus1 = document.getElementById('btnMobDateMinus1');
     const mobToday = document.getElementById('btnMobDateToday');
     const mobNext = document.getElementById('btnMobDateNext');
 
-    if (mobMinus2) mobMinus2.classList.toggle('active', cur === iso(dMinus2));
-    if (mobMinus1) mobMinus1.classList.toggle('active', cur === iso(dMinus1));
-    if (mobToday) mobToday.classList.toggle('active', cur === iso(today));
-    if (mobNext) mobNext.classList.toggle('active', cur === iso(dPlus1));
+    if (mobMinus2) {
+      mobMinus2.classList.toggle('active', cur === iso(dMinus2));
+      mobMinus2.innerHTML = `<span>◀ Hôm kia <small>(${fmt(dMinus2)})</small></span>`;
+    }
+    if (mobMinus1) {
+      mobMinus1.classList.toggle('active', cur === iso(dMinus1));
+      mobMinus1.innerHTML = `<span>◀ Hôm qua <small>(${fmt(dMinus1)})</small></span>`;
+    }
+    if (mobToday) {
+      mobToday.classList.toggle('active', cur === iso(today));
+      mobToday.innerHTML = `<span>🌟 Hôm nay <small>(${fmt(today)})</small></span>`;
+    }
+    if (mobNext) {
+      mobNext.classList.toggle('active', cur === iso(dPlus1));
+      mobNext.innerHTML = `<span>▶ Ngày kế <small>(${fmt(dPlus1)})</small></span>`;
+    }
   }
 
   // BANNER THÔNG BÁO KHI ĐANG XEM NGÀY CŨ (1-2 NGÀY TRƯỚC) HOẶC NGÀY KẾ
