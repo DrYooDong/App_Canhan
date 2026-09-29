@@ -17,8 +17,13 @@ const CONFIG = {
     HANDOVER_LOGS: 'medward_handover_logs_v2',
     DOCTOR_WORKSPACES: 'medward_doctor_workspaces_v2',
     ACTIVE_WORKSPACE: 'medward_active_workspace_v2',
-    DOCTOR_SPACE_PREFIX: 'medward_doc_space_'
+    DOCTOR_SPACE_PREFIX: 'medward_doc_space_',
+    DAILY_PATIENTS_PREFIX: 'medward_daily_pts_',
+    ARCHIVED_DAYS: 'medward_archived_days'
   },
+
+  // THỜI GIAN LƯU TRỮ DỮ LIỆU CŨ (1-2 NGÀY GẦN NHẤT, DỮ LIỆU CŨ HƠN TỰ ĐỘNG XÓA)
+  RETENTION_DAYS: 2,
 
   // DUNG LƯỢNG LƯU TRỮ CHO MỖI TÀI KHOẢN / ID (100MB SAVE SLOT)
   STORAGE_LIMIT_MB: 100,
@@ -360,6 +365,68 @@ if (CONFIG.ABBREVIATIONS_CATEGORIES) {
     }
   }
 }
+
+// ==============================================================================
+// CÁC HÀM TIỆN ÍCH NGÀY THÁNG LÂM SÀNG & QUẢN LÝ THỜI GIAN LƯU TRỮ
+// ==============================================================================
+CONFIG.formatDMY = function(dateInput) {
+  const d = dateInput instanceof Date ? dateInput : (dateInput ? CONFIG.parseDate(dateInput) : new Date());
+  if (isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+CONFIG.formatYMD = function(dateInput) {
+  const d = dateInput instanceof Date ? dateInput : (dateInput ? CONFIG.parseDate(dateInput) : new Date());
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+CONFIG.parseDate = function(str) {
+  if (!str) return new Date();
+  if (str instanceof Date) return str;
+  const s = String(str).trim();
+
+  // Khớp ISO: 2026-09-29 hoặc 2026-09-29T...
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const parts = s.substring(0, 10).split('-');
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+  }
+
+  // Khớp DD/MM/YYYY hoặc DD-MM-YYYY
+  const parts = s.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+    }
+    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10), 12, 0, 0);
+  }
+
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
+CONFIG.getRelativeDayOffset = function(dateStr, baseDateInput = new Date()) {
+  const target = CONFIG.parseDate(dateStr);
+  const base = baseDateInput instanceof Date ? baseDateInput : CONFIG.parseDate(baseDateInput);
+  
+  const targetZero = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const baseZero = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+  const diffDays = Math.round((targetZero - baseZero) / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
+CONFIG.getCutoffDate = function(retentionDays = CONFIG.RETENTION_DAYS || 2) {
+  const now = new Date();
+  // Lùi retentionDays ngày về lúc 00:00:00
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - retentionDays, 0, 0, 0, 0);
+  return cutoff;
+};
 
 window.CONFIG = CONFIG;
 

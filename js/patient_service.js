@@ -14,15 +14,24 @@ class PatientController {
     this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
 
+    // QUẢN LÝ NGÀY LÂM SÀNG & TỰ ĐỘNG XÓA DỮ LIỆU CŨ HƠN 2 NGÀY
+    const today = new Date();
+    this.todayIso = CONFIG.formatYMD ? CONFIG.formatYMD(today) : `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    this.currentDateIso = this.todayIso;
+    this.currentDateStr = CONFIG.formatDMY ? CONFIG.formatDMY(today) : `${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
+    this.dailyPatientsMap = {}; // Lưu trữ bộ nhớ đệm theo ngày: { '2026-09-29': [...], '2026-09-28': [...] }
+
     this.init();
   }
 
   async init() {
     this.loadSettings();
     this.applyMobileViewMode();
+    this.purgeOlderLocalData();
     await this.reloadFromSource();
     this.setupRealtimeListener();
     this.updateStorageHudUI();
+    this.purgeOlderData().catch(() => {});
   }
 
   loadSettings() {
@@ -56,19 +65,77 @@ class PatientController {
         }
 
         this.realtimeDebounceTimer = setTimeout(async () => {
-          await this.reloadFromSource(false);
-          this.render();
-        }, 2000);
+          await this.reloadFromSource(false, this.currentDateIso);
+        }, 1500);
       });
     }
   }
 
   // ==============================================================================
-  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN (ISOLATED WORKSPACE & 100MB SAVE SLOT)
+  // TỰ ĐỘNG XÓA DỮ LIỆU CŨ HƠN 1-2 NGÀY (RETENTION CLEANUP)
+  // ==============================================================================
+  purgeOlderLocalData() {
+    try {
+      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS || 2) : new Date(Date.now() - 2 * 86400000);
+      const cutoffIso = CONFIG.formatYMD ? CONFIG.formatYMD(cutoff) : '';
+
+      if (!cutoffIso) return;
+
+      // 1. Quét dọn các key lưu theo ngày medward_daily_pts_*
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(CONFIG.STORAGE_KEYS.DAILY_PATIENTS_PREFIX || 'medward_daily_pts_')) {
+          const parts = k.split('_');
+          const datePart = parts[parts.length - 1];
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart < cutoffIso) {
+            keysToRemove.push(k);
+          }
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+
+      // 2. Quét dọn medward_archived_days
+      const archStr = localStorage.getItem(CONFIG.STORAGE_KEYS.ARCHIVED_DAYS || 'medward_archived_days');
+      if (archStr) {
+        const archives = JSON.parse(archStr);
+        let changed = false;
+        for (const dateKey of Object.keys(archives)) {
+          const dt = CONFIG.parseDate(dateKey);
+          const dtIso = CONFIG.formatYMD(dt);
+          if (dtIso < cutoffIso) {
+            delete archives[dateKey];
+            changed = true;
+          }
+        }
+        if (changed) {
+          localStorage.setItem(CONFIG.STORAGE_KEYS.ARCHIVED_DAYS || 'medward_archived_days', JSON.stringify(archives));
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi dọn dẹp dữ liệu cũ nội bộ:', e);
+    }
+  }
+
+  async purgeOlderData() {
+    this.purgeOlderLocalData();
+    if (window.supabaseService) {
+      await window.supabaseService.purgeOlderPatients(CONFIG.RETENTION_DAYS || 2).catch(() => {});
+    }
+  }
+
+  // ==============================================================================
+  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN & LƯU THEO NGÀY
   // ==============================================================================
   getDoctorSpaceKey(docId) {
     if (!docId) return 'medward_patients_v2';
     return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_patients';
+  }
+
+  getDailyStorageKey(docId, dateIso = this.currentDateIso) {
+    const dId = docId || 'doc_dongnh';
+    const dIso = dateIso || this.currentDateIso || this.todayIso;
+    return `${CONFIG.STORAGE_KEYS.DAILY_PATIENTS_PREFIX || 'medward_daily_pts_'}${dId}_${dIso}`;
   }
 
   getEffectiveDoctor() {
@@ -88,70 +155,106 @@ class PatientController {
     return { doctor: targetDoc, isAll: false, isAdmin: true };
   }
 
-  loadDoctorPatients(docId) {
-    const key = this.getDoctorSpaceKey(docId);
-    const local = localStorage.getItem(key);
-    if (local !== null) {
+  loadDoctorPatients(docId, dateIso = this.currentDateIso) {
+    // 1. Thử nạp từ bộ nhớ ngày chuyên biệt
+    const dailyKey = this.getDailyStorageKey(docId, dateIso);
+    const localDaily = localStorage.getItem(dailyKey);
+    if (localDaily !== null) {
       try {
-        const parsed = JSON.parse(local);
+        const parsed = JSON.parse(localDaily);
         if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        return [];
-      }
+      } catch (e) {}
     }
 
-    // Nếu là BS. Đông và chưa khởi tạo partition riêng, nạp từ cache cũ hoặc sample
-    if (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId }))) {
-      const oldCache = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
-      if (oldCache) {
+    // 2. Thử nạp từ bộ nhớ đệm archives nếu có
+    try {
+      const archives = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.ARCHIVED_DAYS || 'medward_archived_days') || '{}');
+      const dmy = CONFIG.formatDMY(dateIso);
+      if (archives[dmy] && Array.isArray(archives[dmy].patients)) {
+        return archives[dmy].patients;
+      }
+      if (archives[dateIso] && Array.isArray(archives[dateIso].patients)) {
+        return archives[dateIso].patients;
+      }
+    } catch (e) {}
+
+    // 3. Nếu là ngày hôm nay, nạp từ partition chính
+    if (dateIso === this.todayIso) {
+      const key = this.getDoctorSpaceKey(docId);
+      const local = localStorage.getItem(key);
+      if (local !== null) {
         try {
-          const parsed = JSON.parse(oldCache);
+          const parsed = JSON.parse(local);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            localStorage.setItem(key, JSON.stringify(parsed));
+            localStorage.setItem(dailyKey, JSON.stringify(parsed));
             return parsed;
           }
         } catch (e) {}
       }
-      const samples = CONFIG.SAMPLE_PATIENTS ? JSON.parse(JSON.stringify(CONFIG.SAMPLE_PATIENTS)) : [];
-      localStorage.setItem(key, JSON.stringify(samples));
-      return samples;
+
+      // Nếu là BS. Đông và chưa khởi tạo partition riêng, nạp từ cache cũ hoặc sample
+      if (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId }))) {
+        const oldCache = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+        if (oldCache) {
+          try {
+            const parsed = JSON.parse(oldCache);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              localStorage.setItem(dailyKey, JSON.stringify(parsed));
+              return parsed;
+            }
+          } catch (e) {}
+        }
+        const samples = CONFIG.SAMPLE_PATIENTS ? JSON.parse(JSON.stringify(CONFIG.SAMPLE_PATIENTS)) : [];
+        localStorage.setItem(dailyKey, JSON.stringify(samples));
+        return samples;
+      }
     }
 
-    // MỌI TÀI KHOẢN BÁC SĨ KHÁC (VD: Hồ Thế Bảo) BẮT ĐẦU VỚI MẢNG RỖNG []
-    // Hoàn toàn độc lập, không thấy danh sách của BS. Đông!
-    localStorage.setItem(key, JSON.stringify([]));
     return [];
   }
 
-  async reloadFromSource(showNotice = true) {
+  saveLocalCache() {
+    const { doctor } = this.getEffectiveDoctor();
+    const docId = doctor.id || 'doc_dongnh';
+    const targetIso = this.currentDateIso || this.todayIso;
+
+    // Lưu vào partition ngày cụ thể
+    const dailyKey = this.getDailyStorageKey(docId, targetIso);
+    localStorage.setItem(dailyKey, JSON.stringify(this.patientList));
+    this.dailyPatientsMap[targetIso] = this.patientList;
+
+    // Nếu đang xem Hôm nay, đồng bộ cả vào main slot
+    if (targetIso === this.todayIso) {
+      localStorage.setItem(this.getDoctorSpaceKey(docId), JSON.stringify(this.patientList));
+      localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
+    }
+  }
+
+  async reloadFromSource(showNotice = true, targetDateIso = this.currentDateIso) {
+    this.purgeOlderLocalData();
+
+    const targetIso = targetDateIso || this.currentDateIso || this.todayIso;
     const { doctor, isAll, isAdmin } = this.getEffectiveDoctor();
     let data = null;
 
-    if (isAll) {
-      // Chế độ Quản trị viên xem toàn bộ khoa: Tổng hợp người bệnh từ tất cả các bác sĩ
-      const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
-      const aggregated = [];
-      const seenIds = new Set();
-      allDocs.forEach(d => {
-        const docPts = this.loadDoctorPatients(d.id);
-        docPts.forEach(p => {
-          if (!seenIds.has(p.id)) {
-            seenIds.add(p.id);
-            aggregated.push({
-              ...p,
-              doctor_name: p.doctor_name || d.full_name,
-              doctor_id: p.doctor_id || d.id
-            });
-          }
-        });
-      });
-      data = aggregated;
-    } else {
-      // Chế độ Không gian riêng của từng Bác sĩ (VD: BS. Hồ Thế Bảo hoặc BS. Nguyễn Hữu Đông)
-      if (window.supabaseService && window.supabaseService.isCloudEnabled) {
-        try {
-          const cloudData = await window.supabaseService.fetchPatients();
-          if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+    if (window.supabaseService && window.supabaseService.isCloudEnabled) {
+      try {
+        const cloudData = await window.supabaseService.fetchPatients(doctor, targetIso);
+        if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+          // Phân loại cloudData theo ngày vào bộ nhớ đệm
+          this.dailyPatientsMap = {};
+          cloudData.forEach(p => {
+            const pDateIso = (p.created_at || '').substring(0, 10) || this.todayIso;
+            if (!this.dailyPatientsMap[pDateIso]) this.dailyPatientsMap[pDateIso] = [];
+            this.dailyPatientsMap[pDateIso].push(p);
+          });
+
+          // Lấy bệnh nhân của ngày targetIso
+          const dayRecords = this.dailyPatientsMap[targetIso] || [];
+
+          if (isAll) {
+            data = dayRecords;
+          } else {
             const docId = String(doctor.id || '').toLowerCase().trim();
             const docUsername = String(doctor.username || '').toLowerCase().trim();
             const docEmail = String(doctor.email || '').toLowerCase().trim();
@@ -163,7 +266,7 @@ class PatientController {
                                  docNameLower.includes('đông') || 
                                  docNameLower.includes('dong');
 
-            const matched = cloudData.filter(p => {
+            const matched = dayRecords.filter(p => {
               const pDocId = String(p.doctor_id || '').toLowerCase().trim();
               const pUserId = String(p.user_id || '').toLowerCase().trim();
               const pHandoverId = String(p.handover_by_id || '').toLowerCase().trim();
@@ -184,32 +287,50 @@ class PatientController {
                      (docUsername && (pDocId === docUsername || pDocName.includes(docUsername))) ||
                      (docNameLower && (pDocName === docNameLower || pDocName.includes(docNameLower)));
             });
-            if (matched.length > 0) {
-              data = matched;
-              localStorage.setItem(this.getDoctorSpaceKey(doctor.id), JSON.stringify(matched));
-            }
-          }
-        } catch (err) {
-          console.warn('Lưu ý kết nối Cloud:', err);
-        }
-      }
 
-      if (!data) {
-        data = this.loadDoctorPatients(doctor.id);
-        // Nếu có danh sách trong bộ nhớ máy (như vừa nạp file Excel) mà Cloud chưa có, tự động đồng bộ ngay lên Supabase
-        if (window.supabaseService && window.supabaseService.isCloudEnabled && Array.isArray(data) && data.length > 0) {
-          setTimeout(() => {
-            window.supabaseService.syncBatchPatients(data);
-          }, 400);
+            data = matched;
+          }
+
+          if (data && data.length > 0) {
+            localStorage.setItem(this.getDailyStorageKey(doctor.id, targetIso), JSON.stringify(data));
+          }
         }
+      } catch (err) {
+        console.warn('Lưu ý kết nối Cloud:', err);
+      }
+    }
+
+    if (!data || data.length === 0) {
+      data = this.loadDoctorPatients(doctor.id, targetIso);
+      // Nếu có danh sách trong bộ nhớ máy mà Cloud chưa có, tự động đồng bộ ngay lên Supabase
+      if (window.supabaseService && window.supabaseService.isCloudEnabled && Array.isArray(data) && data.length > 0) {
+        setTimeout(() => {
+          window.supabaseService.syncBatchPatients(data, targetIso, doctor.id);
+        }, 400);
       }
     }
 
     this.patientList = data || [];
+    this.normalizeAllPatients();
+    this.updateDoctorFilterDropdown();
+    this.render();
+    this.updateStorageHudUI();
+    this.renderDateSwitcherUI();
+    this.renderHistoricalBanner();
 
-    // Tự động chuẩn hóa phòng/giường và bảo toàn Bác sĩ điều trị phụ trách
+    if (showNotice && window.updateSaveStatus) {
+      const spaceLabel = isAll ? 'Toàn Khoa' : doctor.full_name;
+      const dateLabel = CONFIG.formatDMY(this.currentDateIso);
+      window.updateSaveStatus(`✓ Ngày: ${dateLabel} • Không gian: ${spaceLabel} (${this.patientList.length} NB)`);
+    }
+  }
+
+  normalizeAllPatients() {
+    const { doctor } = this.getEffectiveDoctor();
     let cleaned = false;
     const nowIso = new Date().toISOString();
+    const defaultDateIso = this.currentDateIso || this.todayIso;
+
     this.patientList.forEach(p => {
       if (p.phong_giuong) {
         const compact = this.cleanRoomBedString(p.phong_giuong);
@@ -248,7 +369,7 @@ class PatientController {
         }
       }
       if (!p.created_at || p.created_at === 'null') {
-        p.created_at = nowIso;
+        p.created_at = `${defaultDateIso}T12:00:00.000Z`;
         cleaned = true;
       }
       if (!p.updated_at || p.updated_at === 'null') {
@@ -260,21 +381,59 @@ class PatientController {
 
     if (cleaned) {
       this.saveLocalCache();
-      if (window.supabaseService) {
-        window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
-          console.warn('Lỗi đồng bộ chuẩn hóa dữ liệu lên Cloud:', err);
-        });
+    }
+  }
+
+  // ==============================================================================
+  // CHUYỂN ĐỔI NGÀY LÂM SÀNG & XEM NGÀY CŨ (1-2 NGÀY)
+  // ==============================================================================
+  async changeDate(dateInput) {
+    if (!dateInput) return;
+    const dt = CONFIG.parseDate(dateInput);
+    if (isNaN(dt.getTime())) return;
+
+    const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS || 2) : new Date(Date.now() - 2 * 86400000);
+    const cutoffZero = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate()).getTime();
+    const targetZero = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+
+    // Nếu chọn ngày cũ hơn 2 ngày
+    if (targetZero < cutoffZero) {
+      const dateFormatted = CONFIG.formatDMY(dt);
+      const oldestValid = CONFIG.formatDMY(cutoff);
+      if (window.showToast) {
+        window.showToast(`⚠️ Dữ liệu ngày ${dateFormatted} đã được tự động dọn dẹp (chỉ lưu 1-2 ngày gần nhất). Chuyển về ngày cũ nhất: ${oldestValid}`);
       }
+      return this.changeDate(cutoff);
     }
 
-    this.updateDoctorFilterDropdown();
-    this.render();
-    this.updateStorageHudUI();
+    const newDateIso = CONFIG.formatYMD(dt);
+    const newDateStr = CONFIG.formatDMY(dt);
 
-    if (showNotice && window.updateSaveStatus) {
-      const spaceLabel = isAll ? 'Toàn Khoa' : doctor.full_name;
-      window.updateSaveStatus(`✓ Đã vào Không gian: ${spaceLabel} (${this.patientList.length} NB)`);
+    this.currentDateIso = newDateIso;
+    this.currentDateStr = newDateStr;
+
+    // Cập nhật các input trên UI
+    const repDateInput = document.getElementById('reportDate');
+    if (repDateInput) repDateInput.value = newDateStr;
+    const nativeDate = document.getElementById('nativeDatePicker');
+    if (nativeDate) nativeDate.value = newDateIso;
+
+    // Cập nhật mobile summary date
+    const mobDateEl = document.getElementById('mobileSummaryDate');
+    if (mobDateEl) mobDateEl.innerText = `${dt.getDate().toString().padStart(2, '0')}/${(dt.getMonth() + 1).toString().padStart(2, '0')}`;
+
+    // Nạp lại danh sách theo ngày được chọn
+    await this.reloadFromSource(false, newDateIso);
+
+    if (window.medWardApp && window.medWardApp.saveMeta) {
+      window.medWardApp.saveMeta();
     }
+  }
+
+  switchToRelativeDay(offset) {
+    const today = new Date();
+    const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12, 0, 0);
+    this.changeDate(target);
   }
 
   // ==============================================================================
@@ -1022,8 +1181,8 @@ class PatientController {
       return;
     }
 
-    const targetDate = document.getElementById('nextDayTargetDate')?.value?.trim();
-    if (!targetDate) {
+    const targetDateStr = document.getElementById('nextDayTargetDate')?.value?.trim();
+    if (!targetDateStr) {
       alert('Vui lòng nhập ngày tiếp theo!');
       return;
     }
@@ -1032,23 +1191,17 @@ class PatientController {
     const resetHandover = document.getElementById('chkResetHandover')?.checked ?? true;
     const keepOrders = document.getElementById('chkKeepOrders')?.checked ?? true;
 
+    const targetDateObj = CONFIG.parseDate(targetDateStr);
+    const targetDateIso = CONFIG.formatYMD(targetDateObj);
+    const targetDateDMY = CONFIG.formatDMY(targetDateObj);
+
     const selectedIds = new Set(Array.from(selectedCheckboxes).map(c => c.dataset.id));
 
-    // Sao lưu ngày cũ vào lịch sử lưu trữ
-    const currDate = document.getElementById('reportDate')?.value || 'Trước ' + targetDate;
-    try {
-      const archives = JSON.parse(localStorage.getItem('medward_archived_days') || '{}');
-      archives[currDate] = {
-        date: currDate,
-        patients: [...this.patientList],
-        archived_at: new Date().toISOString()
-      };
-      localStorage.setItem('medward_archived_days', JSON.stringify(archives));
-    } catch (e) {
-      console.warn('Lỗi lưu archive ngày cũ:', e);
-    }
+    // 1. Sao lưu ngày hiện tại vào archives và daily cache trước khi chuyển
+    const { doctor } = this.getEffectiveDoctor();
+    this.saveLocalCache();
 
-    // Xây dựng danh sách bệnh nhân cho ngày mới
+    // 2. Xây dựng danh sách bệnh nhân cho ngày mới
     const newPatients = [];
     this.patientList.forEach((p) => {
       if (selectedIds.has(p.id)) {
@@ -1062,43 +1215,48 @@ class PatientController {
           handover_issues: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_issues,
           handover_actions: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_actions,
           sort_order: newPatients.length,
-          created_at: new Date().toISOString(),
+          created_at: `${targetDateIso}T12:00:00.000Z`,
           updated_at: new Date().toISOString()
         };
         newPatients.push(nextP);
       }
     });
 
+    // 3. Lưu danh sách vào daily storage của ngày mới
+    this.dailyPatientsMap[targetDateIso] = newPatients;
+    localStorage.setItem(this.getDailyStorageKey(doctor.id, targetDateIso), JSON.stringify(newPatients));
+
+    // 4. Chuyển ngày làm việc sang targetDate
+    this.currentDateIso = targetDateIso;
+    this.currentDateStr = targetDateDMY;
     this.patientList = newPatients;
     this.saveLocalCache();
 
     // Cập nhật ngày báo cáo trên giao diện
     const repDateInput = document.getElementById('reportDate');
-    if (repDateInput) repDateInput.value = targetDate;
+    if (repDateInput) repDateInput.value = targetDateDMY;
     const nativeDate = document.getElementById('nativeDatePicker');
-    if (nativeDate) {
-      const parts = targetDate.split('/');
-      if (parts.length === 3) {
-        nativeDate.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
-    }
+    if (nativeDate) nativeDate.value = targetDateIso;
 
-    // Đồng bộ lên Supabase Cloud
+    // 5. Đồng bộ lên Supabase Cloud cho ngày mới
     if (window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+      window.supabaseService.syncBatchPatients(newPatients, targetDateIso, doctor.id).catch(err => {
         console.warn('Lỗi đồng bộ ngày mới lên cloud:', err);
       });
     }
+
+    // 6. Tự động xóa các dữ liệu cũ hơn 2 ngày
+    await this.purgeOlderData();
 
     this.closeNextDayModal();
     this.updateDoctorFilterDropdown();
     this.render();
 
     if (window.showToast) {
-      window.showToast(`✓ Đã chuyển ${newPatients.length} người bệnh sang ngày ${targetDate}!`);
+      window.showToast(`✓ Đã chuyển ${newPatients.length} người bệnh sang ngày ${targetDateDMY}!`);
     }
     if (window.updateSaveStatus) {
-      window.updateSaveStatus(`✓ Danh sách ngày mới: ${targetDate} (${newPatients.length} người bệnh)`);
+      window.updateSaveStatus(`✓ Danh sách ngày mới: ${targetDateDMY} (${newPatients.length} người bệnh)`);
     }
   }
 
@@ -1266,12 +1424,16 @@ class PatientController {
     const pName = patient ? patient.ten : 'người bệnh này';
 
     if (confirm(`Bạn có chắc chắn muốn xóa bệnh nhân "${pName}" không?`)) {
+      const { doctor } = this.getEffectiveDoctor();
       this.patientList = this.patientList.filter(p => p.id !== patientId);
       this.saveLocalCache();
       this.updateDoctorFilterDropdown();
       this.render();
 
       await window.supabaseService.deletePatient(patientId);
+      if (window.supabaseService) {
+        window.supabaseService.syncBatchPatients(this.patientList, this.currentDateIso, doctor.id).catch(() => {});
+      }
       if (window.updateSaveStatus) {
         window.updateSaveStatus('✓ Đã xóa bệnh nhân khỏi danh sách');
       }
@@ -1285,12 +1447,15 @@ class PatientController {
     }
 
     if (confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách bệnh nhân hiện tại không? Thao tác này không thể hoàn tác.')) {
+      const { doctor } = this.getEffectiveDoctor();
       this.patientList = [];
       this.saveLocalCache();
       this.updateDoctorFilterDropdown();
       this.render();
 
-      await window.supabaseService.syncBatchPatients([]);
+      if (window.supabaseService) {
+        await window.supabaseService.syncBatchPatients([], this.currentDateIso, doctor.id);
+      }
       if (window.updateSaveStatus) {
         window.updateSaveStatus('✓ Đã xóa trắng danh sách');
       }
@@ -1520,10 +1685,100 @@ class PatientController {
     // Render Thẻ Mobile
     this.renderMobileCards(filtered);
 
+    // Cập nhật thanh chuyển ngày & banner ngày cũ
+    this.renderDateSwitcherUI();
+    this.renderHistoricalBanner();
+
     // Kiểm tra empty state
     const emptyMsg = document.getElementById('emptyMessage');
     if (emptyMsg) {
       emptyMsg.style.display = 'none';
+    }
+  }
+
+  // CẬP NHẬT GIAO DIỆN NÚT CHUYỂN NGÀY LÂM SÀNG
+  renderDateSwitcherUI() {
+    const today = new Date();
+    const dMinus2 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2, 12, 0, 0);
+    const dMinus1 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 12, 0, 0);
+    const dPlus1 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 12, 0, 0);
+
+    const fmt = (d) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    const iso = (d) => CONFIG.formatYMD(d);
+
+    // Cập nhật nhãn ngày phụ
+    const lblMinus2 = document.getElementById('lblDateDayMinus2');
+    const lblMinus1 = document.getElementById('lblDateDayMinus1');
+    const lblToday = document.getElementById('lblDateToday');
+    const lblNext = document.getElementById('lblDateNextDay');
+
+    if (lblMinus2) lblMinus2.innerText = fmt(dMinus2);
+    if (lblMinus1) lblMinus1.innerText = fmt(dMinus1);
+    if (lblToday) lblToday.innerText = fmt(today);
+    if (lblNext) lblNext.innerText = fmt(dPlus1);
+
+    // Cập nhật trạng thái active cho desktop chips
+    const btnMinus2 = document.getElementById('btnDateDayMinus2');
+    const btnMinus1 = document.getElementById('btnDateDayMinus1');
+    const btnToday = document.getElementById('btnDateToday');
+    const btnNext = document.getElementById('btnDateNextDay');
+
+    const cur = this.currentDateIso;
+    if (btnMinus2) btnMinus2.classList.toggle('active', cur === iso(dMinus2));
+    if (btnMinus1) btnMinus1.classList.toggle('active', cur === iso(dMinus1));
+    if (btnToday) btnToday.classList.toggle('active', cur === iso(today));
+    if (btnNext) btnNext.classList.toggle('active', cur === iso(dPlus1));
+
+    // Cập nhật trạng thái active cho mobile chips
+    const mobMinus2 = document.getElementById('btnMobDateMinus2');
+    const mobMinus1 = document.getElementById('btnMobDateMinus1');
+    const mobToday = document.getElementById('btnMobDateToday');
+    const mobNext = document.getElementById('btnMobDateNext');
+
+    if (mobMinus2) mobMinus2.classList.toggle('active', cur === iso(dMinus2));
+    if (mobMinus1) mobMinus1.classList.toggle('active', cur === iso(dMinus1));
+    if (mobToday) mobToday.classList.toggle('active', cur === iso(today));
+    if (mobNext) mobNext.classList.toggle('active', cur === iso(dPlus1));
+  }
+
+  // BANNER THÔNG BÁO KHI ĐANG XEM NGÀY CŨ (1-2 NGÀY TRƯỚC) HOẶC NGÀY KẾ
+  renderHistoricalBanner() {
+    const banner = document.getElementById('historicalDateBanner');
+    if (!banner) return;
+
+    const diffDays = CONFIG.getRelativeDayOffset(this.currentDateIso);
+    const todayStr = CONFIG.formatDMY(new Date());
+
+    const titleEl = document.getElementById('hBannerTitle');
+    const descEl = document.getElementById('hBannerDesc');
+    const iconEl = document.getElementById('hBannerIcon');
+    const btnTodayText = document.getElementById('hBannerTodayDate');
+    if (btnTodayText) btnTodayText.innerText = todayStr.substring(0, 5);
+
+    if (diffDays === 0) {
+      // Đang xem ngày hôm nay
+      banner.style.display = 'none';
+      banner.classList.remove('is-past', 'is-future');
+    } else if (diffDays < 0) {
+      // Đang xem ngày cũ (Hôm qua hoặc Hôm kia)
+      banner.style.display = 'flex';
+      banner.classList.add('is-past');
+      banner.classList.remove('is-future');
+      if (iconEl) iconEl.innerText = '🕒';
+      
+      const dayLabel = diffDays === -1 ? 'Hôm qua' : (diffDays === -2 ? 'Hôm kia' : `${Math.abs(diffDays)} ngày trước`);
+      if (titleEl) titleEl.innerHTML = `Đang xem bảng ngày cũ: <strong>${dayLabel} (${this.currentDateStr})</strong>`;
+      if (descEl) descEl.innerText = `Chế độ tra cứu hồ sơ ngày cũ. Mọi chỉnh sửa sẽ lưu riêng cho ngày này. Bấm vào nút bên cạnh để quay lại ca trực Hôm nay.`;
+    } else {
+      // Đang xem ngày tương lai (Ngày mai / Ngày kế)
+      banner.style.display = 'flex';
+      banner.classList.add('is-future');
+      banner.classList.remove('is-past');
+      if (iconEl) iconEl.innerText = '🔮';
+
+      const dayLabel = diffDays === 1 ? 'Ngày mai / Ngày kế' : `Ngày kế tiếp (+${diffDays} ngày)`;
+      if (titleEl) titleEl.innerHTML = `Đang xem bảng kế hoạch: <strong>${dayLabel} (${this.currentDateStr})</strong>`;
+      if (descEl) descEl.innerText = `Bảng theo dõi kế hoạch điều trị cho ca trực tiếp theo.`;
     }
   }
 
@@ -1648,10 +1903,10 @@ class PatientController {
     const btn = document.getElementById('btnMobileToggleView');
     const label = document.getElementById('mobileViewToggleLabel');
     if (this.mobileViewMode === 'table') {
-      document.body.classList.add('mobile-view-table');
+      document.body?.classList?.add('mobile-view-table');
       if (label) label.innerText = '📋 Bảng';
     } else {
-      document.body.classList.remove('mobile-view-table');
+      document.body?.classList?.remove('mobile-view-table');
       if (label) label.innerText = '📱 Thẻ';
     }
   }

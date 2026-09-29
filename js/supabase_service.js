@@ -474,7 +474,28 @@ class SupabaseService {
 
   // ================= PATIENT DATA OPERATIONS =================
 
-  async fetchPatients(targetDoctor = null) {
+  // TỰ ĐỘNG XÓA DỮ LIỆU CŨ TRÊN CLOUD SUPABASE (DỮ LIỆU CŨ HƠN 1-2 NGÀY SẼ ĐƯỢC TỰ ĐỘNG XÓA)
+  async purgeOlderPatients(retentionDays = CONFIG.RETENTION_DAYS || 2) {
+    if (!this.isCloudEnabled || !this.client) return { success: true, count: 0 };
+    try {
+      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(retentionDays).toISOString() : new Date(Date.now() - retentionDays * 86400000).toISOString();
+      const { error } = await this.client
+        .from('patients')
+        .delete()
+        .lt('created_at', cutoff);
+      if (error) {
+        console.warn('Lỗi dọn dẹp dữ liệu cũ hơn 2 ngày trên Cloud:', error.message || error);
+      } else {
+        console.log('🧹 Đã tự động dọn dẹp các dữ liệu cũ hơn 2 ngày trên Supabase Cloud (trước ' + cutoff + ')');
+      }
+      return { success: true };
+    } catch (err) {
+      console.warn('Lỗi gọi hàm xóa dữ liệu cũ Cloud:', err);
+      return { success: false, error: err };
+    }
+  }
+
+  async fetchPatients(targetDoctor = null, targetDate = null) {
     this.isSyncing = true;
     this.notifyStateChange();
 
@@ -493,11 +514,20 @@ class SupabaseService {
       // Đảm bảo session trước khi truy vấn
       await this.ensureSession();
 
-      const { data, error } = await this.client
+      // Tự động dọn dẹp dữ liệu cũ hơn 2 ngày trên Supabase Cloud trước khi đọc
+      await this.purgeOlderPatients().catch(() => {});
+
+      // Lấy danh sách bệnh nhân trong phạm vi lưu trữ hợp lệ (từ T-2 trở lại đây)
+      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate().toISOString() : new Date(Date.now() - 3 * 86400000).toISOString();
+
+      let query = this.client
         .from('patients')
         .select('*')
+        .gte('created_at', cutoff)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
+
+      const { data, error } = await query;
 
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
@@ -684,9 +714,15 @@ class SupabaseService {
     }
   }
 
-  async syncBatchPatients(patientsArray) {
+  async syncBatchPatients(patientsArray, targetDateStr = null, doctorId = null) {
     if (!patientsArray || !Array.isArray(patientsArray)) {
       return { data: [], error: null };
+    }
+
+    // Chuẩn hóa ngày targetDateIso nếu có
+    let targetDateIso = '';
+    if (targetDateStr) {
+      targetDateIso = CONFIG.formatYMD ? CONFIG.formatYMD(targetDateStr) : String(targetDateStr).substring(0, 10);
     }
 
     // Cache local ngay lập tức
@@ -694,7 +730,7 @@ class SupabaseService {
 
     // Khóa chống xung đột truy vấn đồng thời (concurrency mutex)
     if (this.batchSyncLock) {
-      this.pendingBatch = patientsArray;
+      this.pendingBatch = { patientsArray, targetDateStr, doctorId };
       return { data: patientsArray, error: null, queued: true };
     }
 
@@ -727,8 +763,16 @@ class SupabaseService {
         if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
           item.user_id = currentUser.id;
         }
+        // Gắn ngày vào created_at nếu có targetDateIso
+        if (targetDateIso) {
+          const currentPrefix = (item.created_at || '').substring(0, 10);
+          if (currentPrefix !== targetDateIso) {
+            item.created_at = `${targetDateIso}T12:00:00.000Z`;
+            if (p) p.created_at = item.created_at;
+          }
+        }
         if (!item.created_at || item.created_at === 'null') {
-          item.created_at = nowIso;
+          item.created_at = targetDateIso ? `${targetDateIso}T12:00:00.000Z` : nowIso;
         }
         item.updated_at = nowIso;
         return item;
@@ -741,7 +785,6 @@ class SupabaseService {
         const item = rawRecords[i];
         const lowerId = String(item.id).toLowerCase();
         if (seenIds.has(lowerId)) {
-          // Trùng ID: cấp phát UUID mới để tránh lỗi 23505
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
           if (patientsArray[i]) patientsArray[i].id = item.id;
         }
@@ -770,23 +813,20 @@ class SupabaseService {
           console.warn('Lỗi mạng khi upsert mẻ, chuyển sang lưu từng bản ghi:', batchErr?.message || batchErr);
         }
 
-        // Nếu upsert cả mẻ bị lỗi (ví dụ 23505 hoặc payload lớn), lưu từng bản ghi một cách bền bỉ
+        // Nếu upsert cả mẻ bị lỗi (ví dụ payload lớn), lưu từng bản ghi một cách bền bỉ
         if (!upsertSuccess) {
           const individuallySaved = [];
           for (const item of deduplicatedRecords) {
             try {
               const res = await this.client.from('patients').upsert(item, { onConflict: 'id' });
               if (res.error) {
-                // Nếu bị lỗi 23505 trùng khóa, cấp phát UUID mới và thử lại
                 item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
                 const retryRes = await this.client.from('patients').upsert(item, { onConflict: 'id' });
                 if (!retryRes.error) individuallySaved.push(item);
               } else {
                 individuallySaved.push(item);
               }
-            } catch (singleErr) {
-              // Bỏ qua lỗi từng bản ghi để không ngắt toàn bộ tiến trình
-            }
+            } catch (singleErr) {}
           }
           if (individuallySaved.length > 0) {
             syncedData = individuallySaved;
@@ -794,7 +834,38 @@ class SupabaseService {
         }
       }
 
-      // Đồng bộ ngược lại vào local cache và controller nhưng BẢO TOÀN toàn bộ các trường chi tiết
+      // 4. ĐỒNG BỘ XÓA TRÊN CLOUD SUPABASE: Xóa các bản ghi thuộc ngày/bác sĩ này không còn tồn tại trong patientsArray
+      if (targetDateIso && this.client) {
+        try {
+          const activeIds = new Set(deduplicatedRecords.map(r => r.id));
+          const dayStart = `${targetDateIso}T00:00:00.000Z`;
+          const dayEnd = `${targetDateIso}T23:59:59.999Z`;
+
+          let checkQuery = this.client
+            .from('patients')
+            .select('id, doctor_id')
+            .gte('created_at', dayStart)
+            .lte('created_at', dayEnd);
+
+          if (doctorId && doctorId !== 'all') {
+            checkQuery = checkQuery.eq('doctor_id', doctorId);
+          }
+
+          const { data: remoteDayRecords } = await checkQuery;
+          if (remoteDayRecords && remoteDayRecords.length > 0) {
+            const staleIds = remoteDayRecords.filter(r => !activeIds.has(r.id)).map(r => r.id);
+            if (staleIds.length > 0) {
+              for (const staleId of staleIds) {
+                await this.client.from('patients').delete().eq('id', staleId);
+              }
+            }
+          }
+        } catch (cleanErr) {
+          console.warn('Lưu ý dọn dẹp các ID xóa trên Cloud:', cleanErr);
+        }
+      }
+
+      // Đồng bộ ngược lại vào local cache và controller
       if (window.patientController && Array.isArray(window.patientController.patientList)) {
         syncedData.forEach((sItem, sIdx) => {
           if (window.patientController.patientList[sIdx] && sItem.id) {
@@ -815,25 +886,20 @@ class SupabaseService {
 
       // Nếu có tác vụ chờ trong hàng đợi, thực thi tiếp tục
       if (this.pendingBatch) {
-        const nextBatch = this.pendingBatch;
+        const next = this.pendingBatch;
         this.pendingBatch = null;
-        setTimeout(() => this.syncBatchPatients(nextBatch), 50);
+        setTimeout(() => this.syncBatchPatients(next.patientsArray, next.targetDateStr, next.doctorId), 60);
       }
 
       return { data: syncedData, error: null };
     } catch (err) {
-      console.warn('Lưu ý đồng bộ Cloud (dữ liệu đã lưu an toàn vào bộ nhớ nội bộ):', err?.message || err);
+      console.warn('Lưu ý đồng bộ Cloud:', err?.message || err);
       this.batchSyncLock = false;
       this.isSyncing = false;
       this.notifyStateChange();
 
       if (this.pendingBatch) {
         this.pendingBatch = null;
-      }
-
-      // Cập nhật trạng thái lưu an toàn trên máy
-      if (window.updateSaveStatus) {
-        window.updateSaveStatus('💾 Đã lưu bộ nhớ máy (Đang chờ kết nối Cloud)');
       }
 
       return { 

@@ -361,6 +361,22 @@
         </div>
       </div>
 
+      <!-- THANH CHUYỂN NGÀY NHANH TRÊN MOBILE (HÔM KIA / HÔM QUA / HÔM NAY / NGÀY KẾ) -->
+      <div class="mobile-date-chips-bar" id="mobileDateChipsBar">
+        <button type="button" class="mobile-day-chip" id="btnMobDateMinus2" onclick="window.patientController.switchToRelativeDay(-2)" title="Xem bảng ngày Hôm kia (-2 ngày)">
+          <span>◀ Hôm kia</span>
+        </button>
+        <button type="button" class="mobile-day-chip" id="btnMobDateMinus1" onclick="window.patientController.switchToRelativeDay(-1)" title="Xem bảng ngày Hôm qua (-1 ngày)">
+          <span>◀ Hôm qua</span>
+        </button>
+        <button type="button" class="mobile-day-chip active" id="btnMobDateToday" onclick="window.patientController.switchToRelativeDay(0)" title="Về bảng ca trực Hôm nay">
+          <span>🌟 Hôm nay</span>
+        </button>
+        <button type="button" class="mobile-day-chip" id="btnMobDateNext" onclick="window.patientController.switchToRelativeDay(1)" title="Chuyển sang Ngày kế (+1 ngày)">
+          <span>▶ Ngày kế</span>
+        </button>
+      </div>
+
       <!-- Thanh lọc nhanh lướt ngang theo Buồng & Trạng thái bệnh (Touch-friendly horizontal scroll) -->
       <div class="mobile-filter-bar">
         <div class="mobile-filter-chips" id="mobileFilterChips">
@@ -495,6 +511,27 @@
             </button>
           </div>
         </div>
+
+        <!-- CỤM NÚT CHUYỂN NGÀY NHANH: HÔM KIA (-2) | HÔM QUA (-1) | HÔM NAY (0) | NGÀY KẾ (+1) -->
+        <div class="date-quick-nav no-print" id="dateQuickNav">
+          <button type="button" class="btn-date-chip" id="btnDateDayMinus2" onclick="window.patientController.switchToRelativeDay(-2)" title="Xem bảng ngày Hôm kia (-2 ngày)">
+            <span>Hôm kia</span>
+            <small class="chip-sub" id="lblDateDayMinus2"></small>
+          </button>
+          <button type="button" class="btn-date-chip" id="btnDateDayMinus1" onclick="window.patientController.switchToRelativeDay(-1)" title="Xem bảng ngày Hôm qua (-1 ngày)">
+            <span>Hôm qua</span>
+            <small class="chip-sub" id="lblDateDayMinus1"></small>
+          </button>
+          <button type="button" class="btn-date-chip active" id="btnDateToday" onclick="window.patientController.switchToRelativeDay(0)" title="Về bảng ca trực Hôm nay">
+            <span>🌟 Hôm nay</span>
+            <small class="chip-sub" id="lblDateToday"></small>
+          </button>
+          <button type="button" class="btn-date-chip" id="btnDateNextDay" onclick="window.patientController.switchToRelativeDay(1)" title="Xem hoặc lập kế hoạch Ngày mai / Ngày kế (+1 ngày)">
+            <span>▶ Ngày kế</span>
+            <small class="chip-sub" id="lblDateNextDay"></small>
+          </button>
+        </div>
+
         <div class="meta-item" id="workspaceMetaItem">
           <label>Không gian: </label>
           <span id="currentWorkspaceText" class="workspace-pill-tag">BS. Nguyễn Hữu Đông</span>
@@ -685,6 +722,22 @@
     <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
     <div class="print-date-note">
       <span id="printDateDisplay">Ngày: 21/09/2026</span>
+    </div>
+
+    <!-- BANNER BÁO ĐANG XEM BẢNG NGÀY CŨ (1-2 NGÀY TRƯỚC) HOẶC NGÀY KẾ -->
+    <div id="historicalDateBanner" class="historical-date-banner no-print" style="display: none;">
+      <div class="h-banner-content">
+        <div class="h-banner-icon" id="hBannerIcon">🕒</div>
+        <div class="h-banner-text">
+          <div class="h-banner-title" id="hBannerTitle">Đang xem bảng ngày cũ</div>
+          <div class="h-banner-desc" id="hBannerDesc">Chế độ tra cứu hồ sơ ngày cũ. Mọi chỉnh sửa sẽ lưu riêng cho ngày này. Bấm vào nút bên cạnh để quay lại ca trực Hôm nay.</div>
+        </div>
+      </div>
+      <div class="h-banner-actions">
+        <button type="button" class="btn-today-quick" onclick="window.patientController.switchToRelativeDay(0)" title="Quay lại ngày hôm nay">
+          🌟 Về Hôm nay (<span id="hBannerTodayDate">--/--</span>)
+        </button>
+      </div>
     </div>
 
     <!-- 6. CHẾ ĐỘ XEM 1: BẢNG DÀNH CHO DESKTOP / LAPTOP / IN ẤN -->

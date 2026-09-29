@@ -13,6 +13,7 @@ const ASSETS_TO_CACHE = [
   './css/print.css',
   './js/config.js',
   './js/supabase_service.js',
+  './js/pattern_lock.js',
   './js/auth.js',
   './js/patient_service.js',
   './js/handover_service.js',

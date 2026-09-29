@@ -240,6 +240,46 @@
     background: #f1f5f9;
   }
 
+  /* THANH CHUYỂN NGÀY NHANH TRÊN MOBILE */
+  .mobile-date-chips-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 4px 0 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-date-chips-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-day-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    white-space: nowrap;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+    font-family: inherit;
+  }
+  .mobile-day-chip.active {
+    background: #1e3a8a;
+    color: #ffffff;
+    border-color: #1e3a8a;
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.3);
+  }
+  .mobile-day-chip:active {
+    transform: scale(0.97);
+  }
+
   .mobile-summary-item.item-critical {
     background: #fef2f2;
     border-color: #fecaca;

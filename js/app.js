@@ -147,12 +147,30 @@ class MedWardApp {
     if (nativePicker && dateInput) {
       nativePicker.addEventListener('change', () => {
         if (nativePicker.value) {
-          const parts = nativePicker.value.split('-');
-          if (parts.length === 3) {
-            dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
-            this.saveMeta();
-            this.updatePrintDateNote();
+          if (window.patientController && typeof window.patientController.changeDate === 'function') {
+            window.patientController.changeDate(nativePicker.value);
+          } else {
+            const parts = nativePicker.value.split('-');
+            if (parts.length === 3) {
+              dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+              this.saveMeta();
+              this.updatePrintDateNote();
+            }
           }
+        }
+      });
+    }
+
+    if (dateInput) {
+      dateInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          dateInput.blur();
+        }
+      });
+      dateInput.addEventListener('blur', () => {
+        const val = dateInput.value.trim();
+        if (val && window.patientController && typeof window.patientController.changeDate === 'function') {
+          window.patientController.changeDate(val);
         }
       });
     }
