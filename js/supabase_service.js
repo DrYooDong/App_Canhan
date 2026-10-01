@@ -479,10 +479,12 @@ class SupabaseService {
     if (!this.isCloudEnabled || !this.client) return { success: true, count: 0 };
     try {
       const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(retentionDays).toISOString() : new Date(Date.now() - retentionDays * 86400000).toISOString();
+      // Chỉ dọn dẹp các bản ghi cũ cả created_at và updated_at (bảo vệ người bệnh còn đang điều trị)
       const { error } = await this.client
         .from('patients')
         .delete()
-        .lt('created_at', cutoff);
+        .lt('created_at', cutoff)
+        .lt('updated_at', cutoff);
       if (error) {
         console.warn('Lỗi dọn dẹp dữ liệu cũ hơn 2 ngày trên Cloud:', error.message || error);
       } else {
@@ -517,13 +519,13 @@ class SupabaseService {
       // Tự động dọn dẹp dữ liệu cũ hơn 2 ngày trên Supabase Cloud trước khi đọc
       await this.purgeOlderPatients().catch(() => {});
 
-      // Lấy danh sách bệnh nhân trong phạm vi lưu trữ hợp lệ (từ T-2 trở lại đây)
+      // Lấy danh sách bệnh nhân trong phạm vi lưu trữ hợp lệ (từ T-2 trở lại đây theo created_at hoặc updated_at)
       const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate().toISOString() : new Date(Date.now() - 3 * 86400000).toISOString();
 
       let query = this.client
         .from('patients')
         .select('*')
-        .gte('created_at', cutoff)
+        .or(`created_at.gte.${cutoff},updated_at.gte.${cutoff}`)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
 
@@ -635,7 +637,7 @@ class SupabaseService {
 
     // Đảm bảo handover_status hợp lệ
     if (!out.handover_status) {
-      out.handover_status = p.handover_status || 'none';
+      out.handover_status = p.work_status || p.handover_status || 'chua_lam';
     }
 
     // Đảm bảo sort_order là số
@@ -647,6 +649,7 @@ class SupabaseService {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (out.id && !uuidRegex.test(out.id)) {
       out.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+      if (p) p.id = out.id;
     }
     if (out.user_id && !uuidRegex.test(out.user_id)) {
       delete out.user_id;
@@ -717,6 +720,14 @@ class SupabaseService {
   async syncBatchPatients(patientsArray, targetDateStr = null, doctorId = null) {
     if (!patientsArray || !Array.isArray(patientsArray)) {
       return { data: [], error: null };
+    }
+
+    // Tự động suy luận ngày và ID bác sĩ nếu không được chỉ định
+    if (!targetDateStr && window.patientController?.currentDateIso) {
+      targetDateStr = window.patientController.currentDateIso;
+    }
+    if (!doctorId && window.patientController?.getEffectiveDoctor) {
+      doctorId = window.patientController.getEffectiveDoctor().doctor?.id;
     }
 
     // Chuẩn hóa ngày targetDateIso nếu có

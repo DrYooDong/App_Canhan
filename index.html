@@ -530,6 +530,9 @@
 
         <div class="meta-item">
           <span>Tổng số NB: <strong id="patientCount">0</strong></span>
+          <button type="button" id="filterActiveBadge" class="filter-active-tag no-print" style="display: none;" onclick="window.patientController.setWorkStatusFilter('all')" title="Nhấn để bỏ lọc, xem tất cả người bệnh">
+            Lọc: Cần bàn giao ✕
+          </button>
         </div>
       </div>
     </div>
@@ -692,6 +695,26 @@
         </div>
       </div>
 
+      <!-- BỘ LỌC CỘT CÔNG VIỆC TRÊN TOOLBAR DESKTOP -->
+      <div class="toolbar-work-filter no-print" id="toolbarWorkFilterWrap">
+        <label for="selectWorkFilterToolbar" class="toolbar-filter-label" title="Lọc danh sách theo trạng thái Công việc">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Lọc việc:</span>
+        </label>
+        <select id="selectWorkFilterToolbar" class="work-filter-select" onchange="window.patientController.setWorkStatusFilter(this.value)">
+          <option value="all">Tất cả công việc</option>
+          <option value="can_ban_giao">⏳ Cần bàn giao</option>
+          <option value="don_cls_thuoc">🟠 Đón CLS / Thêm thuốc</option>
+          <option value="du_thong_tin">🔵 Đủ thông tin</option>
+          <option value="da_check">✅ Đã check</option>
+          <option value="chua_lam">⚪ Chưa làm</option>
+          <option value="xuat_vien">🟢 Xuất viện</option>
+        </select>
+        <button type="button" id="btnClearWorkFilter" class="btn-clear-work-filter" onclick="window.patientController.setWorkStatusFilter('all')" title="Bỏ lọc, xem tất cả" style="display: none;">✕</button>
+      </div>
+
       <!-- Ô TÌM KIẾM TINH GỌN -->
       <div class="search-box">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -770,8 +793,32 @@
             <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y
                 LỆNH
                 ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
-            <th class="col-handover" data-tooltip="Trạng thái công việc &amp; Bàn giao trực (Công việc)"><span
-                class="th-title">CÔNG VIỆC</span><span class="th-sub">Trạng thái</span></th>
+            <th class="col-handover" id="thColHandover">
+              <div class="th-handover-wrapper">
+                <div class="th-handover-text" data-tooltip="Trạng thái công việc &amp; Bàn giao trực (Công việc)">
+                  <span class="th-title">CÔNG VIỆC</span>
+                  <span class="th-sub">Trạng thái</span>
+                </div>
+                <!-- NÚT & MENU LỌC TRỰC TIẾP TRÊN CỘT CÔNG VIỆC -->
+                <div class="col-filter-wrapper no-print" id="workFilterDropdownWrap">
+                  <button type="button" class="btn-col-filter" id="btnWorkFilterCol" onclick="event.stopPropagation(); window.patientController.toggleWorkFilterMenu()" title="Lọc theo trạng thái Công việc">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    <span class="col-filter-badge" id="workFilterBadge" style="display: none;"></span>
+                  </button>
+                  <div class="col-filter-menu" id="workFilterMenu" style="display: none;">
+                    <div class="col-filter-menu-header">
+                      <span>LỌC CỘT CÔNG VIỆC</span>
+                      <button type="button" class="col-filter-close" onclick="event.stopPropagation(); window.patientController.closeWorkFilterMenu()">✕</button>
+                    </div>
+                    <div class="col-filter-options" id="workFilterOptions">
+                      <!-- Render động các lựa chọn với số lượng người bệnh -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </th>
             <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
           </tr>
         </thead>

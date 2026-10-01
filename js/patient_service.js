@@ -10,6 +10,7 @@ class PatientController {
     this.currentFilterQuery = '';
     this.currentDoctorFilter = localStorage.getItem('medward_doctor_filter') || 'my_patients';
     this.activeMobileFilter = 'all'; // 'all' | 'critical' | 'pending' | 'room:...'
+    this.activeWorkStatusFilter = 'all'; // 'all' | 'can_ban_giao' | 'don_cls_thuoc' | 'du_thong_tin' | 'da_check' | 'chua_lam' | 'xuat_vien'
     this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
     this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
@@ -57,7 +58,9 @@ class PatientController {
     // Nhận thông báo Realtime từ Supabase khi thiết bị khác thay đổi
     if (window.supabaseService) {
       window.supabaseService.onRealtimeUpdate(async (payload) => {
+        // Nếu người dùng đang chỉnh sửa ô, hoãn cập nhật để tránh mất dữ liệu đang gõ
         if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+          this.hasPendingRealtimeUpdate = true;
           return;
         }
 
@@ -242,9 +245,7 @@ class PatientController {
       if (targetIso === this.todayIso) {
         const key = this.getDoctorSpaceKey(doctor.id);
         localStorage.setItem(key, JSON.stringify(this.patientList));
-        if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
-          localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
-        }
+        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
       }
     }
 
@@ -838,7 +839,8 @@ class PatientController {
     this.patientList.forEach((p, i) => p.sort_order = i);
     this.saveLocalCache();
     if (syncCloud && window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+      const { doctor } = this.getEffectiveDoctor();
+      window.supabaseService.syncBatchPatients(this.patientList, this.currentDateIso, doctor?.id).catch(err => {
         console.warn('Lỗi đồng bộ sắp xếp lên cloud:', err);
       });
     }
@@ -890,8 +892,9 @@ class PatientController {
 
     this.autoSaveTimers[timerKey] = setTimeout(async () => {
       delete this.autoSaveTimers[timerKey];
-      if (window.supabaseService) {
-        await window.supabaseService.savePatient(this.patientList[idx]);
+      const currentP = this.patientList.find(p => p.id === patientId);
+      if (window.supabaseService && currentP) {
+        await window.supabaseService.savePatient(currentP);
       }
       if (window.updateSaveStatus) {
         const timeStr = new Date().toLocaleTimeString('vi-VN');
@@ -971,6 +974,14 @@ class PatientController {
         el.classList.add('saved-pulse');
         setTimeout(() => el.classList.remove('saved-pulse'), 700);
       }
+    }
+
+    // Nếu trong khi gõ có thông báo realtime từ thiết bị khác, tải lại đồng bộ an toàn
+    if (this.hasPendingRealtimeUpdate) {
+      this.hasPendingRealtimeUpdate = false;
+      setTimeout(() => {
+        this.reloadFromSource(false, this.currentDateIso);
+      }, 1500);
     }
   }
 
@@ -1648,7 +1659,7 @@ class PatientController {
       handover_actions: patientData.handover_actions || '',
       handover_at: patientData.handover_at || null,
       sort_order: this.patientList.length,
-      created_at: new Date().toISOString(),
+      created_at: this.currentDateIso ? `${this.currentDateIso}T12:00:00.000Z` : new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
@@ -1695,7 +1706,7 @@ class PatientController {
       handover_issues: '',
       handover_actions: '',
       sort_order: idx + 1,
-      created_at: new Date().toISOString(),
+      created_at: this.currentDateIso ? `${this.currentDateIso}T12:00:00.000Z` : new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
@@ -1706,7 +1717,7 @@ class PatientController {
     }
 
     this.saveLocalCache();
-    window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+    window.supabaseService.syncBatchPatients(this.patientList, this.currentDateIso, myDocId).catch(err => {
       console.warn('Lỗi đồng bộ thêm dòng lên cloud:', err);
     });
     this.updateDoctorFilterDropdown();
@@ -1951,7 +1962,12 @@ class PatientController {
   getFilteredPatients() {
     let list = this.patientList;
 
-    // Lọc theo Mobile Filter Chip nếu có
+    // 1. Lọc theo trạng thái công việc (Cột Công Việc trên Web Desktop & Mobile)
+    if (this.activeWorkStatusFilter && this.activeWorkStatusFilter !== 'all') {
+      list = list.filter(p => this.getPatientWorkStatus(p) === this.activeWorkStatusFilter);
+    }
+
+    // 2. Lọc theo Mobile Filter Chip nếu có
     if (this.activeMobileFilter && this.activeMobileFilter !== 'all') {
       if (this.activeMobileFilter === 'can_ban_giao' || this.activeMobileFilter === 'pending' || this.activeMobileFilter === 'critical') {
         list = list.filter(p => this.getPatientWorkStatus(p) === 'can_ban_giao');
@@ -1998,8 +2014,15 @@ class PatientController {
     // Cập nhật bộ đếm desktop
     const totalEl = document.getElementById('patientCount');
     if (totalEl) {
-      totalEl.innerText = filtered.length;
+      if (this.activeWorkStatusFilter && this.activeWorkStatusFilter !== 'all') {
+        totalEl.innerText = `${filtered.length} / ${this.patientList.length}`;
+      } else {
+        totalEl.innerText = filtered.length;
+      }
     }
+
+    // Cập nhật trạng thái bộ lọc cột Công việc trên giao diện Web
+    this.updateWorkFilterToolbarOptions();
 
     // Cập nhật Header Pill Badge
     if (window.authController && window.authController.updateHeaderPill) {
@@ -2253,6 +2276,165 @@ class PatientController {
     const input = document.getElementById('mobileSearchInput');
     if (input) input.value = '';
     this.handleMobileSearch('');
+  }
+
+  // ==============================================================================
+  // BỘ LỌC CỘT CÔNG VIỆC TRÊN GIAO DIỆN WEB
+  // ==============================================================================
+  setWorkStatusFilter(statusKey) {
+    this.activeWorkStatusFilter = statusKey || 'all';
+    this.closeWorkFilterMenu();
+    this.render();
+
+    if (this.activeWorkStatusFilter !== 'all') {
+      const cfg = CONFIG.STATUS_CONFIG[this.activeWorkStatusFilter];
+      const label = cfg ? `${cfg.icon} ${cfg.label}` : this.activeWorkStatusFilter;
+      window.showToast?.(`🔍 Lọc cột Công việc: ${label}`);
+    } else {
+      window.showToast?.('📋 Hiển thị tất cả công việc');
+    }
+  }
+
+  toggleWorkFilterMenu() {
+    const menu = document.getElementById('workFilterMenu');
+    if (!menu) return;
+    if (menu.style.display === 'block') {
+      this.closeWorkFilterMenu();
+    } else {
+      this.openWorkFilterMenu();
+    }
+  }
+
+  openWorkFilterMenu() {
+    const menu = document.getElementById('workFilterMenu');
+    if (!menu) return;
+    this.renderWorkFilterMenuOptions();
+    menu.style.display = 'block';
+
+    // Đóng khi click ra ngoài
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target) && !e.target.closest('#btnWorkFilterCol')) {
+        this.closeWorkFilterMenu();
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', closeHandler);
+    }, 20);
+  }
+
+  closeWorkFilterMenu() {
+    const menu = document.getElementById('workFilterMenu');
+    if (menu) menu.style.display = 'none';
+  }
+
+  renderWorkFilterMenuOptions() {
+    const container = document.getElementById('workFilterOptions');
+    if (!container) return;
+
+    // Đếm số lượng bệnh nhân theo từng trạng thái công việc
+    const counts = {
+      all: this.patientList.length,
+      can_ban_giao: 0,
+      don_cls_thuoc: 0,
+      du_thong_tin: 0,
+      da_check: 0,
+      chua_lam: 0,
+      xuat_vien: 0
+    };
+
+    this.patientList.forEach(p => {
+      const st = this.getPatientWorkStatus(p);
+      if (counts[st] !== undefined) counts[st]++;
+    });
+
+    const statusList = [
+      { key: 'all', label: 'Tất cả trạng thái', icon: '📋', count: counts.all },
+      { key: 'can_ban_giao', label: 'Cần bàn giao', icon: '⏳', count: counts.can_ban_giao },
+      { key: 'don_cls_thuoc', label: 'Đón CLS / Thêm thuốc', icon: '🟠', count: counts.don_cls_thuoc },
+      { key: 'du_thong_tin', label: 'Đủ thông tin', icon: '🔵', count: counts.du_thong_tin },
+      { key: 'da_check', label: 'Đã check', icon: '✅', count: counts.da_check },
+      { key: 'chua_lam', label: 'Chưa làm', icon: '⚪', count: counts.chua_lam },
+      { key: 'xuat_vien', label: 'Xuất viện', icon: '🟢', count: counts.xuat_vien }
+    ];
+
+    container.innerHTML = statusList.map(item => {
+      const isSelected = (this.activeWorkStatusFilter || 'all') === item.key;
+      return `
+        <button type="button" class="col-filter-opt-btn ${isSelected ? 'active' : ''}" onclick="window.patientController.setWorkStatusFilter('${item.key}')">
+          <span class="opt-icon">${item.icon}</span>
+          <span class="opt-label">${item.label}</span>
+          <span class="opt-count">${item.count}</span>
+          ${isSelected ? '<span class="opt-check">✓</span>' : ''}
+        </button>
+      `;
+    }).join('');
+  }
+
+  updateWorkFilterToolbarOptions() {
+    const select = document.getElementById('selectWorkFilterToolbar');
+    if (select) {
+      const counts = {
+        all: this.patientList.length,
+        can_ban_giao: 0,
+        don_cls_thuoc: 0,
+        du_thong_tin: 0,
+        da_check: 0,
+        chua_lam: 0,
+        xuat_vien: 0
+      };
+
+      this.patientList.forEach(p => {
+        const st = this.getPatientWorkStatus(p);
+        if (counts[st] !== undefined) counts[st]++;
+      });
+
+      const labels = {
+        all: `Tất cả công việc (${counts.all})`,
+        can_ban_giao: `⏳ Cần bàn giao (${counts.can_ban_giao})`,
+        don_cls_thuoc: `🟠 Đón CLS / Thêm thuốc (${counts.don_cls_thuoc})`,
+        du_thong_tin: `🔵 Đủ thông tin (${counts.du_thong_tin})`,
+        da_check: `✅ Đã check (${counts.da_check})`,
+        chua_lam: `⚪ Chưa làm (${counts.chua_lam})`,
+        xuat_vien: `🟢 Xuất viện (${counts.xuat_vien})`
+      };
+
+      Array.from(select.options).forEach(opt => {
+        if (labels[opt.value]) {
+          opt.textContent = labels[opt.value];
+        }
+      });
+
+      select.value = this.activeWorkStatusFilter || 'all';
+    }
+
+    const clearBtn = document.getElementById('btnClearWorkFilter');
+    if (clearBtn) {
+      clearBtn.style.display = (this.activeWorkStatusFilter && this.activeWorkStatusFilter !== 'all') ? 'inline-flex' : 'none';
+    }
+
+    const colBtn = document.getElementById('btnWorkFilterCol');
+    const filterBadge = document.getElementById('workFilterBadge');
+    if (colBtn) {
+      if (this.activeWorkStatusFilter && this.activeWorkStatusFilter !== 'all') {
+        colBtn.classList.add('active');
+        if (filterBadge) filterBadge.style.display = 'inline-block';
+      } else {
+        colBtn.classList.remove('active');
+        if (filterBadge) filterBadge.style.display = 'none';
+      }
+    }
+
+    const activeFilterTag = document.getElementById('filterActiveBadge');
+    if (activeFilterTag) {
+      if (this.activeWorkStatusFilter && this.activeWorkStatusFilter !== 'all') {
+        const cfg = CONFIG.STATUS_CONFIG[this.activeWorkStatusFilter];
+        activeFilterTag.innerHTML = `Lọc: ${cfg ? cfg.icon + ' ' + cfg.label : this.activeWorkStatusFilter} <span style="font-weight: bold; margin-left: 3px;">✕</span>`;
+        activeFilterTag.style.display = 'inline-flex';
+      } else {
+        activeFilterTag.style.display = 'none';
+      }
+    }
   }
 
   // CHUYỂN ĐỔI CHẾ ĐỘ XEM TRÊN MOBILE (THẺ VS BẢNG)

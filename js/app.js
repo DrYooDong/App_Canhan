@@ -484,7 +484,9 @@ class MedWardApp {
             window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
           }
 
-          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+          const { doctor: currentDoc } = window.patientController.getEffectiveDoctor();
+          const targetIso = window.patientController.currentDateIso;
+          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, targetIso, currentDoc?.id);
           if (syncRes && syncRes.offlineSaved) {
             window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
           } else if (syncRes && syncRes.error) {
@@ -548,7 +550,9 @@ class MedWardApp {
           window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
         }
 
-        const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+        const { doctor: excelDoc } = window.patientController.getEffectiveDoctor();
+        const targetIso = window.patientController.currentDateIso;
+        const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, targetIso, excelDoc?.id);
         if (syncRes && syncRes.offlineSaved) {
           window.showToast(`✓ Đã nạp thành công ${imported.length} bệnh nhân vào bộ nhớ máy! (Lưu an toàn offline)`);
         } else if (syncRes && syncRes.error) {
