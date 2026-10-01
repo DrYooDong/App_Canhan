@@ -354,10 +354,10 @@
           👥 <span id="mobileSummaryTotal">0</span> NB
         </div>
         <div class="mobile-summary-item item-critical">
-          🚨 <span id="mobileSummaryCritical">0</span> Nặng
+          ⏳ <span id="mobileSummaryCritical">0</span> Bàn giao
         </div>
         <div class="mobile-summary-item item-pending">
-          ⏳ <span id="mobileSummaryPending">0</span> Bàn giao
+          🟠 <span id="mobileSummaryPending">0</span> Đón CLS
         </div>
       </div>
 
@@ -450,7 +450,6 @@
           <div class="doc-avatar-circle" id="headerDocAvatar">HĐ</div>
           <div class="doc-header-info">
             <span class="doc-header-name" id="headerDocName">BS. Nguyễn Hữu Đông</span>
-            <span class="doc-header-role" id="headerDocRole">Bác sĩ điều trị</span>
           </div>
           <svg class="pill-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round">
@@ -484,14 +483,11 @@
     <!-- 2. TIÊU ĐỀ KHOA PHÒNG / BỆNH VIỆN -->
     <div class="hospital-header">
       <div class="hospital-info">
-        <div class="unit-name" contenteditable="true">SỞ Y TẾ TP. HỒ CHÍ MINH</div>
         <div class="hospital-title" contenteditable="true">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
         <div class="dept-name" contenteditable="true">KHOA: NHIỄM</div>
       </div>
       <div class="main-title-box">
         <div class="main-title" contenteditable="true">BẢNG THEO DÕI &amp; Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
-        <div class="sub-title" contenteditable="true">(Không gian điều trị riêng: BS. Nguyễn Hữu Đông • Khoa Nhiễm)
-        </div>
       </div>
       <div class="meta-box">
         <div class="meta-item">
@@ -532,10 +528,6 @@
           </button>
         </div>
 
-        <div class="meta-item" id="workspaceMetaItem">
-          <label>Không gian: </label>
-          <span id="currentWorkspaceText" class="workspace-pill-tag">BS. Nguyễn Hữu Đông</span>
-        </div>
         <div class="meta-item">
           <span>Tổng số NB: <strong id="patientCount">0</strong></span>
         </div>
@@ -712,11 +704,8 @@
     </div>
 
     <!-- 5. THANH TRẠNG THÁI -->
-    <div class="status-bar no-print">
+    <div class="status-bar no-print" style="display: none;">
       <span id="saveStatus" class="status-tag" style="display: none;">🟢 Đang tải hệ thống...</span>
-      <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop
-        &
-        Điện thoại!</span>
     </div>
 
     <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
@@ -781,8 +770,8 @@
             <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y
                 LỆNH
                 ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
-            <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span
-                class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
+            <th class="col-handover" data-tooltip="Trạng thái công việc &amp; Bàn giao trực (Công việc)"><span
+                class="th-title">CÔNG VIỆC</span><span class="th-sub">Trạng thái</span></th>
             <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
           </tr>
         </thead>
@@ -974,25 +963,27 @@
 
         <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
 
-        <!-- MỤC BÀN GIAO TRỰC TRONG MODAL CHI TIẾT -->
+        <!-- MỤC CÔNG VIỆC & BÀN GIAO TRONG MODAL CHI TIẾT -->
         <div class="form-group">
-          <label>🚨 Trạng thái bàn giao tua trực (BG):</label>
+          <label style="font-weight: 700;">📋 Trạng thái công việc:</label>
           <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
-            <option value="none">🟢 Bình thường / Ổn định</option>
-            <option value="pending">⏳ Cần bàn giao / Vấn đề tồn đọng</option>
-            <option value="critical">🚨 Báo động đỏ / Bệnh nặng theo dõi sát</option>
-            <option value="resolved">✅ Đã xử trí xong</option>
+            <option value="chua_lam">⚪ Chưa làm (Thiếu CĐ / CLS / Y lệnh)</option>
+            <option value="du_thong_tin">🔵 Đủ thông tin (Tự chuyển khi đủ dữ liệu)</option>
+            <option value="don_cls_thuoc">🟠 Đón CLS / Thêm thuốc</option>
+            <option value="can_ban_giao">⏳ Cần bàn giao</option>
+            <option value="da_check">✅ Đã check (BS điều trị kiểm tra hồ sơ)</option>
+            <option value="xuat_vien">🟢 Xuất viện</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>⚠️ Vấn đề lâm sàng tồn đọng / Chưa giải quyết xong:</label>
+          <label>⚠️ Vấn đề:</label>
           <textarea id="editHandoverIssues" class="form-control" rows="2"
             placeholder="VD: Đang sốt 39.5°C chưa hạ; Chờ KQ cấy máu; HA dao động..."></textarea>
         </div>
 
         <div class="form-group">
-          <label>🎯 Y lệnh & Hành động tua trực cần xử trí:</label>
+          <label>🎯 Nhờ BS trực:</label>
           <textarea id="editHandoverActions" class="form-control" rows="2"
             placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
         </div>
@@ -1115,11 +1106,11 @@
     </div>
   </div>
 
-  <!-- MODAL 2: THIẾT LẬP BÀN GIAO CA TRỰC CHO 1 NGƯỜI BỆNH -->
+  <!-- MODAL 2: THIẾT LẬP CÔNG VIỆC & BÀN GIAO CA TRỰC -->
   <div class="modal-overlay" id="handoverModal">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">🚨 Thiết Lập Bàn Giao Ca Trực</div>
+        <div class="modal-title">📋 Quản Lý Công Việc &amp; Bàn Giao</div>
         <button class="btn-close-modal" onclick="window.handoverController.closeHandoverModal()">&times;</button>
       </div>
       <div class="modal-body">
@@ -1129,42 +1120,46 @@
         </div>
 
         <div class="form-group">
-          <label>Mức độ bàn giao:</label>
-          <div class="status-radio-group">
-            <label class="status-radio-item">
-              <input type="radio" name="hoStatusRadio" value="none">
-              <span>🟢 Ổn định (Không cần bàn giao)</span>
+          <label style="font-weight: 700;">Công việc:</label>
+          <div class="status-radio-group work-status-radio-grid">
+            <label class="status-radio-item" data-status="chua_lam">
+              <input type="radio" name="hoStatusRadio" value="chua_lam" onchange="window.handoverController.handleStatusRadioChange('chua_lam')">
+              <span>⚪ Chưa làm (Thiếu CĐ / CLS / Y lệnh)</span>
             </label>
-            <label class="status-radio-item">
-              <input type="radio" name="hoStatusRadio" value="pending">
-              <span>⏳ Cần theo dõi sát / Tồn đọng</span>
+            <label class="status-radio-item" data-status="du_thong_tin">
+              <input type="radio" name="hoStatusRadio" value="du_thong_tin" onchange="window.handoverController.handleStatusRadioChange('du_thong_tin')">
+              <span>🔵 Đủ thông tin (Tự chuyển khi đủ dữ liệu)</span>
             </label>
-            <label class="status-radio-item">
-              <input type="radio" name="hoStatusRadio" value="critical">
-              <span>🚨 Báo động đỏ (Nguy kịch / Nặng)</span>
+            <label class="status-radio-item" data-status="don_cls_thuoc">
+              <input type="radio" name="hoStatusRadio" value="don_cls_thuoc" onchange="window.handoverController.handleStatusRadioChange('don_cls_thuoc')">
+              <span>🟠 Đón CLS / Thêm thuốc</span>
             </label>
-            <label class="status-radio-item">
-              <input type="radio" name="hoStatusRadio" value="resolved">
-              <span>✅ Đã xử trí xong trong tua</span>
+            <label class="status-radio-item" data-status="can_ban_giao">
+              <input type="radio" name="hoStatusRadio" value="can_ban_giao" onchange="window.handoverController.handleStatusRadioChange('can_ban_giao')">
+              <span>⏳ Cần bàn giao (Vấn đề &amp; Nhờ BS trực)</span>
+            </label>
+            <label class="status-radio-item" data-status="da_check">
+              <input type="radio" name="hoStatusRadio" value="da_check" onchange="window.handoverController.handleStatusRadioChange('da_check')">
+              <span>✅ Đã check (BS điều trị kiểm tra hồ sơ)</span>
+            </label>
+            <label class="status-radio-item" data-status="xuat_vien">
+              <input type="radio" name="hoStatusRadio" value="xuat_vien" onchange="window.handoverController.handleStatusRadioChange('xuat_vien')">
+              <span>🟢 Xuất viện</span>
             </label>
           </div>
+          <div id="hoStatusHelpNote" style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;"></div>
         </div>
 
-        <div class="form-group">
-          <label>⚠️ Vấn đề tồn đọng / Chưa giải quyết xong:</label>
-          <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề chưa xong..."></textarea>
+        <div class="form-group" id="hoIssuesGroup">
+          <label>⚠️ Vấn đề:</label>
+          <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề tồn đọng chưa giải quyết xong..."></textarea>
           <div class="quick-tags-box" id="handoverIssueQuickTags"></div>
         </div>
 
-        <div class="form-group">
-          <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
-          <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận hành động ca trực..."></textarea>
+        <div class="form-group" id="hoActionsGroup">
+          <label>🎯 Nhờ BS trực:</label>
+          <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận nội dung nhờ bác sĩ trực theo dõi hoặc xử trí..."></textarea>
           <div class="quick-tags-box" id="handoverActionQuickTags"></div>
-        </div>
-
-        <div class="form-group">
-          <label>Bác sĩ bàn giao:</label>
-          <input type="text" id="hoDoctorFrom" class="form-control" placeholder="Họ tên BS bàn giao...">
         </div>
       </div>
       <div class="modal-footer" style="justify-content: space-between;">
@@ -1177,8 +1172,7 @@
         </div>
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-secondary" onclick="window.handoverController.closeHandoverModal()">Hủy</button>
-          <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Xác Nhận Bàn
-            Giao</button>
+          <button class="btn btn-primary" onclick="window.handoverController.saveHandover()">Lưu Trạng Thái</button>
         </div>
       </div>
     </div>

@@ -538,6 +538,105 @@ class PatientController {
     }
   }
 
+  // ==============================================================================
+  // QUY TẮC TỰ ĐỘNG XÁC ĐỊNH TRẠNG THÁI CÔNG VIỆC:
+  // + Mặc định: "Chưa làm" (nếu chưa có thông tin 01 trong các cột thông tin + chẩn đoán + CLS + Y lệnh)
+  // + "Đủ thông tin" sẽ tự chuyển  - Nếu các cột thông tin + Chẩn đoán + CLS + Y lệnh có thông tin.
+  // + "Cần bàn giao"- hiện ra 02 phần trong bảng thông tin hiển thị: Vấn đề & Nhờ BS trực
+  // + "Đón CLS / Thêm thuốc" - Nếu có thông tin từ mục "CLS cần làm" hoặc "Thêm thuốc"
+  // + "Đã check" - lựa chọn từ bác sĩ điều trị - là cách để bác sĩ cuối ngày làm việc dùng để kiểm tra đã hoàn thành hồ sơ
+  // + "Xuất viện" - nếu cột y lệnh bác sĩ viết nội dung "Xuất viện"
+  // ==============================================================================
+  getPatientWorkStatus(p) {
+    if (!p) return 'chua_lam';
+
+    // 1. "Đã check" - Lựa chọn từ bác sĩ điều trị cuối ngày
+    if (p.handover_status === 'da_check' || p.work_status === 'da_check' || p.handover_status === 'resolved') {
+      return 'da_check';
+    }
+
+    // 2. "Xuất viện" - Nếu cột y lệnh bác sĩ viết nội dung "Xuất viện" (hoặc chọn xuất viện)
+    const yLenhLower = (p.y_lenh || '').toLowerCase();
+    const cdLower = (p.chan_doan || '').toLowerCase();
+    const isDischarged = /xuất\s*viện|ra\s*viện|\bxv\b|cho\s*về|cho\s*ra/i.test(yLenhLower) || 
+                         /xuất\s*viện|ra\s*viện|\bxv\b|cho\s*về/i.test(cdLower) ||
+                         p.handover_status === 'xuat_vien' || p.work_status === 'xuat_vien';
+    if (isDischarged) {
+      return 'xuat_vien';
+    }
+
+    // 3. "Cần bàn giao" - Được chọn hoặc có thông tin Vấn đề / Nhờ BS trực
+    const hasHandoverDetails = Boolean((p.handover_issues && p.handover_issues.trim()) || (p.handover_actions && p.handover_actions.trim()));
+    if (p.handover_status === 'can_ban_giao' || p.work_status === 'can_ban_giao' || p.handover_status === 'pending' || p.handover_status === 'critical' || hasHandoverDetails) {
+      return 'can_ban_giao';
+    }
+
+    // 4. "Đón CLS / Thêm thuốc" - Nếu có thông tin từ mục "CLS cần làm" hoặc "Thêm thuốc"
+    const hasClsCanLam = Boolean(p.cls_can_lam && p.cls_can_lam.trim());
+    const hasThemThuoc = Boolean(p.them_thuoc && p.them_thuoc.trim());
+    if (hasClsCanLam || hasThemThuoc || p.handover_status === 'don_cls_thuoc' || p.work_status === 'don_cls_thuoc') {
+      return 'don_cls_thuoc';
+    }
+
+    // 5. "Đủ thông tin" sẽ tự chuyển  - Nếu các cột thông tin + Chẩn đoán + CLS + Y lệnh có thông tin
+    const hasInfo = Boolean(p.ten && p.ten.trim()) && Boolean(p.phong_giuong && p.phong_giuong.trim());
+    const hasCd = Boolean(p.chan_doan && p.chan_doan.trim());
+    const hasCls = Boolean((p.cls_hien_co && p.cls_hien_co.trim()) || (p.cls_can_lam && p.cls_can_lam.trim()) || (p.cls && p.cls.trim()));
+    const hasYl = Boolean((p.y_lenh && p.y_lenh.trim()) || (p.them_thuoc && p.them_thuoc.trim()));
+
+    if (hasInfo && hasCd && hasCls && hasYl) {
+      return 'du_thong_tin';
+    }
+
+    // 6. Mặc định: "Chưa làm" (nếu chưa có thông tin 01 trong các cột thông tin + chẩn đoán + CLS + Y lệnh)
+    return 'chua_lam';
+  }
+
+  updateWorkStatusCellUI(patientId) {
+    const p = this.patientList.find(item => item.id === patientId);
+    if (!p) return;
+    const tr = document.querySelector(`tr[data-id="${patientId}"]`);
+    if (!tr) return;
+    const cell = tr.querySelector('.col-handover');
+    if (!cell) return;
+
+    const workStatus = this.getPatientWorkStatus(p);
+    const statusCfg = CONFIG.STATUS_CONFIG[workStatus] || CONFIG.STATUS_CONFIG.chua_lam;
+
+    if (workStatus === 'can_ban_giao') {
+      const issuesText = p.handover_issues && p.handover_issues.trim() ? this.escape(p.handover_issues) : 'Chưa ghi chú';
+      const actionsText = p.handover_actions && p.handover_actions.trim() ? this.escape(p.handover_actions) : 'Theo dõi sinh hiệu';
+      cell.innerHTML = `
+        <div class="work-status-cell">
+          <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để xem/sửa bàn giao">
+            <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
+          </button>
+          <div class="ho-dual-box">
+            <div class="ho-sub-row ho-sub-issues" title="Vấn đề tồn đọng">
+              <span class="ho-sub-label">⚠️ VĐ:</span>
+              <span class="ho-sub-text">${issuesText}</span>
+            </div>
+            <div class="ho-sub-row ho-sub-actions" title="Nhờ bác sĩ trực">
+              <span class="ho-sub-label">🎯 Nhờ trực:</span>
+              <span class="ho-sub-text">${actionsText}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      cell.innerHTML = `
+        <div class="work-status-cell">
+          <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để đổi trạng thái hoặc thiết lập bàn giao">
+            <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
+          </button>
+        </div>
+      `;
+    }
+
+    tr.className = `patient-row row-${workStatus}`;
+    this.updateMobileSummaryBar();
+  }
+
   // TÍNH TOÁN DUNG LƯỢNG LƯU TRỮ 100MB CHO TỪNG TÀI KHOẢN (SAVE SLOT HUD)
   calculateDoctorStorageUsage(targetDocId = null) {
     const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
@@ -843,6 +942,14 @@ class PatientController {
         }
       }
 
+      // Tự động cập nhật trạng thái công việc (nếu bác sĩ chưa chủ động đánh dấu Đã check)
+      if (this.patientList[idx].handover_status !== 'da_check') {
+        const autoStatus = this.getPatientWorkStatus(this.patientList[idx]);
+        this.patientList[idx].handover_status = autoStatus;
+        this.patientList[idx].work_status = autoStatus;
+      }
+      this.updateWorkStatusCellUI(patientId);
+
       this.patientList[idx].updated_at = new Date().toISOString();
       this.saveLocalCache();
 
@@ -1078,6 +1185,8 @@ class PatientController {
 
   isDischargedPatient(p) {
     if (!p) return false;
+    if (p.handover_status === 'xuat_vien' || p.work_status === 'xuat_vien') return true;
+
     const combined = [
       p.chan_doan,
       p.y_lenh,
@@ -1088,7 +1197,7 @@ class PatientController {
     ].filter(Boolean).join(' ').normalize('NFC').toLowerCase();
 
     // Lọc bỏ triệt để các ca có ghi chú liên quan xuất viện, chuyển viện, xin về, tử vong
-    return /\b(?:ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|cho\s*ra|cho\s*xu[ấa]t|h[ẹe]n\s*t[áa]i\s*kh[áa]m|xin\s*v[ềe]|chuy[ểe]n\s*vi[ệe]n|chuy[ểe]n\s*khoa|chuy[ểe]n\s*tr[ạa]i|chuy[ểe]n\s*tuy[ếe]n|chuy[ểe]n\s*h[ồo]i\s*s[ứu]c|chuy[ểe]n\s*icu|t[ửu]\s*vong)\b/i.test(combined);
+    return /\b(?:ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|cho\s*ra|cho\s*xu[ấa]t|h[ẹe]n\s*t[áa]i\s*kh[áa]m|xin\s*v[ềe]|chuy[ểe]n\s*vi[ệe]n|chuy[ểe]n\s*khoa|chuy[ểe]n\s*tr[ạa]i|chuy[ểe]n\s*tuy[ếe]n|chuy[ểe]n\s*h[ồo]i\s*s[ứu]c|chuy[ểe]n\s*icu|t[ửu]\s*vong|\bxv\b)\b/i.test(combined);
   }
 
   // TỰ ĐỘNG CHUYỂN DỮ LIỆU THÔNG MINH SANG NGÀY MỚI (1-CLICK SMART ROLLOVER)
@@ -1844,10 +1953,18 @@ class PatientController {
 
     // Lọc theo Mobile Filter Chip nếu có
     if (this.activeMobileFilter && this.activeMobileFilter !== 'all') {
-      if (this.activeMobileFilter === 'critical') {
-        list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
-      } else if (this.activeMobileFilter === 'pending') {
-        list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING || p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
+      if (this.activeMobileFilter === 'can_ban_giao' || this.activeMobileFilter === 'pending' || this.activeMobileFilter === 'critical') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'can_ban_giao');
+      } else if (this.activeMobileFilter === 'don_cls_thuoc') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'don_cls_thuoc');
+      } else if (this.activeMobileFilter === 'chua_lam') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'chua_lam');
+      } else if (this.activeMobileFilter === 'du_thong_tin') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'du_thong_tin');
+      } else if (this.activeMobileFilter === 'da_check') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'da_check');
+      } else if (this.activeMobileFilter === 'xuat_vien') {
+        list = list.filter(p => this.getPatientWorkStatus(p) === 'xuat_vien');
       } else if (this.activeMobileFilter.startsWith('room:')) {
         const targetRoom = this.activeMobileFilter.replace('room:', '');
         list = list.filter(p => this.extractRoomCode(p.phong_giuong) === targetRoom);
@@ -2018,12 +2135,12 @@ class PatientController {
     const dateEl = document.getElementById('mobileSummaryDate');
 
     const total = this.patientList.length;
-    const critical = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
-    const pending = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+    const canBanGiao = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'can_ban_giao').length;
+    const donCls = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'don_cls_thuoc').length;
 
     if (totalEl) totalEl.innerText = total;
-    if (critEl) critEl.innerText = critical;
-    if (pendEl) pendEl.innerText = pending;
+    if (critEl) critEl.innerText = canBanGiao;
+    if (pendEl) pendEl.innerText = donCls;
 
     if (dateEl) {
       const repDateInput = document.getElementById('reportDate');
@@ -2047,8 +2164,10 @@ class PatientController {
     if (!container) return;
 
     const total = this.patientList.length;
-    const critical = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
-    const pending = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+    const canBanGiao = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'can_ban_giao').length;
+    const donCls = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'don_cls_thuoc').length;
+    const chuaLam = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'chua_lam').length;
+    const daCheck = this.patientList.filter(p => this.getPatientWorkStatus(p) === 'da_check').length;
 
     // Lấy danh sách các buồng hiện có
     const rooms = {};
@@ -2066,18 +2185,34 @@ class PatientController {
       </button>
     `;
 
-    if (critical > 0) {
+    if (canBanGiao > 0) {
       html += `
-        <button class="mobile-filter-chip chip-critical ${this.activeMobileFilter === 'critical' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('critical')">
-          🚨 Báo động đỏ (${critical})
+        <button class="mobile-filter-chip chip-critical ${this.activeMobileFilter === 'can_ban_giao' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('can_ban_giao')">
+          ⏳ Cần bàn giao (${canBanGiao})
         </button>
       `;
     }
 
-    if (pending > 0) {
+    if (donCls > 0) {
       html += `
-        <button class="mobile-filter-chip chip-pending ${this.activeMobileFilter === 'pending' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('pending')">
-          ⏳ Cần bàn giao (${pending})
+        <button class="mobile-filter-chip chip-pending ${this.activeMobileFilter === 'don_cls_thuoc' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('don_cls_thuoc')">
+          🟠 Đón CLS / Thuốc (${donCls})
+        </button>
+      `;
+    }
+
+    if (chuaLam > 0) {
+      html += `
+        <button class="mobile-filter-chip ${this.activeMobileFilter === 'chua_lam' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('chua_lam')">
+          ⚪ Chưa làm (${chuaLam})
+        </button>
+      `;
+    }
+
+    if (daCheck > 0) {
+      html += `
+        <button class="mobile-filter-chip ${this.activeMobileFilter === 'da_check' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('da_check')" style="color: #15803d; border-color: #86efac; background: #f0fdf4;">
+          ✅ Đã check (${daCheck})
         </button>
       `;
     }
@@ -2214,12 +2349,11 @@ class PatientController {
         }
       }
 
-      const statusCfg = CONFIG.STATUS_CONFIG[p.handover_status] || CONFIG.STATUS_CONFIG.none;
-      const isCritical = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
-      const isPending = p.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
+      const workStatus = this.getPatientWorkStatus(p);
+      const statusCfg = CONFIG.STATUS_CONFIG[workStatus] || CONFIG.STATUS_CONFIG.chua_lam;
 
       const tr = document.createElement('tr');
-      tr.className = `patient-row ${isCritical ? 'row-critical' : (isPending ? 'row-pending' : '')}`;
+      tr.className = `patient-row row-${workStatus}`;
       tr.dataset.id = p.id;
 
       tr.innerHTML = `
@@ -2284,13 +2418,33 @@ class PatientController {
           </div>
         </td>
         <td class="col-handover">
-          <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
-            ${statusCfg.icon}
-          </button>
-          ${p.handover_issues ? `<span class="handover-mini-icon" data-tooltip="${this.escape(p.handover_issues)}">⚠️</span>` : ''}
+          ${workStatus === 'can_ban_giao' ? `
+            <div class="work-status-cell">
+              <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để xem/sửa bàn giao">
+                <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
+              </button>
+              <div class="ho-dual-box">
+                <div class="ho-sub-row ho-sub-issues" title="Vấn đề tồn đọng">
+                  <span class="ho-sub-label">⚠️ VĐ:</span>
+                  <span class="ho-sub-text">${this.escape(p.handover_issues || 'Chưa ghi chú')}</span>
+                </div>
+                <div class="ho-sub-row ho-sub-actions" title="Nhờ bác sĩ trực">
+                  <span class="ho-sub-label">🎯 Nhờ trực:</span>
+                  <span class="ho-sub-text">${this.escape(p.handover_actions || 'Theo dõi sinh hiệu')}</span>
+                </div>
+              </div>
+            </div>
+          ` : `
+            <div class="work-status-cell">
+              <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để đổi trạng thái hoặc thiết lập bàn giao">
+                <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
+              </button>
+            </div>
+          `}
           <div class="print-handover-view">
-            <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label || 'Bình thường'}</span>
-            ${p.handover_issues ? `<div class="print-issue-text">⚠️ ${this.escape(p.handover_issues)}</div>` : ''}
+            <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label}</span>
+            ${p.handover_issues ? `<div class="print-issue-text">⚠️ VĐ: ${this.escape(p.handover_issues)}</div>` : ''}
+            ${p.handover_actions ? `<div class="print-issue-text" style="color: #0369a1;">🎯 Nhờ trực: ${this.escape(p.handover_actions)}</div>` : ''}
           </div>
         </td>
         <td class="col-actions no-print">
@@ -2366,20 +2520,13 @@ class PatientController {
 
     filtered.forEach((p) => {
       this.normalizePatientClsAndOrders(p);
-      const isCritical = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
-      const isPending = p.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
+      const workStatus = this.getPatientWorkStatus(p);
+      const statusCfg = CONFIG.STATUS_CONFIG[workStatus] || CONFIG.STATUS_CONFIG.chua_lam;
 
-      let statusPillHtml = '';
-      if (isCritical) {
-        statusPillHtml = `<span class="card-status-pill status-critical">🚨 BÁO ĐỘNG ĐỎ</span>`;
-      } else if (isPending) {
-        statusPillHtml = `<span class="card-status-pill status-pending">⏳ CẦN BÀN GIAO</span>`;
-      } else {
-        statusPillHtml = `<span class="card-status-pill status-none">✓ Ổn định</span>`;
-      }
+      const statusPillHtml = `<span class="card-status-pill status-${workStatus}" onclick="event.stopPropagation(); window.handoverController.openHandoverModal('${p.id}')">${statusCfg.icon} ${statusCfg.label}</span>`;
 
       const card = document.createElement('div');
-      card.className = `mobile-patient-card ${isCritical ? 'card-critical' : (isPending ? 'card-pending' : '')}`;
+      card.className = `mobile-patient-card card-${workStatus}`;
       card.dataset.id = p.id;
 
       card.innerHTML = `
@@ -2393,14 +2540,14 @@ class PatientController {
         </div>
 
         <!-- THÂN THẺ: TÊN & CHẨN ĐOÁN -->
-        <div onclick="window.patientController.openPatientDetailModal('${p.id}')">
+        <div class="card-body" onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-name-row">
             <h3 class="patient-name">${this.escape(p.ten || 'BỆNH NHÂN CHƯA TÊN')}</h3>
             <span class="patient-age">${this.escape(p.nam_sinh_tuoi || '')}</span>
           </div>
 
           <div class="card-diagnosis-box" style="margin-bottom: 8px;">
-            <strong>Chẩn đoán:</strong>
+            <strong>CĐ:</strong>
             ${this.escape(p.chan_doan || 'Chưa có chẩn đoán')}
           </div>
 
@@ -2436,11 +2583,11 @@ class PatientController {
           </div>
 
           <!-- CẢNH BÁO BÀN GIAO TRỰC -->
-          ${(p.handover_issues || p.handover_actions) ? `
+          ${(workStatus === 'can_ban_giao' || p.handover_issues || p.handover_actions) ? `
             <div class="card-handover-alert" style="margin-top: 8px;">
-              <strong>🚨 BÀN GIAO CA TRỰC:</strong>
-              ${p.handover_issues ? `<div>⚠️ <em>Tồn đọng:</em> ${this.escape(p.handover_issues)}</div>` : ''}
-              ${p.handover_actions ? `<div>⚡ <em>Cần làm:</em> ${this.escape(p.handover_actions)}</div>` : ''}
+              <strong style="color: #b91c1c;">🚨 BÀN GIAO CA TRỰC:</strong>
+              <div class="ho-sub-row" style="margin-top: 3px;"><strong>⚠️ VĐ:</strong> <span>${this.escape(p.handover_issues || 'Chưa ghi chú')}</span></div>
+              <div class="ho-sub-row" style="margin-top: 3px;"><strong>🎯 Nhờ trực:</strong> <span>${this.escape(p.handover_actions || 'Theo dõi sinh hiệu')}</span></div>
             </div>
           ` : ''}
         </div>
@@ -2448,8 +2595,8 @@ class PatientController {
         <!-- HÀNG NÚT HÀNH ĐỘNG DỄ CHẠM NGÓN TAY -->
         <div class="card-actions-row">
           <button type="button" class="card-btn-action btn-handover" onclick="window.handoverController.openHandoverModal('${p.id}')">
-            <span>🚨</span>
-            <span>Bàn giao</span>
+            <span>📋</span>
+            <span>Công việc</span>
           </button>
           <button type="button" class="card-btn-action btn-zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -2511,7 +2658,7 @@ class PatientController {
     if (document.getElementById('editThemThuoc')) {
       document.getElementById('editThemThuoc').value = p.them_thuoc || '';
     }
-    document.getElementById('editHandoverStatus').value = p.handover_status || CONFIG.HANDOVER_STATUS.NONE;
+    document.getElementById('editHandoverStatus').value = this.getPatientWorkStatus(p);
     document.getElementById('editHandoverIssues').value = p.handover_issues || '';
     document.getElementById('editHandoverActions').value = p.handover_actions || '';
 
@@ -2599,19 +2746,14 @@ class PatientController {
       y_lenh: ylVal,
       them_thuoc: themThuocVal,
       handover_status: document.getElementById('editHandoverStatus').value,
+      work_status: document.getElementById('editHandoverStatus').value,
       handover_issues: document.getElementById('editHandoverIssues').value.trim(),
       handover_actions: document.getElementById('editHandoverActions').value.trim()
     };
 
-    if (docVal && !updateData.handover_by) {
-      updateData.handover_by = docVal;
-    }
-
-    if (updateData.handover_status !== CONFIG.HANDOVER_STATUS.NONE && updateData.handover_status !== CONFIG.HANDOVER_STATUS.RESOLVED) {
-      if (window.authController && window.authController.currentUser) {
-        updateData.handover_by = window.authController.currentUser.full_name || docVal || 'Bác sĩ điều trị';
-        updateData.handover_at = new Date().toISOString();
-      }
+    if (updateData.handover_status === 'da_check') {
+      updateData.handover_resolved_at = new Date().toISOString();
+      updateData.handover_resolved_by = window.authController?.currentUser?.full_name || 'Bác sĩ điều trị';
     }
 
     this.updatePatient(id, updateData);
@@ -2831,24 +2973,36 @@ class PatientController {
     let text = `📋 Y LỆNH (${dateStr})\n\n`;
 
     targetList.forEach((p, idx) => {
-      const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
-      const ns = p.nam_sinh_tuoi || '—';
-      const phong = p.phong_giuong || 'Chưa xếp phòng';
-      const cd = p.chan_doan || 'Chưa ghi';
+      const ten = (p.ten || 'BN').toUpperCase();
+      let ns = '';
+      if (p.nam_sinh_tuoi) {
+        let rawNs = String(p.nam_sinh_tuoi).trim();
+        if (rawNs.startsWith('(') && rawNs.endsWith(')')) {
+          ns = ` ${rawNs}`;
+        } else {
+          rawNs = rawNs.replace(/\(([^\)]+)\)/g, '- $1').replace(/\s+/g, ' ').trim();
+          ns = ` (${rawNs})`;
+        }
+      }
+      const phong = p.phong_giuong || '—';
+      const cd = p.chan_doan || '—';
 
-      let issues = [];
+      const lines = [];
+      lines.push(`${idx + 1}. - BN: ${ten}${ns}`);
+      lines.push(`- P-G: ${phong}`);
+      lines.push(`- CĐ: ${cd}`);
+
       if (p.cls_can_lam && p.cls_can_lam.trim()) {
-        issues.push('CLS: ' + p.cls_can_lam.trim());
+        lines.push(`- CLS: ${p.cls_can_lam.trim()}`);
       }
-      if (p.them_thuoc && p.them_thuoc.trim()) {
-        issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
+      const yl = [p.y_lenh, p.them_thuoc].filter(Boolean).map(s => s.trim()).filter(Boolean).join('; ');
+      if (yl) {
+        lines.push(`- YL: ${yl}`);
+      } else if (!p.cls_can_lam) {
+        lines.push(`- YL: Thực hiện y lệnh thường quy`);
       }
-      if (issues.length === 0 && p.y_lenh && p.y_lenh.trim()) {
-        issues.push('Y lệnh: ' + p.y_lenh.trim());
-      }
-      const vanDe = issues.length > 0 ? issues.join('; ') : 'Thực hiện y lệnh thường quy';
 
-      text += `${idx + 1}. - BN: ${ten}\n- Năm sinh: ${ns}\n- Phòng: ${phong}\n- CĐ: ${cd}\n- Vấn đề: ${vanDe}\n\n`;
+      text += lines.join('\n') + '\n\n';
     });
 
     if (window.handoverController && window.handoverController.copyText) {

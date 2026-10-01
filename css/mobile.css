@@ -3,9 +3,15 @@
    Optimized for Smartphones, Tablets, and Touch Clinical Rounds
    ============================================================================== */
 
-/* Khi ở chế độ Desktop, ẩn các thành phần riêng của Mobile */
+/* Khi ở chế độ Desktop mặc định (chế độ Bảng), ẩn các thành phần riêng của Mobile */
 .mobile-cards-view {
   display: none;
+  align-items: stretch;
+}
+
+.mobile-cards-view > .mobile-patient-card,
+.mobile-cards-view > div {
+  height: 100%;
 }
 
 .bottom-nav-bar {
@@ -18,6 +24,454 @@
 
 .bottom-sheet-drag-handle {
   display: none;
+}
+
+/* ==============================================================================
+   CHẾ ĐỘ THẺ NGƯỜI BỆNH TRÊN DESKTOP & WEB (DESKTOP CARDS VIEW)
+   ============================================================================== */
+body.desktop-cards-mode #tableWrapper {
+  display: none !important;
+}
+
+body.desktop-cards-mode .mobile-cards-view,
+.mobile-cards-view.desktop-cards-grid,
+.mobile-cards-view[style*="display: grid"],
+.mobile-cards-view[style*="display: flex"] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)) !important;
+  gap: 16px !important;
+  margin: 16px 0 28px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important; /* Đảm bảo các thẻ cùng một hàng có chiều cao đồng nhất */
+  justify-content: stretch !important;
+}
+
+.mobile-cards-view > .mobile-patient-card,
+.mobile-cards-view > * {
+  height: 100% !important;
+}
+
+.mobile-cards-view > div[style*="text-align: center"],
+.mobile-cards-empty-state {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* ==============================================================================
+   GIAO DIỆN THẺ NGƯỜI BỆNH CHUẨN LÂM SÀNG (PATIENT CARDS - DESKTOP & MOBILE)
+   ============================================================================== */
+.mobile-patient-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  touch-action: manipulation;
+  overflow: hidden;
+  height: 100%; /* Giúp thẻ chiếm trọn chiều cao ô lưới */
+  box-sizing: border-box;
+  min-width: 0; /* Ngăn chặn flex child gây tràn chiều ngang */
+  min-height: 270px; /* Chiều cao tối thiểu nhất quán */
+}
+
+.mobile-patient-card:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+}
+
+/* Các viền trạng thái của thẻ */
+.mobile-patient-card.card-can_ban_giao,
+.mobile-patient-card.card-critical {
+  border-left: 5px solid #dc2626;
+  border-color: #fecaca;
+  background: #fffcfc;
+}
+
+.mobile-patient-card.card-don_cls_thuoc,
+.mobile-patient-card.card-pending {
+  border-left: 5px solid #d97706;
+  border-color: #fde68a;
+  background: #fffdf7;
+}
+
+.mobile-patient-card.card-du_thong_tin {
+  border-left: 5px solid #2563eb;
+  border-color: #bfdbfe;
+  background: #f8faff;
+}
+
+.mobile-patient-card.card-da_check {
+  border-left: 5px solid #16a34a;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.mobile-patient-card.card-xuat_vien {
+  border-left: 5px solid #059669;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.mobile-patient-card.card-chua_lam {
+  border-left: 5px solid #94a3b8;
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
+/* Header thẻ: Buồng giường + Trạng thái công việc / bàn giao */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.card-room-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+.card-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.card-status-pill:hover {
+  filter: brightness(0.95);
+  transform: translateY(-0.5px);
+}
+.card-status-pill.status-chua_lam {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+.card-status-pill.status-du_thong_tin {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+.card-status-pill.status-don_cls_thuoc {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+.card-status-pill.status-can_ban_giao {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.card-status-pill.status-da_check {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+.card-status-pill.status-xuat_vien {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+.card-status-pill.status-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.card-status-pill.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+.card-status-pill.status-none {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+/* Thân thẻ lâm sàng: co dãn chiếm không gian giữa để đẩy thanh nút hành động xuống đáy */
+.card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  cursor: pointer;
+}
+
+/* Tên bệnh nhân & Tuổi */
+.card-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.patient-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.1px;
+  line-height: 1.35;
+  margin: 0;
+  padding: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.patient-age {
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Chẩn đoán */
+.card-diagnosis-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.45;
+  cursor: pointer;
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-height: 95px;
+  overflow-y: auto;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.card-diagnosis-box strong {
+  color: #334155;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* 2 Tầng Lâm Sàng: CLS & Y Lệnh */
+.card-clinical-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.card-tier-box {
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  padding: 7px 9px;
+  background: #ffffff;
+  font-size: 12.5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card-tier-box.tier-cls {
+  border-left: 3px solid #0284c7;
+  background: #f0f9ff;
+}
+
+.card-tier-box.tier-yl {
+  border-left: 3px solid #16a34a;
+  background: #f0fdf4;
+}
+
+.card-tier-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tier-cls .card-tier-title { color: #0369a1; }
+.tier-yl .card-tier-title { color: #15803d; }
+
+.card-tier-content {
+  color: #0f172a;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: 85px;
+  overflow-y: auto;
+}
+
+.card-tier-highlight {
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px dashed #cbd5e1;
+  font-weight: 700;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+/* Cảnh báo Bàn giao trực */
+.card-handover-alert {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #9a3412;
+  line-height: 1.4;
+  cursor: pointer;
+  margin-top: 8px;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
+.card-handover-alert strong {
+  display: block;
+  font-size: 11.5px;
+  margin-bottom: 2px;
+  color: #c2410c;
+}
+
+/* Nút hành động trên thẻ - Luôn căn đáy đồng nhất */
+.card-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto; /* Đẩy xuống sát mép dưới thẻ */
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.card-btn-action {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-btn-action:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-0.5px);
+}
+
+.card-btn-action:active {
+  background: #f1f5f9;
+  transform: translateY(0);
+}
+
+.card-btn-action.btn-handover {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+.card-btn-action.btn-handover:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.card-btn-action.btn-zalo {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
+}
+.card-btn-action.btn-zalo:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+}
+
+.card-btn-action.btn-danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.card-btn-action.btn-danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+/* Thanh cuộn mini tinh tế cho các vùng nội dung dài trong thẻ */
+.card-diagnosis-box::-webkit-scrollbar,
+.card-tier-content::-webkit-scrollbar {
+  width: 4px;
+}
+.card-diagnosis-box::-webkit-scrollbar-track,
+.card-tier-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.card-diagnosis-box::-webkit-scrollbar-thumb,
+.card-tier-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.card-diagnosis-box::-webkit-scrollbar-thumb:hover,
+.card-tier-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* ==============================================================================
@@ -488,257 +942,30 @@
   }
 
   /* ----------------------------------------------------------------------------
-     6. CHẾ ĐỘ THẺ BỆNH NHÂN (MOBILE CARDS VIEW)
+     6. CHẾ ĐỘ THẺ BỆNH NHÂN TRÊN MOBILE (MOBILE OVERRIDES)
      ---------------------------------------------------------------------------- */
   .mobile-cards-view {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    align-items: stretch !important;
+  }
+
+  @media screen and (min-width: 580px) and (max-width: 840px) {
+    .mobile-cards-view {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
   }
 
   .mobile-patient-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 13px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    touch-action: manipulation;
+    min-height: unset;
   }
 
-  .mobile-patient-card.card-critical {
-    border-left: 5px solid #dc2626;
-    border-color: #fecaca;
-    background: #fffcfc;
-  }
-
-  .mobile-patient-card.card-pending {
-    border-left: 5px solid #d97706;
-    border-color: #fde68a;
-    background: #fffdf7;
-  }
-
-  /* Header thẻ: Buồng giường + Trạng thái bàn giao */
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .card-room-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    color: #1e293b;
-    font-weight: 800;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    letter-spacing: 0.2px;
-  }
-
-  .card-status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 9px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 700;
-    border: 1px solid transparent;
-  }
-
-  .card-status-pill.status-critical {
-    background: #fee2e2;
-    color: #991b1b;
-    border-color: #fca5a5;
-  }
-
-  .card-status-pill.status-pending {
-    background: #fef3c7;
-    color: #92400e;
-    border-color: #fcd34d;
-  }
-
-  .card-status-pill.status-none {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #e2e8f0;
-  }
-
-  /* Tên bệnh nhân & Tuổi */
-  .card-name-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 1px solid #f1f5f9;
-    padding-bottom: 6px;
-  }
-
-  .patient-name {
-    font-size: 15.5px;
-    font-weight: 800;
-    color: #0f172a;
-    text-transform: uppercase;
-    letter-spacing: 0.1px;
-    line-height: 1.3;
-  }
-
-  .patient-age {
-    font-size: 12.5px;
-    color: #64748b;
-    font-weight: 600;
-  }
-
-  /* Chẩn đoán */
-  .card-diagnosis-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 7px 10px;
-    font-size: 13px;
-    color: #1e293b;
-    line-height: 1.45;
-  }
-
-  .card-diagnosis-box strong {
-    color: #334155;
-    font-size: 11.5px;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  /* 2 Tầng Lâm Sàng: CLS & Y Lệnh */
-  .card-clinical-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .card-tier-box {
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
-    padding: 7px 9px;
-    background: #ffffff;
-    font-size: 12.5px;
-  }
-
-  .card-tier-box.tier-cls {
-    border-left: 3px solid #0284c7;
-    background: #f0f9ff;
-  }
-
-  .card-tier-box.tier-yl {
-    border-left: 3px solid #16a34a;
-    background: #f0fdf4;
-  }
-
-  .card-tier-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-bottom: 3px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .tier-cls .card-tier-title { color: #0369a1; }
-  .tier-yl .card-tier-title { color: #15803d; }
-
-  .card-tier-content {
-    color: #0f172a;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .card-tier-highlight {
-    margin-top: 5px;
-    padding-top: 4px;
-    border-top: 1px dashed #cbd5e1;
-    font-weight: 700;
-    color: #b91c1c;
-    font-size: 12px;
-  }
-
-  /* Cảnh báo Bàn giao trực */
-  .card-handover-alert {
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 12px;
-    color: #9a3412;
-    line-height: 1.4;
-  }
-
-  .card-handover-alert strong {
-    display: block;
-    font-size: 11.5px;
-    margin-bottom: 2px;
-    color: #c2410c;
-  }
-
-  /* Nút hành động trên thẻ */
-  .card-actions-row {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 6px;
-    margin-top: 2px;
-    border-top: 1px dashed #e2e8f0;
-    padding-top: 8px;
-    flex-wrap: wrap;
-  }
-
-  .card-btn-action {
-    height: 34px;
-    padding: 0 10px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: #334155;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-
-  .card-btn-action:active {
-    background: #f1f5f9;
-  }
-
-  .card-btn-action.btn-handover {
-    border-color: #fcd34d;
-    background: #fffbeb;
-    color: #92400e;
-  }
-
-  .card-btn-action.btn-zalo {
-    border-color: #bae6fd;
-    background: #f0f9ff;
-    color: #0284c7;
-  }
-
-  .card-btn-action.btn-zalo:active {
-    background: #e0f2fe;
-  }
-
-  .card-btn-action.btn-danger {
-    color: #dc2626;
-    border-color: #fecaca;
+  .mobile-patient-card:hover {
+    transform: none;
   }
 
   /* ----------------------------------------------------------------------------

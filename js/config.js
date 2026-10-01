@@ -74,34 +74,97 @@ const CONFIG = {
     }
   ],
 
-  // HANDOVER STATUS TYPES
-  HANDOVER_STATUS: {
-    NONE: 'none',          // Bình thường, ổn định
-    PENDING: 'pending',    // Vấn đề chưa giải quyết / Cần bàn giao
-    CRITICAL: 'critical',  // Báo động đỏ / Bệnh nặng theo dõi sát
-    RESOLVED: 'resolved'   // Đã xử trí xong trong ca trực
+  // WORK & HANDOVER STATUS TYPES (CÔNG VIỆC & BÀN GIAO)
+  WORK_STATUS: {
+    CHUA_LAM: 'chua_lam',           // Mặc định: Chưa làm (nếu chưa có thông tin 01 trong các cột thông tin + CĐ + CLS + Y lệnh)
+    DU_THONG_TIN: 'du_thong_tin',   // Đủ thông tin (tự chuyển nếu các cột thông tin + Chẩn đoán + CLS + Y lệnh có thông tin)
+    DON_CLS_THUOC: 'don_cls_thuoc', // Đón CLS / Thêm thuốc (nếu có thông tin từ CLS cần làm hoặc Thêm thuốc)
+    CAN_BAN_GIAO: 'can_ban_giao',   // Cần bàn giao (hiện ra 02 phần trong bảng: Vấn đề & Nhờ BS trực)
+    DA_CHECK: 'da_check',           // Đã check (lựa chọn từ BS điều trị kiểm tra hoàn thành hồ sơ cuối ngày)
+    XUAT_VIEN: 'xuat_vien'          // Xuất viện (nếu cột y lệnh viết 'Xuất viện')
   },
 
-  // STATUS LABELS & STYLES
+  HANDOVER_STATUS: {
+    CHUA_LAM: 'chua_lam',
+    DU_THONG_TIN: 'du_thong_tin',
+    DON_CLS_THUOC: 'don_cls_thuoc',
+    CAN_BAN_GIAO: 'can_ban_giao',
+    DA_CHECK: 'da_check',
+    XUAT_VIEN: 'xuat_vien',
+    // Compatibility aliases
+    NONE: 'chua_lam',
+    PENDING: 'can_ban_giao',
+    CRITICAL: 'can_ban_giao',
+    RESOLVED: 'da_check'
+  },
+
+  // STATUS LABELS & STYLES (TRẠNG THÁI CÔNG VIỆC)
   STATUS_CONFIG: {
+    chua_lam: {
+      key: 'chua_lam',
+      label: 'Chưa làm',
+      badgeClass: 'badge-chua-lam',
+      icon: '⚪',
+      desc: 'Chưa đủ thông tin (thiếu thông tin / CĐ / CLS / Y lệnh)'
+    },
+    du_thong_tin: {
+      key: 'du_thong_tin',
+      label: 'Đủ thông tin',
+      badgeClass: 'badge-du-thong-tin',
+      icon: '🔵',
+      desc: 'Đã có đủ thông tin, Chẩn đoán, CLS và Y lệnh'
+    },
+    don_cls_thuoc: {
+      key: 'don_cls_thuoc',
+      label: 'Đón CLS / Thêm thuốc',
+      badgeClass: 'badge-don-cls',
+      icon: '🟠',
+      desc: 'Có chỉ định CLS cần làm hoặc Thêm thuốc mới'
+    },
+    can_ban_giao: {
+      key: 'can_ban_giao',
+      label: 'Cần bàn giao',
+      badgeClass: 'badge-can-ban-giao',
+      icon: '⏳',
+      desc: 'Cần bàn giao tua trực (hiện Vấn đề & Nhờ BS trực)'
+    },
+    da_check: {
+      key: 'da_check',
+      label: 'Đã check',
+      badgeClass: 'badge-da-check',
+      icon: '✅',
+      desc: 'Bác sĩ điều trị đã kiểm tra & hoàn thành hồ sơ'
+    },
+    xuat_vien: {
+      key: 'xuat_vien',
+      label: 'Xuất viện',
+      badgeClass: 'badge-xuat-vien',
+      icon: '🟢',
+      desc: 'Người bệnh xuất viện'
+    },
+    // Fallback/Legacy aliases
     none: {
-      label: 'Ổn định',
-      badgeClass: 'badge-stable',
-      icon: '🟢'
+      key: 'chua_lam',
+      label: 'Chưa làm',
+      badgeClass: 'badge-chua-lam',
+      icon: '⚪'
     },
     pending: {
+      key: 'can_ban_giao',
       label: 'Cần bàn giao',
-      badgeClass: 'badge-pending',
+      badgeClass: 'badge-can-ban-giao',
       icon: '⏳'
     },
     critical: {
-      label: 'Báo động đỏ (Nặng)',
-      badgeClass: 'badge-critical',
+      key: 'can_ban_giao',
+      label: 'Cần bàn giao (Nặng)',
+      badgeClass: 'badge-can-ban-giao',
       icon: '🚨'
     },
     resolved: {
-      label: 'Đã xử trí',
-      badgeClass: 'badge-resolved',
+      key: 'da_check',
+      label: 'Đã check',
+      badgeClass: 'badge-da-check',
       icon: '✅'
     }
   },

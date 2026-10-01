@@ -812,6 +812,13 @@ body {
 .btn-icon-minimal:active {
   transform: translateY(0);
 }
+.btn-icon-minimal.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1);
+}
 .btn-icon-minimal.btn-clear-minimal:hover {
   background: var(--critical-bg);
   border-color: var(--critical-border);
@@ -905,8 +912,16 @@ body {
 }
 
 /* ==============================================================================
-   TABLE STYLES - CLEAN MONOCHROME
+   TABLE & CARDS STYLES - CLEAN MONOCHROME
    ============================================================================== */
+.mobile-cards-view {
+  align-items: stretch;
+}
+.mobile-cards-view > .mobile-patient-card,
+.mobile-cards-view > * {
+  height: 100%;
+}
+
 .table-wrapper {
   overflow-x: auto;
   overflow-y: hidden;
@@ -1014,12 +1029,117 @@ table.med-table td.col-cls { width: 28%; min-width: 180px; }
 table.med-table th.col-yl { width: 30%; min-width: 190px; white-space: nowrap; }
 table.med-table td.col-yl { width: 30%; min-width: 190px; }
 
-table.med-table th.col-handover, table.med-table td.col-handover {
-  width: 72px;
-  min-width: 68px;
+table.med-table th.col-handover {
+  width: 145px;
+  min-width: 130px;
   white-space: nowrap;
   text-align: center;
   vertical-align: middle;
+}
+table.med-table td.col-handover {
+  width: 145px;
+  min-width: 130px;
+  vertical-align: middle;
+  padding: 6px 6px;
+  text-align: left;
+}
+
+/* WORK STATUS BADGES & CELL */
+.work-status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  width: 100%;
+}
+.work-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.work-status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.badge-chua-lam {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+.badge-du-thong-tin {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+.badge-don-cls {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+.badge-can-ban-giao {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+.badge-da-check {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+.badge-xuat-vien {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+/* 2 PHẦN HIỂN THỊ TRONG BẢNG: VẤN ĐỀ & NHỜ BS TRỰC */
+.ho-dual-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-left: 3px solid #ea580c;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ho-sub-row {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.ho-sub-label {
+  font-weight: 700;
+  color: #c2410c;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ho-sub-row.ho-sub-actions .ho-sub-label {
+  color: #0369a1;
+}
+.ho-sub-text {
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 table.med-table th.col-actions, table.med-table td.col-actions {
   width: 92px;
@@ -1471,6 +1591,40 @@ textarea.form-control {
 }
 .status-radio-item input[type="radio"] {
   accent-color: var(--primary);
+}
+.status-radio-item:has(input:checked) {
+  border-width: 1.5px;
+  font-weight: 700;
+}
+.status-radio-item[data-status="chua_lam"]:has(input:checked) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #334155;
+}
+.status-radio-item[data-status="du_thong_tin"]:has(input:checked) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.status-radio-item[data-status="don_cls_thuoc"]:has(input:checked) {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+}
+.status-radio-item[data-status="can_ban_giao"]:has(input:checked) {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.status-radio-item[data-status="da_check"]:has(input:checked) {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #15803d;
+}
+.status-radio-item[data-status="xuat_vien"]:has(input:checked) {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .form-message {

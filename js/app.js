@@ -15,6 +15,26 @@ class MedWardApp {
     this.setupKeyboardShortcuts();
     this.setupClipboardPaste();
     this.setupPWA();
+    this.restoreDesktopViewMode();
+  }
+
+  restoreDesktopViewMode() {
+    if (window.innerWidth > 768) {
+      const savedMode = localStorage.getItem('medward_desktop_view_mode');
+      if (savedMode === 'cards') {
+        this.viewMode = 'cards';
+        document.body.classList.add('desktop-cards-mode');
+        const tableWrapper = document.getElementById('tableWrapper');
+        const cardsContainer = document.getElementById('mobileCardContainer');
+        if (tableWrapper) tableWrapper.style.display = 'none';
+        if (cardsContainer) cardsContainer.style.display = 'grid';
+        const btn = document.getElementById('btnToggleView');
+        if (btn) {
+          btn.classList.add('active');
+          btn.setAttribute('data-tooltip', 'Đổi sang xem Bảng 💻');
+        }
+      }
+    }
   }
 
   setupKeyboardShortcuts() {
@@ -212,14 +232,31 @@ class MedWardApp {
 
     if (this.viewMode === 'cards') {
       this.viewMode = 'table';
+      document.body.classList.remove('desktop-cards-mode');
       tableWrapper.style.display = 'block';
       cardsContainer.style.display = 'none';
+      const btn = document.getElementById('btnToggleView');
+      if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('data-tooltip', 'Đổi sang xem Thẻ 📱');
+      }
+      localStorage.setItem('medward_desktop_view_mode', 'table');
       window.showToast?.('💻 Chế độ xem: Bảng đầy đủ');
     } else {
       this.viewMode = 'cards';
+      document.body.classList.add('desktop-cards-mode');
       tableWrapper.style.display = 'none';
-      cardsContainer.style.display = 'flex';
+      cardsContainer.style.display = 'grid';
+      const btn = document.getElementById('btnToggleView');
+      if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('data-tooltip', 'Đổi sang xem Bảng 💻');
+      }
+      localStorage.setItem('medward_desktop_view_mode', 'cards');
       window.showToast?.('📱 Chế độ xem: Thẻ người bệnh');
+      if (window.patientController) {
+        window.patientController.render();
+      }
     }
   }
 
