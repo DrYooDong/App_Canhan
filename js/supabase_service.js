@@ -474,21 +474,20 @@ class SupabaseService {
 
   // ================= PATIENT DATA OPERATIONS =================
 
-  // TỰ ĐỘNG XÓA DỮ LIỆU CŨ TRÊN CLOUD SUPABASE (DỮ LIỆU CŨ HƠN 1-2 NGÀY SẼ ĐƯỢC TỰ ĐỘNG XÓA)
-  async purgeOlderPatients(retentionDays = CONFIG.RETENTION_DAYS || 2) {
+  // TỰ ĐỘNG XÓA DỮ LIỆU CŨ TRÊN CLOUD SUPABASE (DỮ LIỆU CŨ TỪ "HÔM KIA" SẼ ĐƯỢC TỰ ĐỘNG XÓA)
+  async purgeOlderPatients(retentionDays = CONFIG.RETENTION_DAYS ?? 1) {
     if (!this.isCloudEnabled || !this.client) return { success: true, count: 0 };
     try {
       const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(retentionDays).toISOString() : new Date(Date.now() - retentionDays * 86400000).toISOString();
-      // Chỉ dọn dẹp các bản ghi cũ cả created_at và updated_at (bảo vệ người bệnh còn đang điều trị)
+      // Dọn dẹp triệt để các bản ghi cũ từ "Hôm kia" trở về trước
       const { error } = await this.client
         .from('patients')
         .delete()
-        .lt('created_at', cutoff)
-        .lt('updated_at', cutoff);
+        .or(`created_at.lt.${cutoff},updated_at.lt.${cutoff}`);
       if (error) {
-        console.warn('Lỗi dọn dẹp dữ liệu cũ hơn 2 ngày trên Cloud:', error.message || error);
+        console.warn('Lỗi dọn dẹp dữ liệu ngày Hôm kia trên Cloud:', error.message || error);
       } else {
-        console.log('🧹 Đã tự động dọn dẹp các dữ liệu cũ hơn 2 ngày trên Supabase Cloud (trước ' + cutoff + ')');
+        console.log('🧹 Đã tự động dọn dẹp các dữ liệu ngày Hôm kia trên Supabase Cloud (trước ' + cutoff + ')');
       }
       return { success: true };
     } catch (err) {
@@ -516,11 +515,11 @@ class SupabaseService {
       // Đảm bảo session trước khi truy vấn
       await this.ensureSession();
 
-      // Tự động dọn dẹp dữ liệu cũ hơn 2 ngày trên Supabase Cloud trước khi đọc
+      // Tự động dọn dẹp dữ liệu ngày Hôm kia trên Supabase Cloud trước khi đọc
       await this.purgeOlderPatients().catch(() => {});
 
-      // Lấy danh sách bệnh nhân trong phạm vi lưu trữ hợp lệ (từ T-2 trở lại đây theo created_at hoặc updated_at)
-      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate().toISOString() : new Date(Date.now() - 3 * 86400000).toISOString();
+      // Lấy danh sách bệnh nhân trong phạm vi lưu trữ hợp lệ (Chỉ giữ Hôm nay và Hôm qua)
+      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate().toISOString() : new Date(Date.now() - 1 * 86400000).toISOString();
 
       let query = this.client
         .from('patients')

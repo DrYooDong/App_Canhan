@@ -14,6 +14,8 @@ class PatientController {
     this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
     this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
+    this.detailAutoSaveTimer = null;
+    this.detailModalAutoSaveBound = false;
 
     // QUẢN LÝ NGÀY LÂM SÀNG & TỰ ĐỘNG XÓA DỮ LIỆU CŨ HƠN 2 NGÀY
     const today = new Date();
@@ -33,6 +35,7 @@ class PatientController {
     this.setupRealtimeListener();
     this.updateStorageHudUI();
     this.purgeOlderData().catch(() => {});
+    await this.autoRefreshNewDayIfNeeded();
     this.checkSmartRolloverPrompt();
   }
 
@@ -78,14 +81,16 @@ class PatientController {
   // ==============================================================================
   // TỰ ĐỘNG XÓA DỮ LIỆU CŨ HƠN 1-2 NGÀY (RETENTION CLEANUP)
   // ==============================================================================
+  // TỰ ĐỘNG XÓA DỮ LIỆU CŨ TỪ "HÔM KIA" (CHỈ LƯU HÔM NAY VÀ HÔM QUA)
+  // ==============================================================================
   purgeOlderLocalData() {
     try {
-      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS || 2) : new Date(Date.now() - 2 * 86400000);
+      const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS ?? 1) : new Date(Date.now() - 1 * 86400000);
       const cutoffIso = CONFIG.formatYMD ? CONFIG.formatYMD(cutoff) : '';
 
       if (!cutoffIso) return;
 
-      // 1. Quét dọn các key lưu theo ngày medward_daily_pts_*
+      // 1. Quét dọn triệt để các key lưu theo ngày medward_daily_pts_* cũ hơn Hôm qua (từ Hôm kia trở về trước)
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -124,7 +129,7 @@ class PatientController {
   async purgeOlderData() {
     this.purgeOlderLocalData();
     if (window.supabaseService) {
-      await window.supabaseService.purgeOlderPatients(CONFIG.RETENTION_DAYS || 2).catch(() => {});
+      await window.supabaseService.purgeOlderPatients(CONFIG.RETENTION_DAYS ?? 1).catch(() => {});
     }
   }
 
@@ -416,23 +421,23 @@ class PatientController {
   }
 
   // ==============================================================================
-  // CHUYỂN ĐỔI NGÀY LÂM SÀNG & XEM NGÀY CŨ (1-2 NGÀY)
+  // CHUYỂN ĐỔI NGÀY LÂM SÀNG (CHỈ LƯU HÔM NAY VÀ HÔM QUA, HÔM KIA TỰ ĐỘNG XÓA)
   // ==============================================================================
   async changeDate(dateInput) {
     if (!dateInput) return;
     const dt = CONFIG.parseDate(dateInput);
     if (isNaN(dt.getTime())) return;
 
-    const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS || 2) : new Date(Date.now() - 2 * 86400000);
+    const cutoff = CONFIG.getCutoffDate ? CONFIG.getCutoffDate(CONFIG.RETENTION_DAYS ?? 1) : new Date(Date.now() - 1 * 86400000);
     const cutoffZero = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate()).getTime();
     const targetZero = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
 
-    // Nếu chọn ngày cũ hơn 2 ngày
+    // Nếu chọn ngày từ Hôm kia trở về trước (< cutoff)
     if (targetZero < cutoffZero) {
       const dateFormatted = CONFIG.formatDMY(dt);
       const oldestValid = CONFIG.formatDMY(cutoff);
       if (window.showToast) {
-        window.showToast(`⚠️ Dữ liệu ngày ${dateFormatted} đã được tự động dọn dẹp (chỉ lưu 1-2 ngày gần nhất). Chuyển về ngày cũ nhất: ${oldestValid}`);
+        window.showToast(`⚠️ Dữ liệu ngày ${dateFormatted} (Hôm kia) đã được tự động dọn dẹp. Hệ thống chỉ lưu bảng ca trực Hôm nay và Hôm qua (${oldestValid}).`);
       }
       return this.changeDate(cutoff);
     }
@@ -462,6 +467,13 @@ class PatientController {
   }
 
   switchToRelativeDay(offset) {
+    // Không cho phép chọn ngày Hôm kia (offset < -1)
+    if (offset < -1) {
+      if (window.showToast) {
+        window.showToast('⚠️ Dữ liệu ngày Hôm kia đã được tự động dọn dẹp. Hệ thống chỉ lưu bảng ca trực Hôm nay và Hôm qua.');
+      }
+      offset = -1;
+    }
     const today = new Date();
     const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12, 0, 0);
     this.changeDate(target);
@@ -604,35 +616,24 @@ class PatientController {
     const workStatus = this.getPatientWorkStatus(p);
     const statusCfg = CONFIG.STATUS_CONFIG[workStatus] || CONFIG.STATUS_CONFIG.chua_lam;
 
-    if (workStatus === 'can_ban_giao') {
-      const issuesText = p.handover_issues && p.handover_issues.trim() ? this.escape(p.handover_issues) : 'Chưa ghi chú';
-      const actionsText = p.handover_actions && p.handover_actions.trim() ? this.escape(p.handover_actions) : 'Theo dõi sinh hiệu';
-      cell.innerHTML = `
-        <div class="work-status-cell">
-          <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để xem/sửa bàn giao">
-            <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
-          </button>
-          <div class="ho-dual-box">
-            <div class="ho-sub-row ho-sub-issues" title="Vấn đề tồn đọng">
-              <span class="ho-sub-label">⚠️ VĐ:</span>
-              <span class="ho-sub-text">${issuesText}</span>
-            </div>
-            <div class="ho-sub-row ho-sub-actions" title="Nhờ bác sĩ trực">
-              <span class="ho-sub-label">🎯 Nhờ trực:</span>
-              <span class="ho-sub-text">${actionsText}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    } else {
-      cell.innerHTML = `
-        <div class="work-status-cell">
-          <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để đổi trạng thái hoặc thiết lập bàn giao">
-            <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
-          </button>
-        </div>
-      `;
-    }
+    const titleText = `${statusCfg.label}${p.handover_issues ? '\n⚠️ VĐ: ' + p.handover_issues : ''}${p.handover_actions ? '\n🎯 Nhờ: ' + p.handover_actions : ''}`;
+    const tooltipText = `${statusCfg.label}${p.handover_issues ? ' • VĐ: ' + this.escape(p.handover_issues) : ''}${p.handover_actions ? ' • Nhờ: ' + this.escape(p.handover_actions) : ''}`;
+
+    cell.innerHTML = `
+      <button type="button" 
+              class="work-status-icon-btn ${statusCfg.badgeClass} ${workStatus === 'can_ban_giao' ? 'has-handover-alert' : ''}" 
+              onclick="window.handoverController.openHandoverModal('${p.id}')" 
+              data-tooltip="${tooltipText}"
+              title="${titleText}">
+        <span class="status-emoji">${statusCfg.icon}</span>
+        ${workStatus === 'can_ban_giao' ? '<span class="status-pulse-dot"></span>' : ''}
+      </button>
+      <div class="print-handover-view">
+        <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label}</span>
+        ${p.handover_issues ? `<div class="print-issue-text">⚠️ VĐ: ${this.escape(p.handover_issues)}</div>` : ''}
+        ${p.handover_actions ? `<div class="print-issue-text" style="color: #0369a1;">🎯 Nhờ trực: ${this.escape(p.handover_actions)}</div>` : ''}
+      </div>
+    `;
 
     tr.className = `patient-row row-${workStatus}`;
     this.updateMobileSummaryBar();
@@ -1233,7 +1234,7 @@ class PatientController {
     }
 
     if (!sourcePatients || sourcePatients.length === 0) {
-      for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS || 2); offset++) {
+      for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS ?? 1); offset++) {
         const checkDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset, 12, 0, 0);
         const checkIso = CONFIG.formatYMD(checkDate);
         const candidates = this.dailyPatientsMap[checkIso] || this.loadDoctorPatients(doctor.id, checkIso);
@@ -1258,7 +1259,7 @@ class PatientController {
     const newPatients = [];
     const nowIso = new Date().toISOString();
 
-    // 2. Chuyển thông minh từng người bệnh
+    // 2. Chuyển thông minh từng người bệnh và làm mới nội dung phù hợp ngày mới
     sourcePatients.forEach((p) => {
       // Tự động lọc bỏ các ca đã ra viện / xuất viện / xin về / tử vong / chuyển viện
       if (this.isDischargedPatient(p)) {
@@ -1266,20 +1267,30 @@ class PatientController {
         return;
       }
 
-      // Tăng ngày bệnh thông minh
+      // Tăng ngày bệnh thông minh (ví dụ: SXH ngày 4 -> ngày 5)
       const newDiag = this.incrementIllnessDay(p.chan_doan);
 
-      // Kế thừa 100% y lệnh điều trị và thuốc
+      // Kế thừa 100% y lệnh điều trị duy trì phác đồ chính
       const retainedYlenh = p.y_lenh || '';
-      const retainedThemThuoc = p.them_thuoc || '';
+      
+      // Làm mới ô "Thêm thuốc" (xóa sạch các liều lẻ/thuốc cấp thời tạm thời của hôm qua)
+      const newThemThuoc = '';
 
-      // Giữ kết quả CLS
-      const retainedClsHc = p.cls_hien_co || '';
-      const retainedClsCl = p.cls_can_lam || '';
+      // Làm mới CLS thông minh:
+      // Các xét nghiệm/chỉ định cần làm của hôm qua đã được làm trong tua trực -> chuyển lưu vết sang Hiện có
+      let newClsHc = p.cls_hien_co || '';
+      if (p.cls_can_lam && p.cls_can_lam.trim()) {
+        const prevPending = p.cls_can_lam.trim();
+        if (!newClsHc.includes(prevPending)) {
+          newClsHc = newClsHc ? `${newClsHc}\n• [Đã làm ca trước]: ${prevPending}` : `[Đã làm ca trước]: ${prevPending}`;
+        }
+      }
+      // Làm mới sạch sẽ ô "CLS cần làm" để bác sĩ sẵn sàng chỉ định cận lâm sàng mới của hôm nay
+      const newClsCl = '';
 
-      // Bàn giao: giữ cảnh báo ca Báo động đỏ (critical)
+      // Bàn giao: xóa cờ bàn giao của tua hôm qua, đưa về trạng thái sẵn sàng cho ca trực mới
       const isCritical = p.handover_status === 'critical' || p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
-      const nextStatus = isCritical ? CONFIG.HANDOVER_STATUS.CRITICAL : CONFIG.HANDOVER_STATUS.NONE;
+      const nextStatus = isCritical ? CONFIG.HANDOVER_STATUS.CRITICAL : CONFIG.HANDOVER_STATUS.DU_THONG_TIN;
       const nextIssues = isCritical ? (p.handover_issues || '') : '';
       const nextActions = isCritical ? (p.handover_actions || '') : '';
 
@@ -1289,10 +1300,10 @@ class PatientController {
         phong_giuong: this.cleanRoomBedString(p.phong_giuong),
         chan_doan: newDiag,
         y_lenh: retainedYlenh,
-        them_thuoc: retainedThemThuoc,
-        cls_hien_co: retainedClsHc,
-        cls_can_lam: retainedClsCl,
-        cls: p.cls || '',
+        them_thuoc: newThemThuoc,
+        cls_hien_co: newClsHc,
+        cls_can_lam: newClsCl,
+        cls: newClsHc,
         handover_status: nextStatus,
         handover_issues: nextIssues,
         handover_actions: nextActions,
@@ -1321,7 +1332,7 @@ class PatientController {
       });
     }
 
-    // 5. Tự động xóa dữ liệu cũ hơn 2 ngày
+    // 5. Tự động xóa dữ liệu cũ từ ngày Hôm kia
     await this.purgeOlderData();
 
     // 6. Cập nhật giao diện
@@ -1329,11 +1340,32 @@ class PatientController {
     this.updateDoctorFilterDropdown();
     this.render();
 
-    const info = `⚡ Đã tự động chuyển ${transferredCount} người bệnh từ ngày ${sourceDMY} sang ${targetDMY} (tăng ngày bệnh, giữ nguyên y lệnh, lọc ${dischargedCount} ca xuất viện)!`;
+    const info = `⚡ Đã làm mới thông minh ${transferredCount} người bệnh cho ngày mới ${targetDMY} (tăng ngày bệnh, làm mới CLS cần làm, kế thừa y lệnh & lọc ${dischargedCount} ca xuất viện)!`;
     if (window.showToast) window.showToast(`✓ ${info}`);
     if (window.updateSaveStatus) window.updateSaveStatus(`✓ ${info}`);
 
     return true;
+  }
+
+  // TỰ ĐỘNG LÀM MỚI NỘI DUNG KHI MỞ SANG NGÀY MỚI (NẾU HÔM NAY CHƯA CÓ DỮ LIỆU)
+  async autoRefreshNewDayIfNeeded() {
+    if (this.currentDateIso !== this.todayIso) return;
+    if (this.patientList && this.patientList.length > 0) return;
+
+    const { doctor } = this.getEffectiveDoctor();
+    const today = new Date();
+    // Tìm dữ liệu ca trực hôm qua (offset 1)
+    const prevDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 12, 0, 0);
+    const prevIso = CONFIG.formatYMD(prevDate);
+    const prevPatients = this.dailyPatientsMap[prevIso] || this.loadDoctorPatients(doctor.id, prevIso);
+
+    if (prevPatients && prevPatients.length > 0) {
+      console.log('🌟 Phát hiện ngày mới chưa có dữ liệu, tự động làm mới thông minh từ ca trực hôm qua:', prevIso);
+      await this.smartAutoRollover(prevIso, this.todayIso);
+      if (window.showToast) {
+        window.showToast('🌟 Chào ngày mới! Đã tự động làm mới nội dung thông minh từ ca trực hôm qua (tăng ngày bệnh, làm mới CLS cần làm & y lệnh, xóa ngày hôm kia).');
+      }
+    }
   }
 
   hideSmartRolloverPrompt() {
@@ -1364,7 +1396,7 @@ class PatientController {
     let foundPrevPatients = null;
     let foundPrevIso = null;
 
-    for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS || 2); offset++) {
+    for (let offset = 1; offset <= (CONFIG.RETENTION_DAYS ?? 1); offset++) {
       const prevDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset, 12, 0, 0);
       const prevIso = CONFIG.formatYMD(prevDate);
       const prevList = this.dailyPatientsMap[prevIso] || this.loadDoctorPatients(doctor.id, prevIso);
@@ -2052,10 +2084,9 @@ class PatientController {
     }
   }
 
-  // CẬP NHẬT GIAO DIỆN NÚT CHUYỂN NGÀY LÂM SÀNG
+  // CẬP NHẬT GIAO DIỆN NÚT CHUYỂN NGÀY LÂM SÀNG (CHỈ HÔM QUA, HÔM NAY, NGÀY KẾ)
   renderDateSwitcherUI() {
     const today = new Date();
-    const dMinus2 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2, 12, 0, 0);
     const dMinus1 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 12, 0, 0);
     const dPlus1 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 12, 0, 0);
 
@@ -2063,38 +2094,29 @@ class PatientController {
     const iso = (d) => CONFIG.formatYMD(d);
 
     // Cập nhật nhãn ngày phụ
-    const lblMinus2 = document.getElementById('lblDateDayMinus2');
     const lblMinus1 = document.getElementById('lblDateDayMinus1');
     const lblToday = document.getElementById('lblDateToday');
     const lblNext = document.getElementById('lblDateNextDay');
 
-    if (lblMinus2) lblMinus2.innerText = fmt(dMinus2);
     if (lblMinus1) lblMinus1.innerText = fmt(dMinus1);
     if (lblToday) lblToday.innerText = fmt(today);
     if (lblNext) lblNext.innerText = fmt(dPlus1);
 
     // Cập nhật trạng thái active cho desktop chips
-    const btnMinus2 = document.getElementById('btnDateDayMinus2');
     const btnMinus1 = document.getElementById('btnDateDayMinus1');
     const btnToday = document.getElementById('btnDateToday');
     const btnNext = document.getElementById('btnDateNextDay');
 
     const cur = this.currentDateIso;
-    if (btnMinus2) btnMinus2.classList.toggle('active', cur === iso(dMinus2));
     if (btnMinus1) btnMinus1.classList.toggle('active', cur === iso(dMinus1));
     if (btnToday) btnToday.classList.toggle('active', cur === iso(today));
     if (btnNext) btnNext.classList.toggle('active', cur === iso(dPlus1));
 
     // Cập nhật trạng thái active & nhãn ngày cho mobile chips
-    const mobMinus2 = document.getElementById('btnMobDateMinus2');
     const mobMinus1 = document.getElementById('btnMobDateMinus1');
     const mobToday = document.getElementById('btnMobDateToday');
     const mobNext = document.getElementById('btnMobDateNext');
 
-    if (mobMinus2) {
-      mobMinus2.classList.toggle('active', cur === iso(dMinus2));
-      mobMinus2.innerHTML = `<span>◀ Hôm kia <small>(${fmt(dMinus2)})</small></span>`;
-    }
     if (mobMinus1) {
       mobMinus1.classList.toggle('active', cur === iso(dMinus1));
       mobMinus1.innerHTML = `<span>◀ Hôm qua <small>(${fmt(dMinus1)})</small></span>`;
@@ -2109,7 +2131,7 @@ class PatientController {
     }
   }
 
-  // BANNER THÔNG BÁO KHI ĐANG XEM NGÀY CŨ (1-2 NGÀY TRƯỚC) HOẶC NGÀY KẾ
+  // BANNER THÔNG BÁO KHI ĐANG XEM NGÀY CŨ (HÔM QUA) HOẶC NGÀY KẾ
   renderHistoricalBanner() {
     const banner = document.getElementById('historicalDateBanner');
     if (!banner) return;
@@ -2128,13 +2150,13 @@ class PatientController {
       banner.style.display = 'none';
       banner.classList.remove('is-past', 'is-future');
     } else if (diffDays < 0) {
-      // Đang xem ngày cũ (Hôm qua hoặc Hôm kia)
+      // Đang xem ngày cũ (Hôm qua)
       banner.style.display = 'flex';
       banner.classList.add('is-past');
       banner.classList.remove('is-future');
       if (iconEl) iconEl.innerText = '🕒';
       
-      const dayLabel = diffDays === -1 ? 'Hôm qua' : (diffDays === -2 ? 'Hôm kia' : `${Math.abs(diffDays)} ngày trước`);
+      const dayLabel = diffDays === -1 ? 'Hôm qua' : `${Math.abs(diffDays)} ngày trước`;
       if (titleEl) titleEl.innerHTML = `Đang xem bảng ngày cũ: <strong>${dayLabel} (${this.currentDateStr})</strong>`;
       if (descEl) descEl.innerText = `Chế độ tra cứu hồ sơ ngày cũ. Mọi chỉnh sửa sẽ lưu riêng cho ngày này. Bấm vào nút bên cạnh để quay lại ca trực Hôm nay.`;
     } else {
@@ -2561,6 +2583,9 @@ class PatientController {
             <div class="med-tier tier-present" onclick="this.querySelector('.med-cell-editor')?.focus()">
               <div class="med-tier-header">
                 <span class="med-micro-badge badge-present">✓ Hiện có</span>
+                <button type="button" class="btn-cls-helper no-print" onclick="event.stopPropagation(); window.patientController.openClsQuickPicker('${p.id}', 'cls_hien_co', this)" title="Chọn nhanh xét nghiệm Hiện có">
+                  ⚡ Nạp nhanh
+                </button>
               </div>
               <div class="med-cell-editor col-editable" contenteditable="true"
                    data-placeholder="Chưa có kết quả..."
@@ -2571,6 +2596,16 @@ class PatientController {
             <div class="med-tier tier-pending ${p.cls_can_lam ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
               <div class="med-tier-header">
                 <span class="med-micro-badge badge-pending ${p.cls_can_lam ? 'active' : ''}">${p.cls_can_lam ? '⚡ Cần làm' : '+ Cần làm'}</span>
+                <div class="cls-tier-actions no-print">
+                  ${p.cls_can_lam ? `
+                    <button type="button" class="btn-cls-convert" onclick="event.stopPropagation(); window.patientController.convertPendingClsToPresent('${p.id}')" title="Đã có kết quả: Chuyển xét nghiệm cần làm sang cột Hiện có">
+                      ✓ Sang Hiện có
+                    </button>
+                  ` : ''}
+                  <button type="button" class="btn-cls-helper" onclick="event.stopPropagation(); window.patientController.openClsQuickPicker('${p.id}', 'cls_can_lam', this)" title="Chọn nhanh chỉ định Cần làm">
+                    ⚡ Chỉ định
+                  </button>
+                </div>
               </div>
               <div class="med-cell-editor col-editable ${p.cls_can_lam ? 'text-pending-highlight' : ''}" contenteditable="true"
                    data-placeholder="+ Chỉ định mới cần làm..."
@@ -2582,6 +2617,9 @@ class PatientController {
         <td class="col-yl col-yl-dual">
           <div class="med-dual-cell">
             <div class="med-tier tier-orders" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-tier-header">
+                <span class="med-micro-badge badge-orders">Y lệnh điều trị</span>
+              </div>
               <div class="med-cell-editor col-editable" contenteditable="true"
                    data-placeholder="Y lệnh điều trị, thuốc, chăm sóc..."
                    oninput="window.patientController.handleCellInput('${p.id}', 'y_lenh', this.innerText, this)"
@@ -2600,29 +2638,14 @@ class PatientController {
           </div>
         </td>
         <td class="col-handover">
-          ${workStatus === 'can_ban_giao' ? `
-            <div class="work-status-cell">
-              <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để xem/sửa bàn giao">
-                <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
-              </button>
-              <div class="ho-dual-box">
-                <div class="ho-sub-row ho-sub-issues" title="Vấn đề tồn đọng">
-                  <span class="ho-sub-label">⚠️ VĐ:</span>
-                  <span class="ho-sub-text">${this.escape(p.handover_issues || 'Chưa ghi chú')}</span>
-                </div>
-                <div class="ho-sub-row ho-sub-actions" title="Nhờ bác sĩ trực">
-                  <span class="ho-sub-label">🎯 Nhờ trực:</span>
-                  <span class="ho-sub-text">${this.escape(p.handover_actions || 'Theo dõi sinh hiệu')}</span>
-                </div>
-              </div>
-            </div>
-          ` : `
-            <div class="work-status-cell">
-              <button type="button" class="work-status-badge ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" title="Chạm để đổi trạng thái hoặc thiết lập bàn giao">
-                <span>${statusCfg.icon}</span> <span>${statusCfg.label}</span>
-              </button>
-            </div>
-          `}
+          <button type="button" 
+                  class="work-status-icon-btn ${statusCfg.badgeClass} ${workStatus === 'can_ban_giao' ? 'has-handover-alert' : ''}" 
+                  onclick="window.handoverController.openHandoverModal('${p.id}')" 
+                  data-tooltip="${statusCfg.label}${p.handover_issues ? ' • VĐ: ' + this.escape(p.handover_issues) : ''}${p.handover_actions ? ' • Nhờ: ' + this.escape(p.handover_actions) : ''}"
+                  title="${statusCfg.label}${p.handover_issues ? '\n⚠️ VĐ: ' + p.handover_issues : ''}${p.handover_actions ? '\n🎯 Nhờ: ' + p.handover_actions : ''}">
+            <span class="status-emoji">${statusCfg.icon}</span>
+            ${workStatus === 'can_ban_giao' ? '<span class="status-pulse-dot"></span>' : ''}
+          </button>
           <div class="print-handover-view">
             <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label}</span>
             ${p.handover_issues ? `<div class="print-issue-text">⚠️ VĐ: ${this.escape(p.handover_issues)}</div>` : ''}
@@ -2630,18 +2653,15 @@ class PatientController {
           </div>
         </td>
         <td class="col-actions no-print">
-          <div class="action-btn-group">
-            <button class="btn-table-action" data-tooltip="Copy qua Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <div class="compact-action-stack">
+            <button type="button" class="btn-act-icon" data-tooltip="Thêm dòng dưới" title="Chèn thêm dòng người bệnh dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
-            <button class="btn-table-action" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <button type="button" class="btn-act-icon" data-tooltip="Chi tiết người bệnh" title="Chi tiết người bệnh" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
-            <button class="btn-table-action" data-tooltip="Chi tiết &amp; Chẩn đoán" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="btn-table-action btn-del" data-tooltip="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <button type="button" class="btn-act-icon btn-act-del" data-tooltip="Xóa người bệnh" title="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </div>
         </td>
@@ -2800,6 +2820,317 @@ class PatientController {
   }
 
   // ==============================================================================
+  // TÍNH NĂNG CHỌN NHANH CẬN LÂM SÀNG THÔNG MINH (SMART CLS ASSISTANT)
+  // ==============================================================================
+  openClsQuickPicker(patientId, field = 'cls_hien_co', triggerEl = null) {
+    this.clsPickerTargetPatientId = patientId;
+    this.clsPickerTargetField = field;
+
+    const modal = document.getElementById('clsQuickPickerModal');
+    if (!modal) return;
+
+    const patient = this.patientList.find(p => p.id === patientId);
+    if (!patient) return;
+
+    // 1. Cập nhật nhãn đích (Hiện có hay Cần làm)
+    const targetLabel = document.getElementById('clsPickerTargetLabel');
+    if (targetLabel) {
+      if (field === 'cls_hien_co') {
+        targetLabel.innerText = '✓ Hiện có';
+        targetLabel.style.background = '#eff6ff';
+        targetLabel.style.color = '#2563eb';
+        targetLabel.style.borderColor = '#bfdbfe';
+      } else {
+        targetLabel.innerText = '⚡ Cần làm';
+        targetLabel.style.background = '#fff7ed';
+        targetLabel.style.color = '#ea580c';
+        targetLabel.style.borderColor = '#fed7aa';
+      }
+    }
+
+    // 2. Cập nhật thông tin người bệnh đang chọn
+    const metaEl = document.getElementById('clsPickerPatientMeta');
+    if (metaEl) {
+      metaEl.innerHTML = `Người bệnh: <strong>${this.escape(patient.ten)}</strong> • P/G: <strong>${this.escape(patient.phong_giuong || 'Chưa xếp')}</strong> • CĐ: <em>${this.escape(patient.chan_doan || 'Chưa có CĐ')}</em>`;
+    }
+
+    // 3. Trích xuất thông minh các kết quả/chỉ định CLS đang có trong toàn bộ khoa phòng hôm nay
+    this.renderExistingWardClsChips(patientId);
+
+    // 4. Xóa trắng ô tìm kiếm & reset filter
+    const searchInput = document.getElementById('clsPickerSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      this.handleClsPickerSearch('');
+    }
+
+    // 5. Hiển thị modal
+    modal.style.display = 'block';
+  }
+
+  closeClsQuickPicker() {
+    const modal = document.getElementById('clsQuickPickerModal');
+    if (modal) modal.style.display = 'none';
+    this.clsPickerTargetPatientId = null;
+    this.clsPickerTargetField = null;
+  }
+
+  // TRÍCH XUẤT NỘI DUNG CLS ĐANG CÓ THỰC TẾ TRONG KHOA PHÒNG HÔM NAY
+  renderExistingWardClsChips(currentPatientId) {
+    const container = document.getElementById('clsExistingWardChips');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Tập hợp toàn bộ nội dung CLS từ danh sách người bệnh hiện tại
+    const rawItems = [];
+    this.patientList.forEach(p => {
+      // Thu thập cả cls_hien_co và cls_can_lam
+      const texts = [p.cls_hien_co, p.cls_can_lam].filter(Boolean);
+      texts.forEach(t => {
+        // Tách theo dòng hoặc dấu phẩy hoặc chấm phẩy hoặc dấu gạch đầu dòng
+        const lines = t.split(/[\n;•+]+/).map(s => s.trim()).filter(s => s.length >= 3);
+        lines.forEach(l => {
+          // Bỏ tiền tố [Hiện có] hoặc [Cần làm]
+          const clean = l.replace(/^\[(Hiện có|Cần làm|Đã làm ca trước|Đã có KQ)\]:\s*/i, '').trim();
+          if (clean.length >= 3 && clean.length <= 80) {
+            rawItems.push(clean);
+          }
+        });
+      });
+    });
+
+    // Thêm các gợi ý thường gặp từ CONFIG.QUICK_TAGS nếu có
+    if (CONFIG.QUICK_TAGS) {
+      if (this.clsPickerTargetField === 'cls_hien_co' && CONFIG.QUICK_TAGS.LABS_HIEN_CO) {
+        CONFIG.QUICK_TAGS.LABS_HIEN_CO.forEach(item => rawItems.push(item));
+      } else if (this.clsPickerTargetField === 'cls_can_lam' && CONFIG.QUICK_TAGS.LABS_CAN_LAM) {
+        CONFIG.QUICK_TAGS.LABS_CAN_LAM.forEach(item => rawItems.push(item));
+      }
+    }
+
+    // Lọc trùng lặp
+    const uniqueItems = Array.from(new Set(rawItems));
+
+    if (uniqueItems.length === 0) {
+      container.innerHTML = `<span class="cls-existing-empty">Chưa có kết quả CLS nào được nhập trong ca trực hôm nay. Hãy chọn các danh mục bên dưới.</span>`;
+      return;
+    }
+
+    uniqueItems.slice(0, 24).forEach(text => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'cls-existing-chip';
+      chip.innerHTML = `<span>🧪 ${this.escape(text)}</span>`;
+      chip.onclick = () => {
+        this.insertClsCustomText(text);
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  // TÌM KIẾM NHANH TRONG BỘ LỌC CLS
+  handleClsPickerSearch(query) {
+    const q = (query || '').toLowerCase().trim();
+    const modal = document.getElementById('clsQuickPickerModal');
+    if (!modal) return;
+
+    const allButtons = modal.querySelectorAll('.cls-bundle-chip, .cls-tag-chip, .cls-existing-chip');
+    allButtons.forEach(btn => {
+      if (!q) {
+        btn.style.display = '';
+        return;
+      }
+      const text = btn.innerText.toLowerCase();
+      if (text.includes(q)) {
+        btn.style.display = '';
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+  }
+
+  // CHÈN MỤC CLS ĐƠN LẺ HOẶC TỪ ĐANG CÓ
+  insertClsCustomText(text) {
+    if (!this.clsPickerTargetPatientId || !this.clsPickerTargetField) return;
+    const patient = this.patientList.find(p => p.id === this.clsPickerTargetPatientId);
+    if (!patient) return;
+
+    const isReplace = document.getElementById('clsModeReplace')?.checked;
+    const existing = (patient[this.clsPickerTargetField] || '').trim();
+    
+    let newContent = '';
+    if (isReplace || !existing) {
+      newContent = text;
+    } else {
+      newContent = `${existing}\n• ${text}`;
+    }
+
+    this.applyClsUpdate(patient, this.clsPickerTargetField, newContent, text);
+  }
+
+  insertClsItem(itemName) {
+    if (!this.clsPickerTargetPatientId || !this.clsPickerTargetField) return;
+    const patient = this.patientList.find(p => p.id === this.clsPickerTargetPatientId);
+    if (!patient) return;
+
+    const field = this.clsPickerTargetField;
+    let textToInsert = itemName;
+
+    // Mẫu chuẩn lâm sàng nếu chọn vào ô "Hiện có"
+    if (field === 'cls_hien_co') {
+      const templates = {
+        'CTM': 'CTM: BC ...k, TC ...k, Hct ...%',
+        'TC': 'Tiểu cầu: ...k /uL',
+        'Hct': 'Hct: ...%',
+        'Đông máu': 'Đông máu: PT ...s, INR ..., aPTT ...s',
+        'CRP': 'CRP: ... mg/L',
+        'Procalcitonin': 'PCT: ... ng/mL',
+        'NS1Ag (+)': 'Dengue NS1 Ag (+)',
+        'Dengue IgM/IgG': 'Dengue IgM (-), IgG (+)',
+        'Cấy máu': 'Cấy máu: đang chờ kết quả vi sinh',
+        'Cúm A/B': 'Test nhanh Cúm A/B âm tính',
+        'Ure, Cre': 'Ure: ... mmol/L, Creatinine: ... umol/L',
+        'AST, ALT': 'AST/ALT: .../... U/L',
+        'ĐGĐ': 'ĐGĐ: Na ... / K ... / Cl ... mmol/L',
+        'Glucose': 'Đường huyết MM: ... mmol/L',
+        'Bilirubin': 'Bilirubin TP/TT: .../... umol/L',
+        'KMĐM': 'Khí máu: pH ..., PaO2 ..., PaCO2 ..., HCO3- ...',
+        'Nước tiểu 10TS': 'Tổng PT nước tiểu: Hồng cầu (-), Bạch cầu (-), Đạm (-)',
+        'XQ ngực thẳng': 'X-Quang ngực thẳng: thâm nhiễm đáy phổi',
+        'Siêu âm bụng': 'Siêu âm bụng: các quai ruột ứ dịch, không dịch ổ bụng',
+        'ECG': 'Điện tâm đồ: Nhịp xoang đều 80 l/p',
+        'CT ngực': 'CT-Scanner ngực: đông đặc phân thùy dưới phổi',
+        'CT sọ não': 'CT sọ não: chưa thấy tổn thương xuất huyết hay nhồi máu',
+        'CTM bt': 'CTM bình thường (BC 7.2k, TC 240k, Hct 40%)',
+        'SHM bt': 'Sinh hóa bình thường (Ure 4.5, Cre 78, AST/ALT 24/28)',
+        'XQ phổi bt': 'X-Quang tim phổi thẳng chưa thấy bất thường',
+        'SA bụng bt': 'Siêu âm bụng tổng quát chưa phát hiện bệnh lý',
+        'ĐGĐ bt': 'Điện giải đồ bình thường (Na 138, K 3.9, Cl 101)'
+      };
+      textToInsert = templates[itemName] || itemName;
+    } else {
+      // Mẫu chuẩn lâm sàng nếu chọn vào ô "Cần làm"
+      const orderTemplates = {
+        'CTM': 'Làm lại CTM + Hct lúc 16h',
+        'TC': 'Kiểm tra lại số lượng Tiểu cầu sáng mai',
+        'Hct': 'Làm Hct mỗi 4 giờ',
+        'Đông máu': 'Làm bộ đông máu toàn bộ trước can thiệp',
+        'CRP': 'Định lượng CRP sáng mai',
+        'Procalcitonin': 'Xét nghiệm Procalcitonin máu',
+        'NS1Ag (+)': 'Test nhanh Dengue NS1 Ag',
+        'Dengue IgM/IgG': 'Làm kháng thể Dengue IgM/IgG ngày 5',
+        'Cấy máu': 'Cấy máu 2 vị trí trước khi dùng kháng sinh',
+        'Cúm A/B': 'Test nhanh cúm A/B qua phết mũi họng',
+        'Ure, Cre': 'Kiểm tra chức năng thận Ure, Creatinine sáng mai',
+        'AST, ALT': 'Xét nghiệm Men gan AST/ALT',
+        'ĐGĐ': 'Làm lại Điện giải đồ (Na, K, Cl) lúc 16h',
+        'Glucose': 'Đo đường huyết mao mạch trước ăn và lúc 21h',
+        'Bilirubin': 'Xét nghiệm Bilirubin toàn phần & trực tiếp',
+        'KMĐM': 'Lấy Khí máu động mạch (ABG) nếu SpO2 < 93%',
+        'Nước tiểu 10TS': 'Lấy mẫu nước tiểu làm 10 thông số sáng mai',
+        'XQ ngực thẳng': 'Chụp X-Quang tim phổi thẳng tại giường',
+        'Siêu âm bụng': 'Siêu âm ổ bụng tổng quát kiểm tra',
+        'ECG': 'Đo Điện tâm đồ (ECG) 12 chuyển đạo',
+        'CT ngực': 'Chụp CT-Scanner lồng ngực có cản quang',
+        'CT sọ não': 'Chụp CT-Scanner sọ não không cản quang'
+      };
+      textToInsert = orderTemplates[itemName] || itemName;
+    }
+
+    this.insertClsCustomText(textToInsert);
+  }
+
+  insertClsBundle(bundleType) {
+    if (!this.clsPickerTargetPatientId || !this.clsPickerTargetField) return;
+    const patient = this.patientList.find(p => p.id === this.clsPickerTargetPatientId);
+    if (!patient) return;
+
+    const field = this.clsPickerTargetField;
+    let bundleText = '';
+
+    if (field === 'cls_hien_co') {
+      const bundles = {
+        dengue: 'CTM: BC 3.5k, TC 68k, Hct 43%\n• Dengue NS1 Ag (+)\n• Men gan AST/ALT: 85/92 U/L\n• Siêu âm bụng: Dày thành túi mật nhẹ, chưa thấy dịch màng bụng',
+        resp: 'X-Quang ngực: thâm nhiễm đáy phổi (P)\n• CTM: BC 14.2k (Neu 82%), Hct 39%\n• CRP: 36 mg/L, PCT: 0.25 ng/mL\n• SpO2 khí phòng: 94%',
+        sepsis: 'CTM: BC 18.5k (Neu 88%), TC 120k\n• Cấy máu: Đã lấy 2 chai, đang chờ KQ vi sinh\n• Lactate máu: 2.4 mmol/L\n• Procalcitonin: 4.8 ng/mL\n• Ure/Cre: 9.2 / 125 umol/L, AST/ALT: 64/72 U/L',
+        gi: 'Siêu âm bụng: Các quai ruột ứ dịch và tăng nhu động, gan mật tụy bình thường\n• CTM: BC 11.5k\n• Điện giải đồ: Na 134, K 3.6, Cl 98 mmol/L\n• Soi phân: Bạch cầu (+), Hồng cầu (-)',
+        routine: 'CTM bình thường (BC 6.8k, TC 210k, Hct 38%)\n• Sinh hóa: Ure 4.8, Cre 72 umol/L, Men gan AST/ALT 22/26 U/L\n• Đường huyết đói: 5.6 mmol/L\n• Điện giải đồ: Na 139, K 4.1, Cl 102 mmol/L\n• Nước tiểu 10TS: Bình thường'
+      };
+      bundleText = bundles[bundleType] || '';
+    } else {
+      const bundles = {
+        dengue: 'Làm lại CTM + Hct mỗi 4h (lúc 16h và 22h)\n• Làm lại Men gan AST/ALT và Điện giải đồ sáng mai\n• Siêu âm ổ bụng tìm tràn dịch màng bụng / màng phổi',
+        resp: 'Chụp X-Quang ngực thẳng tại giường sáng mai\n• CTM, CRP định lượng, Procalcitonin\n• Lấy mẫu đàm cấy + KSĐ sáng mai\n• Khí máu động mạch nếu SpO2 < 93%',
+        sepsis: 'Cấy máu 2 vị trí trước khi dùng kháng sinh\n• Làm Lactate máu khẩn\n• CTM, Procalcitonin, CRP định lượng\n• Chức năng gan thận (Ure, Cre, AST, ALT), Điện giải đồ\n• Đông máu toàn bộ (PT, INR, aPTT)',
+        gi: 'Siêu âm ổ bụng tổng quát\n• CTM, Điện giải đồ (Na, K, Cl) lúc 16h\n• Đo đường huyết mao mạch trước ăn\n• Soi phân tìm KST, hồng cầu, bạch cầu',
+        routine: 'Lấy máu làm CTM, Ure, Creatinine, AST, ALT, Glucose sáng mai\n• Tổng phân tích nước tiểu 10 thông số\n• Đo Điện tâm đồ (ECG) tại giường'
+      };
+      bundleText = bundles[bundleType] || '';
+    }
+
+    if (!bundleText) return;
+    this.insertClsCustomText(bundleText);
+  }
+
+  applyClsUpdate(patient, field, newContent, label) {
+    patient[field] = newContent;
+    patient.cls = field === 'cls_hien_co' ? newContent : (patient.cls_hien_co || newContent);
+    patient.updated_at = new Date().toISOString();
+    
+    // Tự động cập nhật trạng thái công việc
+    patient.work_status = this.getPatientWorkStatus(patient);
+
+    this.saveLocalCache();
+
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(patient).catch(err => {
+        console.warn('Lỗi đồng bộ CLS lên Cloud:', err);
+      });
+    }
+
+    this.render();
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã nạp CLS: ${label.substring(0, 35)}...`);
+    }
+    
+    this.closeClsQuickPicker();
+  }
+
+  // CHUYỂN NHANH CLS CẦN LÀM SANG CỘT HIỆN CÓ (1-TOUCH CONVERT)
+  convertPendingClsToPresent(patientId) {
+    const patient = this.patientList.find(p => p.id === patientId);
+    if (!patient || !patient.cls_can_lam) return;
+
+    const pending = patient.cls_can_lam.trim();
+    const existing = (patient.cls_hien_co || '').trim();
+
+    // Chuyển nội dung sang cột Hiện có
+    const convertedNote = `[Đã có KQ]: ${pending}`;
+    patient.cls_hien_co = existing ? `${existing}\n• ${convertedNote}` : convertedNote;
+    patient.cls_can_lam = '';
+    patient.cls = patient.cls_hien_co;
+    patient.updated_at = new Date().toISOString();
+
+    // Cập nhật trạng thái công việc
+    patient.work_status = this.getPatientWorkStatus(patient);
+
+    this.saveLocalCache();
+
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(patient).catch(err => {
+        console.warn('Lỗi lưu sau khi chuyển CLS:', err);
+      });
+    }
+
+    this.render();
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã chuyển xét nghiệm sang cột Hiện có! Sẵn sàng ghi kết quả.`);
+    }
+  }
+
+  // ==============================================================================
   // MODAL CHI TIẾT NGƯỜI BỆNH
   // ==============================================================================
   insertQuickTag(elementId, text) {
@@ -2811,6 +3142,158 @@ class PatientController {
       el.value = text;
     }
     el.focus();
+    this.triggerDetailModalAutoSave();
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG TỰ ĐỘNG LƯU MODAL CHI TIẾT NGƯỜI BỆNH (AUTO-SAVE ON TYPE)
+  // ==============================================================================
+  setupDetailModalAutoSave() {
+    const modal = document.getElementById('patientDetailModal');
+    if (!modal || this.detailModalAutoSaveBound) return;
+    this.detailModalAutoSaveBound = true;
+
+    const onInputOrChange = (e) => {
+      const target = e.target;
+      if (!target) return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        this.triggerDetailModalAutoSave();
+      }
+    };
+
+    modal.addEventListener('input', onInputOrChange);
+    modal.addEventListener('change', onInputOrChange);
+  }
+
+  getDetailModalFormData() {
+    const id = document.getElementById('editPatientId')?.value;
+    if (!id) return null;
+
+    const cdVal = document.getElementById('editDiagnosis')?.value || '';
+    const clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value : '';
+    const clsClVal = document.getElementById('editClsCanLam') ? document.getElementById('editClsCanLam').value : '';
+    const ylVal = document.getElementById('editOrders')?.value || '';
+    const themThuocVal = document.getElementById('editThemThuoc') ? document.getElementById('editThemThuoc').value : '';
+
+    let combinedCls = '';
+    if (clsHcVal.trim() && clsClVal.trim()) {
+      combinedCls = `[Hiện có]: ${clsHcVal.trim()}\n[Cần làm]: ${clsClVal.trim()}`;
+    } else if (clsClVal.trim()) {
+      combinedCls = `[Cần làm]: ${clsClVal.trim()}`;
+    } else {
+      combinedCls = clsHcVal.trim();
+    }
+
+    const docVal = document.getElementById('editDoctorName')?.value?.trim() || '';
+    const statusVal = document.getElementById('editHandoverStatus')?.value || 'chua_lam';
+
+    return {
+      id,
+      data: {
+        phong_giuong: this.cleanRoomBedString(document.getElementById('editRoomBed')?.value || ''),
+        ten: (document.getElementById('editFullName')?.value || '').trim(),
+        nam_sinh_tuoi: (document.getElementById('editAgeYear')?.value || '').trim(),
+        doctor_name: docVal,
+        chan_doan: cdVal,
+        cls: combinedCls,
+        cls_hien_co: clsHcVal,
+        cls_can_lam: clsClVal,
+        y_lenh: ylVal,
+        them_thuoc: themThuocVal,
+        handover_status: statusVal,
+        work_status: statusVal,
+        handover_issues: (document.getElementById('editHandoverIssues')?.value || '').trim(),
+        handover_actions: (document.getElementById('editHandoverActions')?.value || '').trim()
+      }
+    };
+  }
+
+  triggerDetailModalAutoSave() {
+    this.updateDetailModalAutoSaveIndicator('saving');
+
+    if (this.detailAutoSaveTimer) {
+      clearTimeout(this.detailAutoSaveTimer);
+    }
+
+    this.detailAutoSaveTimer = setTimeout(() => {
+      this.performDetailModalAutoSave();
+    }, 300);
+  }
+
+  performDetailModalAutoSave() {
+    if (this.detailAutoSaveTimer) {
+      clearTimeout(this.detailAutoSaveTimer);
+      this.detailAutoSaveTimer = null;
+    }
+
+    const form = this.getDetailModalFormData();
+    if (!form || !form.id) return;
+
+    const idx = this.patientList.findIndex(p => p.id === form.id);
+    if (idx === -1) return;
+
+    const updated = {
+      ...this.patientList[idx],
+      ...form.data,
+      updated_at: new Date().toISOString()
+    };
+
+    if (updated.handover_status === 'da_check' && !updated.handover_resolved_at) {
+      updated.handover_resolved_at = new Date().toISOString();
+      updated.handover_resolved_by = window.authController?.currentUser?.full_name || 'Bác sĩ điều trị';
+    }
+
+    this.patientList[idx] = updated;
+    this.dailyPatientsMap[this.currentDateIso] = this.patientList;
+    
+    // Lưu tức thì vào Local Storage
+    this.saveLocalCache();
+
+    // Cập nhật lại giao diện bảng/thẻ phía sau để đồng bộ tức thì
+    this.render();
+
+    // Async lưu lên cloud nếu có kết nối
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(updated).catch(() => {});
+    }
+
+    // Hiển thị chỉ báo trực quan đã lưu thành công
+    this.updateDetailModalAutoSaveIndicator('saved');
+  }
+
+  updateDetailModalAutoSaveIndicator(state, customLabel = null) {
+    const indicator = document.getElementById('detailModalAutoSaveIndicator');
+    const footerNotice = document.getElementById('detailModalFooterStatus');
+    if (!indicator) return;
+
+    indicator.style.display = 'inline-flex';
+    indicator.classList.remove('saving', 'saved', 'idle');
+
+    if (state === 'saving') {
+      indicator.classList.add('saving');
+      const label = indicator.querySelector('.auto-save-label');
+      if (label) label.innerText = 'Đang lưu...';
+      if (footerNotice) {
+        footerNotice.style.display = 'inline-block';
+        footerNotice.innerText = '⏳ Đang lưu thay đổi...';
+        footerNotice.style.color = '#b45309';
+      }
+    } else if (state === 'saved') {
+      indicator.classList.add('saved');
+      const label = indicator.querySelector('.auto-save-label');
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      if (label) label.innerText = customLabel || `Đã lưu (${timeStr})`;
+      if (footerNotice) {
+        footerNotice.style.display = 'inline-block';
+        footerNotice.innerText = `✓ Đã tự động lưu (${timeStr})`;
+        footerNotice.style.color = '#047857';
+      }
+    } else {
+      indicator.classList.add('idle');
+      const label = indicator.querySelector('.auto-save-label');
+      if (label) label.innerText = customLabel || 'Tự động lưu';
+    }
   }
 
   openPatientDetailModal(patientId) {
@@ -2879,15 +3362,28 @@ class PatientController {
       ).join('');
     }
 
+    // Thiết lập bộ lắng nghe auto-save khi gõ phím
+    this.setupDetailModalAutoSave();
+    this.updateDetailModalAutoSaveIndicator('saved', 'Tự động lưu');
+
     modal.classList.add('active');
   }
 
   closePatientDetailModal() {
+    // Lưu ngay lập tức bất kỳ thay đổi nào còn chờ trong timer
+    if (this.detailAutoSaveTimer) {
+      this.performDetailModalAutoSave();
+    }
     const modal = document.getElementById('patientDetailModal');
     if (modal) modal.classList.remove('active');
   }
 
   savePatientFromDetailModal() {
+    // Flush auto save
+    if (this.detailAutoSaveTimer) {
+      this.performDetailModalAutoSave();
+    }
+
     const id = document.getElementById('editPatientId').value;
     if (!id) return;
 
@@ -2942,7 +3438,10 @@ class PatientController {
     this.updateDoctorFilterDropdown();
     this.closePatientDetailModal();
     if (window.updateSaveStatus) {
-      window.updateSaveStatus('✓ Đã cập nhật thông tin người bệnh');
+      window.updateSaveStatus('✓ Đã lưu thông tin người bệnh');
+    }
+    if (window.showToast) {
+      window.showToast('✓ Đã cập nhật và lưu thông tin người bệnh');
     }
   }
 

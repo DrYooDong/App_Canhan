@@ -361,11 +361,8 @@
         </div>
       </div>
 
-      <!-- THANH CHUYỂN NGÀY NHANH TRÊN MOBILE (HÔM KIA / HÔM QUA / HÔM NAY / NGÀY KẾ) -->
+      <!-- THANH CHUYỂN NGÀY NHANH TRÊN MOBILE (HÔM QUA / HÔM NAY / NGÀY KẾ) -->
       <div class="mobile-date-chips-bar" id="mobileDateChipsBar">
-        <button type="button" class="mobile-day-chip" id="btnMobDateMinus2" onclick="window.patientController.switchToRelativeDay(-2)" title="Xem bảng ngày Hôm kia (-2 ngày)">
-          <span>◀ Hôm kia</span>
-        </button>
         <button type="button" class="mobile-day-chip" id="btnMobDateMinus1" onclick="window.patientController.switchToRelativeDay(-1)" title="Xem bảng ngày Hôm qua (-1 ngày)">
           <span>◀ Hôm qua</span>
         </button>
@@ -508,12 +505,8 @@
           </div>
         </div>
 
-        <!-- CỤM NÚT CHUYỂN NGÀY NHANH: HÔM KIA (-2) | HÔM QUA (-1) | HÔM NAY (0) | NGÀY KẾ (+1) -->
+        <!-- CỤM NÚT CHUYỂN NGÀY NHANH: HÔM QUA (-1) | HÔM NAY (0) | NGÀY KẾ (+1) -->
         <div class="date-quick-nav no-print" id="dateQuickNav">
-          <button type="button" class="btn-date-chip" id="btnDateDayMinus2" onclick="window.patientController.switchToRelativeDay(-2)" title="Xem bảng ngày Hôm kia (-2 ngày)">
-            <span>Hôm kia</span>
-            <small class="chip-sub" id="lblDateDayMinus2"></small>
-          </button>
           <button type="button" class="btn-date-chip" id="btnDateDayMinus1" onclick="window.patientController.switchToRelativeDay(-1)" title="Xem bảng ngày Hôm qua (-1 ngày)">
             <span>Hôm qua</span>
             <small class="chip-sub" id="lblDateDayMinus1"></small>
@@ -780,12 +773,9 @@
         <thead>
           <tr>
             <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
-            <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span
-                class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
-            <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp;
-                Tên</span><span class="th-sub">Người bệnh</span></th>
-            <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span><span
-                class="th-sub">Năm sinh</span></th>
+            <th class="col-room" data-tooltip="Phòng / Buồng bệnh &amp; Giường nằm (P/G)"><span class="th-title">P/G</span></th>
+            <th class="col-name" data-tooltip="Họ và tên người bệnh"><span class="th-title">HỌ TÊN</span></th>
+            <th class="col-birth" data-tooltip="Năm sinh và số tuổi (Tuổi)"><span class="th-title">TUỔI</span></th>
             <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN
                 ĐOÁN</span><span class="th-sub">Xác định • Kèm theo</span></th>
             <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span
@@ -793,16 +783,13 @@
             <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y
                 LỆNH
                 ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
-            <th class="col-handover" id="thColHandover">
-              <div class="th-handover-wrapper">
-                <div class="th-handover-text" data-tooltip="Trạng thái công việc &amp; Bàn giao trực (Công việc)">
-                  <span class="th-title">CÔNG VIỆC</span>
-                  <span class="th-sub">Trạng thái</span>
-                </div>
+            <th class="col-handover" id="thColHandover" data-tooltip="Trạng thái công việc">
+              <div class="th-handover-head">
+                <span class="th-title">VIỆC</span>
                 <!-- NÚT & MENU LỌC TRỰC TIẾP TRÊN CỘT CÔNG VIỆC -->
                 <div class="col-filter-wrapper no-print" id="workFilterDropdownWrap">
                   <button type="button" class="btn-col-filter" id="btnWorkFilterCol" onclick="event.stopPropagation(); window.patientController.toggleWorkFilterMenu()" title="Lọc theo trạng thái Công việc">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                     </svg>
                     <span class="col-filter-badge" id="workFilterBadge" style="display: none;"></span>
@@ -819,7 +806,7 @@
                 </div>
               </div>
             </th>
-            <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
+            <th class="col-actions no-print" data-tooltip="Thao tác"><span class="th-title">⚙️</span></th>
           </tr>
         </thead>
         <tbody id="patientTableBody">
@@ -932,7 +919,13 @@
     <div class="modal-card">
       <div class="bottom-sheet-drag-handle"></div>
       <div class="modal-header">
-        <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
+        <div class="modal-title">
+          <span>🩺 Chi Tiết Người Bệnh</span>
+          <div id="detailModalAutoSaveIndicator" class="detail-auto-save-tag saved" title="Dữ liệu được tự động lưu ngay khi bạn gõ phím">
+            <span class="auto-save-dot"></span>
+            <span class="auto-save-label">Tự động lưu</span>
+          </div>
+        </div>
         <button class="btn-close-modal" onclick="window.patientController.closePatientDetailModal()">&times;</button>
       </div>
       <div class="modal-body">
@@ -1036,11 +1029,14 @@
         </div>
       </div>
       <div class="modal-footer" style="justify-content: space-between;">
-        <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
           <button class="btn btn-success" type="button" onclick="window.patientController.copyCurrentPatientZalo()"
             title="Sao chép thông tin người bệnh này gửi Zalo">
             📋 Copy qua Zalo
           </button>
+          <span id="detailModalFooterStatus" class="detail-footer-status" style="display: none;">
+            ✓ Đã tự động lưu
+          </span>
         </div>
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
@@ -1795,6 +1791,115 @@
       <div class="modal-footer modal-footer-end">
         <button type="button" class="btn btn-secondary"
           onclick="window.patientController.closeExportBackupModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POPOVER / MODAL CHỌN NHANH CẬN LÂM SÀNG THÔNG MINH (SMART CLS ASSISTANT) -->
+  <div id="clsQuickPickerModal" class="cls-quick-popover no-print" style="display: none;">
+    <div class="cls-popover-header">
+      <div class="cls-popover-title">
+        <span>⚡ CHỌN NHANH CẬN LÂM SÀNG</span>
+        <span class="cls-target-label" id="clsPickerTargetLabel">✓ Hiện có</span>
+      </div>
+      <button type="button" class="cls-popover-close" onclick="window.patientController.closeClsQuickPicker()" title="Đóng">✕</button>
+    </div>
+
+    <!-- Thông tin người bệnh đang chọn -->
+    <div class="cls-picker-patient-meta" id="clsPickerPatientMeta">
+      Đang chọn cho người bệnh...
+    </div>
+
+    <!-- Thanh tìm kiếm & tùy chọn ghi nối tiếp / thay thế -->
+    <div class="cls-picker-toolbar">
+      <input type="text" id="clsPickerSearchInput" class="cls-search-input" placeholder="🔍 Tìm nhanh xét nghiệm / chỉ định (ví dụ: ctm, xq, sa, ure, hct)..." oninput="window.patientController.handleClsPickerSearch(this.value)">
+      <div class="cls-mode-toggle">
+        <label><input type="radio" name="clsInsertMode" id="clsModeAppend" value="append" checked> ➕ Thêm nối tiếp</label>
+        <label><input type="radio" name="clsInsertMode" id="clsModeReplace" value="replace"> 🔄 Thay thế</label>
+      </div>
+    </div>
+
+    <!-- 1. CÁC NỘI DUNG CLS ĐANG CÓ THỰC TẾ TRONG KHOA PHÒNG HÔM NAY (TRÍCH XUẤT TỰ ĐỘNG) -->
+    <div class="cls-popover-section" id="clsExistingWardSection">
+      <div class="cls-sec-label">📌 NỘI DUNG CLS ĐANG CÓ TRONG KHOA HÔM NAY (1 chạm để tái sử dụng):</div>
+      <div class="cls-existing-chips" id="clsExistingWardChips">
+        <!-- Render động từ patientList hiện tại -->
+      </div>
+    </div>
+    
+    <!-- CÁC GÓI XÉT NGHIỆM BỆNH HỌC THƯỜNG GẶP -->
+    <div class="cls-popover-section">
+      <div class="cls-sec-label">📦 GÓI XÉT NGHIỆM THEO BỆNH HỌC (BẤM ĐIỀN CẢ BỘ):</div>
+      <div class="cls-bundle-chips">
+        <button type="button" class="cls-bundle-chip chip-dengue" onclick="window.patientController.insertClsBundle('dengue')">
+          🦟 SXH Dengue <small>(CTM, TC, Hct, NS1Ag, AST/ALT)</small>
+        </button>
+        <button type="button" class="cls-bundle-chip chip-resp" onclick="window.patientController.insertClsBundle('resp')">
+          🫁 Viêm phổi / Hô hấp <small>(CTM, CRP, XQ ngực thẳng)</small>
+        </button>
+        <button type="button" class="cls-bundle-chip chip-sepsis" onclick="window.patientController.insertClsBundle('sepsis')">
+          🦠 Nhiễm trùng huyết <small>(CTM, CRP, Cấy máu, Ure-Cre, Men gan, ĐGĐ)</small>
+        </button>
+        <button type="button" class="cls-bundle-chip chip-gi" onclick="window.patientController.insertClsBundle('gi')">
+          🧫 Tiêu hóa <small>(CTM, ĐGĐ, Siêu âm bụng, Soi phân)</small>
+        </button>
+        <button type="button" class="cls-bundle-chip chip-routine" onclick="window.patientController.insertClsBundle('routine')">
+          🩺 Sinh hóa thường quy <small>(Ure, Cre, Men gan, Glucose, ĐGĐ)</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- TỪNG XÉT NGHIỆM & CĐHA ĐƠN LẺ -->
+    <div class="cls-popover-section">
+      <div class="cls-sec-label">🔬 DANH MỤC XÉT NGHIỆM &amp; CĐHA (BẤM ĐỂ CHÈN THÊM):</div>
+      <div class="cls-item-groups">
+        <div class="cls-group-col">
+          <span class="cls-sub-title">🩸 Huyết học &amp; Vi sinh</span>
+          <div class="cls-chip-grid">
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('CTM')">CTM</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('TC')">TC (Tiểu cầu)</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Hct')">Hct</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Đông máu')">Đông máu</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('CRP')">CRP</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Procalcitonin')">Procalcitonin</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('NS1Ag (+)')">NS1Ag (+)</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Dengue IgM/IgG')">Dengue IgM/IgG</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Cấy máu')">Cấy máu</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Cúm A/B')">Cúm A/B</button>
+          </div>
+        </div>
+        <div class="cls-group-col">
+          <span class="cls-sub-title">🧪 Sinh hóa &amp; Khí máu</span>
+          <div class="cls-chip-grid">
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Ure, Cre')">Ure, Cre</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('AST, ALT')">AST, ALT</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('ĐGĐ')">ĐGĐ (Điện giải)</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Glucose')">Glucose</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Bilirubin')">Bilirubin</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('KMĐM')">Khí máu ĐM</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Nước tiểu 10TS')">Nước tiểu</button>
+          </div>
+        </div>
+        <div class="cls-group-col">
+          <span class="cls-sub-title">🩻 Chẩn đoán hình ảnh</span>
+          <div class="cls-chip-grid">
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('XQ ngực thẳng')">XQ ngực</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('Siêu âm bụng')">SA bụng</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('ECG')">Điện tim (ECG)</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('CT ngực')">CT ngực</button>
+            <button type="button" class="cls-tag-chip" onclick="window.patientController.insertClsItem('CT sọ não')">CT não</button>
+          </div>
+        </div>
+        <div class="cls-group-col">
+          <span class="cls-sub-title">✓ Mẫu KQ bình thường</span>
+          <div class="cls-chip-grid">
+            <button type="button" class="cls-tag-chip chip-normal" onclick="window.patientController.insertClsItem('CTM bt')">CTM bt</button>
+            <button type="button" class="cls-tag-chip chip-normal" onclick="window.patientController.insertClsItem('SHM bt')">SHM bt</button>
+            <button type="button" class="cls-tag-chip chip-normal" onclick="window.patientController.insertClsItem('XQ phổi bt')">XQ phổi bt</button>
+            <button type="button" class="cls-tag-chip chip-normal" onclick="window.patientController.insertClsItem('SA bụng bt')">SA bụng bt</button>
+            <button type="button" class="cls-tag-chip chip-normal" onclick="window.patientController.insertClsItem('ĐGĐ bt')">ĐGĐ bt</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

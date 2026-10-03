@@ -22,8 +22,8 @@ const CONFIG = {
     ARCHIVED_DAYS: 'medward_archived_days'
   },
 
-  // THỜI GIAN LƯU TRỮ DỮ LIỆU CŨ (1-2 NGÀY GẦN NHẤT, DỮ LIỆU CŨ HƠN TỰ ĐỘNG XÓA)
-  RETENTION_DAYS: 2,
+  // THỜI GIAN LƯU TRỮ DỮ LIỆU CŨ (CHỈ GIỮ HÔM NAY VÀ HÔM QUA, DỮ LIỆU "HÔM KIA" TỰ ĐỘNG XÓA)
+  RETENTION_DAYS: 1,
 
   // DUNG LƯỢNG LƯU TRỮ CHO MỖI TÀI KHOẢN / ID (100MB SAVE SLOT)
   STORAGE_LIMIT_MB: 100,
@@ -484,9 +484,9 @@ CONFIG.getRelativeDayOffset = function(dateStr, baseDateInput = new Date()) {
   return diffDays;
 };
 
-CONFIG.getCutoffDate = function(retentionDays = CONFIG.RETENTION_DAYS || 2) {
+CONFIG.getCutoffDate = function(retentionDays = CONFIG.RETENTION_DAYS ?? 1) {
   const now = new Date();
-  // Lùi retentionDays ngày về lúc 00:00:00
+  // Lùi retentionDays ngày về lúc 00:00:00 (Mặc định 1 ngày: chỉ giữ Hôm nay và Hôm qua, Hôm kia tự động xóa)
   const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - retentionDays, 0, 0, 0, 0);
   return cutoff;
 };
