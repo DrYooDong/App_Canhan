@@ -41,8 +41,22 @@ class PatternLockController {
     this.firstPattern = null;
     this.isRecordDrawing = false;
     this.recordSelectedDots = [];
+    this.subMode = 'record'; // 'record' | 'test'
 
     this.init();
+  }
+
+  getActiveDoctorPattern() {
+    try {
+      const doc = window.authController?.getActiveDoctor?.();
+      const docId = doc?.id;
+      if (docId) {
+        const docPattern = localStorage.getItem(`medward_pattern_lock_${docId}`);
+        if (docPattern) return docPattern;
+      }
+      if (doc?.pattern_lock) return doc.pattern_lock;
+    } catch (e) {}
+    return localStorage.getItem('medward_pattern_lock') || null;
   }
 
   init() {
@@ -244,7 +258,7 @@ class PatternLockController {
     }
 
     const patternCode = this.selectedDots.join('-');
-    const savedPattern = localStorage.getItem('medward_pattern_lock');
+    const savedPattern = this.getActiveDoctorPattern();
 
     let isValid = false;
     if (savedPattern) {
@@ -310,14 +324,19 @@ class PatternLockController {
   }
 
   // ==============================================================================
-  // MODAL ĐỔI / THIẾT LẬP HÌNH VẼ MỚI (PATTERN RECORDER)
+  // MODAL ĐỔI / THIẾT LẬP HÌNH VẼ MỚI (PATTERN RECORDER & TESTER)
   // ==============================================================================
   openPatternChangeModal() {
-    const modal = document.getElementById('patternChangeModal');
+    if (window.authController?.openChangePasswordModal) {
+      window.authController.openChangePasswordModal('pattern');
+      return;
+    }
+    const modal = document.getElementById('changePasswordModal') || document.getElementById('patternChangeModal');
     if (!modal) return;
     this.recordStep = 1;
     this.firstPattern = null;
     this.recordSelectedDots = [];
+    this.subMode = 'record';
 
     const statusEl = document.getElementById('patternRecordStatus');
     if (statusEl) {
@@ -334,14 +353,67 @@ class PatternLockController {
     }
 
     modal.classList.add('active');
+    this.updateProfileBadge();
   }
 
   closePatternChangeModal() {
-    const modal = document.getElementById('patternChangeModal');
+    const modal = document.getElementById('changePasswordModal') || document.getElementById('patternChangeModal');
     if (modal) modal.classList.remove('active');
     this.recordStep = 1;
     this.firstPattern = null;
     this.recordSelectedDots = [];
+    this.subMode = 'record';
+  }
+
+  switchPatternSubMode(mode = 'record') {
+    this.subMode = mode;
+    const btnRecord = document.getElementById('btnPatternModeRecord');
+    const btnTest = document.getElementById('btnPatternModeTest');
+    const statusEl = document.getElementById('patternRecordStatus');
+    const svg = document.getElementById('patternRecordSvg');
+
+    if (mode === 'record') {
+      if (btnRecord) btnRecord.classList.add('active');
+      if (btnTest) btnTest.classList.remove('active');
+      this.recordStep = 1;
+      this.firstPattern = null;
+      this.recordSelectedDots = [];
+      if (statusEl) {
+        statusEl.className = 'gate-pattern-status';
+        statusEl.innerText = 'Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)';
+      }
+    } else {
+      if (btnRecord) btnRecord.classList.remove('active');
+      if (btnTest) btnTest.classList.add('active');
+      this.recordSelectedDots = [];
+      if (statusEl) {
+        statusEl.className = 'gate-pattern-status';
+        statusEl.innerText = '🧪 Hãy vẽ hình khóa để thử nghiệm mở khóa';
+      }
+    }
+
+    if (svg) {
+      this.renderSvgState(svg, []);
+      svg.classList.remove('pattern-success', 'pattern-error');
+    }
+  }
+
+  resetRecordStep() {
+    this.recordStep = 1;
+    this.firstPattern = null;
+    this.recordSelectedDots = [];
+    const svg = document.getElementById('patternRecordSvg');
+    if (svg) {
+      svg.classList.remove('pattern-success', 'pattern-error');
+      this.renderSvgState(svg, []);
+    }
+    const statusEl = document.getElementById('patternRecordStatus');
+    if (statusEl) {
+      statusEl.className = 'gate-pattern-status';
+      statusEl.innerText = (this.subMode === 'test')
+        ? '🧪 Hãy vẽ hình khóa để thử nghiệm mở khóa'
+        : 'Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)';
+    }
   }
 
   handleRecordPointerUp() {
@@ -367,6 +439,46 @@ class PatternLockController {
 
     const currentPattern = this.recordSelectedDots.join('-');
 
+    // 1. CHẾ ĐỘ THỬ MỞ KHÓA NGAY (TEST MODE)
+    if (this.subMode === 'test') {
+      const activePattern = this.getActiveDoctorPattern();
+      let isMatch = false;
+      if (activePattern) {
+        isMatch = (currentPattern === activePattern);
+      } else {
+        isMatch = this.defaultPatterns.includes(currentPattern);
+      }
+
+      if (isMatch) {
+        if (svg) svg.classList.add('pattern-success');
+        if (statusEl) {
+          statusEl.className = 'gate-pattern-status success';
+          statusEl.innerText = '🎉 MỞ KHÓA THÀNH CÔNG! Hình vẽ khớp 100%.';
+        }
+        if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      } else {
+        if (statusEl) {
+          statusEl.className = 'gate-pattern-status error';
+          statusEl.innerText = '❌ Hình vẽ chưa khớp với mã đã lưu!';
+        }
+        this.triggerErrorFeedback(svg, wrap);
+      }
+
+      setTimeout(() => {
+        this.recordSelectedDots = [];
+        if (svg) {
+          svg.classList.remove('pattern-success', 'pattern-error');
+          this.renderSvgState(svg, []);
+        }
+        if (statusEl) {
+          statusEl.className = 'gate-pattern-status';
+          statusEl.innerText = '🧪 Hãy vẽ hình khóa để thử nghiệm mở khóa';
+        }
+      }, 1000);
+      return;
+    }
+
+    // 2. CHẾ ĐỘ THIẾT LẬP HÌNH MỚI (RECORD MODE)
     if (this.recordStep === 1) {
       // Đã vẽ xong bước 1
       this.firstPattern = currentPattern;
@@ -392,8 +504,17 @@ class PatternLockController {
     } else if (this.recordStep === 2) {
       // Xác nhận bước 2
       if (currentPattern === this.firstPattern) {
-        // Khớp! Lưu hình vẽ mới
+        // Khớp! Lưu hình vẽ mới cho Bác sĩ hiện tại
+        const doc = window.authController?.getActiveDoctor?.();
+        if (doc) {
+          doc.pattern_lock = currentPattern;
+          window.authController?.saveActiveDoctor?.();
+          if (doc.id) {
+            localStorage.setItem(`medward_pattern_lock_${doc.id}`, currentPattern);
+          }
+        }
         localStorage.setItem('medward_pattern_lock', currentPattern);
+
         if (svg) svg.classList.add('pattern-success');
         if (statusEl) {
           statusEl.className = 'gate-pattern-status success';
@@ -407,8 +528,8 @@ class PatternLockController {
         }
 
         setTimeout(() => {
-          this.closePatternChangeModal();
-        }, 800);
+          this.switchPatternSubMode('test');
+        }, 900);
 
       } else {
         // Không khớp
@@ -436,8 +557,18 @@ class PatternLockController {
   }
 
   resetToDefaultPattern() {
+    if (!confirm('Khôi phục hình vẽ mở khóa về mặc định (Chữ L hoặc Z)?')) return;
+    const doc = window.authController?.getActiveDoctor?.();
+    if (doc) {
+      delete doc.pattern_lock;
+      window.authController?.saveActiveDoctor?.();
+      if (doc.id) {
+        localStorage.removeItem(`medward_pattern_lock_${doc.id}`);
+      }
+    }
     localStorage.removeItem('medward_pattern_lock');
     this.updateProfileBadge();
+    this.resetRecordStep();
     if (window.showToast) {
       window.showToast('✓ Đã khôi phục hình vẽ mở khoá về mặc định (Chữ L hoặc Z)');
     }
@@ -445,18 +576,24 @@ class PatternLockController {
   }
 
   updateProfileBadge() {
-    const badge = document.getElementById('currentPatternBadge');
-    if (!badge) return;
-    const custom = localStorage.getItem('medward_pattern_lock');
-    if (custom) {
-      badge.innerText = 'Hình vẽ riêng (Đã cài)';
-      badge.style.background = '#dcfce7';
-      badge.style.color = '#15803d';
-    } else {
-      badge.innerText = 'Mặc định: Chữ L hoặc Z';
-      badge.style.background = '#e0f2fe';
-      badge.style.color = '#0369a1';
-    }
+    const badges = [
+      document.getElementById('currentPatternBadge'),
+      document.getElementById('changePatternStatusBadge')
+    ];
+    const custom = this.getActiveDoctorPattern();
+
+    badges.forEach(badge => {
+      if (!badge) return;
+      if (custom) {
+        badge.innerText = 'Hình vẽ riêng (Đã cài)';
+        badge.style.background = '#dcfce7';
+        badge.style.color = '#15803d';
+      } else {
+        badge.innerText = 'Mặc định: Chữ L hoặc Z';
+        badge.style.background = '#e0f2fe';
+        badge.style.color = '#0369a1';
+      }
+    });
   }
 }
 

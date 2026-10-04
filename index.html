@@ -122,10 +122,14 @@
             <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
           </button>
 
-          <div style="text-align: center; margin-top: 10px;">
+          <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
             <button type="button" class="btn btn-subtle btn-sm"
               onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
-              🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
+              🔲 Mở bằng 9 nút
+            </button>
+            <button type="button" class="btn btn-subtle btn-sm"
+              onclick="window.authController.openChangePasswordModal('pin')" style="font-size: 11.5px; color: var(--primary); font-weight: 700;">
+              🔐 Đổi mã PIN / 9 Nút
             </button>
           </div>
         </form>
@@ -141,12 +145,15 @@
           </div>
 
           <div class="pattern-hint-box">
-            <span>💡 Gợi ý: Nối hình chữ</span>
+            <span>💡 Gợi ý: Nối hình chữ L (1➔4➔7➔8➔9) hoặc Z (1➔2➔3➔5➔7➔8➔9)</span>
           </div>
 
           <div class="pattern-action-row">
             <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
               🔄 Vẽ lại
+            </button>
+            <button type="button" class="btn btn-subtle btn-sm" onclick="window.authController.openChangePasswordModal('pattern')">
+              ⚙️ Đổi hình vẽ 9 nút
             </button>
           </div>
         </div>
@@ -336,6 +343,13 @@
             <span class="mobile-doc-name" id="mobileDocName">BS. Đông</span>
           </button>
 
+          <!-- Nút Đổi pass di động -->
+          <button class="mobile-btn-action" onclick="window.authController.openChangePasswordModal('pin')"
+            title="Đổi mã PIN &amp; Hình vẽ 9 nút">
+            <span>🔑</span>
+            <span class="mobile-action-label">Pass</span>
+          </button>
+
           <!-- Khóa bảng -->
           <button class="mobile-btn-action mobile-btn-lock" onclick="window.authController.handleLogout()"
             title="Khóa bảng & Đăng xuất">
@@ -453,6 +467,17 @@
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
+
+        <!-- Nút Đổi Pass (Mã PIN & Mã 9 Nút) -->
+        <button class="btn-change-password-header" id="btnChangePasswordHeader"
+          onclick="window.authController.openChangePasswordModal('pin')"
+          data-tooltip="Đổi mã PIN &amp; Hình vẽ 9 nút">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7l-4 4-2-2-4 4 2 2-4 4 4-4 2 2 4-4-2-2 1.5-1.5L19 4l2-2z"/>
+            <circle cx="7.5" cy="16.5" r="1.5"/>
+          </svg>
+          <span>Đổi Pass</span>
+        </button>
 
         <!-- Nút Khóa Bảng & Đăng Xuất -->
         <button class="btn-lock-board" id="btnLockBoard" onclick="window.authController.handleLogout()"
@@ -1272,138 +1297,190 @@
   </div>
 
   <!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH) -->
+  <!-- MODAL 4: TÀI KHOẢN & HỒ SƠ BÁC SĨ (AUTH / DOCTOR WORKSPACE) -->
   <div class="modal-overlay" id="authModal">
-    <div class="modal-card" style="max-width: 580px;">
+    <div class="modal-card doctor-workspace-modal-card">
       <div class="bottom-sheet-drag-handle"></div>
-      <div class="modal-header">
-        <div class="modal-title">🩺 Không Gian Làm Việc Bác Sĩ</div>
+
+      <!-- Modern Header -->
+      <div class="modern-doc-modal-header">
+        <div class="modern-doc-header-title">
+          <div class="header-stethoscope-icon">🩺</div>
+          <div>
+            <div class="header-main-title">Không Gian Làm Việc Bác Sĩ</div>
+            <div class="header-sub-title">Bảng điều hành ca trực &amp; Hồ sơ lâm sàng</div>
+          </div>
+        </div>
         <button class="btn-close-modal" onclick="window.authController.closeAuthModal()">&times;</button>
       </div>
 
-      <!-- Tab Bar trong Auth Modal -->
-      <div class="auth-tabs-nav">
-        <button class="nav-tab-btn active" id="tabBtn_workspace"
-          onclick="window.authController.switchAuthTab('workspace')">Không Gian BS</button>
-        <button class="nav-tab-btn" id="tabBtn_doctors" onclick="window.authController.switchAuthTab('doctors')">Quản
-          Lý
-          Bác Sĩ</button>
-        <button class="nav-tab-btn" id="tabBtn_login" onclick="window.authController.switchAuthTab('login')">Đăng
-          Nhập</button>
-        <button class="nav-tab-btn" id="tabBtn_profile" onclick="window.authController.switchAuthTab('profile')">Hồ Sơ
-          BS</button>
+      <!-- Hero Doctor Profile Banner -->
+      <div class="doc-hero-banner" id="docHeroBanner">
+        <div class="doc-hero-avatar-wrap">
+          <div class="doc-hero-avatar" id="wsDocAvatar">Đ</div>
+          <span class="doc-hero-pulse-dot" title="Đang trong ca trực"></span>
+        </div>
+        <div class="doc-hero-details">
+          <div class="doc-hero-name-row">
+            <span class="doc-hero-name" id="wsDocFullName">BS. Nguyễn Hữu Đông</span>
+            <span class="doc-hero-role-badge admin" id="wsDocRoleBadge">Quản trị viên</span>
+          </div>
+          <div class="doc-hero-meta">
+            <span id="wsDocTitle">Bác sĩ điều trị</span>
+            <span class="sep">•</span>
+            <span id="wsDocDept">Khoa Nhiễm</span>
+            <span class="sep">•</span>
+            <span id="wsDocHospital">BV ĐK KV Thủ Đức</span>
+          </div>
+          <div class="doc-hero-account">
+            <span>Tài khoản: <strong id="wsDocUsername">dongnh</strong></span>
+            <span class="sep">•</span>
+            <span class="doc-hero-status-tag">● Đang trực</span>
+          </div>
+        </div>
       </div>
 
-      <div class="modal-body">
-        <!-- 0. TAB KHÔNG GIAN BÁC SĨ -->
+      <!-- Segmented Tab Bar trong Auth Modal -->
+      <div class="modern-auth-tabs">
+        <button class="modern-auth-tab active" id="tabBtn_workspace"
+          onclick="window.authController.switchAuthTab('workspace')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          <span>Tổng Quan Ca Trực</span>
+        </button>
+        <button class="modern-auth-tab" id="tabBtn_profile"
+          onclick="window.authController.switchAuthTab('profile')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Hồ Sơ &amp; Bảo Mật</span>
+        </button>
+        <button class="modern-auth-tab" id="tabBtn_doctors"
+          onclick="window.authController.switchAuthTab('doctors')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Danh Sách Bác Sĩ</span>
+        </button>
+        <!-- Tab ẩn duy trì tính tương thích nếu gọi chuyển tab đăng nhập/security -->
+        <button class="modern-auth-tab" id="tabBtn_login" style="display: none;" onclick="window.authController.switchAuthTab('login')">Đăng Nhập</button>
+        <button class="modern-auth-tab" id="tabBtn_security" style="display: none;" onclick="window.authController.openChangePasswordModal('pin')">Bảo Mật</button>
+      </div>
+
+      <div class="modal-body" style="padding: 0;">
+        <!-- 0. TAB KHÔNG GIAN BÁC SĨ (TỔNG QUAN CA TRỰC) -->
         <div id="tabContent_workspace" class="auth-tab-content active">
           <!-- Render động qua AuthController.renderWorkspaceTab() -->
           <div id="workspaceContentArea"></div>
         </div>
 
-        <!-- 1. TAB QUẢN LÝ BÁC SĨ & PHÂN QUYỀN (RBAC: BS ĐÔNG TOÀN QUYỀN) -->
+        <!-- 1. TAB HỒ SƠ & BẢO MẬT BÁC SĨ -->
+        <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
+          <div class="modern-workspace-overview" style="padding-top: 14px;">
+            <div id="profileMessage" class="form-message"></div>
+            <form id="profileForm">
+              <div class="doc-form-card">
+                <div class="doc-form-card-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <span>Thông Tin Định Danh &amp; Chuyên Môn</span>
+                </div>
+                <div class="doc-form-grid">
+                  <div class="col-span-2">
+                    <label class="modern-form-label">Họ và tên Bác sĩ:</label>
+                    <input type="text" id="profFullName" class="modern-form-input" required>
+                  </div>
+                  <div>
+                    <label class="modern-form-label">Chức danh / Học vị:</label>
+                    <input type="text" id="profTitle" class="modern-form-input" value="Bác sĩ điều trị">
+                  </div>
+                  <div>
+                    <label class="modern-form-label">Khoa / Phòng:</label>
+                    <input type="text" id="profDept" class="modern-form-input" value="Khoa Nhiễm">
+                  </div>
+                  <div class="col-span-2">
+                    <label class="modern-form-label">Bệnh viện:</label>
+                    <input type="text" id="profHospital" class="modern-form-input" value="Bệnh viện Đa khoa Khu vực Thủ Đức">
+                  </div>
+                  <div>
+                    <label class="modern-form-label">Số ĐT liên hệ trực:</label>
+                    <input type="text" id="profPhone" class="modern-form-input" placeholder="09xx xxx xxx">
+                  </div>
+                  <div>
+                    <label class="modern-form-label">Tài khoản Bác sĩ:</label>
+                    <div class="input-lock-wrap">
+                      <input type="text" id="profUsername" class="modern-form-input locked-input" disabled>
+                      <span class="input-lock-icon">🔒</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CÀI ĐẶT BẢO MẬT & MẬT KHẨU (PIN & 9 NÚT) -->
+                <div class="modern-security-card">
+                  <div class="security-card-header">
+                    <div class="security-title-wrap">
+                      <div class="security-icon-circle">🔐</div>
+                      <div>
+                        <div class="security-title">Mật Khẩu &amp; Phương Thức Mở Khóa</div>
+                        <div class="security-desc">Mã PIN số bảo vệ &amp; Hình vẽ cử chỉ 9 nút cảm ứng</div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-security-action"
+                      onclick="window.authController?.openChangePasswordModal('pin')">
+                      Thiết Lập Mật Khẩu
+                    </button>
+                  </div>
+                  <div class="security-status-strip">
+                    <div class="security-status-item">
+                      <span class="status-label">Mã PIN:</span>
+                      <span class="status-val">Đã kích hoạt</span>
+                      <span class="status-badge-active">Bảo vệ</span>
+                    </div>
+                    <span class="status-divider">•</span>
+                    <div class="security-status-item">
+                      <span class="status-label">Mã 9 nút:</span>
+                      <span class="status-val" id="currentPatternBadge">Mặc định (Chữ L)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Trường ẩn giữ tương thích -->
+                <div class="form-group" style="display: none;">
+                  <input type="password" id="profPin" class="form-control">
+                </div>
+
+                <div class="profile-action-bar">
+                  <button type="submit" class="btn-save-profile">Lưu Thay Đổi Hồ Sơ</button>
+                  <button type="button" class="btn-profile-logout" id="btnLogout"
+                    onclick="window.authController.handleLogout()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Đăng Xuất</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- 2. TAB QUẢN LÝ BÁC SĨ & PHÂN QUYỀN (RBAC) -->
         <div id="tabContent_doctors" class="auth-tab-content" style="display: none;">
           <!-- Render động qua AuthController.renderDoctorManagementTab() -->
           <div id="doctorManagementArea"></div>
         </div>
 
-        <!-- 2. TAB ĐĂNG NHẬP -->
-        <div id="tabContent_login" class="auth-tab-content" style="display: none;">
+        <!-- 3. TAB ĐĂNG NHẬP (DỰ PHÒNG KHI CẦN) -->
+        <div id="tabContent_login" class="auth-tab-content" style="display: none; padding: 20px;">
           <div id="loginMessage" class="form-message"></div>
           <form id="loginForm">
             <div class="form-group">
-              <label>Tài khoản Bác sĩ:</label>
-              <input type="text" id="loginUsername" class="form-control" value="dongnh" placeholder="dongnh"
+              <label class="modern-form-label">Tài khoản Bác sĩ:</label>
+              <input type="text" id="loginUsername" class="modern-form-input" value="dongnh" placeholder="dongnh"
                 autocapitalize="none" required>
               <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">Tài khoản:
                 <strong>dongnh</strong> (nguyenhuudongy18@gmail.com)</small>
             </div>
-            <div class="form-group">
-              <label>Mật khẩu số</label>
-              <input type="password" id="loginPassword" class="form-control" placeholder="Nhập các chữ số"
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="modern-form-label">Mật khẩu số (PIN):</label>
+              <input type="password" id="loginPassword" class="modern-form-input" placeholder="Nhập các chữ số"
                 pattern="[0-9]*" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-              <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu
-                chỉ bao gồm các chữ số</small>
             </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">🔐 Đăng Nhập &amp; Vào
-              Không Gian Bác Sĩ</button>
-          </form>
-        </div>
-
-        <!-- 3. TAB HỒ SƠ BÁC SĨ -->
-        <div id="tabContent_profile" class="auth-tab-content" style="display: none;">
-          <div id="profileMessage" class="form-message"></div>
-          <form id="profileForm">
-            <div class="form-group">
-              <label>Họ và tên Bác sĩ:</label>
-              <input type="text" id="profFullName" class="form-control" required>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Chức danh:</label>
-                <input type="text" id="profTitle" class="form-control" value="Bác sĩ điều trị">
-              </div>
-              <div class="form-group">
-                <label>Khoa / Phòng:</label>
-                <input type="text" id="profDept" class="form-control" value="Khoa Nhiễm">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Bệnh viện:</label>
-              <input type="text" id="profHospital" class="form-control" value="Bệnh viện Đa khoa Khu vực Thủ Đức">
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Số ĐT liên hệ trực:</label>
-                <input type="text" id="profPhone" class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Tài khoản Bác sĩ:</label>
-                <input type="text" id="profUsername" class="form-control" disabled style="background: #f1f5f9;">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Mật khẩu số (PIN) đăng nhập Không Gian:</label>
-              <input type="password" id="profPin" class="form-control"
-                placeholder="Để trống nếu không đổi (Mặc định: 123456)" pattern="[0-9]*" inputmode="numeric"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-              <small style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">* Mật khẩu
-                chỉ bao gồm các chữ số để vào nhanh không gian riêng</small>
-            </div>
-
-            <!-- CÀI ĐẶT HÌNH VẼ 9 NÚT (PATTERN LOCK) -->
-            <div class="pattern-profile-setting"
-              style="margin: 12px 0 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                <span
-                  style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                  <span>🔲 Hình vẽ mở khoá 9 nút:</span>
-                </span>
-                <span id="currentPatternBadge"
-                  style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 600;">
-                  Mặc định: Chữ L hoặc Z
-                </span>
-              </div>
-              <p style="font-size: 11.8px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
-                Cho phép Bác sĩ mở khoá nhanh bằng cử chỉ vẽ hình (Pattern Lock) thay cho việc bấm mã PIN mỗi lần vào
-                trang web.
-              </p>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-secondary btn-sm"
-                  onclick="window.patternLock?.openPatternChangeModal()">
-                  🎨 Thiết lập hình vẽ mới
-                </button>
-                <button type="button" class="btn btn-subtle btn-sm"
-                  onclick="window.patternLock?.resetToDefaultPattern()">
-                  Khôi phục mặc định (Chữ L)
-                </button>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 8px; margin-top: 14px;">
-              <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
-              <button type="button" class="btn btn-danger" id="btnLogout"
-                onclick="window.authController.handleLogout()">Đăng Xuất</button>
-            </div>
+            <button type="submit" class="btn-enter-workspace" style="margin-top: 14px;">
+              🔐 Đăng Nhập Vào Ca Trực
+            </button>
           </form>
         </div>
       </div>
@@ -1690,40 +1767,193 @@
     </div>
   </div>
 
-  <!-- MODAL 8: CÀI ĐẶT / ĐỔI HÌNH VẼ MỞ KHÓA 9 NÚT (PATTERN RECORDER) -->
-  <div class="modal-overlay" id="patternChangeModal">
-    <div class="modal-card" style="max-width: 440px;">
+  <!-- MODAL 8: CÀI ĐẶT & ĐỔI MẬT KHẨU (MÃ PIN & MÃ KHÓA 9 NÚT) -->
+  <div class="modal-overlay" id="changePasswordModal">
+    <div class="modal-card change-pass-modal-card">
+      <div class="bottom-sheet-drag-handle"></div>
       <div class="modal-header">
-        <div class="modal-title">🎨 Thiết Lập Hình Vẽ Mở Khóa (9 Nút)</div>
-        <button class="btn-close-modal" onclick="window.patternLock?.closePatternChangeModal()">&times;</button>
+        <div class="modal-title">🔐 Cài Đặt Mật Khẩu &amp; Mã Khóa</div>
+        <button class="btn-close-modal" onclick="window.authController?.closeChangePasswordModal()">&times;</button>
       </div>
-      <div class="modal-body" style="text-align: center;">
-        <div id="patternRecordStatus" class="gate-pattern-status" style="margin-bottom: 12px;">
-          Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <!-- Thẻ tóm tắt thông tin Bác sĩ -->
+        <div class="change-pass-doctor-badge">
+          <div class="change-pass-avatar" id="changePassDocAvatar">HĐ</div>
+          <div style="flex: 1;">
+            <div class="change-pass-doc-title" id="changePassDocName">BS. Nguyễn Hữu Đông</div>
+            <div class="change-pass-doc-sub" id="changePassDocSub">Tài khoản: dongnh • Khoa Nhiễm</div>
+          </div>
         </div>
 
-        <div class="pattern-lock-wrap" id="patternRecordWrap" style="margin: 0 auto 14px;">
-          <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+        <!-- Thanh chuyển đổi 2 Tab: Mã PIN vs Mã 9 Nút -->
+        <div class="change-pass-tabs">
+          <button type="button" class="change-pass-tab-btn active" id="btnTabChangePin"
+            onclick="window.authController?.switchChangePasswordTab('pin')">
+            <span>🔢 Mã PIN (Mật khẩu số)</span>
+          </button>
+          <button type="button" class="change-pass-tab-btn" id="btnTabChangePattern"
+            onclick="window.authController?.switchChangePasswordTab('pattern')">
+            <span>🔲 Mã 9 Nút (Hình vẽ)</span>
+          </button>
         </div>
 
-        <div
-          style="font-size: 12px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
-          💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần nữa để
-            xác
-            nhận an toàn.</em>
+        <!-- ========================================== -->
+        <!-- TAB 1: ĐỔI MÃ PIN (MẬT KHẨU SỐ) -->
+        <!-- ========================================== -->
+        <div id="panelChangePin" class="change-pass-tab-panel active">
+          <div id="changePinMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
+
+          <form id="formChangePin" onsubmit="event.preventDefault(); window.authController?.handleSaveNewPin();">
+            <!-- 1. Mã PIN hiện tại -->
+            <div class="pin-input-group">
+              <label for="changePinCurrent">
+                <span>1. Mã PIN hiện tại:</span>
+                <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">(Mặc định: 123456)</span>
+              </label>
+              <div class="pin-input-wrapper">
+                <input type="password" id="changePinCurrent" class="form-control"
+                  placeholder="Nhập mã PIN đang dùng" pattern="[0-9]*" inputmode="numeric" maxlength="10"
+                  onfocus="window.authController?.setActivePinField('changePinCurrent')"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                <button type="button" class="btn-toggle-pin"
+                  onclick="window.authController?.togglePinVisibility('changePinCurrent', this)" tabindex="-1"
+                  title="Hiện/ẩn mã PIN">👁️</button>
+              </div>
+            </div>
+
+            <!-- 2. Mã PIN mới -->
+            <div class="pin-input-group">
+              <label for="changePinNew">
+                <span>2. Mã PIN mới:</span>
+                <span id="pinNewLengthBadge" style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(4 - 8 chữ số)</span>
+              </label>
+              <div class="pin-input-wrapper">
+                <input type="password" id="changePinNew" class="form-control"
+                  placeholder="Nhập mã PIN mới (4-8 số)" pattern="[0-9]*" inputmode="numeric" maxlength="8"
+                  onfocus="window.authController?.setActivePinField('changePinNew')"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,''); window.authController?.checkPinMatch();">
+                <button type="button" class="btn-toggle-pin"
+                  onclick="window.authController?.togglePinVisibility('changePinNew', this)" tabindex="-1"
+                  title="Hiện/ẩn mã PIN">👁️</button>
+              </div>
+            </div>
+
+            <!-- 3. Xác nhận mã PIN mới -->
+            <div class="pin-input-group">
+              <label for="changePinConfirm">
+                <span>3. Xác nhận mã PIN mới:</span>
+                <span id="pinMatchBadge" class="pin-match-badge" style="display: none;"></span>
+              </label>
+              <div class="pin-input-wrapper">
+                <input type="password" id="changePinConfirm" class="form-control"
+                  placeholder="Nhập lại mã PIN mới để xác nhận" pattern="[0-9]*" inputmode="numeric" maxlength="8"
+                  onfocus="window.authController?.setActivePinField('changePinConfirm')"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,''); window.authController?.checkPinMatch();">
+                <button type="button" class="btn-toggle-pin"
+                  onclick="window.authController?.togglePinVisibility('changePinConfirm', this)" tabindex="-1"
+                  title="Hiện/ẩn mã PIN">👁️</button>
+              </div>
+            </div>
+
+            <!-- Bàn phím số cảm ứng chạm nhanh (Tiện cho máy tính bảng & điện thoại) -->
+            <div class="touch-numpad-wrap">
+              <div class="touch-numpad-header">
+                <span>⌨️ Bàn phím số cảm ứng (Chạm để nhập nhanh):</span>
+                <button type="button" class="btn btn-subtle btn-xs"
+                  onclick="window.authController?.toggleTouchNumpad()" style="font-size: 10.5px; padding: 1px 6px;">
+                  Hiện/Ẩn
+                </button>
+              </div>
+              <div class="touch-numpad-grid" id="touchNumpadGrid">
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('1')">1</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('2')">2</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('3')">3</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('4')">4</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('5')">5</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('6')">6</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('7')">7</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('8')">8</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('9')">9</button>
+                <button type="button" class="numpad-key key-action key-clear" onclick="window.authController?.handleKeypadInput('C')">C</button>
+                <button type="button" class="numpad-key" onclick="window.authController?.handleKeypadInput('0')">0</button>
+                <button type="button" class="numpad-key key-action key-backspace" onclick="window.authController?.handleKeypadInput('BACK')">⌫</button>
+              </div>
+            </div>
+
+            <!-- Nút hành động Form PIN -->
+            <div style="display: flex; gap: 8px; margin-top: 14px;">
+              <button type="submit" class="btn btn-primary" style="flex: 1; height: 38px; font-weight: 700;">
+                ✓ Lưu Mã PIN Mới
+              </button>
+              <button type="button" class="btn btn-subtle" onclick="window.authController?.handleResetDefaultPin()"
+                title="Khôi phục mã PIN về mặc định (123456)">
+                Khôi Phục (123456)
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: ĐỔI MÃ KHÓA 9 NÚT (PATTERN LOCK) -->
+        <!-- ========================================== -->
+        <div id="panelChangePattern" class="change-pass-tab-panel" style="text-align: center;">
+          <!-- Huy hiệu trạng thái hình vẽ hiện tại -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid var(--border); font-size: 12px;">
+            <span style="font-weight: 600; color: var(--text-main);">Hình vẽ hiện tại:</span>
+            <span id="changePatternStatusBadge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 700;">
+              Mặc định: Chữ L hoặc Z
+            </span>
+          </div>
+
+          <!-- Chế độ: Thiết lập mới VS Thử mở khóa -->
+          <div class="pattern-mode-selector">
+            <button type="button" class="pattern-sub-btn active" id="btnPatternModeRecord"
+              onclick="window.patternLock?.switchPatternSubMode('record')">
+              🎨 Thiết Lập Hình Vẽ Mới
+            </button>
+            <button type="button" class="pattern-sub-btn" id="btnPatternModeTest"
+              onclick="window.patternLock?.switchPatternSubMode('test')">
+              🧪 Thử Mở Khóa Ngay
+            </button>
+          </div>
+
+          <!-- Trạng thái hướng dẫn từng bước -->
+          <div id="patternRecordStatus" class="gate-pattern-status" style="margin-bottom: 10px; font-weight: 700;">
+            Bước 1: Vẽ hình khoá mới (Nối từ 3 điểm trở lên)
+          </div>
+
+          <!-- Bàn vẽ SVG 9 nút -->
+          <div class="pattern-lock-wrap" id="patternRecordWrap" style="margin: 0 auto 12px;">
+            <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
+          </div>
+
+          <!-- Gợi ý thao tác -->
+          <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px;">
+            💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần nữa để xác nhận an toàn.</em>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.resetRecordStep()">
+              🔄 Vẽ lại
+            </button>
+            <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.resetToDefaultPattern()">
+              Khôi phục mặc định (Chữ L)
+            </button>
+          </div>
         </div>
       </div>
-      <div class="modal-footer" style="display: flex; justify-content: space-between;">
-        <button type="button" class="btn btn-subtle"
-          onclick="window.patternLock?.resetToDefaultPattern(); window.patternLock?.closePatternChangeModal();">
-          Về mặc định (Chữ L)
-        </button>
-        <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="window.authController?.closeChangePasswordModal()">
           Đóng
         </button>
       </div>
     </div>
   </div>
+
+  <!-- Backward-compatibility container for patternChangeModal ID -->
+  <div class="modal-overlay" id="patternChangeModal" style="display: none !important;"></div>
 
   <!-- MODAL 9: XUẤT FILE & SAO LƯU DỰ PHÒNG CHỐNG MẤT DỮ LIỆU (.XLSX / .CSV) -->
   <div class="modal-overlay" id="exportBackupModal">

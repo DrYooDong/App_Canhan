@@ -141,6 +141,7 @@ class MedWardApp {
     window.handoverController?.closeHandoverDashboard?.();
     window.authController?.closeAuthModal?.();
     window.authController?.closeCloudSettingsModal?.();
+    window.authController?.closeChangePasswordModal?.();
     this.closeAbbreviationModal?.();
     this.closeShortcutsModal?.();
     window.patternLock?.closePatternChangeModal?.();

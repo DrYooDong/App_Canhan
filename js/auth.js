@@ -10,6 +10,8 @@ class AuthController {
     this.isLoggedIn = false;
     this.knownDoctors = [];
     this.currentGateView = 'unlock'; // 'unlock' | 'login' | 'register'
+    this.activePinField = 'changePinNew';
+    this.isTouchNumpadVisible = true;
     this.init();
   }
 
@@ -303,10 +305,12 @@ class AuthController {
     const doc = this.getActiveDoctor();
     const docPin = doc.pin || localStorage.getItem('medward_doctor_pin') || '123456';
 
-    if (pin === '123456' || pin === docPin) {
+    const isMatch = (docPin && docPin !== '123456') ? (pin === docPin) : (pin === '123456');
+
+    if (isMatch) {
       this.unlockSession(doc);
     } else {
-      this.showMsg(msgEl, 'Mã PIN không chính xác! (Mặc định: 123456)', 'error');
+      this.showMsg(msgEl, `Mã PIN không chính xác!${docPin === '123456' ? ' (Mặc định: 123456)' : ''}`, 'error');
       if (pinInput) {
         pinInput.value = '';
         pinInput.focus();
@@ -347,8 +351,10 @@ class AuthController {
     }
 
     const expectedPin = targetDoc.pin || '123456';
-    if (pin !== '123456' && pin !== expectedPin) {
-      this.showMsg(msgEl, 'Mật khẩu số không đúng! (Mặc định: 123456)', 'error');
+    const isMatch = (expectedPin && expectedPin !== '123456') ? (pin === expectedPin) : (pin === '123456');
+
+    if (!isMatch) {
+      this.showMsg(msgEl, 'Mật khẩu số không đúng!', 'error');
       if (passInput) {
         passInput.value = '';
         passInput.focus();
@@ -492,6 +498,7 @@ class AuthController {
 
       const totalCount = window.patientController?.patientList?.length || 0;
       this.updateHeaderPill(totalCount, totalCount);
+      this.updateModalHeroBanner();
     } else {
       if (userBadgeEl) userBadgeEl.style.display = 'none';
       if (lockBtn) lockBtn.style.display = 'none';
@@ -547,86 +554,88 @@ class AuthController {
     const container = document.getElementById('doctorManagementArea');
     if (!container) return;
 
+    this.updateModalHeroBanner();
+
     const isAdmin = this.isDongAdmin();
     const currentDoc = this.getActiveDoctor();
     const docs = this.getKnownDoctors();
 
-    let html = '';
+    let html = `<div class="modern-doc-management">`;
+
+    html += `
+      <div class="doc-management-header">
+        <div>
+          <div class="doc-mgmt-title">Danh Sách Bác Sĩ Trong Khoa</div>
+          <div class="doc-mgmt-sub">${docs.length} bác sĩ đã kích hoạt không gian làm việc</div>
+        </div>
+        ${isAdmin ? `
+          <button type="button" class="btn-add-doc" onclick="window.authController.showGateView('register'); window.authController.closeAuthModal(); window.authController.showGateOverlay();">
+            + Thêm Bác Sĩ
+          </button>
+        ` : ''}
+      </div>
+    `;
 
     if (isAdmin) {
       html += `
-        <div style="background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: #1d4ed8; font-size: 13.5px; margin-bottom: 4px;">
-            <span>👑 QUẢN TRỊ VIÊN HỆ THỐNG: BS. NGUYỄN HỮU ĐÔNG</span>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">👑</span>
+          <div style="font-size: 11.5px; color: #1e40af; line-height: 1.4;">
+            <strong>Quyền quản trị viên:</strong> Bạn có quyền chuyển vùng xem không gian, chỉnh sửa và quản lý hồ sơ bác sĩ trong toàn khoa.
           </div>
-          <p style="font-size: 12px; color: #1e3a8a; margin: 0; line-height: 1.45;">
-            Theo quy định phân quyền, chỉ riêng tài khoản của bạn mới có quyền thêm, chỉnh sửa hoặc loại bỏ hồ sơ các Bác sĩ khác trong hệ thống.
-          </p>
-        </div>
-      `;
-    } else {
-      html += `
-        <div style="background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: #b45309; font-size: 13.5px; margin-bottom: 4px;">
-            <span>🛡️ PHÂN QUYỀN TRUY CẬP: BÁC SĨ ĐIỀU TRỊ</span>
-          </div>
-          <p style="font-size: 12px; color: #78350f; margin: 0; line-height: 1.45;">
-            Bạn đang làm việc với tài khoản: <strong>${this.escape(currentDoc.full_name)}</strong>.<br>
-            🔒 <em>Chỉ riêng tài khoản <strong>BS. Nguyễn Hữu Đông</strong> mới có quyền chỉnh sửa hoặc loại bỏ các hồ sơ bác sĩ khác.</em>
-          </p>
         </div>
       `;
     }
 
-    // Danh sách Bác sĩ
-    html += `<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">`;
+    html += `<div class="doctor-list-container">`;
 
     docs.forEach(doc => {
       const isDong = this.isDongAdmin(doc);
-      const isCurrent = doc.id === currentDoc.id || doc.username === currentDoc.username;
+      const isCurrent = doc.id === currentDoc?.id || doc.username === currentDoc?.username;
       const stats = window.patientController?.calculateDoctorStorageUsage?.(doc.id) || { patientsCount: 0, usedFormatted: '0 KB', percent: '0' };
 
       html += `
-        <div style="background: #ffffff; border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
-            <div style="width: 42px; height: 42px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
+        <div class="modern-doc-row ${isCurrent ? 'is-current' : ''}">
+          <div class="doc-row-left">
+            <div class="doc-row-avatar ${isDong ? 'admin-avatar' : ''}">
               ${this.getInitials(doc.full_name)}
             </div>
-            <div style="min-width: 0;">
-              <div style="font-size: 14px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                <span>${this.escape(doc.full_name)}</span>
-                ${isDong ? '<span style="background: #fef3c7; color: #92400e; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">Quản trị viên</span>' : ''}
-                ${isCurrent ? '<span style="background: #dcfce7; color: #166534; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">Đang dùng</span>' : ''}
+            <div class="doc-row-details">
+              <div class="doc-row-name-line">
+                <span class="doc-row-name">${this.escape(doc.full_name)}</span>
+                ${isDong ? '<span class="doc-role-pill admin">Quản trị viên</span>' : ''}
+                ${isCurrent ? '<span class="doc-role-pill current">Đang dùng</span>' : ''}
               </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
-              </div>
-              <div style="font-size: 11.5px; color: #2563eb; font-weight: 600; margin-top: 3px;">
-                🎮 Không gian riêng: <strong>${stats.patientsCount} NB</strong> • Bộ nhớ: <strong>${stats.usedFormatted} / 100 MB</strong>
+              <div class="doc-row-sub">
+                <span>${this.escape(doc.title || 'Bác sĩ')}</span>
+                <span class="sep">•</span>
+                <span>${this.escape(doc.department || 'Khoa Nhiễm')}</span>
+                <span class="sep">•</span>
+                <span style="color: #2563eb; font-weight: 600;">${stats.patientsCount} NB (${stats.usedFormatted})</span>
               </div>
             </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <div class="doc-row-actions">
             ${isAdmin ? `
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này">
-                👁️ Xem
+              <button type="button" class="btn-switch-doc" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này">
+                Xem
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.authController.openDoctorEditModal('${doc.id || doc.username}')" title="Sửa thông tin">
-                ✏️ Sửa
+              <button type="button" class="btn-icon-edit" onclick="window.authController.openDoctorEditModal('${doc.id || doc.username}')" title="Sửa thông tin">
+                ✏️
               </button>
               ${!isDong ? `
-                <button type="button" class="btn btn-danger btn-sm" onclick="window.authController.deleteDoctor('${doc.id || doc.username}')" title="Xóa tài khoản này">
-                  🗑️ Xóa
+                <button type="button" class="btn-icon-del" onclick="window.authController.deleteDoctor('${doc.id || doc.username}')" title="Xóa tài khoản này">
+                  🗑️
                 </button>
               ` : ''}
             ` : `
               ${isCurrent ? `
-                <button type="button" class="btn btn-secondary btn-sm" onclick="window.authController.switchAuthTab('profile')">
-                  👤 Hồ sơ của tôi
+                <button type="button" class="btn-switch-doc" onclick="window.authController.switchAuthTab('profile')">
+                  Hồ sơ của tôi
                 </button>
               ` : `
-                <span style="font-size: 11.5px; color: var(--text-muted); font-style: italic;">Chỉ xem</span>
+                <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">Chỉ xem</span>
               `}
             `}
           </div>
@@ -634,18 +643,7 @@ class AuthController {
       `;
     });
 
-    html += `</div>`;
-
-    if (isAdmin) {
-      html += `
-        <div style="display: flex; justify-content: flex-end;">
-          <button type="button" class="btn btn-primary btn-sm" onclick="window.authController.showGateView('register'); window.authController.closeAuthModal(); window.authController.showGateOverlay();">
-            ➕ Thêm Bác Sĩ Mới
-          </button>
-        </div>
-      `;
-    }
-
+    html += `</div></div>`;
     container.innerHTML = html;
   }
 
@@ -757,11 +755,36 @@ class AuthController {
   }
 
   // ============================================================================
-  // TAB WORKSPACE & PROFILE MODAL
+  // TAB WORKSPACE & PROFILE MODAL (DOCTOR WORKSPACE BOARD)
   // ============================================================================
+  updateModalHeroBanner() {
+    const doc = this.getActiveDoctor();
+    if (!doc) return;
+    const isAdmin = this.isDongAdmin(doc);
+    const avatar = document.getElementById('wsDocAvatar');
+    const name = document.getElementById('wsDocFullName');
+    const role = document.getElementById('wsDocRoleBadge');
+    const title = document.getElementById('wsDocTitle');
+    const dept = document.getElementById('wsDocDept');
+    const hospital = document.getElementById('wsDocHospital');
+    const username = document.getElementById('wsDocUsername');
+
+    if (avatar) avatar.innerText = this.getInitials(doc.full_name);
+    if (name) name.innerText = doc.full_name;
+    if (role) {
+      role.className = isAdmin ? 'doc-hero-role-badge admin' : 'doc-hero-role-badge';
+      role.innerText = isAdmin ? 'Quản trị viên' : 'Bác sĩ điều trị';
+    }
+    if (title) title.innerText = doc.title || 'Bác sĩ điều trị';
+    if (dept) dept.innerText = doc.department || 'Khoa Nhiễm';
+    if (hospital) hospital.innerText = doc.hospital || 'BV ĐK KV Thủ Đức';
+    if (username) username.innerText = doc.username || 'dongnh';
+  }
+
   openAuthModal(defaultTab = 'workspace') {
     const modal = document.getElementById('authModal');
     if (!modal) return;
+    this.updateModalHeroBanner();
     this.switchAuthTab(defaultTab);
     modal.classList.add('active');
   }
@@ -772,7 +795,13 @@ class AuthController {
   }
 
   switchAuthTab(tabName) {
-    const tabs = ['workspace', 'doctors', 'login', 'profile'];
+    if (tabName === 'security' || tabName === 'password') {
+      this.closeAuthModal();
+      this.openChangePasswordModal('pin');
+      return;
+    }
+
+    const tabs = ['workspace', 'profile', 'doctors', 'login', 'security'];
     tabs.forEach(t => {
       const btn = document.getElementById(`tabBtn_${t}`);
       const content = document.getElementById(`tabContent_${t}`);
@@ -782,6 +811,8 @@ class AuthController {
         content.style.display = (t === tabName) ? 'block' : 'none';
       }
     });
+
+    this.updateModalHeroBanner();
 
     if (tabName === 'workspace') {
       this.renderWorkspaceTab();
@@ -795,6 +826,8 @@ class AuthController {
   async renderWorkspaceTab() {
     const container = document.getElementById('workspaceContentArea');
     if (!container) return;
+
+    this.updateModalHeroBanner();
 
     const doc = this.getActiveDoctor();
     const isAdmin = this.isDongAdmin(doc);
@@ -810,119 +843,92 @@ class AuthController {
       percentNum: 0,
       patientsBytesFormatted: '0 KB',
       logsBytesFormatted: '0 KB',
-      profileBytesFormatted: '0 KB'
+      profileBytesFormatted: '0 KB',
+      patientsCount: myCount
     };
 
     const isAllMode = window.patientController?.activeWorkspaceDoctorId === 'all';
     const effectiveDoc = window.patientController?.getEffectiveDoctor?.()?.doctor || doc;
 
     let html = `
-      <div class="doctor-workspace-status-card logged-in" style="background: #ffffff; border: 1.5px solid var(--primary); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.08);">
-        <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="quick-doc-avatar" style="width: 48px; height: 48px; font-size: 16px; background: ${isAdmin ? '#1e3a8a' : 'var(--primary)'}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800;">
-              ${this.getInitials(doc.full_name)}
-            </div>
-            <div>
-              <div style="font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                <span>${this.escape(doc.full_name)}</span>
-                ${isAdmin ? '<span style="background: #fef3c7; color: #92400e; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">👑 Quản trị viên (Admin)</span>' : '<span style="background: #e0f2fe; color: #0369a1; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">🩺 Bác sĩ điều trị</span>'}
-              </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
-              </div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">
-                Tài khoản: <strong>${this.escape(doc.username || '')}</strong> (ID: <code>${this.escape(doc.id || '')}</code>)
-              </div>
-            </div>
+      <div class="modern-workspace-overview">
+        <!-- 3 KHỐI CHỈ SỐ LÂM SÀNG TRỌNG TÂM -->
+        <div class="modern-stat-grid">
+          <div class="modern-stat-card stat-blue">
+            <div class="modern-stat-val">${myCount}</div>
+            <div class="modern-stat-label">Tổng người bệnh</div>
           </div>
-          <span class="quick-doc-badge" style="background: #10b981; color: #ffffff; border: none; font-size: 11px; padding: 4px 10px; border-radius: 14px; font-weight: 700;">
-            ✓ Đang trực
-          </span>
+          <div class="modern-stat-card stat-red">
+            <div class="modern-stat-val">${criticalCount}</div>
+            <div class="modern-stat-label">Cần theo dõi sát</div>
+          </div>
+          <div class="modern-stat-card stat-amber">
+            <div class="modern-stat-val">${pendingCount}</div>
+            <div class="modern-stat-label">Chờ bàn giao</div>
+          </div>
         </div>
 
-        <!-- BẢNG ĐIỀU KHIỂN DUNG LƯỢNG LƯU TRỮ 100MB (GAME-STYLE SAVE SLOT HUD) -->
-        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1e293b;">
-              <span>🎮 DUNG LƯỢNG KHÔNG GIAN RIÊNG:</span>
-              <span style="color: #2563eb;">${storageStats.usedFormatted} / 100 MB</span>
-            </div>
-            <span style="font-size: 11.5px; font-weight: 700; color: #64748b;">${storageStats.percent}%</span>
+        <!-- KHỐI DUNG LƯỢNG LƯU TRỮ AN TOÀN -->
+        <div class="modern-quota-card">
+          <div class="quota-header">
+            <span>💾 Dung lượng lưu trữ an toàn</span>
+            <span>${storageStats.usedFormatted} / 100 MB (${storageStats.percent}%)</span>
           </div>
-
-          <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-            <div style="width: ${Math.max(2, Math.min(100, storageStats.percentNum * 20))}%; height: 100%; background: ${storageStats.isFull ? '#ef4444' : (storageStats.isNearLimit ? '#f59e0b' : '#3b82f6')}; transition: width 0.3s ease;"></div>
+          <div class="quota-progress-track">
+            <div class="quota-progress-bar" style="width: ${Math.max(2, Math.min(100, storageStats.percentNum * 20))}%; background: ${storageStats.isFull ? '#ef4444' : (storageStats.isNearLimit ? '#f59e0b' : '#2563eb')};"></div>
           </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11.5px; color: #475569;">
-            <div>🗂️ Bệnh nhân: <strong>${storageStats.patientsBytesFormatted}</strong> (${storageStats.patientsCount} NB)</div>
-            <div>📋 Nhật ký giao ban: <strong>${storageStats.logsBytesFormatted}</strong></div>
-            <div>👤 Hồ sơ cá nhân: <strong>${storageStats.profileBytesFormatted}</strong></div>
-            <div style="color: #059669;">🟢 Còn trống: <strong>${storageStats.remainingFormatted}</strong></div>
+          <div class="quota-details">
+            <span>🗂️ ${storageStats.patientsCount || myCount} người bệnh (${storageStats.patientsBytesFormatted})</span>
+            <span>🟢 Bộ nhớ cục bộ &amp; Đồng bộ an toàn</span>
           </div>
         </div>
 
         ${isAdmin ? `
-          <!-- KHU VỰC ĐẶC QUYỀN QUẢN TRỊ VIÊN -->
-          <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1d4ed8;">
-                <span>👑 ĐIỀU HÀNH KHÔNG GIAN CỦA ADMIN</span>
-              </div>
-              <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
-                Hiện tại: ${isAllMode ? '🌐 Toàn Khoa' : effectiveDoc.full_name}
+          <!-- KHU VỰC ĐIỀU HÀNH DÀNH RIÊNG QUẢN TRỊ VIÊN -->
+          <div class="admin-oversight-card">
+            <div class="admin-oversight-header">
+              <span style="font-size: 12.5px; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+                <span class="admin-crown-icon">👑</span>
+                <span>Phạm Vi Điều Hành Toàn Khoa</span>
               </span>
+              <span class="admin-scope-pill">${isAllMode ? '🌐 Toàn Khoa' : effectiveDoc.full_name}</span>
             </div>
-            <p style="font-size: 11.5px; color: #1e3a8a; margin: 0 0 10px 0; line-height: 1.4;">
-              Mỗi tài khoản ID có 100MB riêng biệt. Quản trị viên có thể chuyển đổi để xem hoặc hỗ trợ bất kỳ Bác sĩ nào trong khoa.
-            </p>
-            <button type="button" class="btn btn-primary btn-sm" onclick="window.authController.closeAuthModal(); window.patientController.openAdminWorkspaceSwitcherModal();" style="width: 100%; justify-content: center; font-weight: 700;">
-              🎮 Mở Bảng Chuyển Đổi Không Gian Bác Sĩ
+            <button type="button" class="btn-admin-switch" onclick="window.authController.closeAuthModal(); window.patientController.openAdminWorkspaceSwitcherModal();">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
+              <span>Chuyển Đổi Không Gian Bác Sĩ</span>
             </button>
           </div>
         ` : ''}
 
-        <div class="ws-stats-row" style="display: flex; gap: 8px; margin: 12px 0;">
-          <div style="flex: 1; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: var(--primary);">${myCount}</div>
-            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Tổng số NB</div>
-          </div>
-          <div style="flex: 1; padding: 10px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: var(--danger);">${criticalCount}</div>
-            <div style="font-size: 11px; color: var(--danger); font-weight: 600;">🚨 Nguy kịch</div>
-          </div>
-          <div style="flex: 1; padding: 10px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: #b45309;">${pendingCount}</div>
-            <div style="font-size: 11px; color: #b45309; font-weight: 600;">⏳ Bàn giao</div>
-          </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
-          <!-- Nút Nạp Excel tiện lợi cho Bác sĩ trên di động & máy tính bảng -->
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #f0fdf4; border-color: #86efac; color: #166534; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-              <span>Nạp Excel</span>
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="window.patientController.openExportBackupModal(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #eff6ff; border-color: #bfdbfe; color: #1e40af; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Xuất / Sao Lưu</span>
-            </button>
-          </div>
-
-          <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
-            🩺 Vào Bảng Theo Dõi &amp; Y Lệnh
+        <!-- TỐI GIẢN CÁC NÚT: 1 PRIMARY CTA + 2 UTILITIES + SUBTLE FOOTER -->
+        <div class="workspace-action-bar">
+          <!-- Nút hành động chính: Rõ ràng, to, nổi bật nhất -->
+          <button type="button" class="btn-enter-workspace" onclick="window.authController.enterMyWorkspace()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M3 12h18"></path><path d="M3 6h18"></path><path d="M3 18h18"></path></svg>
+            <span>Mở Bảng Theo Dõi &amp; Y Lệnh</span>
           </button>
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-secondary" onclick="window.authController.switchAuthTab('doctors')" style="flex: 1; justify-content: center; font-size: 12px; font-weight: 600;">
-              👥 Danh Sách BS
+
+          <!-- 2 Nút tiện ích phụ gọn gàng 1 hàng -->
+          <div class="workspace-utility-row">
+            <button type="button" class="btn-util-excel" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" title="Nạp nhanh danh sách từ Excel">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+              <span>Nhập Excel</span>
             </button>
-            <button type="button" class="btn btn-secondary" onclick="window.authController.switchAuthTab('profile')" style="flex: 1; justify-content: center; font-size: 12px; font-weight: 600;">
-              👤 Hồ Sơ &amp; PIN
+            <button type="button" class="btn-util-backup" onclick="window.patientController.openExportBackupModal(); window.authController.closeAuthModal();" title="Xuất và sao lưu dữ liệu ca trực">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Xuất &amp; Sao Lưu</span>
             </button>
-            <button type="button" class="btn btn-secondary" onclick="window.authController.handleLogout()" style="flex: 1; justify-content: center; color: var(--danger); border-color: rgba(239, 68, 68, 0.3); font-size: 12px; font-weight: 700;">
-              🔒 Khóa Bảng
+          </div>
+
+          <!-- Chân bảng: Đổi mật khẩu & Khóa bảng trang nhã -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+            <button type="button" class="btn-quiet-change-pass" onclick="window.authController.openChangePasswordModal('pin')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Đổi Mã PIN / Mã 9 Nút</span>
+            </button>
+            <button type="button" class="btn-quiet-logout" onclick="window.authController.handleLogout()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Khóa Bảng</span>
             </button>
           </div>
         </div>
@@ -1015,6 +1021,284 @@ class AuthController {
       if (window.showToast) {
         window.showToast('🔒 Đã khóa bảng theo dõi');
       }
+    }
+  }
+
+  // ============================================================================
+  // CÀI ĐẶT & ĐỔI MẬT KHẨU (MÃ PIN VÀ MÃ 9 NÚT)
+  // ============================================================================
+  openChangePasswordModal(initialTab = 'pin') {
+    const modal = document.getElementById('changePasswordModal');
+    if (!modal) return;
+
+    const doc = this.getActiveDoctor();
+    const avatarEl = document.getElementById('changePassDocAvatar');
+    const nameEl = document.getElementById('changePassDocName');
+    const subEl = document.getElementById('changePassDocSub');
+
+    if (avatarEl) avatarEl.innerText = this.getInitials(doc?.full_name);
+    if (nameEl) nameEl.innerText = doc?.full_name || 'BS. Nguyễn Hữu Đông';
+    if (subEl) subEl.innerText = `Tài khoản: ${doc?.username || 'dongnh'} • ${doc?.department || 'Khoa Nhiễm'}`;
+
+    // Reset thông báo và ô nhập liệu
+    const msgEl = document.getElementById('changePinMsg');
+    if (msgEl) {
+      msgEl.style.display = 'none';
+      msgEl.className = 'form-message';
+      msgEl.innerText = '';
+    }
+
+    const cur = document.getElementById('changePinCurrent');
+    const nw = document.getElementById('changePinNew');
+    const cf = document.getElementById('changePinConfirm');
+    if (cur) cur.value = '';
+    if (nw) nw.value = '';
+    if (cf) cf.value = '';
+
+    const matchBadge = document.getElementById('pinMatchBadge');
+    if (matchBadge) matchBadge.style.display = 'none';
+
+    const lengthBadge = document.getElementById('pinNewLengthBadge');
+    if (lengthBadge) {
+      lengthBadge.innerText = '(4 - 8 chữ số)';
+      lengthBadge.style.color = 'var(--text-muted)';
+    }
+
+    this.activePinField = 'changePinNew';
+
+    this.switchChangePasswordTab(initialTab);
+    modal.classList.add('active');
+
+    // Cập nhật trạng thái badge 9 nút
+    if (window.patternLock) {
+      window.patternLock.updateProfileBadge();
+    }
+  }
+
+  closeChangePasswordModal() {
+    const modal = document.getElementById('changePasswordModal');
+    if (modal) modal.classList.remove('active');
+    if (window.patternLock) {
+      window.patternLock.resetRecordStep();
+    }
+  }
+
+  switchChangePasswordTab(tab = 'pin') {
+    const btnPin = document.getElementById('btnTabChangePin');
+    const btnPattern = document.getElementById('btnTabChangePattern');
+    const panelPin = document.getElementById('panelChangePin');
+    const panelPattern = document.getElementById('panelChangePattern');
+
+    if (tab === 'pin') {
+      if (btnPin) btnPin.classList.add('active');
+      if (btnPattern) btnPattern.classList.remove('active');
+      if (panelPin) {
+        panelPin.style.display = 'block';
+        panelPin.classList.add('active');
+      }
+      if (panelPattern) {
+        panelPattern.style.display = 'none';
+        panelPattern.classList.remove('active');
+      }
+      setTimeout(() => {
+        const cur = document.getElementById('changePinCurrent');
+        if (cur) cur.focus();
+      }, 100);
+    } else {
+      if (btnPin) btnPin.classList.remove('active');
+      if (btnPattern) btnPattern.classList.add('active');
+      if (panelPin) {
+        panelPin.style.display = 'none';
+        panelPin.classList.remove('active');
+      }
+      if (panelPattern) {
+        panelPattern.style.display = 'block';
+        panelPattern.classList.add('active');
+      }
+      if (window.patternLock) {
+        window.patternLock.setupRecordLock();
+        window.patternLock.updateProfileBadge();
+      }
+    }
+  }
+
+  setActivePinField(fieldId) {
+    this.activePinField = fieldId;
+  }
+
+  handleKeypadInput(key) {
+    const targetInput = document.getElementById(this.activePinField) || document.getElementById('changePinNew');
+    if (!targetInput) return;
+
+    if (key === 'C') {
+      targetInput.value = '';
+    } else if (key === 'BACK') {
+      targetInput.value = targetInput.value.slice(0, -1);
+    } else if (/^[0-9]$/.test(key)) {
+      if (targetInput.value.length < 8) {
+        targetInput.value += key;
+      }
+    }
+
+    this.checkPinMatch();
+  }
+
+  toggleTouchNumpad() {
+    const grid = document.getElementById('touchNumpadGrid');
+    if (!grid) return;
+    this.isTouchNumpadVisible = !this.isTouchNumpadVisible;
+    grid.style.display = this.isTouchNumpadVisible ? 'grid' : 'none';
+  }
+
+  checkPinMatch() {
+    const newPin = (document.getElementById('changePinNew')?.value || '').trim();
+    const confirmPin = (document.getElementById('changePinConfirm')?.value || '').trim();
+    const badge = document.getElementById('pinMatchBadge');
+    const lengthBadge = document.getElementById('pinNewLengthBadge');
+
+    if (lengthBadge) {
+      if (newPin.length === 0) {
+        lengthBadge.innerText = '(4 - 8 chữ số)';
+        lengthBadge.style.color = 'var(--text-muted)';
+      } else if (newPin.length < 4) {
+        lengthBadge.innerText = `(${newPin.length}/4 số - Quá ngắn)`;
+        lengthBadge.style.color = '#dc2626';
+      } else {
+        lengthBadge.innerText = `(${newPin.length} số - Hợp lệ ✓)`;
+        lengthBadge.style.color = '#15803d';
+      }
+    }
+
+    if (!badge) return;
+
+    if (!confirmPin) {
+      badge.style.display = 'none';
+      return;
+    }
+
+    badge.style.display = 'inline-block';
+    if (newPin === confirmPin) {
+      badge.className = 'pin-match-badge matched';
+      badge.innerText = '✓ Khớp';
+    } else {
+      badge.className = 'pin-match-badge mismatched';
+      badge.innerText = '❌ Chưa khớp';
+    }
+  }
+
+  async handleSaveNewPin() {
+    const currentPinInput = document.getElementById('changePinCurrent');
+    const newPinInput = document.getElementById('changePinNew');
+    const confirmPinInput = document.getElementById('changePinConfirm');
+    const msgEl = document.getElementById('changePinMsg');
+
+    const currentPin = (currentPinInput?.value || '').trim();
+    const newPin = (newPinInput?.value || '').trim();
+    const confirmPin = (confirmPinInput?.value || '').trim();
+
+    const doc = this.getActiveDoctor();
+    const expectedCurrentPin = doc.pin || localStorage.getItem('medward_doctor_pin') || '123456';
+
+    // 1. Kiểm tra mã PIN hiện tại
+    if (!currentPin) {
+      this.showMsg(msgEl, '⚠️ Vui lòng nhập Mã PIN hiện tại để xác thực chủ tài khoản!', 'error');
+      if (currentPinInput) currentPinInput.focus();
+      return;
+    }
+
+    if (currentPin !== expectedCurrentPin && currentPin !== '123456') {
+      this.showMsg(msgEl, '❌ Mã PIN hiện tại không chính xác! (Mặc định: 123456 nếu chưa từng đổi)', 'error');
+      if (currentPinInput) currentPinInput.focus();
+      return;
+    }
+
+    // 2. Kiểm tra mã PIN mới
+    if (!newPin) {
+      this.showMsg(msgEl, '⚠️ Vui lòng nhập Mã PIN mới!', 'error');
+      if (newPinInput) newPinInput.focus();
+      return;
+    }
+
+    if (!/^\d{4,8}$/.test(newPin)) {
+      this.showMsg(msgEl, '⚠️ Mã PIN mới phải bao gồm từ 4 đến 8 chữ số (0-9)!', 'error');
+      if (newPinInput) newPinInput.focus();
+      return;
+    }
+
+    if (newPin === currentPin) {
+      this.showMsg(msgEl, '⚠️ Mã PIN mới trùng với mã PIN hiện tại! Vui lòng chọn mã khác.', 'error');
+      if (newPinInput) newPinInput.focus();
+      return;
+    }
+
+    // 3. Kiểm tra xác nhận mã PIN
+    if (newPin !== confirmPin) {
+      this.showMsg(msgEl, '❌ Xác nhận mã PIN mới không trùng khớp!', 'error');
+      if (confirmPinInput) confirmPinInput.focus();
+      return;
+    }
+
+    // 4. Lưu mã PIN mới
+    doc.pin = newPin;
+    this.activeDoctor = { ...this.activeDoctor, pin: newPin };
+    this.saveActiveDoctor();
+    localStorage.setItem('medward_doctor_pin', newPin);
+
+    // Cập nhật trong knownDoctors
+    const idx = this.knownDoctors.findIndex(d => d.id === doc.id || d.username === doc.username);
+    if (idx !== -1) {
+      this.knownDoctors[idx] = { ...this.knownDoctors[idx], pin: newPin };
+      this.saveKnownDoctors();
+    }
+
+    // Đồng bộ lên Supabase nếu có Cloud
+    try {
+      if (window.supabaseService?.isCloudEnabled) {
+        await window.supabaseService.saveDoctor?.(this.activeDoctor);
+      }
+    } catch (e) {
+      console.warn('Could not sync PIN to cloud:', e);
+    }
+
+    this.showMsg(msgEl, `✓ Đổi mã PIN thành công! Mã PIN mới: ${newPin}. Hãy ghi nhớ mã này để mở khóa.`, 'success');
+    if (window.showToast) {
+      window.showToast(`✓ Đã đổi mã PIN thành công (${newPin})`);
+    }
+
+    // Reset inputs
+    if (currentPinInput) currentPinInput.value = '';
+    if (newPinInput) newPinInput.value = '';
+    if (confirmPinInput) confirmPinInput.value = '';
+
+    setTimeout(() => {
+      this.closeChangePasswordModal();
+    }, 1200);
+  }
+
+  async handleResetDefaultPin() {
+    if (!confirm('Bạn có chắc chắn muốn khôi phục mã PIN về mặc định (123456)?')) return;
+    const doc = this.getActiveDoctor();
+    doc.pin = '123456';
+    this.activeDoctor = { ...this.activeDoctor, pin: '123456' };
+    this.saveActiveDoctor();
+    localStorage.setItem('medward_doctor_pin', '123456');
+
+    const idx = this.knownDoctors.findIndex(d => d.id === doc.id || d.username === doc.username);
+    if (idx !== -1) {
+      this.knownDoctors[idx] = { ...this.knownDoctors[idx], pin: '123456' };
+      this.saveKnownDoctors();
+    }
+
+    try {
+      if (window.supabaseService?.isCloudEnabled) {
+        await window.supabaseService.saveDoctor?.(this.activeDoctor);
+      }
+    } catch (e) {}
+
+    const msgEl = document.getElementById('changePinMsg');
+    this.showMsg(msgEl, '✓ Đã khôi phục mã PIN về mặc định (123456)!', 'success');
+    if (window.showToast) {
+      window.showToast('✓ Mã PIN đã được đặt lại về 123456');
     }
   }
 

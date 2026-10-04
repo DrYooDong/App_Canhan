@@ -4285,5 +4285,1175 @@ body.app-locked .app-container {
   color: var(--text-main);
 }
 
+/* ==============================================================================
+   CÀI ĐẶT & ĐỔI MẬT KHẨU (MÃ PIN & MÃ KHÓA 9 NÚT)
+   ============================================================================== */
+.btn-change-password-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-change-password-header:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+  border-color: #94a3b8;
+}
+
+.change-pass-modal-card {
+  max-width: 480px;
+  width: 95%;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
+}
+
+.change-pass-doctor-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+.change-pass-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.change-pass-doc-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.change-pass-doc-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.change-pass-tabs {
+  display: flex;
+  background: #e2e8f0;
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  gap: 4px;
+}
+.change-pass-tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  font-size: 12.5px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.change-pass-tab-btn.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.change-pass-tab-panel {
+  display: none;
+}
+.change-pass-tab-panel.active {
+  display: block;
+}
+
+/* Form đổi PIN */
+.pin-input-group {
+  margin-bottom: 12px;
+}
+.pin-input-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--text-main);
+  margin-bottom: 5px;
+}
+.pin-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pin-input-wrapper input {
+  width: 100%;
+  padding-right: 42px;
+  font-size: 15px;
+  letter-spacing: 2px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.btn-toggle-pin {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px 8px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-toggle-pin:hover {
+  color: var(--text-main);
+}
+
+.pin-match-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.pin-match-badge.matched {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pin-match-badge.mismatched {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Bàn phím số cảm ứng (Touch Keypad) */
+.touch-numpad-wrap {
+  margin: 14px 0 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+.touch-numpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.touch-numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+.numpad-key {
+  height: 42px;
+  font-size: 18px;
+  font-weight: 700;
+  background: #ffffff;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.numpad-key:active {
+  background: #e2e8f0;
+  transform: scale(0.95);
+  border-color: var(--primary);
+}
+.numpad-key.key-action {
+  font-size: 14px;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #475569;
+}
+.numpad-key.key-clear {
+  color: #dc2626;
+}
+.numpad-key.key-backspace {
+  color: #b45309;
+}
+
+/* Chế độ kiểm tra (Test Pattern) */
+.pattern-test-card {
+  margin-top: 12px;
+  padding: 10px;
+  background: #eff6ff;
+  border: 1.5px dashed #93c5fd;
+  border-radius: 10px;
+  text-align: center;
+}
+.pattern-mode-selector {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pattern-sub-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+}
+.pattern-sub-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+/* ==============================================================================
+   THIẾT KẾ HIỆN ĐẠI MỚI: BẢNG KHÔNG GIAN LÀM VIỆC BÁC SĨ (DOCTOR WORKSPACE)
+   ============================================================================== */
+.doctor-workspace-modal-card {
+  max-width: 620px;
+  width: 95%;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-doc-modal-header {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modern-doc-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-stethoscope-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.header-main-title {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.header-sub-title {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* HERO DOCTOR PROFILE BANNER */
+.doc-hero-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 22px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.doc-hero-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.doc-hero-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  border: 2px solid #ffffff;
+}
+
+.doc-hero-pulse-dot {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2.5px solid #ffffff;
+}
+
+.doc-hero-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.doc-hero-name {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.doc-hero-role-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.doc-hero-role-badge.admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.doc-hero-meta {
+  font-size: 12.5px;
+  color: #475569;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.doc-hero-meta .sep,
+.doc-hero-account .sep {
+  color: #cbd5e1;
+}
+
+.doc-hero-account {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.doc-hero-status-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+/* MODERN SEGMENTED TABS */
+.modern-auth-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  margin: 16px 20px 0;
+  border-radius: 12px;
+  gap: 4px;
+}
+
+.modern-auth-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 12.5px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.modern-auth-tab:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.modern-auth-tab.active {
+  background: #ffffff;
+  color: #1e3a8a;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+/* TAB 1: CLINICAL KPI METRICS & WORKSPACE DASHBOARD */
+.modern-workspace-overview {
+  padding: 16px 20px 20px;
+}
+
+.modern-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.modern-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.modern-stat-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.modern-stat-card.stat-blue {
+  border-top: 3.5px solid #2563eb;
+  background: #fafbff;
+}
+
+.modern-stat-card.stat-red {
+  border-top: 3.5px solid #ef4444;
+  background: #fff8f8;
+}
+
+.modern-stat-card.stat-amber {
+  border-top: 3.5px solid #f59e0b;
+  background: #fffdf7;
+}
+
+.modern-stat-val {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-blue .modern-stat-val { color: #1e3a8a; }
+.stat-red .modern-stat-val { color: #dc2626; }
+.stat-amber .modern-stat-val { color: #b45309; }
+
+.modern-stat-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 5px;
+}
+
+/* QUOTA & CLOUD CARD */
+.modern-quota-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.quota-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.quota-progress-bar {
+  height: 100%;
+  border-radius: 6px;
+  background: #2563eb;
+  transition: width 0.3s ease;
+}
+
+.quota-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* ADMIN OVERSIGHT CARD */
+.admin-oversight-card {
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.admin-oversight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.admin-crown-icon {
+  font-size: 15px;
+}
+
+.admin-scope-pill {
+  font-size: 11px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.btn-admin-switch {
+  width: 100%;
+  height: 34px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
+
+.btn-admin-switch:hover {
+  background: #1d4ed8;
+}
+
+/* MINIMAL ACTION STACK FOR TAB 1 */
+.workspace-action-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-enter-workspace {
+  width: 100%;
+  height: 44px;
+  background: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+}
+
+.btn-enter-workspace:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.workspace-utility-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-util-excel, .btn-util-backup {
+  height: 38px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-util-excel {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.btn-util-excel:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.btn-util-backup {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+.btn-util-backup:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn-quiet-logout {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-quiet-logout:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.btn-quiet-change-pass {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-quiet-change-pass:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* TAB 2: PROFILE & SECURITY FORM */
+.doc-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.doc-form-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.doc-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.col-span-2 {
+  grid-column: span 2;
+}
+
+.modern-form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+.modern-form-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+
+.modern-form-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.modern-form-input.locked-input {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.input-lock-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-lock-icon {
+  position: absolute;
+  right: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* MODERN SECURITY SUMMARY CARD (REPLACES CLUMSY 3 BUTTONS) */
+.modern-security-card {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+.security-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.security-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.security-icon-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #e0f2fe;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.security-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.security-desc {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.btn-security-action {
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  color: #2563eb;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+  flex-shrink: 0;
+}
+
+.btn-security-action:hover {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+.security-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 12px;
+}
+
+.security-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-label {
+  color: #64748b;
+}
+
+.status-val {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.status-badge-active {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.status-divider {
+  color: #cbd5e1;
+}
+
+/* PROFILE ACTIONS: MINIMAL 2 BUTTONS */
+.profile-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.btn-save-profile {
+  flex: 1;
+  height: 42px;
+  background: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.15);
+}
+
+.btn-save-profile:hover {
+  background: #1d4ed8;
+}
+
+.btn-profile-logout {
+  height: 42px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #dc2626;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-profile-logout:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+/* TAB 3: DOCTOR DIRECTORY */
+.modern-doc-management {
+  padding: 16px 20px 20px;
+}
+
+.doc-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.doc-mgmt-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.doc-mgmt-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.btn-add-doc {
+  padding: 7px 12px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-add-doc:hover {
+  background: #1d4ed8;
+}
+
+.doctor-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.modern-doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.15s ease;
+  gap: 12px;
+}
+
+.modern-doc-row:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.modern-doc-row.is-current {
+  border: 1.5px solid #2563eb;
+  background: #f8fafc;
+}
+
+.doc-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.doc-row-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.doc-row-avatar.admin-avatar {
+  background: #1e3a8a;
+}
+
+.doc-row-details {
+  min-width: 0;
+}
+
+.doc-row-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.doc-row-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.doc-role-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.doc-role-pill.admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.doc-role-pill.current {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.doc-row-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.doc-row-sub .sep {
+  color: #cbd5e1;
+}
+
+.doc-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-row-pt-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-switch-doc {
+  height: 30px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #1e3a8a;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-switch-doc:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.btn-icon-edit, .btn-icon-del {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-edit:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-icon-del:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+@media (max-width: 600px) {
+  .doc-hero-banner {
+    padding: 14px 16px;
+  }
+  .modern-auth-tabs {
+    margin: 12px 14px 0;
+  }
+  .modern-workspace-overview,
+  .modern-doc-management {
+    padding: 14px 16px;
+  }
+  .doc-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .col-span-2 {
+    grid-column: span 1;
+  }
+}
+
 
 
