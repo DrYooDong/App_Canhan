@@ -140,10 +140,6 @@
             <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
           </div>
 
-          <div class="pattern-hint-box">
-            <span>💡 Gợi ý: Nối hình chữ</span>
-          </div>
-
           <div class="pattern-action-row">
             <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
               🔄 Vẽ lại
@@ -297,10 +293,6 @@
           </div>
         </form>
       </div>
-
-      <div class="gate-security-note">
-        🛡️ Dữ liệu bảo mật y tế: Chỉ bác sĩ điều trị và nhân viên y tế mới được quyền truy cập.
-      </div>
     </div>
   </div>
 
@@ -322,11 +314,10 @@
         </div>
 
         <div class="mobile-brand-actions">
-          <!-- Nút đổi chế độ xem: Bảng 💻 ↔ Thẻ 📱 -->
+          <!-- Nút đổi chế độ xem dạng Icon: Bảng 💻 ↔ Thẻ 📱 -->
           <button class="mobile-btn-action" id="btnMobileToggleView" onclick="window.medWardApp.toggleViewMode()"
             title="Đổi chế độ xem (Thẻ / Bảng)">
             <span id="mobileViewModeIcon">📱</span>
-            <span class="mobile-action-label" id="mobileViewModeText">Thẻ</span>
           </button>
 
           <!-- Pill Bác sĩ di động -->
@@ -338,7 +329,7 @@
 
           <!-- Khóa bảng -->
           <button class="mobile-btn-action mobile-btn-lock" onclick="window.authController.handleLogout()"
-            title="Khóa bảng & Đăng xuất">
+            title="Khóa bảng &amp; Đăng xuất">
             🔒
           </button>
         </div>
@@ -368,38 +359,36 @@
         </div>
       </div>
 
-      <!-- Hộp tìm kiếm nhanh & Cụm nút Nạp Excel / Sao lưu trên Mobile -->
+      <!-- Hộp tìm kiếm nhanh & Cụm nút Nạp Excel / Sao lưu trên Mobile dạng Icon -->
       <div class="mobile-search-row">
         <div class="mobile-search-wrapper">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="mobileSearchInput" placeholder="Tìm tên người bệnh, buồng giường, chẩn đoán..."
+          <input type="text" id="mobileSearchInput" placeholder="Tìm người bệnh, buồng giường, CĐ..."
             oninput="window.patientController.handleMobileSearch(this.value)">
           <button type="button" id="btnMobileClearSearch" class="btn-clear-search"
             onclick="window.patientController.clearMobileSearch()" style="display: none;">✕</button>
         </div>
         <button type="button" class="btn-mobile-excel" onclick="document.getElementById('excelFileInput').click()"
-          title="Nhập danh sách từ Excel (.xlsx, .xls)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          title="Nạp file Excel (.xlsx)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
             stroke-linecap="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="12" y1="18" x2="12" y2="12"></line>
             <polyline points="9 15 12 12 15 15"></polyline>
           </svg>
-          <span>Excel</span>
         </button>
         <button type="button" class="btn-mobile-excel btn-mobile-backup"
-          onclick="window.patientController.openExportBackupModal()" title="Xuất file / Sao lưu chống mất dữ liệu">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          onclick="window.patientController.openExportBackupModal()" title="Sao lưu / Xuất file">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
             stroke-linecap="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Lưu</span>
         </button>
       </div>
     </div>
@@ -444,23 +433,21 @@
 
         <!-- Nút Khóa Bảng & Đăng Xuất -->
         <button class="btn-lock-board" id="btnLockBoard" onclick="window.authController.handleLogout()"
-          data-tooltip="Khóa bảng theo dõi &amp; Đăng xuất">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          data-tooltip="Khóa bảng theo dõi &amp; Đăng xuất" aria-label="Khóa bảng theo dõi &amp; Đăng xuất">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>Khóa</span>
         </button>
 
         <!-- Nút Đăng Nhập Bác Sĩ (Hiển thị khi chưa đăng nhập) -->
         <button class="btn-doctor-login" id="btnLoginHeader" onclick="window.authController.showGateOverlay()"
-          style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          style="display: none;" data-tooltip="Đăng nhập vào không gian Bác sĩ" aria-label="Đăng nhập Bác sĩ">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-          <span>Đăng nhập BS</span>
         </button>
       </div>
     </header>
@@ -512,85 +499,79 @@
       <div class="toolbar-actions">
         <!-- NHÓM 1: NÚT HÀNH ĐỘNG CHÍNH (PRIMARY CTA) -->
         <button class="btn-compact btn-primary" onclick="window.patientController.openAddPatientModal()"
-          data-tooltip="Thêm bệnh nhân mới &amp; Nhập liệu">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          data-tooltip="Thêm bệnh nhân mới (Ctrl+N)" aria-label="Thêm bệnh nhân mới">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
             stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>Thêm NB</span>
         </button>
 
         <div class="toolbar-divider"></div>
 
-        <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS) -->
+        <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS - ICON DẠNG GỌN) -->
         <button class="btn-compact btn-subtle" id="btnNextDayRollover"
-          onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày điều trị tiếp theo">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày tiếp theo (Ctrl+D)"
+          aria-label="Chuyển ngày tiếp theo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
             stroke-linecap="round">
             <polyline points="13 17 18 12 13 7"></polyline>
             <polyline points="6 17 11 12 6 7"></polyline>
           </svg>
-          <span>Ngày kế</span>
         </button>
 
         <button class="btn-compact btn-subtle btn-handover-highlight"
           onclick="window.handoverController.openHandoverDashboard()"
-          data-tooltip="Biên bản bàn giao tua trực &amp; Xuất Zalo">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          data-tooltip="Bàn giao tua trực (Ctrl+H)" aria-label="Bàn giao tua trực">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round">
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
             <line x1="12" y1="11" x2="12" y2="17"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          <span>Bàn giao</span>
         </button>
 
         <button class="btn-compact btn-subtle" onclick="document.getElementById('excelFileInput').click()"
-          data-tooltip="Nạp danh sách từ file Excel (.xlsx)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          data-tooltip="Nạp danh sách từ file Excel (.xlsx)" aria-label="Nạp Excel">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="12" y1="18" x2="12" y2="12"></line>
             <polyline points="9 15 12 12 15 15"></polyline>
           </svg>
-          <span>Nạp Excel</span>
         </button>
 
         <button class="btn-compact btn-subtle btn-export-highlight"
           onclick="window.patientController.openExportBackupModal()"
-          data-tooltip="Xuất file Excel (.xlsx) / CSV sao lưu dự phòng chống mất dữ liệu">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          data-tooltip="Sao lưu / Xuất file (Ctrl+E)" aria-label="Sao lưu / Xuất file">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Xuất File / Sao Lưu</span>
         </button>
 
         <button class="btn-compact btn-subtle" onclick="window.print()"
-          data-tooltip="In bảng theo dõi (Khổ A4 ngang chuẩn y tế)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          data-tooltip="In bảng theo dõi A4 (Ctrl+P)" aria-label="In A4">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round">
             <polyline points="6 9 6 2 18 2 18 9"></polyline>
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
             <rect x="6" y="14" width="12" height="8"></rect>
           </svg>
-          <span>In A4</span>
         </button>
 
         <button class="btn-compact btn-nurse-print" onclick="window.patientController.openNursePrintModal()"
-          data-tooltip="In phiếu thực hiện Y lệnh &amp; CLS cho Điều dưỡng">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          data-tooltip="In phiếu cho Điều dưỡng (Ctrl+Shift+P)" aria-label="In phiếu Điều dưỡng">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"></rect>
             <line x1="12" y1="9" x2="12" y2="15"></line>
             <line x1="9" y1="12" x2="15" y2="12"></line>
           </svg>
-          <span>In ĐD</span>
         </button>
 
         <div class="toolbar-divider"></div>
@@ -677,9 +658,13 @@
     <!-- 5. THANH TRẠNG THÁI -->
     <div class="status-bar no-print">
       <span id="saveStatus" class="status-tag" style="display: none;">🟢 Đang tải hệ thống...</span>
-      <span style="font-style: italic;">💡 Hỗ trợ dán trực tiếp từ Excel (Ctrl+V); Đồng bộ 2 chiều tức thì giữa Laptop
-        &
-        Điện thoại!</span>
+    </div>
+
+    <!-- 5.1. DẢI CHIP LỌC BUỒNG BỆNH & TRẠNG THÁI LÂM SÀNG DÀNH CHO LAPTOP & TABLET -->
+    <div class="clinical-filter-bar no-print">
+      <div class="clinical-filter-chips" id="desktopFilterChips">
+        <!-- Render bởi JavaScript -->
+      </div>
     </div>
 
     <!-- Dòng ngày in (Chỉ xuất hiện khi In A4) -->
@@ -830,71 +815,64 @@
         <div class="form-row">
           <div class="form-group">
             <label>Buồng - Giường (P/G):</label>
-            <input type="text" id="editRoomBed" class="form-control" placeholder="VD: D1.14-3">
+            <input type="text" id="editRoomBed" class="form-control" placeholder="P/G (VD: D1.14-3)">
           </div>
           <div class="form-group">
             <label>Năm sinh / Tuổi (NS):</label>
-            <input type="text" id="editAgeYear" class="form-control" placeholder="VD: 2003 (23)">
+            <input type="text" id="editAgeYear" class="form-control" placeholder="Năm sinh (Tuổi)">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Họ và tên người bệnh (Họ tên NB):</label>
+            <label>Họ và tên người bệnh:</label>
             <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA"
               style="font-weight: 700; text-transform: uppercase;">
           </div>
           <div class="form-group">
-            <label>🩺 Bác sĩ điều trị / Phụ trách:</label>
-            <input type="text" id="editDoctorName" class="form-control" placeholder="VD: BS. Nguyễn Hữu Đông">
+            <label>Bác sĩ điều trị / Phụ trách:</label>
+            <input type="text" id="editDoctorName" class="form-control" placeholder="Họ tên Bác sĩ">
           </div>
         </div>
 
         <div class="form-group">
           <label>Chẩn đoán (CĐ):</label>
           <textarea id="editDiagnosis" class="form-control" rows="2"
-            placeholder="Chẩn đoán xác định / kèm theo (gõ tắt: sxh, vp, dtd, tha, nkh...)"></textarea>
-          <div class="quick-tags-box" id="diagQuickTags"></div>
+            placeholder="Chẩn đoán xác định / kèm theo..."></textarea>
         </div>
 
         <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
         <div class="form-row">
           <div class="form-group" style="flex: 1;">
-            <label style="color: #0369a1; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+            <label style="color: #0369a1; font-weight: 700;">
               <span>🔬 CLS - HIỆN CÓ:</span>
-              <small style="font-weight: 400; color: var(--text-muted);">(KQ đã trả về)</small>
             </label>
             <textarea id="editClsHienCo" class="form-control" rows="2"
-              placeholder="Kết quả CLS hiện có (gõ tắt: ctm, shm, dgd, xq, sa...)"></textarea>
-            <div class="quick-tags-box" id="clsHienCoQuickTags"></div>
+              placeholder="Kết quả CLS hiện có..."></textarea>
           </div>
           <div class="form-group" style="flex: 1;">
-            <label style="color: #b45309; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+            <label style="color: #b45309; font-weight: 700;">
               <span>⚡ CLS - CẦN LÀM:</span>
-              <small style="font-weight: 400; color: #b45309;">(Chỉ định cho Điều dưỡng)</small>
             </label>
             <textarea id="editClsCanLam" class="form-control" rows="2"
-              placeholder="Xét nghiệm / CĐHA cần thực hiện (gõ tắt: ctm, shm, cm, xq...)"></textarea>
-            <div class="quick-tags-box" id="clsCanLamQuickTags"></div>
+              placeholder="Chỉ định CLS cần thực hiện..."></textarea>
           </div>
         </div>
 
         <div class="form-group">
           <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
           <textarea id="editOrders" class="form-control" rows="2"
-            placeholder="Thuốc, dịch truyền, chế độ theo dõi (gõ tắt: ttm, iv, ks, kd, para, dhst...)"></textarea>
-          <div class="quick-tags-box" id="ordersQuickTags"></div>
+            placeholder="Thuốc, dịch truyền, chăm sóc theo dõi..."></textarea>
         </div>
 
         <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
         <div class="form-group"
           style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 10px 12px; margin-top: 4px;">
-          <label style="color: #15803d; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-            <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng thực hiện):</span>
+          <label style="color: #15803d; font-weight: 700;">
+            <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng):</span>
           </label>
           <textarea id="editThemThuoc" class="form-control" rows="2"
-            placeholder="Thuốc bổ sung trong ngày, thuốc hạ sốt, kháng sinh thêm, dịch truyền..."></textarea>
-          <div class="quick-tags-box" id="themThuocQuickTags"></div>
+            placeholder="Thuốc bổ sung mới trong ngày..."></textarea>
         </div>
 
         <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
@@ -911,28 +889,27 @@
         </div>
 
         <div class="form-group">
-          <label>⚠️ Vấn đề lâm sàng tồn đọng / Chưa giải quyết xong:</label>
+          <label>⚠️ Vấn đề lâm sàng tồn đọng:</label>
           <textarea id="editHandoverIssues" class="form-control" rows="2"
-            placeholder="VD: Đang sốt 39.5°C chưa hạ; Chờ KQ cấy máu; HA dao động..."></textarea>
+            placeholder="Vấn đề lâm sàng tồn đọng..."></textarea>
         </div>
 
         <div class="form-group">
-          <label>🎯 Y lệnh & Hành động tua trực cần xử trí:</label>
+          <label>🎯 Y lệnh &amp; Hành động tua trực cần xử trí:</label>
           <textarea id="editHandoverActions" class="form-control" rows="2"
-            placeholder="VD: Theo dõi SpO2 mỗi 2h; Lấy lại ĐGĐ lúc 22h; Báo BS nếu HA < 90/60..."></textarea>
+            placeholder="Y lệnh &amp; hành động ca trực..."></textarea>
         </div>
       </div>
       <div class="modal-footer" style="justify-content: space-between;">
         <div>
           <button class="btn btn-success" type="button" onclick="window.patientController.copyCurrentPatientZalo()"
-            title="Sao chép thông tin người bệnh này gửi Zalo">
-            📋 Copy qua Zalo
+            title="Sao chép gửi Zalo">
+            📋 Copy Zalo
           </button>
         </div>
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-secondary" onclick="window.patientController.closePatientDetailModal()">Đóng</button>
-          <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông
-            Tin</button>
+          <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu Thông Tin</button>
         </div>
       </div>
     </div>
@@ -1071,15 +1048,13 @@
         </div>
 
         <div class="form-group">
-          <label>⚠️ Vấn đề tồn đọng / Chưa giải quyết xong:</label>
-          <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề chưa xong..."></textarea>
-          <div class="quick-tags-box" id="handoverIssueQuickTags"></div>
+          <label>⚠️ Vấn đề tồn đọng:</label>
+          <textarea id="hoIssues" class="form-control" rows="2" placeholder="Ghi nhận vấn đề tồn đọng..."></textarea>
         </div>
 
         <div class="form-group">
           <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
-          <textarea id="hoActions" class="form-control" rows="2" placeholder="Ghi nhận hành động ca trực..."></textarea>
-          <div class="quick-tags-box" id="handoverActionQuickTags"></div>
+          <textarea id="hoActions" class="form-control" rows="2" placeholder="Y lệnh / hành động cần xử trí..."></textarea>
         </div>
 
         <div class="form-group">
@@ -1350,14 +1325,6 @@
       <div class="modal-body">
         <div id="cloudConfigMessage" class="form-message"></div>
 
-        <div
-          style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px; color: #166534;">
-          <strong>📡 Cơ chế hoạt động:</strong><br>
-          Khi điền <strong>Supabase URL</strong> và <strong>Anon Key</strong>, ứng dụng sẽ kích hoạt tính năng
-          <strong>Đồng bộ thời gian thực (Realtime)</strong>: dữ liệu bạn nhập trên Laptop sẽ lập tức hiện trên Điện
-          thoại khi đi buồng bệnh và ngược lại!
-        </div>
-
         <form id="cloudConfigForm">
           <div class="form-group">
             <label>Supabase Project URL:</label>
@@ -1368,12 +1335,6 @@
             <label>Supabase Anon (Public) Key:</label>
             <textarea id="cfgSupabaseKey" class="form-control" rows="3"
               placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvd2dxa3hsaHNpZW54Y2drcm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDcyMjcsImV4cCI6MjEwNTg4MzIyN30.508ijUnafRo_dC1PDKMitVl_yvFApaprgucf9hMgJUw</textarea>
-          </div>
-
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-            <em>* Cấu hình Supabase này đã được cố định mặc định cho dự án. Mọi thiết bị Laptop & Điện thoại mở web
-              đều
-              sẽ tự động kết nối và đồng bộ 2 chiều!</em>
           </div>
 
           <button type="submit" class="btn btn-primary" style="width: 100%;">Lưu & Kiểm Tra Kết Nối Cloud</button>
@@ -1420,13 +1381,7 @@
           <!-- Render bởi JavaScript -->
         </div>
       </div>
-      <div class="modal-footer"
-        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <div style="font-size: 12px; color: var(--text-muted);">
-          💡 <em>Tổng hợp đúng 02 phần: <strong>CLS cần làm</strong> và <strong>Thêm thuốc</strong> + Họ tên, Năm
-            sinh,
-            Phòng để Điều dưỡng ca trực thực hiện.</em>
-        </div>
+      <div class="modal-footer" style="justify-content: flex-end;">
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-secondary" onclick="window.patientController.closeNursePrintModal()">Đóng</button>
           <button class="btn btn-primary" onclick="window.patientController.printNurseWorklist()"
@@ -1446,16 +1401,6 @@
         <button class="btn-close-modal" onclick="window.medWardApp.closeAbbreviationModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <div
-          style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--text-main);">
-          💡 <strong>Cơ chế tự động mở rộng (Smart Auto-Expand):</strong> Khi bạn gõ từ viết tắt (VD:
-          <code>sxh</code>,
-          <code>vp</code>, <code>dtd</code>, <code>ctm</code>, <code>ttm</code>, <code>para</code>...) trực tiếp vào
-          bảng hoặc cửa sổ chi tiết, hệ thống sẽ tự động chuyển thành thuật ngữ y khoa đầy đủ khi nhấn
-          <kbd>Enter</kbd>
-          hoặc rời ô!
-        </div>
-
         <!-- Tìm kiếm & Bộ lọc phân loại -->
         <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
           <input type="text" id="abbrSearchInput" class="form-control"
@@ -1498,13 +1443,6 @@
         <button class="btn-close-modal" onclick="window.medWardApp.closeShortcutsModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <div
-          style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: #1e40af;">
-          ⚡ <strong>Tối ưu tốc độ làm việc:</strong> Sử dụng các phím tắt bên dưới giúp Bác sĩ đi buồng, nhập liệu và
-          ra
-          y lệnh nhanh hơn gấp 3 lần mà không cần rê chuột.
-        </div>
-
         <table class="shortcuts-table">
           <thead>
             <tr>
@@ -1665,10 +1603,6 @@
             </svg>
             <span>Tải file CSV (.csv) - Chuẩn UTF-8 Tiếng Việt</span>
           </button>
-        </div>
-
-        <div class="export-hint-note">
-          💡 <em>File tải về bao gồm Buồng/Giường, Họ tên, Năm sinh, Chẩn đoán, CLS Hiện có, CLS Cần làm, Y lệnh, Thêm thuốc, Tình trạng bàn giao...</em>
         </div>
       </div>
       <div class="modal-footer modal-footer-end">

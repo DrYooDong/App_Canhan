@@ -235,13 +235,14 @@ body {
 .btn-doctor-login {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 12px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: var(--primary);
   color: #ffffff;
   border: 1px solid var(--primary);
-  border-radius: 20px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -515,22 +516,21 @@ body {
   flex-wrap: wrap;
 }
 
-/* COMPACT CLINICAL ACTION BUTTONS */
+/* COMPACT CLINICAL ACTION BUTTONS (ICON BUTTONS) */
 .btn-compact {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
   font-family: inherit;
   transition: all 0.15s ease-in-out;
   user-select: none;
+  flex-shrink: 0;
 }
 .btn-compact svg {
   flex-shrink: 0;
@@ -721,6 +721,57 @@ body {
 .status-tag.highlight {
   border-color: var(--border-dark);
   font-weight: 700;
+}
+
+/* CLINICAL FILTER CHIPS (LAPTOP & TABLET) */
+.clinical-filter-bar {
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 2px 0 4px;
+}
+.clinical-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.clinical-filter-chip {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-dark, #cbd5e1);
+  color: var(--text-main, #0f172a);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.clinical-filter-chip:hover {
+  background: var(--bg-subtle, #f1f5f9);
+  border-color: var(--primary, #1e3a8a);
+  transform: translateY(-1px);
+}
+.clinical-filter-chip.active {
+  background: var(--primary, #1e3a8a);
+  border-color: var(--primary, #1e3a8a);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+}
+.clinical-filter-chip.chip-critical.active {
+  background: var(--critical-badge, #dc2626);
+  border-color: #dc2626;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+.clinical-filter-chip.chip-pending.active {
+  background: #d97706;
+  border-color: #d97706;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
 }
 
 /* ==============================================================================
@@ -1064,25 +1115,27 @@ table.med-table td.col-editable:focus {
    MODALS - CLEAN MONOCHROME WITH ACCENTS
    ============================================================================== */
 .modal-overlay {
+  display: none;
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  padding: 16px;
+  overflow: hidden;
+}
+.modal-overlay.active {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  padding: 16px;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .modal-card {
   background: #ffffff;
@@ -2114,11 +2167,12 @@ textarea.form-control {
 }
 .login-gate-card {
   background: #ffffff;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   max-width: 480px;
-  width: 100%;
+  width: min(480px, 94vw);
+  max-height: 94vh;
+  overflow-y: auto;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
-  overflow: hidden;
   border: 1px solid var(--border);
 }
 .login-gate-brand {
@@ -2608,13 +2662,13 @@ kbd {
 .btn-lock-board {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 9px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: #f1f5f9;
   border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 700;
+  border-radius: 8px;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s;

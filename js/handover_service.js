@@ -13,20 +13,7 @@ class HandoverController {
   }
 
   bindEvents() {
-    // Quick Tag buttons trong modal bàn giao
-    const issueTagsContainer = document.getElementById('handoverIssueQuickTags');
-    if (issueTagsContainer) {
-      issueTagsContainer.innerHTML = CONFIG.QUICK_TAGS.ISSUES.map(tag => 
-        `<button type="button" class="quick-tag-btn" onclick="window.handoverController.insertTag('hoIssues', '${tag}')">+ ${tag}</button>`
-      ).join('');
-    }
-
-    const actionTagsContainer = document.getElementById('handoverActionQuickTags');
-    if (actionTagsContainer) {
-      actionTagsContainer.innerHTML = CONFIG.QUICK_TAGS.ACTIONS.map(tag => 
-        `<button type="button" class="quick-tag-btn" onclick="window.handoverController.insertTag('hoActions', '${tag}')">+ ${tag}</button>`
-      ).join('');
-    }
+    // Nút copy Zalo/Viber
 
     // Nút copy Zalo/Viber
     const btnCopyZalo = document.getElementById('btnCopyHandoverZalo');

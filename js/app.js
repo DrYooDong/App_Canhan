@@ -8,7 +8,7 @@ class MedWardApp {
     this.init();
   }
 
-  init() {
+    this.setupResponsiveAndViews();
     this.setupDatePickers();
     this.setupMetaHandlers();
     this.bindGlobalEvents();
@@ -149,10 +149,27 @@ class MedWardApp {
         if (nativePicker.value) {
           const parts = nativePicker.value.split('-');
           if (parts.length === 3) {
-            dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            const newDateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            dateInput.value = newDateStr;
             this.saveMeta();
             this.updatePrintDateNote();
+            if (window.patientController && typeof window.patientController.changeReportDate === 'function') {
+              window.patientController.changeReportDate(newDateStr);
+            }
           }
+        }
+      });
+
+      dateInput.addEventListener('change', () => {
+        const val = dateInput.value.trim();
+        if (val.length >= 8 && window.patientController && typeof window.patientController.changeReportDate === 'function') {
+          window.patientController.changeReportDate(val);
+        }
+      });
+
+      dateInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          dateInput.blur();
         }
       });
     }
@@ -170,39 +187,82 @@ class MedWardApp {
     }
   }
 
-  toggleViewMode() {
-    // 1. Nếu là mobile (màn hình hẹp hoặc đã kích hoạt mobile view)
-    if (window.innerWidth <= 768) {
-      if (window.patientController && window.patientController.toggleMobileViewMode) {
-        window.patientController.toggleMobileViewMode();
+  setupResponsiveAndViews() {
+    // 1. Nhận diện thiết bị và gán class vào document.body
+    const updateDeviceClass = () => {
+      const w = window.innerWidth;
+      document.body.classList.remove('device-desktop', 'device-tablet', 'device-mobile');
+      if (w >= 1025) {
+        document.body.classList.add('device-desktop');
+      } else if (w >= 768) {
+        document.body.classList.add('device-tablet');
+      } else {
+        document.body.classList.add('device-mobile');
       }
-      const isTable = document.body.classList.contains('mobile-view-table');
-      const icon = document.getElementById('mobileViewModeIcon');
-      const text = document.getElementById('mobileViewModeText');
-      if (icon) icon.innerText = isTable ? '📋' : '📱';
-      if (text) text.innerText = isTable ? 'Bảng' : 'Thẻ';
-      if (window.showToast) {
-        window.showToast(isTable ? '📋 Chế độ xem: Bảng' : '📱 Chế độ xem: Thẻ');
-      }
-      return;
-    }
+    };
+    updateDeviceClass();
+    window.addEventListener('resize', () => {
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(updateDeviceClass, 100);
+    });
 
-    // 2. Chế độ Desktop
+    // 2. Tải cấu hình chế độ xem đã lưu
+    const saved = localStorage.getItem('medward_view_mode');
+    if (saved === 'table' || saved === 'cards') {
+      this.setViewMode(saved, false);
+    } else {
+      // Mặc định: Desktop = Bảng, Tablet/Mobile = Thẻ
+      const defaultMode = (window.innerWidth >= 1025) ? 'table' : 'cards';
+      this.setViewMode(defaultMode, false);
+    }
+  }
+
+  setViewMode(mode, showNotification = true) {
+    this.viewMode = mode; // 'table' | 'cards'
+    localStorage.setItem('medward_view_mode', mode);
+
+    // Xoá bỏ hoàn toàn inline display style để nhường quyền cho CSS responsive
     const tableWrapper = document.getElementById('tableWrapper');
     const cardsContainer = document.getElementById('mobileCardContainer');
-    if (!tableWrapper || !cardsContainer) return;
+    if (tableWrapper) tableWrapper.style.display = '';
+    if (cardsContainer) cardsContainer.style.display = '';
 
-    if (this.viewMode === 'cards') {
-      this.viewMode = 'table';
-      tableWrapper.style.display = 'block';
-      cardsContainer.style.display = 'none';
-      window.showToast?.('💻 Chế độ xem: Bảng đầy đủ');
+    if (mode === 'table') {
+      document.body.classList.add('view-table');
+      document.body.classList.remove('view-cards');
+      document.body.classList.add('mobile-view-table');
     } else {
-      this.viewMode = 'cards';
-      tableWrapper.style.display = 'none';
-      cardsContainer.style.display = 'flex';
-      window.showToast?.('📱 Chế độ xem: Thẻ người bệnh');
+      document.body.classList.add('view-cards');
+      document.body.classList.remove('view-table');
+      document.body.classList.remove('mobile-view-table');
     }
+
+    // Cập nhật biểu tượng và nhãn trên Mobile Header
+    const mobileIcon = document.getElementById('mobileViewModeIcon');
+    const mobileText = document.getElementById('mobileViewModeText');
+    if (mobileIcon) mobileIcon.innerText = (mode === 'table') ? '📋' : '📱';
+    if (mobileText) mobileText.innerText = (mode === 'table') ? 'Bảng' : 'Thẻ';
+
+    // Cập nhật tooltip trên Toolbar
+    const desktopBtn = document.getElementById('btnToggleView');
+    if (desktopBtn) {
+      desktopBtn.setAttribute('title', mode === 'table' ? 'Chuyển sang xem dạng Thẻ (Cards)' : 'Chuyển sang xem dạng Bảng (Table)');
+    }
+
+    if (showNotification && window.showToast) {
+      const isMobile = window.innerWidth <= 767;
+      const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
+      if (mode === 'table') {
+        window.showToast(isMobile ? '📋 Chế độ xem: Bảng di động' : '📋 Chế độ xem: Bảng lâm sàng');
+      } else {
+        window.showToast(isTablet ? '📱 Chế độ xem: Thẻ lưới máy tính bảng' : (isMobile ? '📱 Chế độ xem: Thẻ di động' : '📱 Chế độ xem: Lưới thẻ người bệnh'));
+      }
+    }
+  }
+
+  toggleViewMode() {
+    const nextMode = (this.viewMode === 'table') ? 'cards' : 'table';
+    this.setViewMode(nextMode, true);
   }
 
   formatToDMY(dateObj) {

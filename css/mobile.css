@@ -1,40 +1,560 @@
 /* ==============================================================================
-   MEDWARD PRO - MOBILE-FIRST CLINICAL DESIGN & RESPONSIVE ARCHITECTURE
-   Optimized for Smartphones, Tablets, and Touch Clinical Rounds
+   MEDWARD PRO - UNIFIED 3-TIER RESPONSIVE CLINICAL ARCHITECTURE
+   Tier 1: Desktop / Laptop (>= 1025px) - Full Workstation
+   Tier 2: Tablet / Máy Tính Bảng (768px - 1024px) - Touch Rounds & Dual Grid/Table
+   Tier 3: Mobile / Di Động (<= 767px) - One-Hand Thumb Zone & Native Bottom Sheet
    ============================================================================== */
 
-/* Khi ở chế độ Desktop, ẩn các thành phần riêng của Mobile */
-.mobile-cards-view {
-  display: none;
+/* ==============================================================================
+   0. SHARED BASE & VIEW MODE SWITCH ARCHITECTURE
+   ============================================================================== */
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
-.bottom-nav-bar {
-  display: none;
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-.mobile-clinical-header {
-  display: none;
+/* Mặc định trên toàn hệ thống: Quản lý hiển thị Bảng vs Thẻ */
+/* Khi ở chế độ Thẻ: Ẩn Bảng, Hiện Thẻ */
+body.view-cards .table-wrapper {
+  display: none !important;
+}
+body.view-cards .mobile-cards-view {
+  display: grid;
 }
 
-.bottom-sheet-drag-handle {
+/* Khi ở chế độ Bảng: Hiện Bảng, Ẩn Thẻ */
+body.view-table .table-wrapper {
+  display: block !important;
+}
+body.view-table .mobile-cards-view {
+  display: none !important;
+}
+
+/* Khi chưa có class xác định trên body: Phụ thuộc vào device breakpoint (sẽ quy định bên dưới) */
+
+/* Đảm bảo table wrapper không bao giờ làm tràn trang */
+.table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Modals Lifecycle an toàn: Chỉ hiện khi có class .active */
+.modal-overlay {
   display: none;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  overflow: hidden;
+}
+.modal-overlay.active {
+  display: flex !important;
 }
 
 /* ==============================================================================
-   RESPONSIVE BREAKPOINT: SMARTPHONES & TABLETS (<= 840px)
+   TIER 1: DESKTOP & LAPTOP (MIN-WIDTH: 1025px)
    ============================================================================== */
-@media screen and (max-width: 840px) {
+@media screen and (min-width: 1025px) {
+  /* Ẩn các thành phần độc quyền của Mobile */
+  .mobile-clinical-header {
+    display: none !important;
+  }
+  .bottom-nav-bar {
+    display: none !important;
+  }
+  .bottom-sheet-drag-handle {
+    display: none !important;
+  }
+
+  /* Mặc định Desktop là Table view trừ khi kích hoạt view-cards */
+  body:not(.view-cards) .table-wrapper {
+    display: block !important;
+  }
+  body:not(.view-cards) .mobile-cards-view {
+    display: none !important;
+  }
+
+  /* Khi Bác sĩ chọn xem dạng Thẻ trên Desktop: Lưới 3 - 4 cột hiện đại */
+  body.view-cards .mobile-cards-view {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .app-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px 24px;
+    border-radius: var(--radius-md, 12px);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border, #e2e8f0);
+    background: #ffffff;
+  }
+
+  .top-nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+
+  .hospital-header {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Modal trên Desktop */
+  .modal-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-card {
+    max-width: 640px;
+    width: 100%;
+    border-radius: 14px;
+    max-height: 88vh;
+    animation: modalDesktopPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .modal-card.modal-lg {
+    max-width: 860px;
+  }
+  .modal-card.modal-xl {
+    max-width: 1080px;
+  }
+}
+
+@keyframes modalDesktopPop {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ==============================================================================
+   TIER 2: TABLET / MÁY TÍNH BẢNG (768px <= WIDTH <= 1024px)
+   Tối ưu hóa chuyên sâu cho iPad, Galaxy Tab, Surface đi buồng bệnh cảm ứng
+   ============================================================================== */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  body {
+    padding: 10px;
+    background-color: #f1f5f9;
+    font-size: 13.5px;
+  }
+
+  /* Ẩn Mobile header và Bottom bar trên Tablet để tối đa diện tích làm việc */
+  .mobile-clinical-header {
+    display: none !important;
+  }
+  .bottom-nav-bar {
+    display: none !important;
+  }
+  .bottom-sheet-drag-handle {
+    display: none !important;
+  }
+
+  .app-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  }
+
+  /* 1. Header Tablet thích ứng */
+  .top-nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .brand-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .app-logo-badge {
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-title-main {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .app-title-sub {
+    font-size: 11px;
+    color: var(--primary, #1e3a8a);
+    font-weight: 600;
+  }
+
+  .user-quick-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-cloud-sync, .btn-lock-board {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    touch-action: manipulation;
+  }
+
+  .doctor-workspace-header-pill {
+    height: 36px;
+    padding: 0 10px 0 4px;
+    touch-action: manipulation;
+  }
+
+  /* 2. Hospital Header Tablet 2 cột cân xứng */
+  .hospital-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+  }
+
+  .hospital-info {
+    text-align: left;
+  }
+
+  .hospital-title {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #1e3a8a;
+  }
+
+  .dept-name {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .main-title-box {
+    display: none; /* Thu gọn tiêu đề dài trên tablet để nhường chỗ */
+  }
+
+  .meta-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .meta-item {
+    font-size: 12px;
+    background: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .meta-item .date-wrapper input {
+    font-size: 12px;
+    height: 26px;
+    width: 88px;
+  }
+
+  /* 3. Toolbar Tablet Touch-Friendly */
+  .toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #ffffff;
+    padding: 8px 0 12px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  /* Các nút icon trên Tablet */
+  .btn-compact {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    touch-action: manipulation;
+  }
+
+  .btn-compact svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .toolbar-divider {
+    height: 24px;
+    margin: 0 2px;
+  }
+
+  .utility-icon-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .btn-icon-minimal {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+    touch-action: manipulation;
+  }
+
+  .btn-icon-minimal svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .toggle-pill-label {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .search-box {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .search-box input {
+    height: 40px;
+    font-size: 13.5px;
+    border-radius: 8px;
+    padding-left: 36px;
+  }
+
+  .search-box svg {
+    left: 12px;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* 4. CHẾ ĐỘ XEM TRÊN TABLET: LƯỚI 2 - 3 CỘT (GRID CARDS) HOẶC BẢNG TOUCH */
+  /* Mặc định trên Tablet: Hiển thị Thẻ Lưới (trừ khi bật view-table) */
+  body:not(.view-table) .table-wrapper {
+    display: none !important;
+  }
+  body:not(.view-table) .mobile-cards-view {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  /* Nếu màn hình Tablet xoay ngang (Landscape >= 960px), hiển thị lưới 3 cột */
+  @media screen and (min-width: 960px) and (max-width: 1024px) {
+    body:not(.view-table) .mobile-cards-view {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* Khi bật view-table trên Tablet */
+  body.view-table .table-wrapper {
+    display: block !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  table.med-table th, table.med-table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  /* 5. Thẻ bệnh nhân Tablet phong cách Touch-Friendly */
+  .mobile-patient-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mobile-patient-card:active {
+    transform: scale(0.99);
+  }
+
+  .mobile-patient-card.card-critical {
+    border-left: 5px solid #dc2626;
+    background: #fffcfc;
+  }
+
+  .mobile-patient-card.card-pending {
+    border-left: 5px solid #d97706;
+    background: #fffdf7;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-room-badge {
+    padding: 5px 12px;
+    font-size: 13.5px;
+    font-weight: 800;
+    border-radius: 8px;
+  }
+
+  .patient-name {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .patient-age {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .card-clinical-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card-tier-box {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border-radius: 8px;
+  }
+
+  .card-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  .card-btn-action {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    touch-action: manipulation;
+  }
+
+  /* 6. Modal trên Tablet: Floating Center Dialog */
+  .modal-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .modal-card {
+    width: 90vw;
+    max-width: 720px;
+    max-height: 88vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    animation: modalDesktopPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-card.modal-lg, .modal-card.modal-xl {
+    max-width: 860px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+/* ==============================================================================
+   TIER 3: MOBILE / DI ĐỘNG (MAX-WIDTH: 767px)
+   Tối ưu hóa thao tác 1 tay (One-Hand Thumb Zone) trên Smartphone
+   ============================================================================== */
+@media screen and (max-width: 767px) {
   html, body {
     width: 100%;
+    max-width: 100vw;
     overflow-x: hidden;
-    -webkit-text-size-adjust: 100%;
   }
 
   body {
     padding: 0;
     margin: 0;
     background-color: #f1f5f9;
-    padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); /* Dành chỗ cho Bottom Nav Bar */
+    /* Dành khoảng trống chính xác cho Fixed Bottom Nav Bar + Safe Area */
+    padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
     font-size: 13.5px;
   }
 
@@ -46,12 +566,26 @@
     border: none;
     background: transparent;
     min-height: unset;
+    width: 100%;
     max-width: 100vw;
+    overflow-x: hidden;
   }
 
-  /* ----------------------------------------------------------------------------
-     1. MOBILE CLINICAL HEADER (STICKY AT TOP)
-     ---------------------------------------------------------------------------- */
+  /* 1. ẨN HOÀN TOÀN CÁC THÀNH PHẦN DESKTOP */
+  .top-nav-bar {
+    display: none !important;
+  }
+  .hospital-header {
+    display: none !important;
+  }
+  .toolbar {
+    display: none !important;
+  }
+  .status-bar {
+    display: none !important;
+  }
+
+  /* 2. MOBILE CLINICAL HEADER (STICKY CỐ ĐỊNH Ở ĐẦU TRANG) */
   .mobile-clinical-header {
     display: flex;
     flex-direction: column;
@@ -59,20 +593,22 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e2e8f0;
     padding: 8px 10px;
-    margin: -6px -8px 8px -8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin: -6px -8px 10px -8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    width: calc(100% + 16px);
   }
 
   .mobile-brand-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
   }
 
   .mobile-brand-left {
@@ -101,83 +637,79 @@
   }
 
   .mobile-brand-name {
-    font-size: 14.5px;
+    font-size: 14px;
     font-weight: 800;
     color: #0f172a;
     line-height: 1.2;
     letter-spacing: -0.2px;
+    white-space: nowrap;
   }
 
   .mobile-brand-dept {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     color: #2563eb;
     line-height: 1.2;
+    white-space: nowrap;
   }
 
   .mobile-brand-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
   }
 
   .mobile-btn-action {
-    height: 34px;
-    padding: 0 9px;
-    border-radius: 8px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 7px;
     border: 1px solid #cbd5e1;
     background: #ffffff;
     color: #1e293b;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11.5px;
+    font-weight: 700;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     cursor: pointer;
     touch-action: manipulation;
   }
 
   .mobile-btn-action:active {
     background: #f1f5f9;
-    transform: scale(0.97);
-  }
-
-  .mobile-action-label {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #1e293b;
+    transform: scale(0.96);
   }
 
   .mobile-btn-lock {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     justify-content: center;
     border-color: #e2e8f0;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .mobile-doc-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 34px;
-    padding: 0 8px 0 4px;
+    gap: 5px;
+    height: 32px;
+    padding: 0 7px 0 3px;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
-    border-radius: 17px;
+    border-radius: 16px;
     cursor: pointer;
     touch-action: manipulation;
   }
 
   .mobile-doc-avatar {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: #1e40af;
     color: #ffffff;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -185,26 +717,25 @@
   }
 
   .mobile-doc-name {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 700;
     color: #1e3a8a;
-    max-width: 85px;
+    max-width: 72px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* ----------------------------------------------------------------------------
-     2. MOBILE WARD SUMMARY (CHỈ SỐ LÂM SÀNG NHANH)
-     ---------------------------------------------------------------------------- */
+  /* 3. TÓM TẮT SỐ LIỆU ĐI BUỒNG LÂM SÀNG TRÊN MOBILE */
   .mobile-ward-summary {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     overflow-x: auto;
     scrollbar-width: none;
-    padding-bottom: 2px;
+    padding-bottom: 1px;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
   .mobile-ward-summary::-webkit-scrollbar {
     display: none;
@@ -213,10 +744,10 @@
   .mobile-summary-item {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 9px;
+    gap: 3px;
+    padding: 4px 8px;
     border-radius: 6px;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -236,10 +767,6 @@
     font-family: inherit;
   }
 
-  .mobile-date-chip:active {
-    background: #f1f5f9;
-  }
-
   .mobile-summary-item.item-critical {
     background: #fef2f2;
     border-color: #fecaca;
@@ -252,15 +779,13 @@
     color: #92400e;
   }
 
-  /* ----------------------------------------------------------------------------
-     3. MOBILE FILTER CHIPS (TẤT CẢ, NGUY KỊCH, CẦN BÀN GIAO, BUỒNG D1...)
-     ---------------------------------------------------------------------------- */
+  /* 4. CHIP LỌC BUỒNG BỆNH CUỘN NGANG */
   .mobile-filter-bar {
     width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 0;
+    padding: 1px 0;
   }
   .mobile-filter-bar::-webkit-scrollbar {
     display: none;
@@ -269,14 +794,14 @@
   .mobile-filter-chips {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     white-space: nowrap;
   }
 
   .mobile-filter-chip {
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 18px;
+    font-size: 11.5px;
     font-weight: 600;
     background: #ffffff;
     border: 1px solid #cbd5e1;
@@ -285,41 +810,32 @@
     touch-action: manipulation;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.15s ease;
+    gap: 4px;
     flex-shrink: 0;
-  }
-
-  .mobile-filter-chip:active {
-    transform: scale(0.96);
   }
 
   .mobile-filter-chip.active {
     background: #2563eb;
     border-color: #2563eb;
     color: #ffffff;
-    box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.25);
   }
 
   .mobile-filter-chip.chip-critical.active {
     background: #dc2626;
     border-color: #dc2626;
-    box-shadow: 0 2px 5px rgba(220, 38, 38, 0.25);
   }
 
   .mobile-filter-chip.chip-pending.active {
     background: #d97706;
     border-color: #d97706;
-    box-shadow: 0 2px 5px rgba(217, 119, 6, 0.25);
   }
 
-  /* ----------------------------------------------------------------------------
-     4. MOBILE SEARCH BAR & EXCEL ACTION
-     ---------------------------------------------------------------------------- */
+  /* 5. TÌM KIẾM NHANH & CỤM NÚT EXCEL / SAO LƯU TRÊN MOBILE */
   .mobile-search-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
   }
 
@@ -331,57 +847,21 @@
     min-width: 0;
   }
 
-  .btn-mobile-excel {
-    height: 36px;
-    padding: 0 11px;
-    border-radius: 8px;
-    background: #f0fdf4;
-    border: 1.5px solid #86efac;
-    color: #15803d;
-    font-size: 12.5px;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-    cursor: pointer;
-    flex-shrink: 0;
-    touch-action: manipulation;
-    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.1);
-  }
-
-  .btn-mobile-excel:active {
-    background: #dcfce7;
-    transform: scale(0.96);
-  }
-
-  .btn-mobile-backup {
-    background: #eff6ff;
-    border: 1.5px solid #bfdbfe;
-    color: #1e40af;
-    box-shadow: 0 1px 2px rgba(30, 64, 175, 0.1);
-  }
-
-  .btn-mobile-backup:active {
-    background: #dbeafe;
-    transform: scale(0.96);
-  }
-
   .mobile-search-wrapper svg {
     position: absolute;
-    left: 11px;
+    left: 10px;
     color: #64748b;
     pointer-events: none;
   }
 
   .mobile-search-wrapper input {
     width: 100%;
-    height: 36px;
-    padding: 0 34px 0 32px;
+    height: 35px;
+    padding: 0 30px 0 30px;
     border-radius: 8px;
     border: 1px solid #cbd5e1;
     background: #ffffff;
-    font-size: 13px;
+    font-size: 12.5px;
     color: #0f172a;
     outline: none;
     font-family: inherit;
@@ -394,60 +874,86 @@
 
   .mobile-search-wrapper .btn-clear-search {
     position: absolute;
-    right: 8px;
-    width: 22px;
-    height: 22px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: #e2e8f0;
     color: #475569;
     border: none;
-    font-size: 12px;
+    font-size: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
   }
 
-  /* ----------------------------------------------------------------------------
-     5. ẨN CÁC THANH DESKTOP TRÙNG LẶP TRÊN MOBILE
-     ---------------------------------------------------------------------------- */
-  .top-nav-bar {
-    display: none !important;
+  .btn-mobile-excel {
+    height: 35px;
+    padding: 0 9px;
+    border-radius: 8px;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+    touch-action: manipulation;
   }
 
-  .hospital-header {
-    display: none !important;
+  .btn-mobile-backup {
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    color: #1e40af;
   }
 
-  .toolbar {
+  /* 6. CHẾ ĐỘ THẺ 1 CỘT (MOBILE SINGLE-COLUMN CARDS) */
+  /* Mặc định trên Mobile: Hiện Thẻ 1 Cột, Ẩn Bảng */
+  body:not(.view-table) .table-wrapper {
     display: none !important;
   }
-
-  .status-bar {
-    display: none !important;
-  }
-
-  /* ----------------------------------------------------------------------------
-     6. CHẾ ĐỘ THẺ BỆNH NHÂN (MOBILE CARDS VIEW)
-     ---------------------------------------------------------------------------- */
-  .mobile-cards-view {
-    display: flex;
+  body:not(.view-table) .mobile-cards-view {
+    display: flex !important;
     flex-direction: column;
     gap: 10px;
     margin-bottom: 20px;
+    width: 100%;
   }
 
+  /* Khi Bác sĩ chọn xem Bảng trên Mobile */
+  body.view-table .table-wrapper {
+    display: block !important;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    margin-bottom: 20px;
+  }
+  body.view-table .mobile-cards-view {
+    display: none !important;
+  }
+
+  /* Thẻ bệnh nhân Mobile chuẩn xác */
   .mobile-patient-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 13px 14px;
+    padding: 12px 13px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 9px;
     position: relative;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     touch-action: manipulation;
+    width: 100%;
   }
 
   .mobile-patient-card.card-critical {
@@ -462,12 +968,11 @@
     background: #fffdf7;
   }
 
-  /* Header thẻ: Buồng giường + Trạng thái bàn giao */
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .card-room-badge {
@@ -478,97 +983,91 @@
     border: 1px solid #cbd5e1;
     color: #1e293b;
     font-weight: 800;
-    padding: 4px 10px;
+    padding: 3px 9px;
     border-radius: 6px;
-    font-size: 13px;
-    letter-spacing: 0.2px;
+    font-size: 12.5px;
   }
 
   .card-status-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 9px;
+    padding: 3px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
-    border: 1px solid transparent;
   }
 
   .card-status-pill.status-critical {
     background: #fee2e2;
     color: #991b1b;
-    border-color: #fca5a5;
+    border: 1px solid #fca5a5;
   }
 
   .card-status-pill.status-pending {
     background: #fef3c7;
     color: #92400e;
-    border-color: #fcd34d;
+    border: 1px solid #fcd34d;
   }
 
   .card-status-pill.status-none {
     background: #f1f5f9;
     color: #475569;
-    border-color: #e2e8f0;
+    border: 1px solid #e2e8f0;
   }
 
-  /* Tên bệnh nhân & Tuổi */
   .card-name-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     border-bottom: 1px solid #f1f5f9;
-    padding-bottom: 6px;
+    padding-bottom: 5px;
   }
 
   .patient-name {
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 800;
     color: #0f172a;
     text-transform: uppercase;
-    letter-spacing: 0.1px;
     line-height: 1.3;
   }
 
   .patient-age {
-    font-size: 12.5px;
+    font-size: 12px;
     color: #64748b;
     font-weight: 600;
   }
 
-  /* Chẩn đoán */
   .card-diagnosis-box {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    padding: 7px 10px;
-    font-size: 13px;
+    padding: 7px 9px;
+    font-size: 12.5px;
     color: #1e293b;
-    line-height: 1.45;
+    line-height: 1.4;
   }
 
   .card-diagnosis-box strong {
     color: #334155;
-    font-size: 11.5px;
+    font-size: 11px;
     text-transform: uppercase;
     display: block;
     margin-bottom: 2px;
   }
 
-  /* 2 Tầng Lâm Sàng: CLS & Y Lệnh */
   .card-clinical-grid {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
   }
 
   .card-tier-box {
     border-radius: 6px;
     border: 1px solid #e2e8f0;
-    padding: 7px 9px;
+    padding: 6px 8px;
     background: #ffffff;
-    font-size: 12.5px;
+    font-size: 12px;
   }
 
   .card-tier-box.tier-cls {
@@ -582,10 +1081,10 @@
   }
 
   .card-tier-title {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -596,64 +1095,55 @@
 
   .card-tier-content {
     color: #0f172a;
-    line-height: 1.4;
+    line-height: 1.35;
     white-space: pre-wrap;
     word-break: break-word;
   }
 
   .card-tier-highlight {
-    margin-top: 5px;
-    padding-top: 4px;
+    margin-top: 4px;
+    padding-top: 3px;
     border-top: 1px dashed #cbd5e1;
     font-weight: 700;
     color: #b91c1c;
-    font-size: 12px;
+    font-size: 11.5px;
   }
 
-  /* Cảnh báo Bàn giao trực */
   .card-handover-alert {
     background: #fff7ed;
     border: 1px solid #fed7aa;
     border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 12px;
-    color: #9a3412;
-    line-height: 1.4;
-  }
-
-  .card-handover-alert strong {
-    display: block;
+    padding: 7px 9px;
     font-size: 11.5px;
-    margin-bottom: 2px;
-    color: #c2410c;
+    color: #9a3412;
+    line-height: 1.35;
   }
 
-  /* Nút hành động trên thẻ */
   .card-actions-row {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     margin-top: 2px;
     border-top: 1px dashed #e2e8f0;
-    padding-top: 8px;
+    padding-top: 7px;
     flex-wrap: wrap;
   }
 
   .card-btn-action {
-    height: 34px;
-    padding: 0 10px;
-    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
     border: 1px solid #cbd5e1;
     background: #ffffff;
-    font-size: 11.5px;
-    font-weight: 600;
     color: #334155;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
     cursor: pointer;
     touch-action: manipulation;
+    flex-shrink: 0;
   }
 
   .card-btn-action:active {
@@ -672,67 +1162,40 @@
     color: #0284c7;
   }
 
-  .card-btn-action.btn-zalo:active {
-    background: #e0f2fe;
-  }
-
   .card-btn-action.btn-danger {
     color: #dc2626;
     border-color: #fecaca;
   }
 
-  /* ----------------------------------------------------------------------------
-     7. CHẾ ĐỘ BẢNG TRÊN MOBILE (NẾU BÁC SĨ CHỌN XEM BẢNG)
-     ---------------------------------------------------------------------------- */
-  .table-wrapper {
-    display: none;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    margin-bottom: 20px;
-  }
-
-  body.mobile-view-table .table-wrapper {
-    display: block !important;
-  }
-
-  body.mobile-view-table .mobile-cards-view {
-    display: none !important;
-  }
-
-  /* ----------------------------------------------------------------------------
-     8. NATIVE BOTTOM SHEET MODALS (TRƯỢT TỪ DƯỚI LÊN)
-     ---------------------------------------------------------------------------- */
+  /* 7. NATIVE BOTTOM SHEET MODALS (TRƯỢT TỪ DƯỚI LÊN TRÊN MOBILE) */
   .bottom-sheet-drag-handle {
     display: block;
-    width: 40px;
-    height: 5px;
+    width: 38px;
+    height: 4px;
     background: #cbd5e1;
-    border-radius: 3px;
-    margin: 8px auto 6px;
+    border-radius: 2px;
+    margin: 6px auto 6px;
     flex-shrink: 0;
   }
 
   .modal-overlay {
-    align-items: flex-end;
-    padding: 0;
-    background: rgba(15, 23, 42, 0.6);
+    align-items: flex-end !important;
+    padding: 0 !important;
+    background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
   }
 
   .modal-card {
     max-width: 100vw !important;
-    width: 100vw;
+    width: 100vw !important;
     border-radius: 20px 20px 0 0 !important;
     max-height: 92vh;
     padding: 4px 14px 18px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     transform: translateY(100%);
-    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.15);
   }
 
@@ -741,19 +1204,19 @@
   }
 
   .modal-header {
-    padding: 8px 4px 12px;
+    padding: 6px 4px 10px;
     border-bottom: 1px solid #e2e8f0;
   }
 
   .modal-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
   }
 
   .btn-close-modal {
-    width: 38px;
-    height: 38px;
-    font-size: 22px;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -761,10 +1224,11 @@
   }
 
   .modal-body {
-    padding: 12px 4px 6px;
+    padding: 10px 2px 6px;
   }
 
   .form-row {
+    display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
   }
@@ -776,14 +1240,12 @@
   }
 
   .nav-tab-btn {
-    padding: 8px 10px;
-    font-size: 12px;
+    padding: 7px 9px;
+    font-size: 11.5px;
     white-space: nowrap;
   }
 
-  /* ----------------------------------------------------------------------------
-     9. BOTTOM NAVIGATION BAR (5 NÚT NGÓN CÁI TIỆN LỢI TRÊN SMARTPHONE)
-     ---------------------------------------------------------------------------- */
+  /* 8. FIXED BOTTOM NAVIGATION BAR (5 NÚT NGÓN CÁI TIỆN LỢI TRÊN MOBILE) */
   .bottom-nav-bar {
     position: fixed;
     bottom: 0;
@@ -866,11 +1328,9 @@
     margin-top: 1px;
   }
 
-  /* ----------------------------------------------------------------------------
-     10. MÀN HÌNH MỞ KHÓA & ĐĂNG NHẬP TRÊN MOBILE (LOGIN GATE)
-     ---------------------------------------------------------------------------- */
+  /* 9. MÀN HÌNH MỞ KHÓA & ĐĂNG NHẬP (LOGIN GATE) TRÊN MOBILE */
   .login-gate-overlay {
-    padding: 12px;
+    padding: 10px;
     align-items: center;
     justify-content: center;
   }
@@ -882,99 +1342,89 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 0;
-    border-radius: 16px;
+    border-radius: 14px;
+  }
+
+  .login-gate-brand {
+    padding: 14px 16px;
+  }
+
+  .login-gate-badge {
+    width: 38px;
+    height: 38px;
+  }
+
+  .login-gate-hospital {
+    font-size: 10px;
+  }
+
+  .login-gate-dept {
+    font-size: 13.5px;
+  }
+
+  .login-doctor-preview {
+    margin: 12px 14px 10px;
+    padding: 10px;
+  }
+
+  .gate-mode-selector {
+    margin: 0 12px 12px;
+  }
+
+  .gate-mode-btn {
+    font-size: 11px;
+    padding: 6px 4px;
+    gap: 4px;
+  }
+
+  .gate-mode-btn svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
   }
 
   .pattern-lock-wrap {
-    max-width: min(250px, 68vw);
-    max-height: min(250px, 68vw);
+    max-width: min(240px, 68vw);
+    max-height: min(240px, 68vw);
     aspect-ratio: 1 / 1;
-    margin: 8px auto;
+    margin: 6px auto;
   }
 
   .pattern-lock-svg {
-    max-width: min(250px, 68vw);
-    max-height: min(250px, 68vw);
+    max-width: min(240px, 68vw);
+    max-height: min(240px, 68vw);
   }
 
   .gate-switch-actions {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 10px;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
     border-top: 1px dashed #e2e8f0;
     flex-wrap: wrap;
   }
 
   .btn-gate-link {
-    background: none;
-    border: none;
-    color: #475569;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    padding: 4px 6px;
-    touch-action: manipulation;
-  }
-
-  .btn-gate-link.primary-link {
-    color: #2563eb;
-    font-weight: 700;
+    font-size: 11.5px;
+    padding: 3px 5px;
   }
 
   .gate-quick-doctors-wrap {
-    padding: 0 16px 10px;
-  }
-
-  .gate-sub-label {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #64748b;
-    margin-bottom: 6px;
+    padding: 0 14px 8px;
   }
 
   .gate-doc-chips {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     overflow-x: auto;
     scrollbar-width: none;
-    padding-bottom: 4px;
+    padding-bottom: 3px;
   }
 
   .gate-doc-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .gate-doc-chip.active {
-    background: #eff6ff;
-    border-color: #2563eb;
-    color: #1e3a8a;
-  }
-
-  .gate-doc-chip-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 10px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }

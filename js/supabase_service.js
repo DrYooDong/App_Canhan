@@ -1,5 +1,6 @@
 // ==============================================================================
 // SUPABASE CLIENT SERVICE & REALTIME SYNC (WITH LOCAL FALLBACK)
+// MedWard Pro - Chuẩn hóa 2026: Hỗ trợ Phân vùng Ngày & Granular Realtime Sync
 // ==============================================================================
 
 class SupabaseService {
@@ -14,8 +15,67 @@ class SupabaseService {
     this.batchSyncLock = false;
     this.pendingBatch = null;
 
+    // Định danh phiên làm việc hiện tại (Device/Tab ID) để triệt tiêu triệt để echo loop
+    this.clientId = 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    this.lastLocalSaveTimestamp = 0;
+
     this.init();
   }
+
+  // ================= UTILITIES: DATE CONVERSION =================
+
+  formatDateToISO(val) {
+    if (!val) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      }
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, '0');
+      const d = String(val.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      // Đã là YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      // Định dạng DD/MM/YYYY
+      const slashParts = trimmed.split('/');
+      if (slashParts.length === 3) {
+        const d = slashParts[0].padStart(2, '0');
+        const m = slashParts[1].padStart(2, '0');
+        const y = slashParts[2];
+        return `${y}-${m}-${d}`;
+      }
+      // Định dạng DD-MM-YYYY
+      const dashParts = trimmed.split('-');
+      if (dashParts.length === 3 && dashParts[0].length <= 2) {
+        const d = dashParts[0].padStart(2, '0');
+        const m = dashParts[1].padStart(2, '0');
+        const y = dashParts[2];
+        return `${y}-${m}-${d}`;
+      }
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  getCurrentWorkDate() {
+    const reportDateInput = document.getElementById('reportDate');
+    if (reportDateInput && reportDateInput.value) {
+      return this.formatDateToISO(reportDateInput.value);
+    }
+    return this.formatDateToISO(new Date());
+  }
+
+  // ================= INITIALIZATION =================
 
   async init() {
     let conf = null;
@@ -27,7 +87,7 @@ class SupabaseService {
     }
 
     // Tự động chuyển đổi nếu chưa có cấu hình hoặc đang lưu cấu hình của project cũ
-    if (!conf || !conf.url || !conf.key || conf.url.includes('iqkrdzeymxdrqdvfjnyt')) {
+    if (!conf || !conf.url || !conf.key || conf.url.includes('iqkrdzeymxdrqdvfjnyt') || conf.url.includes('vowgqkxlhsienxcgkrnd')) {
       if (CONFIG.DEFAULT_SUPABASE?.URL && CONFIG.DEFAULT_SUPABASE?.KEY) {
         conf = {
           url: CONFIG.DEFAULT_SUPABASE.URL,
@@ -75,7 +135,6 @@ class SupabaseService {
       const { data: { session } } = await this.client.auth.getSession();
       if (session) return session;
 
-      // Nếu đã lưu phiên người dùng
       const savedDoctor = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
       const email = savedDoctor?.email || 'nguyenhuudongy18@gmail.com';
       const savedPin = localStorage.getItem('medward_doctor_pin') || savedDoctor?.pin;
@@ -98,7 +157,6 @@ class SupabaseService {
   // Cấu hình URL & Key
   configure(url, key) {
     if (!url || !key) {
-      // Nếu xóa trắng, phục hồi về cấu hình cố định mặc định nếu có
       if (CONFIG.DEFAULT_SUPABASE?.URL && CONFIG.DEFAULT_SUPABASE?.KEY) {
         const defaultConf = {
           url: CONFIG.DEFAULT_SUPABASE.URL,
@@ -187,8 +245,13 @@ class SupabaseService {
   }
 
   notifyRealtimeSubscribers(payload) {
-    // Nếu vừa mới lưu từ chính phiên làm việc này trong vòng 3.5 giây, bỏ qua để tránh phản xạ lặp (echo loop)
-    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 3500)) {
+    // 1. Kiểm tra Client ID để triệt tiêu echo loop
+    if (payload?.new?.last_client_id && payload.new.last_client_id === this.clientId) {
+      return;
+    }
+
+    // 2. Kiểm tra nếu vừa mới lưu từ chính phiên này trong 1.5s
+    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 1500)) {
       return;
     }
 
@@ -215,6 +278,17 @@ class SupabaseService {
             this.lastSyncedAt = new Date();
             this.notifyStateChange();
             this.notifyRealtimeSubscribers(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'work_days' },
+          (payload) => {
+            this.lastSyncedAt = new Date();
+            this.notifyStateChange();
+            if (window.patientController && typeof window.patientController.onWorkDayRealtimeUpdate === 'function') {
+              window.patientController.onWorkDayRealtimeUpdate(payload);
+            }
           }
         )
         .on(
@@ -264,7 +338,6 @@ class SupabaseService {
     const cleanUsername = this.extractUsername(email);
 
     if (!this.isCloudEnabled || !this.client) {
-      // Local Mode Sign Up
       const localUser = {
         id: 'local_user_' + Date.now(),
         email: email,
@@ -297,7 +370,6 @@ class SupabaseService {
 
       if (error) throw error;
 
-      // Lưu thông tin vào bảng profiles nếu user tạo thành công
       if (data && data.user) {
         await this.client.from('profiles').upsert({
           id: data.user.id,
@@ -307,7 +379,9 @@ class SupabaseService {
           title: doctorData.title || 'Bác sĩ điều trị',
           department: doctorData.department || 'Khoa Nhiễm',
           hospital: doctorData.hospital || 'BV ĐKKV Thủ Đức',
-          phone: doctorData.phone || ''
+          phone: doctorData.phone || '',
+          role: doctorData.role || 'doctor',
+          pin: doctorData.pin || '123456'
         });
       }
 
@@ -322,7 +396,6 @@ class SupabaseService {
     const cleanUsername = this.extractUsername(email);
 
     if (!this.isCloudEnabled || !this.client) {
-      // Local Mode Sign In
       const savedUserStr = localStorage.getItem(CONFIG.STORAGE_KEYS.AUTH_USER);
       let user = savedUserStr ? JSON.parse(savedUserStr) : CONFIG.DEFAULT_DEMO_DOCTOR;
       user.email = email;
@@ -365,7 +438,6 @@ class SupabaseService {
       const { data: { user } } = await this.client.auth.getUser();
       if (!user) return null;
 
-      // Lấy profile chi tiết
       const { data: profile } = await this.client
         .from('profiles')
         .select('*')
@@ -382,7 +454,8 @@ class SupabaseService {
         title: profile?.title || user.user_metadata?.title || 'Bác sĩ điều trị',
         department: profile?.department || user.user_metadata?.department || 'Khoa Nhiễm',
         hospital: profile?.hospital || user.user_metadata?.hospital || 'BV ĐKKV Thủ Đức',
-        phone: profile?.phone || user.user_metadata?.phone || ''
+        phone: profile?.phone || user.user_metadata?.phone || '',
+        role: profile?.role || 'doctor'
       };
     } catch (e) {
       console.warn('Lỗi lấy thông tin user:', e);
@@ -451,7 +524,7 @@ class SupabaseService {
               hospital: p.hospital || 'BV ĐKKV Thủ Đức',
               phone: p.phone || '',
               role: isDong ? 'admin' : (p.role || 'doctor'),
-              storage_limit_mb: 100
+              storage_limit_mb: p.storage_limit_mb || 100
             };
             if (existingIdx >= 0) {
               docs[existingIdx] = { ...docs[existingIdx], ...docObj };
@@ -474,67 +547,97 @@ class SupabaseService {
 
   // ================= PATIENT DATA OPERATIONS =================
 
-  async fetchPatients(targetDoctor = null) {
+  /**
+   * Truy vấn danh sách bệnh nhân theo NGÀY (report_date) và BÁC SĨ (doctor)
+   * @param {Object|null} targetDoctor Bác sĩ mục tiêu
+   * @param {string|Date|null} targetDate Ngày làm việc (định dạng DD/MM/YYYY hoặc YYYY-MM-DD hoặc Date)
+   */
+  async fetchPatients(targetDoctor = null, targetDate = null) {
     this.isSyncing = true;
     this.notifyStateChange();
 
-    const activeDoc = targetDoctor || window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
-    const isAdmin = window.authController?.isDongAdmin?.(activeDoc);
-    const viewingMode = window.patientController?.activeWorkspaceDoctorId || 'my_space';
+    const isoDate = this.formatDateToISO(targetDate || this.getCurrentWorkDate());
+    const dateCacheKey = `medward_patients_${isoDate}`;
 
     if (!this.isCloudEnabled || !this.client) {
       this.isSyncing = false;
       this.notifyStateChange();
-      const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+      const local = localStorage.getItem(dateCacheKey) || localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
       return local ? JSON.parse(local) : [...CONFIG.SAMPLE_PATIENTS];
     }
 
     try {
-      // Đảm bảo session trước khi truy vấn
       await this.ensureSession();
 
-      const { data, error } = await this.client
+      // 1. Truy vấn bệnh nhân ĐÚNG THEO NGÀY và CHƯA BỊ XÓA (is_deleted = false)
+      let query = this.client
         .from('patients')
         .select('*')
+        .eq('report_date', isoDate)
+        .eq('is_deleted', false)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
+
+      const { data, error } = await query;
 
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
 
       if (error) throw error;
+
       if (data && data.length > 0) {
-        // Tự động phân tách chuẩn hóa CLS và Y lệnh nếu database cũ chỉ có cột tổng hợp cls/y_lenh
         data.forEach(p => {
           if (window.patientController && typeof window.patientController.normalizePatientClsAndOrders === 'function') {
             window.patientController.normalizePatientClsAndOrders(p);
           }
         });
-        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(data));
+        localStorage.setItem(dateCacheKey, JSON.stringify(data));
         return data;
       } else {
-        const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+        // Nếu ngày này chưa có bản ghi trên cloud, kiểm tra xem có phải là ngày hôm nay và DB cũ chưa có report_date
+        const isToday = (isoDate === this.formatDateToISO(new Date()));
+        if (isToday) {
+          const { data: legacyData } = await this.client
+            .from('patients')
+            .select('*')
+            .is('report_date', null)
+            .eq('is_deleted', false)
+            .order('sort_order', { ascending: true });
+
+          if (legacyData && legacyData.length > 0) {
+            // Tự động gán report_date cho các bản ghi cũ
+            legacyData.forEach(p => p.report_date = isoDate);
+            localStorage.setItem(dateCacheKey, JSON.stringify(legacyData));
+            return legacyData;
+          }
+        }
+
+        // Ngày hoàn toàn mới / chưa có bệnh nhân
+        const local = localStorage.getItem(dateCacheKey);
         return local ? JSON.parse(local) : [];
       }
     } catch (err) {
-      console.warn('Lỗi tải dữ liệu bệnh nhân từ cloud, dùng cache nội bộ:', err);
+      console.warn(`Lỗi tải dữ liệu bệnh nhân ngày ${isoDate} từ cloud:`, err);
       this.isSyncing = false;
       this.notifyStateChange();
-      const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+      const local = localStorage.getItem(dateCacheKey) || localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
       return local ? JSON.parse(local) : [...CONFIG.SAMPLE_PATIENTS];
     }
   }
 
-  // Lọc chỉ giữ các cột hợp lệ theo PostgreSQL Schema để tránh lỗi column not exist và bảo đảm Not-Null constraints
-  sanitizePatientForSupabase(p) {
+  /**
+   * Lọc và chuẩn hóa dữ liệu bản ghi bệnh nhân phù hợp với Supabase Schema 2026
+   */
+  sanitizePatientForSupabase(p, targetDate = null) {
     const allowedCols = [
-      'id', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
+      'id', 'report_date', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
       'chan_doan', 'cls', 'cls_hien_co', 'cls_can_lam', 'y_lenh', 'them_thuoc',
-      'doctor_id', 'doctor_name',
-      'sort_order', 'handover_status',
-      'handover_issues', 'handover_actions', 'handover_by', 'handover_by_id',
+      'doctor_id', 'doctor_name', 'sort_order',
+      'is_discharged', 'is_deleted',
+      'handover_status', 'handover_issues', 'handover_actions', 'handover_by', 'handover_by_id',
       'handover_at', 'handover_resolved_by', 'handover_resolved_at',
+      'version', 'last_client_id', 'client_updated_at',
       'created_at', 'updated_at'
     ];
     const out = {};
@@ -543,7 +646,11 @@ class SupabaseService {
         out[col] = p[col];
       }
     }
-    // Gán doctor_name và doctor_id để đồng bộ xuyên suốt
+
+    // 1. BẮT BUỘC CÓ report_date HỢP LỆ THEO CHUẨN ISO YYYY-MM-DD
+    out.report_date = this.formatDateToISO(p.report_date || targetDate || this.getCurrentWorkDate());
+
+    // 2. Gán doctor_name và doctor_id
     if (p.doctor_name) {
       out.doctor_name = p.doctor_name;
       if (!out.handover_by) out.handover_by = p.doctor_name;
@@ -552,15 +659,13 @@ class SupabaseService {
       out.doctor_id = p.doctor_id;
     }
 
-    // Đảm bảo các trường CLS chi tiết luôn tồn tại
+    // 3. Chuẩn hóa CLS
     if (p.cls_hien_co !== undefined && p.cls_hien_co !== null) {
       out.cls_hien_co = String(p.cls_hien_co).trim();
     }
     if (p.cls_can_lam !== undefined && p.cls_can_lam !== null) {
       out.cls_can_lam = String(p.cls_can_lam).trim();
     }
-
-    // Đóng gói cấu trúc 2 phần CLS vào cột cls tổng hợp để tương thích ngược 100%
     const hc = (out.cls_hien_co || p.cls_hien_co || '').trim();
     const cl = (out.cls_can_lam || p.cls_can_lam || '').trim();
     if (hc && cl) {
@@ -571,12 +676,10 @@ class SupabaseService {
       out.cls = hc;
     }
 
-    // Đảm bảo trường Thêm thuốc chi tiết luôn tồn tại
+    // 4. Chuẩn hóa Thêm thuốc
     if (p.them_thuoc !== undefined && p.them_thuoc !== null) {
       out.them_thuoc = String(p.them_thuoc).trim();
     }
-
-    // Đóng gói Thêm thuốc vào cột y_lenh tổng hợp để tương thích ngược
     const baseYl = (out.y_lenh || p.y_lenh || '').trim();
     const extraRx = (out.them_thuoc || p.them_thuoc || '').trim();
     if (extraRx) {
@@ -587,33 +690,35 @@ class SupabaseService {
       }
     }
 
-    // Đảm bảo created_at và updated_at luôn là chuỗi thời gian ISO hợp lệ, TUYỆT ĐỐI không bao giờ null
+    // 5. Cờ quản lý đồng bộ
+    out.is_discharged = !!p.is_discharged;
+    out.is_deleted = !!p.is_deleted;
+    out.last_client_id = this.clientId;
+    out.client_updated_at = new Date().toISOString();
+
+    // 6. Timestamps ISO
     const nowIso = new Date().toISOString();
     if (!out.created_at || out.created_at === 'null' || typeof out.created_at !== 'string') {
       out.created_at = (p.created_at && p.created_at !== 'null' && typeof p.created_at === 'string')
         ? p.created_at
         : nowIso;
     }
-    if (!out.updated_at || out.updated_at === 'null' || typeof out.updated_at !== 'string') {
-      out.updated_at = nowIso;
-    }
+    out.updated_at = nowIso;
 
-    // Đảm bảo tên người bệnh không rỗng
+    // 7. Tên người bệnh không rỗng
     if (!out.ten || !String(out.ten).trim()) {
       out.ten = (p.ten && String(p.ten).trim()) || 'BỆNH NHÂN MỚI';
     }
 
-    // Đảm bảo handover_status hợp lệ
     if (!out.handover_status) {
       out.handover_status = p.handover_status || 'none';
     }
 
-    // Đảm bảo sort_order là số
     if (typeof out.sort_order !== 'number' || isNaN(out.sort_order)) {
       out.sort_order = 0;
     }
 
-    // Đảm bảo các trường uuid chỉ giữ giá trị khi đúng chuẩn UUID RFC4122 (tránh lỗi Postgres: 22P02 invalid input syntax for type uuid)
+    // 8. UUID RFC4122
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (out.id && !uuidRegex.test(out.id)) {
       out.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
@@ -628,7 +733,7 @@ class SupabaseService {
     return out;
   }
 
-  async savePatient(patient) {
+  async savePatient(patient, targetDate = null) {
     this.lastLocalSaveTimestamp = Date.now();
     this.isSyncing = true;
     this.notifyStateChange();
@@ -638,14 +743,19 @@ class SupabaseService {
       patient.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
     }
 
-    // Luôn cập nhật local storage trước
-    let localList = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA) || '[]');
+    const isoDate = this.formatDateToISO(patient.report_date || targetDate || this.getCurrentWorkDate());
+    patient.report_date = isoDate;
+
+    // Cache local theo ngày
+    const dateCacheKey = `medward_patients_${isoDate}`;
+    let localList = JSON.parse(localStorage.getItem(dateCacheKey) || '[]');
     const idx = localList.findIndex(p => p.id === patient.id);
     if (idx >= 0) {
       localList[idx] = { ...localList[idx], ...patient };
     } else {
       localList.push(patient);
     }
+    localStorage.setItem(dateCacheKey, JSON.stringify(localList));
     localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(localList));
 
     if (!this.isCloudEnabled || !this.client) {
@@ -657,7 +767,7 @@ class SupabaseService {
 
     try {
       await this.ensureSession();
-      const payload = this.sanitizePatientForSupabase(patient);
+      const payload = this.sanitizePatientForSupabase(patient, isoDate);
       const currentUser = await this.getCurrentUser();
       if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
         payload.user_id = currentUser.id;
@@ -684,17 +794,20 @@ class SupabaseService {
     }
   }
 
-  async syncBatchPatients(patientsArray) {
+  async syncBatchPatients(patientsArray, targetDate = null) {
     if (!patientsArray || !Array.isArray(patientsArray)) {
       return { data: [], error: null };
     }
 
+    const isoDate = this.formatDateToISO(targetDate || this.getCurrentWorkDate());
+    const dateCacheKey = `medward_patients_${isoDate}`;
+
     // Cache local ngay lập tức
+    localStorage.setItem(dateCacheKey, JSON.stringify(patientsArray));
     localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(patientsArray));
 
-    // Khóa chống xung đột truy vấn đồng thời (concurrency mutex)
     if (this.batchSyncLock) {
-      this.pendingBatch = patientsArray;
+      this.pendingBatch = { array: patientsArray, date: isoDate };
       return { data: patientsArray, error: null, queued: true };
     }
 
@@ -717,9 +830,8 @@ class SupabaseService {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const nowIso = new Date().toISOString();
 
-      // 1. Chuẩn hóa dữ liệu theo schema Postgres và cấp phát UUID nếu thiếu hoặc không hợp lệ
       const rawRecords = patientsArray.map((p, idx) => {
-        const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx });
+        const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx }, isoDate);
         if (!item.id || !uuidRegex.test(item.id)) {
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
           if (p) p.id = item.id;
@@ -734,14 +846,13 @@ class SupabaseService {
         return item;
       });
 
-      // 2. KHỬ TRÙNG LẶP ID TRIỆT ĐỂ: Đảm bảo không có 2 bản ghi nào cùng id trong cùng 1 request
+      // Khử trùng lặp ID trong cùng 1 request
       const seenIds = new Set();
       const deduplicatedRecords = [];
       for (let i = 0; i < rawRecords.length; i++) {
         const item = rawRecords[i];
         const lowerId = String(item.id).toLowerCase();
         if (seenIds.has(lowerId)) {
-          // Trùng ID: cấp phát UUID mới để tránh lỗi 23505
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
           if (patientsArray[i]) patientsArray[i].id = item.id;
         }
@@ -751,7 +862,6 @@ class SupabaseService {
 
       let syncedData = deduplicatedRecords;
 
-      // 3. THỰC HIỆN UPSERT (ON CONFLICT 'id')
       if (deduplicatedRecords.length > 0) {
         let upsertSuccess = false;
         try {
@@ -770,23 +880,19 @@ class SupabaseService {
           console.warn('Lỗi mạng khi upsert mẻ, chuyển sang lưu từng bản ghi:', batchErr?.message || batchErr);
         }
 
-        // Nếu upsert cả mẻ bị lỗi (ví dụ 23505 hoặc payload lớn), lưu từng bản ghi một cách bền bỉ
         if (!upsertSuccess) {
           const individuallySaved = [];
           for (const item of deduplicatedRecords) {
             try {
               const res = await this.client.from('patients').upsert(item, { onConflict: 'id' });
               if (res.error) {
-                // Nếu bị lỗi 23505 trùng khóa, cấp phát UUID mới và thử lại
                 item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
                 const retryRes = await this.client.from('patients').upsert(item, { onConflict: 'id' });
                 if (!retryRes.error) individuallySaved.push(item);
               } else {
                 individuallySaved.push(item);
               }
-            } catch (singleErr) {
-              // Bỏ qua lỗi từng bản ghi để không ngắt toàn bộ tiến trình
-            }
+            } catch (singleErr) {}
           }
           if (individuallySaved.length > 0) {
             syncedData = individuallySaved;
@@ -794,35 +900,20 @@ class SupabaseService {
         }
       }
 
-      // Đồng bộ ngược lại vào local cache và controller nhưng BẢO TOÀN toàn bộ các trường chi tiết
-      if (window.patientController && Array.isArray(window.patientController.patientList)) {
-        syncedData.forEach((sItem, sIdx) => {
-          if (window.patientController.patientList[sIdx] && sItem.id) {
-            window.patientController.patientList[sIdx].id = sItem.id;
-            if (sItem.created_at) window.patientController.patientList[sIdx].created_at = sItem.created_at;
-            if (sItem.updated_at) window.patientController.patientList[sIdx].updated_at = sItem.updated_at;
-          }
-        });
-        window.patientController.saveLocalCache();
-      } else {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
-      }
-
       this.batchSyncLock = false;
       this.isSyncing = false;
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
 
-      // Nếu có tác vụ chờ trong hàng đợi, thực thi tiếp tục
       if (this.pendingBatch) {
         const nextBatch = this.pendingBatch;
         this.pendingBatch = null;
-        setTimeout(() => this.syncBatchPatients(nextBatch), 50);
+        setTimeout(() => this.syncBatchPatients(nextBatch.array, nextBatch.date), 50);
       }
 
       return { data: syncedData, error: null };
     } catch (err) {
-      console.warn('Lưu ý đồng bộ Cloud (dữ liệu đã lưu an toàn vào bộ nhớ nội bộ):', err?.message || err);
+      console.warn('Lưu ý đồng bộ Cloud:', err?.message || err);
       this.batchSyncLock = false;
       this.isSyncing = false;
       this.notifyStateChange();
@@ -831,24 +922,27 @@ class SupabaseService {
         this.pendingBatch = null;
       }
 
-      // Cập nhật trạng thái lưu an toàn trên máy
-      if (window.updateSaveStatus) {
-        window.updateSaveStatus('💾 Đã lưu bộ nhớ máy (Đang chờ kết nối Cloud)');
-      }
-
-      return { 
-        data: patientsArray, 
-        error: null, 
+      return {
+        data: patientsArray,
+        error: null,
         offlineSaved: true,
         networkWarning: err?.message || 'Chờ kết nối mạng'
       };
     }
   }
 
+  /**
+   * Xóa bệnh nhân: Sử dụng SOFT DELETE (is_deleted = true) trên Cloud
+   * để thông báo Realtime xóa tức thì sang các máy khác mà không bị hiện tượng Zombie
+   */
   async deletePatient(patientId) {
-    // Local remove
-    let localList = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA) || '[]');
+    const isoDate = this.getCurrentWorkDate();
+    const dateCacheKey = `medward_patients_${isoDate}`;
+
+    // Xóa khỏi cache local
+    let localList = JSON.parse(localStorage.getItem(dateCacheKey) || '[]');
     localList = localList.filter(p => p.id !== patientId);
+    localStorage.setItem(dateCacheKey, JSON.stringify(localList));
     localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(localList));
 
     if (!this.isCloudEnabled || !this.client) {
@@ -862,12 +956,63 @@ class SupabaseService {
 
     try {
       await this.ensureSession();
-      const { error } = await this.client.from('patients').delete().eq('id', patientId);
-      if (error) throw error;
+      // Soft delete trên Supabase để bắn Realtime DELETE cho các client khác
+      const { error } = await this.client
+        .from('patients')
+        .update({
+          is_deleted: true,
+          last_client_id: this.clientId,
+          client_updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', patientId);
+
+      if (error) {
+        // Fallback hard delete nếu schema cũ chưa có is_deleted
+        await this.client.from('patients').delete().eq('id', patientId);
+      }
       return { success: true };
     } catch (err) {
       console.warn('Lỗi xóa bệnh nhân trên cloud:', err);
       return { success: false, error: err };
+    }
+  }
+
+  // ================= WORK_DAYS MANAGEMENT =================
+
+  async getActiveWorkDate() {
+    if (!this.isCloudEnabled || !this.client) {
+      return this.getCurrentWorkDate();
+    }
+    try {
+      const { data } = await this.client
+        .from('work_days')
+        .select('*')
+        .eq('status', 'active')
+        .order('report_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && data.report_date) {
+        return data.report_date;
+      }
+    } catch (e) {}
+    return this.getCurrentWorkDate();
+  }
+
+  async setWorkDayStatus(dateStr, status = 'active', totalPatients = 0) {
+    if (!this.isCloudEnabled || !this.client) return;
+    const isoDate = this.formatDateToISO(dateStr);
+    try {
+      await this.client.from('work_days').upsert({
+        report_date: isoDate,
+        department: 'Khoa Nhiễm',
+        status: status,
+        total_patients: totalPatients,
+        updated_at: new Date().toISOString()
+      });
+    } catch (e) {
+      console.warn('Lỗi cập nhật work_day:', e);
     }
   }
 }

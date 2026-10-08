@@ -13,14 +13,38 @@ class PatientController {
     this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
     this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
+    this.currentDate = this.getCurrentDateString();
+    this.pendingRealtimePatches = [];
 
     this.init();
+  }
+
+  getCurrentDateString() {
+    const repInput = document.getElementById('reportDate');
+    if (repInput && repInput.value && repInput.value.trim().length >= 8) {
+      return repInput.value.trim();
+    }
+    if (this.currentDate) return this.currentDate;
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  formatDateToCompare(d) {
+    if (!d) return '';
+    if (window.supabaseService && window.supabaseService.formatDateToISO) {
+      return window.supabaseService.formatDateToISO(d);
+    }
+    return String(d).trim();
   }
 
   async init() {
     this.loadSettings();
     this.applyMobileViewMode();
-    await this.reloadFromSource();
+    this.currentDate = this.getCurrentDateString();
+    await this.reloadFromSource(false, this.currentDate);
     this.setupRealtimeListener();
     this.updateStorageHudUI();
   }
@@ -43,32 +67,119 @@ class PatientController {
     }));
   }
 
+  // ==============================================================================
+  // GRANULAR REALTIME LISTENER - ĐỒNG BỘ VI MÔ KHÔNG LÀM GIẬT GIAO DIỆN MOBILE
+  // ==============================================================================
   setupRealtimeListener() {
-    // Nhận thông báo Realtime từ Supabase khi thiết bị khác thay đổi
     if (window.supabaseService) {
-      window.supabaseService.onRealtimeUpdate(async (payload) => {
-        if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      window.supabaseService.onRealtimeUpdate((payload) => {
+        if (!payload) return;
+
+        // 1. Kiểm tra ngày: Nếu payload thuộc ngày khác với ngày đang xem thì bỏ qua
+        const record = payload.new || payload.old;
+        if (record && record.report_date) {
+          const curIso = window.supabaseService.formatDateToISO(this.getCurrentDateString());
+          const recIso = window.supabaseService.formatDateToISO(record.report_date);
+          if (curIso !== recIso) {
+            return; // Khác ngày làm việc hiện tại, bỏ qua
+          }
+        }
+
+        // 2. Nếu người dùng đang tập trung gõ phím trên màn hình này:
+        const isUserTyping = document.activeElement && (
+          document.activeElement.isContentEditable ||
+          document.activeElement.tagName === 'INPUT' ||
+          document.activeElement.tagName === 'TEXTAREA'
+        );
+
+        if (isUserTyping) {
+          this.pendingRealtimePatches.push(payload);
           return;
         }
 
-        if (this.realtimeDebounceTimer) {
-          clearTimeout(this.realtimeDebounceTimer);
-        }
+        // 3. Thực hiện áp dụng trực tiếp bản cập nhật
+        this.applyRealtimePayload(payload);
+      });
 
-        this.realtimeDebounceTimer = setTimeout(async () => {
-          await this.reloadFromSource(false);
-          this.render();
-        }, 2000);
+      // Lắng nghe khi người dùng kết thúc nhập liệu (focusout) để áp dụng các bản cập nhật chờ
+      document.addEventListener('focusout', () => {
+        if (this.pendingRealtimePatches && this.pendingRealtimePatches.length > 0) {
+          setTimeout(() => {
+            const isStillTyping = document.activeElement && (
+              document.activeElement.isContentEditable ||
+              document.activeElement.tagName === 'INPUT' ||
+              document.activeElement.tagName === 'TEXTAREA'
+            );
+            if (!isStillTyping && this.pendingRealtimePatches.length > 0) {
+              const patches = [...this.pendingRealtimePatches];
+              this.pendingRealtimePatches = [];
+              patches.forEach(p => this.applyRealtimePayload(p));
+            }
+          }, 350);
+        }
       });
     }
   }
 
+  applyRealtimePayload(payload) {
+    const eventType = payload.eventType || (payload.new?.is_deleted ? 'DELETE' : 'UPDATE');
+    const newRecord = payload.new;
+    const oldRecord = payload.old;
+
+    if (eventType === 'DELETE' || newRecord?.is_deleted) {
+      const targetId = oldRecord?.id || newRecord?.id;
+      if (targetId) {
+        const prevLen = this.patientList.length;
+        this.patientList = this.patientList.filter(p => p.id !== targetId);
+        if (this.patientList.length !== prevLen) {
+          this.saveLocalCache();
+          this.render();
+          if (window.showToast) {
+            window.showToast('ℹ️ Một người bệnh vừa được cập nhật/loại khỏi danh sách');
+          }
+        }
+      }
+      return;
+    }
+
+    if (eventType === 'INSERT') {
+      if (newRecord && newRecord.id) {
+        const exists = this.patientList.some(p => p.id === newRecord.id);
+        if (!exists) {
+          this.normalizePatientClsAndOrders(newRecord);
+          this.patientList.push(newRecord);
+          this.patientList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          this.saveLocalCache();
+          this.render();
+          if (window.showToast) {
+            window.showToast(`➕ Tiếp nhận người bệnh mới: ${newRecord.ten || ''}`);
+          }
+        }
+      }
+      return;
+    }
+
+    if (eventType === 'UPDATE') {
+      if (newRecord && newRecord.id) {
+        const idx = this.patientList.findIndex(p => p.id === newRecord.id);
+        if (idx >= 0) {
+          this.normalizePatientClsAndOrders(newRecord);
+          this.patientList[idx] = { ...this.patientList[idx], ...newRecord };
+          this.saveLocalCache();
+          this.render();
+        }
+      }
+    }
+  }
+
   // ==============================================================================
-  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN (ISOLATED WORKSPACE & 100MB SAVE SLOT)
+  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN & PHÂN VÙNG THEO NGÀY
   // ==============================================================================
-  getDoctorSpaceKey(docId) {
-    if (!docId) return 'medward_patients_v2';
-    return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_patients';
+  getDoctorSpaceKey(docId, dateStr = null) {
+    const dStr = dateStr || this.getCurrentDateString();
+    const cleanDate = String(dStr).replace(/[\/\-\.]/g, '_');
+    if (!docId) return `medward_patients_${cleanDate}`;
+    return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_' + cleanDate;
   }
 
   getEffectiveDoctor() {
@@ -88,8 +199,8 @@ class PatientController {
     return { doctor: targetDoc, isAll: false, isAdmin: true };
   }
 
-  loadDoctorPatients(docId) {
-    const key = this.getDoctorSpaceKey(docId);
+  loadDoctorPatients(docId, dateStr = null) {
+    const key = this.getDoctorSpaceKey(docId, dateStr);
     const local = localStorage.getItem(key);
     if (local !== null) {
       try {
@@ -100,8 +211,9 @@ class PatientController {
       }
     }
 
-    // Nếu là BS. Đông và chưa khởi tạo partition riêng, nạp từ cache cũ hoặc sample
-    if (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId }))) {
+    // Nếu là ngày hôm nay và là BS. Đông và chưa khởi tạo partition riêng
+    const isToday = (this.formatDateToCompare(dateStr) === this.formatDateToCompare(new Date()));
+    if (isToday && (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId })))) {
       const oldCache = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
       if (oldCache) {
         try {
@@ -117,13 +229,12 @@ class PatientController {
       return samples;
     }
 
-    // MỌI TÀI KHOẢN BÁC SĨ KHÁC (VD: Hồ Thế Bảo) BẮT ĐẦU VỚI MẢNG RỖNG []
-    // Hoàn toàn độc lập, không thấy danh sách của BS. Đông!
-    localStorage.setItem(key, JSON.stringify([]));
     return [];
   }
 
-  async reloadFromSource(showNotice = true) {
+  async reloadFromSource(showNotice = true, targetDate = null) {
+    const reqDate = targetDate || this.getCurrentDateString();
+    this.currentDate = reqDate;
     const { doctor, isAll, isAdmin } = this.getEffectiveDoctor();
     let data = null;
 
@@ -133,7 +244,7 @@ class PatientController {
       const aggregated = [];
       const seenIds = new Set();
       allDocs.forEach(d => {
-        const docPts = this.loadDoctorPatients(d.id);
+        const docPts = this.loadDoctorPatients(d.id, reqDate);
         docPts.forEach(p => {
           if (!seenIds.has(p.id)) {
             seenIds.add(p.id);
@@ -147,11 +258,11 @@ class PatientController {
       });
       data = aggregated;
     } else {
-      // Chế độ Không gian riêng của từng Bác sĩ (VD: BS. Hồ Thế Bảo hoặc BS. Nguyễn Hữu Đông)
+      // Chế độ Không gian riêng của từng Bác sĩ
       if (window.supabaseService && window.supabaseService.isCloudEnabled) {
         try {
-          const cloudData = await window.supabaseService.fetchPatients();
-          if (cloudData && Array.isArray(cloudData) && cloudData.length > 0) {
+          const cloudData = await window.supabaseService.fetchPatients(doctor, reqDate);
+          if (cloudData && Array.isArray(cloudData)) {
             const docId = String(doctor.id || '').toLowerCase().trim();
             const docUsername = String(doctor.username || '').toLowerCase().trim();
             const docEmail = String(doctor.email || '').toLowerCase().trim();
@@ -164,6 +275,7 @@ class PatientController {
                                  docNameLower.includes('dong');
 
             const matched = cloudData.filter(p => {
+              if (p.is_deleted) return false;
               const pDocId = String(p.doctor_id || '').toLowerCase().trim();
               const pUserId = String(p.user_id || '').toLowerCase().trim();
               const pHandoverId = String(p.handover_by_id || '').toLowerCase().trim();
@@ -184,24 +296,17 @@ class PatientController {
                      (docUsername && (pDocId === docUsername || pDocName.includes(docUsername))) ||
                      (docNameLower && (pDocName === docNameLower || pDocName.includes(docNameLower)));
             });
-            if (matched.length > 0) {
-              data = matched;
-              localStorage.setItem(this.getDoctorSpaceKey(doctor.id), JSON.stringify(matched));
-            }
+
+            data = matched;
+            localStorage.setItem(this.getDoctorSpaceKey(doctor.id, reqDate), JSON.stringify(matched));
           }
         } catch (err) {
           console.warn('Lưu ý kết nối Cloud:', err);
         }
       }
 
-      if (!data) {
-        data = this.loadDoctorPatients(doctor.id);
-        // Nếu có danh sách trong bộ nhớ máy (như vừa nạp file Excel) mà Cloud chưa có, tự động đồng bộ ngay lên Supabase
-        if (window.supabaseService && window.supabaseService.isCloudEnabled && Array.isArray(data) && data.length > 0) {
-          setTimeout(() => {
-            window.supabaseService.syncBatchPatients(data);
-          }, 400);
-        }
+      if (data === null) {
+        data = this.loadDoctorPatients(doctor.id, reqDate);
       }
     }
 
@@ -351,6 +456,7 @@ class PatientController {
 
   saveLocalCache() {
     const { doctor, isAll } = this.getEffectiveDoctor();
+    const curDateStr = this.getCurrentDateString();
     if (isAll) {
       const partitionMap = {};
       this.patientList.forEach(p => {
@@ -359,16 +465,59 @@ class PatientController {
         partitionMap[dId].push(p);
       });
       Object.keys(partitionMap).forEach(dId => {
-        localStorage.setItem(this.getDoctorSpaceKey(dId), JSON.stringify(partitionMap[dId]));
+        localStorage.setItem(this.getDoctorSpaceKey(dId, curDateStr), JSON.stringify(partitionMap[dId]));
       });
     } else {
-      const key = this.getDoctorSpaceKey(doctor.id);
+      const key = this.getDoctorSpaceKey(doctor.id, curDateStr);
       localStorage.setItem(key, JSON.stringify(this.patientList));
       if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
       }
     }
     this.updateStorageHudUI();
+  }
+
+  // ==============================================================================
+  // CHUYỂN ĐỔI NGÀY XEM (DATE SWITCHER & HISTORICAL VIEW)
+  // ==============================================================================
+  async changeReportDate(targetDateStr) {
+    if (!targetDateStr) return;
+    const cleanDate = targetDateStr.trim();
+    this.currentDate = cleanDate;
+
+    const repInput = document.getElementById('reportDate');
+    if (repInput) repInput.value = cleanDate;
+
+    const nativePicker = document.getElementById('nativeDatePicker');
+    if (nativePicker && window.supabaseService) {
+      nativePicker.value = window.supabaseService.formatDateToISO(cleanDate);
+    }
+
+    const mobSummaryDate = document.getElementById('mobileSummaryDate');
+    if (mobSummaryDate) mobSummaryDate.innerText = cleanDate;
+
+    await this.reloadFromSource(false, cleanDate);
+    this.render();
+
+    if (window.medWardApp && typeof window.medWardApp.updatePrintDateNote === 'function') {
+      window.medWardApp.updatePrintDateNote();
+    }
+
+    const todayStr = (window.medWardApp && window.medWardApp.formatToDMY)
+      ? window.medWardApp.formatToDMY(new Date())
+      : new Date().toLocaleDateString('vi-VN');
+
+    const isToday = (cleanDate === todayStr);
+    if (window.showToast) {
+      if (isToday) {
+        window.showToast(`📅 Đang xem danh sách: Hôm nay (${cleanDate})`);
+      } else {
+        window.showToast(`📜 Lịch sử người bệnh ngày: ${cleanDate}`);
+      }
+    }
+    if (window.updateSaveStatus) {
+      window.updateSaveStatus(isToday ? `🟢 Ngày trực: ${cleanDate}` : `📜 Lịch sử: ${cleanDate}`);
+    }
   }
 
   // TÍNH TOÁN DUNG LƯỢNG LƯU TRỮ 100MB CHO TỪNG TÀI KHOẢN (SAVE SLOT HUD)
@@ -625,7 +774,7 @@ class PatientController {
     this.autoSaveTimers[timerKey] = setTimeout(async () => {
       delete this.autoSaveTimers[timerKey];
       if (window.supabaseService) {
-        await window.supabaseService.savePatient(this.patientList[idx]);
+        await window.supabaseService.savePatient(this.patientList[idx], this.currentDate);
       }
       if (window.updateSaveStatus) {
         const timeStr = new Date().toLocaleTimeString('vi-VN');
@@ -684,7 +833,7 @@ class PatientController {
       }
 
       if (window.supabaseService) {
-        const res = await window.supabaseService.savePatient(this.patientList[idx]);
+        const res = await window.supabaseService.savePatient(this.patientList[idx], this.currentDate);
         const timeStr = new Date().toLocaleTimeString('vi-VN');
         if (res && res.error) {
           if (window.updateSaveStatus) window.updateSaveStatus(`⚠️ Đã lưu offline (${timeStr})`, 'warning');
@@ -1048,6 +1197,10 @@ class PatientController {
       console.warn('Lỗi lưu archive ngày cũ:', e);
     }
 
+    const targetIsoDate = window.supabaseService
+      ? window.supabaseService.formatDateToISO(targetDate)
+      : targetDate;
+
     // Xây dựng danh sách bệnh nhân cho ngày mới
     const newPatients = [];
     this.patientList.forEach((p) => {
@@ -1055,6 +1208,7 @@ class PatientController {
         const nextP = {
           ...p,
           id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
+          report_date: targetIsoDate,
           phong_giuong: this.cleanRoomBedString(p.phong_giuong),
           chan_doan: autoInc ? this.incrementIllnessDay(p.chan_doan) : p.chan_doan,
           y_lenh: keepOrders ? p.y_lenh : '',
@@ -1062,6 +1216,8 @@ class PatientController {
           handover_issues: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_issues,
           handover_actions: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_actions,
           sort_order: newPatients.length,
+          is_discharged: false,
+          is_deleted: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -1069,6 +1225,7 @@ class PatientController {
       }
     });
 
+    this.currentDate = targetDate;
     this.patientList = newPatients;
     this.saveLocalCache();
 
@@ -1076,18 +1233,18 @@ class PatientController {
     const repDateInput = document.getElementById('reportDate');
     if (repDateInput) repDateInput.value = targetDate;
     const nativeDate = document.getElementById('nativeDatePicker');
-    if (nativeDate) {
-      const parts = targetDate.split('/');
-      if (parts.length === 3) {
-        nativeDate.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
+    if (nativeDate && window.supabaseService) {
+      nativeDate.value = window.supabaseService.formatDateToISO(targetDate);
     }
+    const mobSummaryDate = document.getElementById('mobileSummaryDate');
+    if (mobSummaryDate) mobSummaryDate.innerText = targetDate;
 
-    // Đồng bộ lên Supabase Cloud
+    // Đồng bộ danh sách ngày mới lên Supabase Cloud
     if (window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+      window.supabaseService.syncBatchPatients(this.patientList, targetIsoDate).catch(err => {
         console.warn('Lỗi đồng bộ ngày mới lên cloud:', err);
       });
+      window.supabaseService.setWorkDayStatus(targetIsoDate, 'active', this.patientList.length);
     }
 
     this.closeNextDayModal();
@@ -1144,8 +1301,10 @@ class PatientController {
     const myDocId = doctor.id || 'doc_dongnh';
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const currentIsoDate = window.supabaseService ? window.supabaseService.formatDateToISO(this.currentDate) : this.currentDate;
     const newPatient = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
+      report_date: currentIsoDate,
       user_id: uuidRegex.test(myDocId) ? myDocId : null,
       doctor_id: myDocId,
       doctor_name: myDocName,
@@ -1165,6 +1324,8 @@ class PatientController {
       handover_actions: patientData.handover_actions || '',
       handover_at: patientData.handover_at || null,
       sort_order: this.patientList.length,
+      is_discharged: false,
+      is_deleted: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -1175,7 +1336,7 @@ class PatientController {
     this.render();
 
     // Async lưu lên cloud
-    await window.supabaseService.savePatient(newPatient);
+    await window.supabaseService.savePatient(newPatient, this.currentDate);
     return newPatient;
   }
 
@@ -1192,8 +1353,10 @@ class PatientController {
     const myDocId = doctor.id || 'doc_dongnh';
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const currentIsoDate = window.supabaseService ? window.supabaseService.formatDateToISO(this.currentDate) : this.currentDate;
     const newP = {
       id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
+      report_date: currentIsoDate,
       user_id: uuidRegex.test(myDocId) ? myDocId : null,
       doctor_id: myDocId,
       doctor_name: myDoc,
@@ -1212,6 +1375,8 @@ class PatientController {
       handover_issues: '',
       handover_actions: '',
       sort_order: idx + 1,
+      is_discharged: false,
+      is_deleted: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -1223,7 +1388,7 @@ class PatientController {
     }
 
     this.saveLocalCache();
-    window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+    window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(err => {
       console.warn('Lỗi đồng bộ thêm dòng lên cloud:', err);
     });
     this.updateDoctorFilterDropdown();
@@ -1250,6 +1415,7 @@ class PatientController {
     const updated = {
       ...this.patientList[idx],
       ...fields,
+      report_date: this.patientList[idx].report_date || (window.supabaseService ? window.supabaseService.formatDateToISO(this.currentDate) : this.currentDate),
       updated_at: new Date().toISOString()
     };
 
@@ -1258,7 +1424,7 @@ class PatientController {
     this.render();
 
     // Async lưu lên cloud
-    await window.supabaseService.savePatient(updated);
+    await window.supabaseService.savePatient(updated, this.currentDate);
   }
 
   async deletePatient(patientId) {
@@ -1285,12 +1451,15 @@ class PatientController {
     }
 
     if (confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách bệnh nhân hiện tại không? Thao tác này không thể hoàn tác.')) {
+      const oldIds = this.patientList.map(p => p.id);
       this.patientList = [];
       this.saveLocalCache();
       this.updateDoctorFilterDropdown();
       this.render();
 
-      await window.supabaseService.syncBatchPatients([]);
+      for (const pid of oldIds) {
+        await window.supabaseService.deletePatient(pid).catch(() => {});
+      }
       if (window.updateSaveStatus) {
         window.updateSaveStatus('✓ Đã xóa trắng danh sách');
       }
@@ -1558,10 +1727,11 @@ class PatientController {
     }
   }
 
-  // RENDER DẢI FILTER CHIP TRÊN MOBILE
+  // RENDER DẢI FILTER CHIP TRÊN MOBILE, TABLET & LAPTOP
   renderMobileFilterChips() {
-    const container = document.getElementById('mobileFilterChips');
-    if (!container) return;
+    const mobileContainer = document.getElementById('mobileFilterChips');
+    const desktopContainer = document.getElementById('desktopFilterChips');
+    if (!mobileContainer && !desktopContainer) return;
 
     const total = this.patientList.length;
     const critical = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
@@ -1577,38 +1747,46 @@ class PatientController {
     });
     const sortedRooms = Object.keys(rooms).sort();
 
-    let html = `
-      <button class="mobile-filter-chip ${this.activeMobileFilter === 'all' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('all')">
-        Tất cả (${total})
-      </button>
-    `;
-
-    if (critical > 0) {
-      html += `
-        <button class="mobile-filter-chip chip-critical ${this.activeMobileFilter === 'critical' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('critical')">
-          🚨 Báo động đỏ (${critical})
+    const generateChipsHtml = (btnClass) => {
+      let html = `
+        <button class="${btnClass} ${this.activeMobileFilter === 'all' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('all')">
+          Tất cả (${total})
         </button>
       `;
+
+      if (critical > 0) {
+        html += `
+          <button class="${btnClass} chip-critical ${this.activeMobileFilter === 'critical' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('critical')">
+            🚨 Báo động đỏ (${critical})
+          </button>
+        `;
+      }
+
+      if (pending > 0) {
+        html += `
+          <button class="${btnClass} chip-pending ${this.activeMobileFilter === 'pending' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('pending')">
+            ⏳ Cần bàn giao (${pending})
+          </button>
+        `;
+      }
+
+      sortedRooms.forEach(room => {
+        const chipKey = `room:${room}`;
+        html += `
+          <button class="${btnClass} ${this.activeMobileFilter === chipKey ? 'active' : ''}" onclick="window.patientController.setMobileFilter('${chipKey}')">
+            🚪 ${this.escape(room)} (${rooms[room]})
+          </button>
+        `;
+      });
+      return html;
+    };
+
+    if (mobileContainer) {
+      mobileContainer.innerHTML = generateChipsHtml('mobile-filter-chip');
     }
-
-    if (pending > 0) {
-      html += `
-        <button class="mobile-filter-chip chip-pending ${this.activeMobileFilter === 'pending' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('pending')">
-          ⏳ Cần bàn giao (${pending})
-        </button>
-      `;
+    if (desktopContainer) {
+      desktopContainer.innerHTML = generateChipsHtml('clinical-filter-chip');
     }
-
-    sortedRooms.forEach(room => {
-      const chipKey = `room:${room}`;
-      html += `
-        <button class="mobile-filter-chip ${this.activeMobileFilter === chipKey ? 'active' : ''}" onclick="window.patientController.setMobileFilter('${chipKey}')">
-          🚪 ${this.escape(room)} (${rooms[room]})
-        </button>
-      `;
-    });
-
-    container.innerHTML = html;
   }
 
   setMobileFilter(filterKey) {
@@ -1637,23 +1815,15 @@ class PatientController {
     this.handleMobileSearch('');
   }
 
-  // CHUYỂN ĐỔI CHẾ ĐỘ XEM TRÊN MOBILE (THẺ VS BẢNG)
+  // CHUYỂN ĐỔI CHẾ ĐỘ XEM TRÊN MOBILE / TABLET / LAPTOP
   toggleMobileViewMode() {
-    this.mobileViewMode = (this.mobileViewMode === 'cards') ? 'table' : 'cards';
-    localStorage.setItem('medward_mobile_view_mode', this.mobileViewMode);
-    this.applyMobileViewMode();
+    if (window.medWardApp && window.medWardApp.toggleViewMode) {
+      window.medWardApp.toggleViewMode();
+    }
   }
 
   applyMobileViewMode() {
-    const btn = document.getElementById('btnMobileToggleView');
-    const label = document.getElementById('mobileViewToggleLabel');
-    if (this.mobileViewMode === 'table') {
-      document.body.classList.add('mobile-view-table');
-      if (label) label.innerText = '📋 Bảng';
-    } else {
-      document.body.classList.remove('mobile-view-table');
-      if (label) label.innerText = '📱 Thẻ';
-    }
+    // Được đồng bộ tự động qua MedWardApp.setupResponsiveAndViews()
   }
 
   scrollToTop() {
@@ -1962,23 +2132,19 @@ class PatientController {
           ` : ''}
         </div>
 
-        <!-- HÀNG NÚT HÀNH ĐỘNG DỄ CHẠM NGÓN TAY -->
+        <!-- HÀNG NÚT HÀNH ĐỘNG DẠNG ICON GỌN GÀNG -->
         <div class="card-actions-row">
-          <button type="button" class="card-btn-action btn-handover" onclick="window.handoverController.openHandoverModal('${p.id}')">
-            <span>🚨</span>
-            <span>Bàn giao</span>
+          <button type="button" class="card-btn-action btn-handover" title="Bàn giao ca trực" aria-label="Bàn giao ca trực" onclick="window.handoverController.openHandoverModal('${p.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           </button>
-          <button type="button" class="card-btn-action btn-zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            <span>Zalo</span>
+          <button type="button" class="card-btn-action btn-zalo" title="Copy gửi Zalo" aria-label="Copy gửi Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v2"></path></svg>
           </button>
-          <button type="button" class="card-btn-action" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            <span>Chi tiết</span>
+          <button type="button" class="card-btn-action" title="Chi tiết bệnh nhân" aria-label="Chi tiết bệnh nhân" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button type="button" class="card-btn-action btn-danger" onclick="window.patientController.deletePatient('${p.id}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            <span>Xóa</span>
+          <button type="button" class="card-btn-action btn-danger" title="Xóa người bệnh" aria-label="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
       `;
@@ -2031,41 +2197,6 @@ class PatientController {
     document.getElementById('editHandoverStatus').value = p.handover_status || CONFIG.HANDOVER_STATUS.NONE;
     document.getElementById('editHandoverIssues').value = p.handover_issues || '';
     document.getElementById('editHandoverActions').value = p.handover_actions || '';
-
-    // Quick tags
-    const diagEl = document.getElementById('diagQuickTags');
-    if (diagEl && CONFIG.QUICK_TAGS?.DIAGNOSIS) {
-      diagEl.innerHTML = CONFIG.QUICK_TAGS.DIAGNOSIS.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editDiagnosis', '${t}')">+ ${t}</button>`
-      ).join('');
-    }
-    const clsHcEl = document.getElementById('clsHienCoQuickTags');
-    if (clsHcEl && (CONFIG.QUICK_TAGS?.LABS_HIEN_CO || CONFIG.QUICK_TAGS?.LABS)) {
-      const list = CONFIG.QUICK_TAGS.LABS_HIEN_CO || CONFIG.QUICK_TAGS.LABS;
-      clsHcEl.innerHTML = list.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editClsHienCo', '${t}')">+ ${t}</button>`
-      ).join('');
-    }
-    const clsClEl = document.getElementById('clsCanLamQuickTags');
-    if (clsClEl && (CONFIG.QUICK_TAGS?.LABS_CAN_LAM || CONFIG.QUICK_TAGS?.LABS)) {
-      const list = CONFIG.QUICK_TAGS.LABS_CAN_LAM || CONFIG.QUICK_TAGS.LABS;
-      clsClEl.innerHTML = list.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editClsCanLam', '${t}')">+ ${t}</button>`
-      ).join('');
-    }
-    const ordersEl = document.getElementById('ordersQuickTags');
-    if (ordersEl && CONFIG.QUICK_TAGS?.ORDERS) {
-      ordersEl.innerHTML = CONFIG.QUICK_TAGS.ORDERS.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editOrders', '${t}')">+ ${t}</button>`
-      ).join('');
-    }
-    const themThuocEl = document.getElementById('themThuocQuickTags');
-    if (themThuocEl && (CONFIG.QUICK_TAGS?.THEM_THUOC || CONFIG.QUICK_TAGS?.ORDERS)) {
-      const list = CONFIG.QUICK_TAGS.THEM_THUOC || CONFIG.QUICK_TAGS.ORDERS;
-      themThuocEl.innerHTML = list.map(t =>
-        `<button type="button" class="quick-tag-btn" onclick="window.patientController.insertQuickTag('editThemThuoc', '${t}')">+ ${t}</button>`
-      ).join('');
-    }
 
     modal.classList.add('active');
   }
