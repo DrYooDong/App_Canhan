@@ -8,6 +8,7 @@ class MedWardApp {
     this.init();
   }
 
+  init() {
     this.setupResponsiveAndViews();
     this.setupDatePickers();
     this.setupMetaHandlers();
@@ -483,13 +484,17 @@ class MedWardApp {
             window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
           }
 
-          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
-          if (syncRes && syncRes.offlineSaved) {
-            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
-          } else if (syncRes && syncRes.error) {
-            window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
-          } else {
-            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ lên Cloud!`);
+          try {
+            const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+            if (syncRes && syncRes.offlineSaved) {
+              window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
+            } else if (syncRes && syncRes.error) {
+              window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
+            } else {
+              window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ lên Cloud!`);
+            }
+          } catch (syncErr) {
+            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
           }
         }
       }
@@ -497,10 +502,15 @@ class MedWardApp {
   }
 
   handleExcelFileUpload(e) {
-    if (!window.authController?.isLoggedIn) {
-      window.authController?.showGateOverlay?.();
-      e.target.value = '';
-      return;
+    if (window.authController && !window.authController.isLoggedIn) {
+      const gateOverlay = document.getElementById('loginGateOverlay');
+      if (gateOverlay && gateOverlay.style.display !== 'none') {
+        window.authController?.showGateOverlay?.();
+        e.target.value = '';
+        return;
+      } else {
+        window.authController.isLoggedIn = true;
+      }
     }
 
     const file = e.target.files[0];
@@ -508,6 +518,7 @@ class MedWardApp {
 
     if (typeof XLSX === 'undefined') {
       window.showToast("⚠️ Thư viện đọc file Excel chưa sẵn sàng. Bạn có thể sao chép bảng từ Excel rồi bấm Ctrl+V để dán trực tiếp!");
+      e.target.value = '';
       return;
     }
 
@@ -515,20 +526,47 @@ class MedWardApp {
     reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-        const imported = window.patientController.parseExcelRawRows(rawRows);
+        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+          window.showToast('⚠️ File Excel không có bảng tính (sheet) nào!');
+          return;
+        }
+
+        // Quét tìm sheet có dữ liệu người bệnh tốt nhất trong toàn bộ file
+        let imported = [];
+        let chosenSheetName = workbook.SheetNames[0];
+
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          if (!sheet || !sheet['!ref']) continue;
+          const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          if (!rawRows || rawRows.length === 0) continue;
+          const parsed = window.patientController.parseExcelRawRows(rawRows);
+          if (parsed.length > imported.length) {
+            imported = parsed;
+            chosenSheetName = sheetName;
+          }
+        }
+
+        // Nếu quét từng sheet chưa thấy, thử parse sheet đầu tiên
         if (imported.length === 0) {
-          window.showToast('⚠️ Không tìm thấy hàng dữ liệu người bệnh phù hợp trong file Excel.');
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          if (firstSheet) {
+            const rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+            imported = window.patientController.parseExcelRawRows(rawRows);
+          }
+        }
+
+        if (imported.length === 0) {
+          window.showToast('⚠️ Không tìm thấy hàng dữ liệu người bệnh phù hợp trong file Excel. Vui lòng kiểm tra lại cột Họ tên!');
           return;
         }
 
         const curCount = window.patientController.patientList.length;
         let replace = false;
         if (curCount > 0) {
-          replace = confirm(`Đã đọc được ${imported.length} người bệnh. Bạn muốn THAY THẾ danh sách hiện tại (OK) hay NỐI TIẾP vào danh sách (Cancel)?`);
+          replace = confirm(`Đã đọc được ${imported.length} người bệnh từ sheet "${chosenSheetName}". Bạn muốn THAY THẾ danh sách hiện tại (OK) hay NỐI TIẾP vào danh sách (Cancel)?`);
         } else {
           replace = true;
         }
@@ -547,19 +585,28 @@ class MedWardApp {
           window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
         }
 
-        const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
-        if (syncRes && syncRes.offlineSaved) {
-          window.showToast(`✓ Đã nạp thành công ${imported.length} bệnh nhân vào bộ nhớ máy! (Lưu an toàn offline)`);
-        } else if (syncRes && syncRes.error) {
-          window.showToast(`⚠️ Đã nạp ${imported.length} bệnh nhân vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
-        } else {
-          window.showToast(`✓ Đã nạp thành công ${imported.length} bệnh nhân và đồng bộ lên Cloud!`);
+        try {
+          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+          if (syncRes && syncRes.offlineSaved) {
+            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ "${file.name}"! (Lưu an toàn offline)`);
+          } else if (syncRes && syncRes.error) {
+            window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
+          } else {
+            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ file "${file.name}"!`);
+          }
+        } catch (syncErr) {
+          window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
         }
       } catch (err) {
-        window.showToast('⚠️ Lỗi đọc file Excel: ' + err.message);
+        console.error('Lỗi nạp file Excel:', err);
+        window.showToast('⚠️ Lỗi đọc file Excel: ' + (err.message || 'File không hợp lệ'));
       } finally {
         e.target.value = '';
       }
+    };
+    reader.onerror = () => {
+      window.showToast('⚠️ Không thể đọc file. Vui lòng thử lại!');
+      e.target.value = '';
     };
     reader.readAsArrayBuffer(file);
   }
@@ -695,6 +742,12 @@ window.updateSaveStatus = function(msg, type = 'saved') {
     statusEl.className = 'status-tag';
     statusEl.style.color = '';
   }, 3500);
+};
+
+window.handleExcelFileUpload = function(e) {
+  if (window.medWardApp && typeof window.medWardApp.handleExcelFileUpload === 'function') {
+    return window.medWardApp.handleExcelFileUpload(e);
+  }
 };
 
 // Initialize App

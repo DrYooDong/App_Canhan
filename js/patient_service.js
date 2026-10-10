@@ -623,19 +623,34 @@ class PatientController {
   // CHUẨN HÓA PHÒNG / GIƯỜNG NGẮN GỌN (VD: D1.14 - G03 -> D1.14-3, Phòng 14 Giường 3 -> 14-3)
   // Lọc sạch toàn bộ các từ: "DỊCH VỤ", "NHIEMDV", "KHOA NHIỄM DỊCH VỤ", "DV", v.v.
   // ==============================================================================
+  cleanRoom(r) {
+    if (!r) return '';
+    let s = String(r).trim();
+    const m = s.match(/(D1\.\d+)/i);
+    if (m) return m[1].toUpperCase();
+    s = s.replace(/^(?:KHOA\s*)?NHI[ỄE]M[\s_.-]*(?:D[ỊI]CH[\s_.-]*V[ỤU]|DV|CLY)?[\s_.:\/-]*/i, '');
+    s = s.replace(/(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU|DV|CLY)[\s_.:\/-]*$/i, '');
+    s = s.replace(/\b(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU|DV)\b/gi, '');
+    s = s.replace(/^(?:Phòng|Buồng|Phong|Buong|P\.?|B\.?)[\s.:_-]*/i, '');
+    s = s.replace(/^d1\./i, 'D1.').trim();
+    return s;
+  }
+
+  cleanBed(b) {
+    if (!b) return '';
+    let s = String(b).trim();
+    const m = s.match(/[-_Gg]0*([1-9]\d*)$/i) || s.match(/0*([1-9]\d*)$/);
+    if (m) return m[1];
+    return s;
+  }
+
   cleanRoomBedString(str) {
     if (!str) return '';
     let s = String(str).trim();
 
     // 1. Loại bỏ các tiền tố khoa, đơn vị, dịch vụ thường gặp trong file xuất bệnh viện (HIS):
-    // "KHOA NHIỄM DỊCH VỤ", "NHIEMDV", "NHIỄMDV", "NHIEM DV", "DỊCH VỤ", "DICH VU", "DV", "NHIEMCLY", "CLY", "NHIEM", "NHIỄM", "KHOA"
     s = s.replace(/^(?:KHOA\s*)?NHI[ỄE]M[\s_.-]*(?:D[ỊI]CH[\s_.-]*V[ỤU]|DV|CLY)?[\s_.:\/-]*/i, '');
-    s = s.replace(/^(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU)[\s_.:\/-]*/i, '');
-    s = s.replace(/^DV(?:[\s_.:\/-]+|(?=[A-Za-z0-9]))/i, '');
-    s = s.replace(/^CLY[\s_.:\/-]*/i, '');
-    s = s.replace(/^KHOA[\s_.:\/-]*/i, '');
-
-    // Lọc thêm nếu các từ "DỊCH VỤ", "DICH VU", "NHIEMDV", "NHIỄMDV", "DV" còn sót lại ở bất kỳ vị trí nào
+    s = s.replace(/(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU|DV|CLY)[\s_.:\/-]*$/i, '');
     s = s.replace(/\b(?:KHOA\s*)?NHI[ỄE]M[\s_.-]*(?:D[ỊI]CH[\s_.-]*V[ỤU]|DV|CLY)?\b/gi, ' ');
     s = s.replace(/\b(?:D[ỊI]CH[\s_.-]*V[ỤU]|DICHVU|DỊCHVU)\b/gi, ' ');
     s = s.replace(/\bDV\b/gi, ' ');
@@ -645,48 +660,42 @@ class PatientController {
     s = s.replace(/^[\s_.:\/-]+/, '').replace(/[\s_.:\/-]+$/, '').trim();
 
     if (!s) return '';
-
-    // 2. Chuẩn hóa dạng phòng có tiền tố D1.xx:
-    // Nếu có chữ thường d1.xx -> viết hoa D1.xx
     s = s.replace(/^d1\./i, 'D1.');
 
-    // 3. Khớp dạng: Buồng/Phòng - Giường -> Phòng-Giường
-    // VD: D1.01 - G01, D1.01 - 01, D1.01 - 1, D1.01 Giường 02, D1.01 / G01, D1.01 / 01
+    // 2. Khớp dạng: Buồng/Phòng - Giường -> Phòng-Giường
     const match = s.match(/^([A-Za-z0-9.]+)\s*[-–—/,\s]\s*(?:(?:Giường|G\.?)\s*)?([0-9A-Za-z]+)$/i);
     if (match) {
-      let room = match[1].trim();
-      let bed = match[2].trim();
-      // Bỏ tiền tố G ở giường (G03 -> 3, G1 -> 1)
-      bed = bed.replace(/^G0*([0-9]+)/i, '$1');
-      // Bỏ số 0 đầu giường (03 -> 3, 01 -> 1)
-      if (/^0+[1-9]\d*$/.test(bed)) {
-        bed = bed.replace(/^0+/, '');
-      }
-      return `${room}-${bed}`;
+      let room = this.cleanRoom(match[1]);
+      let bed = this.cleanBed(match[2]);
+      return bed ? `${room}-${bed}` : room;
     }
 
-    // 4. Khớp dạng dính liền: D1.01-G03 hoặc D1.01-03 hoặc D1.01-3
+    // 3. Khớp dạng dính liền: D1.01-G03 hoặc D1.01-03 hoặc D1.01-3
     const match2 = s.match(/^([A-Za-z0-9.]+)-G?0*([0-9]+)$/i);
     if (match2) {
-      return `${match2[1]}-${match2[2]}`;
+      let room = this.cleanRoom(match2[1]);
+      let bed = this.cleanBed(match2[2]);
+      return bed ? `${room}-${bed}` : room;
     }
 
-    // 5. Khớp dạng 3 phân đoạn chấm: D1.01.01 -> D1.01-1 (D1.01 là phòng, 01 là giường)
+    // 4. Khớp dạng 3 phân đoạn chấm: D1.01.01 -> D1.01-1 (D1.01 là phòng, 01 là giường)
     const matchDotBed = s.match(/^([A-Za-z0-9]+\.[0-9]+)\.G?0*([0-9]+)$/i);
     if (matchDotBed) {
-      return `${matchDotBed[1]}-${matchDotBed[2]}`;
+      let room = this.cleanRoom(matchDotBed[1]);
+      let bed = this.cleanBed(matchDotBed[2]);
+      return bed ? `${room}-${bed}` : room;
     }
 
-    // 6. Chỉ có Giường: Giường 03 -> G3
+    // 5. Chỉ có Giường: Giường 03 -> G3
     const match3 = s.match(/^(?:Giường|G\.?)\s*[-_]?\s*0*([0-9]+[A-Za-z]?)$/i);
     if (match3) {
       return `G${match3[1]}`;
     }
 
-    // 7. Chỉ có Phòng: D1.01, 14
+    // 6. Chỉ có Phòng: D1.01, 14
     const match4 = s.match(/^([A-Za-z0-9.]+)$/i);
     if (match4) {
-      return match4[1];
+      return this.cleanRoom(match4[1]);
     }
 
     // Dọn dẹp dấu gạch ngang và số 0 thừa
@@ -1469,90 +1478,188 @@ class PatientController {
   // ==============================================================================
   // XỬ LÝ NHẬP EXCEL
   // ==============================================================================
+  extractYearFromCell(val) {
+    if (!val) return '';
+    if (val instanceof Date) return String(val.getFullYear());
+    if (typeof val === 'number' && val > 10000 && val < 60000) {
+      const d = new Date((val - 25569) * 86400 * 1000);
+      return String(d.getFullYear());
+    }
+    const s = String(val).trim();
+    const m = s.match(/\b(19\d\d|20\d\d)\b/);
+    if (m) return m[1];
+    if (/^\d{4}$/.test(s)) return s;
+    return '';
+  }
+
+  scoreHeaderRow(row) {
+    if (!row || !Array.isArray(row)) return 0;
+    let score = 0;
+    let hasName = false;
+    for (const cell of row) {
+      const c = String(cell || '').toLowerCase().trim();
+      if (!c) continue;
+      if (c === 'stt' || c === 'tt' || c.includes('số tt') || c.includes('số thứ tự') || c === 'no' || c === 'no.') score += 2;
+      if (c === 'họ và tên' || c === 'họ tên' || c === 'họ & tên' || c === 'tên' || c === 'người bệnh' || c === 'bệnh nhân' ||
+          c.includes('họ tên') || c.includes('họ và tên') || c.includes('tên nb') || c.includes('tên bn') ||
+          (c.includes('người bệnh') && !c.includes('mã')) || (c.includes('bệnh nhân') && !c.includes('mã')) ||
+          c === 'nb' || c === 'bn' || c.includes('patient') || c.includes('full name')) {
+        score += 4;
+        hasName = true;
+      }
+      if (c.includes('phòng') || c.includes('buồng') || c.includes('giường') || c === 'p' || c === 'g' || c === 'b' || c === 'p/g' || c === 'b/g' || c === 'room' || c === 'bed') score += 2;
+      if (c.includes('năm sinh') || c.includes('ngày sinh') || c.includes('tuổi') || c === 'ns' || c === 'dob' || c === 'age') score += 2;
+      if (c.includes('chẩn đoán') || c.includes('chan doan') || c === 'cđ' || c === 'cd' || c === 'dx' || c.includes('bệnh chính') || c.includes('icd')) score += 2;
+      if ((c.includes('y lệnh') || c.includes('y lenh') || c === 'yl' || c.includes('điều trị')) &&
+          !c.includes('bác sĩ') && !c.includes('bác sỹ') && !c.includes('bs') && !c.includes('khoa') &&
+          !c.includes('kết quả') && !c.includes('số ngày') && !c.includes('sơ kết') && !c.includes('hướng điều trị')) score += 2;
+      if (c.includes('bác sĩ') || c.includes('bác sỹ') || c === 'bs' || c.includes('bs điều trị')) score += 2;
+      if (c.includes('cls') || c.includes('xét nghiệm') || c.includes('cận lâm sàng')) score += 2;
+      if (c.includes('mã nb') || c.includes('mã bn') || c.includes('mã ba') || c.includes('mã người bệnh') || c.includes('mã hồ sơ')) score += 2;
+      if (c.includes('giới tính') || c === 'giới' || c === 'phái') score += 1;
+    }
+    return hasName ? score + 3 : score;
+  }
+
   parseExcelRawRows(rows) {
     if (!rows || rows.length === 0) return [];
 
-    let headerIdx = -1;
-    let mapping = {};
+    let bestHeaderIdx = -1;
+    let maxScore = 0;
+    const maxScanRows = Math.min(rows.length, 60);
 
-    for (let r = 0; r < Math.min(rows.length, 15); r++) {
-      const row = rows[r];
-      const lowerRow = row.map(cell => String(cell).toLowerCase().trim());
-
-      const hasName = lowerRow.some(c => c.includes('họ tên') || c.includes('tên nb') || c.includes('tên người bệnh') || c.includes('bệnh nhân') || c.includes('họ và tên') || c === 'nb');
-      const hasRoom = lowerRow.some(c => c.includes('phòng') || c.includes('giường') || c.includes('buồng') || c === 'p' || c === 'g' || c === 'b');
-      const hasSTT = lowerRow.some(c => c === 'stt' || c.includes('số thứ tự'));
-
-      if ((hasName && hasRoom) || (hasName && hasSTT)) {
-        headerIdx = r;
-        break;
+    for (let r = 0; r < maxScanRows; r++) {
+      const score = this.scoreHeaderRow(rows[r]);
+      if (score > maxScore) {
+        maxScore = score;
+        bestHeaderIdx = r;
       }
     }
 
-    if (headerIdx === -1) {
-      headerIdx = rows.findIndex(r => r.some(cell => String(cell).trim().length > 0));
-      if (headerIdx === -1) return [];
+    if (bestHeaderIdx === -1 || maxScore < 3) {
+      bestHeaderIdx = rows.findIndex(r => Array.isArray(r) && r.some(c => String(c).trim().length > 0));
+      if (bestHeaderIdx === -1) return [];
     }
 
-    const headerRow = rows[headerIdx].map(c => String(c).toLowerCase().trim());
-    mapping = {
-      phong: headerRow.findIndex(c => c === 'phòng' || c === 'buồng' || c === 'p' || c === 'b' || ((c.includes('phòng') || c.includes('buồng')) && !c.includes('giường'))),
-      giuong: headerRow.findIndex(c => c === 'giường' || c === 'g' || (c.includes('giường') && !c.includes('phòng') && !c.includes('buồng'))),
-      phong_giuong: headerRow.findIndex(c => c === 'p/g' || c === 'b/g' || c === 'p-g' || c === 'b-g' || ((c.includes('phòng') || c.includes('buồng') || c.includes('p/') || c.includes('b/')) && (c.includes('giường') || c.includes('/g')))),
-      ten: headerRow.findIndex(c => c === 'tên' || c === 'nb' || c === 'họ & tên' || c.includes('họ tên') || c.includes('tên nb') || c.includes('tên người bệnh') || c.includes('bệnh nhân') || c.includes('họ và tên')),
-      ngay_sinh: headerRow.findIndex(c => c === 'ns' || c === 'dob' || c.includes('ngày sinh') || (c.includes('năm sinh') && !c.includes('tuổi'))),
-      tuoi: headerRow.findIndex(c => c === 'tuổi' || c === 'age' || (c.includes('tuổi') && !c.includes('năm sinh'))),
-      nam_sinh_tuoi: headerRow.findIndex(c => c === 'ns (tuổi)' || c === 'ns/tuổi' || ((c.includes('năm sinh') || c.includes('year') || c.includes('ns')) && (c.includes('tuổi') || c.includes('age')))),
-      chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('chan doan') || c.includes('(a)') || c.includes('diagnosis')),
+    const headerRow = rows[bestHeaderIdx].map(c => String(c || '').toLowerCase().trim());
+
+    // Nhận diện cột Tên Người Bệnh (ưu tiên tiêu đề rõ ràng, tránh nhầm cột "Mã người bệnh")
+    let tenIdx = headerRow.findIndex(c =>
+      c === 'họ và tên' || c === 'họ tên' || c === 'họ & tên' || c === 'họ tên nb' || c === 'họ tên bn' ||
+      c === 'họ và tên nb' || c === 'họ và tên bn' || c === 'họ tên người bệnh' || c === 'họ và tên người bệnh' ||
+      c === 'họ tên bệnh nhân' || c === 'họ và tên bệnh nhân' || c === 'tên nb' || c === 'tên bn' ||
+      c === 'tên người bệnh' || c === 'tên bệnh nhân' || c === 'patient name' || c === 'full name'
+    );
+    if (tenIdx === -1) {
+      tenIdx = headerRow.findIndex(c => (c.includes('họ tên') || c.includes('họ và tên') || c.includes('tên nb') || c.includes('tên bn')) && !c.includes('mã'));
+    }
+    if (tenIdx === -1) {
+      tenIdx = headerRow.findIndex(c => c === 'người bệnh' || c === 'bệnh nhân' || c === 'nb' || c === 'bn' || c === 'patient');
+    }
+    if (tenIdx === -1) {
+      tenIdx = headerRow.findIndex(c => (c.includes('người bệnh') || c.includes('bệnh nhân')) && !c.includes('mã') && !c.includes('loại') && !c.includes('trạng thái') && !c.includes('đối tượng'));
+    }
+    if (tenIdx === -1) {
+      tenIdx = headerRow.findIndex(c => c === 'tên' || c === 'name');
+    }
+
+    const mapping = {
+      ho: headerRow.findIndex(c => c === 'họ' || c === 'họ và đệm' || c === 'họ và chữ đệm' || c === 'họ và tên đệm' || c === 'họ lót' || c === 'họ đệm'),
+      ten: tenIdx,
+      phong: headerRow.findIndex(c => (c === 'phòng' || c === 'buồng' || c === 'p' || c === 'b' || ((c.includes('phòng') || c.includes('buồng')) && !c.includes('giường')))),
+      giuong: headerRow.findIndex(c => (c === 'giường' || c === 'g' || (c.includes('giường') && !c.includes('phòng') && !c.includes('buồng')))),
+      phong_giuong: headerRow.findIndex(c => c === 'p/g' || c === 'b/g' || c === 'p-g' || c === 'b-g' || c.includes('buồng - giường') || c.includes('phòng - giường') || c.includes('buồng/giường') || c.includes('phòng/giường') || c.includes('buồng giường') || c.includes('phòng giường')),
+      ngay_sinh: headerRow.findIndex(c => c === 'ns' || c === 'dob' || c.includes('ngày sinh')),
+      tuoi: headerRow.findIndex(c => c === 'tuổi' || c === 'age' || (c.includes('tuổi') && !c.includes('năm sinh') && !c.includes('ngày sinh'))),
+      nam_sinh_tuoi: headerRow.findIndex(c => c.includes('năm sinh / tuổi') || c.includes('năm sinh/tuổi') || c.includes('ns (tuổi)') || c.includes('ns/tuổi') || ((c.includes('năm sinh') || c.includes('ns')) && c.includes('tuổi'))),
+      nam_sinh: headerRow.findIndex(c => c === 'năm sinh' || (c.includes('năm sinh') && !c.includes('tuổi'))),
+      chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('chan doan') || c.includes('bệnh chính') || c.includes('tên bệnh') || c.includes('icd')),
+      huong_dieu_tri: headerRow.findIndex(c => c.includes('hướng điều trị')),
+      y_lenh: headerRow.findIndex(c => (c === 'yl' || c.includes('y lệnh') || c.includes('y lenh') || c.includes('điều trị')) &&
+        !c.includes('bác sĩ') && !c.includes('bác sỹ') && !c.includes('bs') && !c.includes('khoa') &&
+        !c.includes('kết quả') && !c.includes('số ngày') && !c.includes('sơ kết') && !c.includes('hướng điều trị')),
+      them_thuoc: headerRow.findIndex(c => c.includes('thêm thuốc') || c.includes('them thuoc') || c.includes('bổ sung thuốc') || c === 'them_thuoc'),
+      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị')),
+      ma_nb: headerRow.findIndex(c => c.includes('mã người bệnh') || c.includes('mã nb') || c.includes('mã bn') || c.includes('mã ba') || c.includes('mã hồ sơ')),
       cls_hien_co: headerRow.findIndex(c => c.includes('hiện có') || c === 'cls_hien_co'),
       cls_can_lam: headerRow.findIndex(c => c.includes('cần làm') || c === 'cls_can_lam'),
-      cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm') || c.includes('cls')),
-      y_lenh: headerRow.findIndex(c => c === 'yl' || c.includes('y lệnh') || c.includes('y lenh') || c.includes('điều trị')),
-      them_thuoc: headerRow.findIndex(c => c.includes('thêm thuốc') || c.includes('them thuoc') || c.includes('bổ sung thuốc') || c === 'them_thuoc'),
-      bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị') || c.includes('bác sĩ điều trị'))
+      cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm')),
+      trang_thai_bg: headerRow.findIndex(c => c.includes('trạng thái bàn giao') || c === 'bàn giao'),
+      van_de_td: headerRow.findIndex(c => c.includes('vấn đề tồn đọng') || c.includes('tồn đọng')),
+      xu_tri_tiep: headerRow.findIndex(c => c.includes('xử trí / cần làm tiếp') || c.includes('cần làm tiếp') || c.includes('xử trí tiếp'))
     };
 
     const activeDoc = window.authController?.getActiveDoctor?.();
     const myDoc = activeDoc ? activeDoc.full_name : 'BS. Nguyễn Hữu Đông';
     const results = [];
 
-    for (let r = headerIdx + 1; r < rows.length; r++) {
+    for (let r = bestHeaderIdx + 1; r < rows.length; r++) {
       const row = rows[r];
-      if (!row || row.length === 0) continue;
+      if (!row || !Array.isArray(row)) continue;
 
-      let tenVal = mapping.ten !== -1 ? String(row[mapping.ten] || '').trim() : '';
+      // 1. Họ và tên người bệnh
+      let tenVal = '';
+      if (mapping.ho !== -1 && mapping.ten !== -1 && mapping.ho !== mapping.ten) {
+        const ho = String(row[mapping.ho] || '').trim();
+        const ten = String(row[mapping.ten] || '').trim();
+        tenVal = [ho, ten].filter(Boolean).join(' ');
+      } else if (mapping.ten !== -1) {
+        tenVal = String(row[mapping.ten] || '').trim();
+      }
+
       if (!tenVal) continue;
+      const lowerTen = tenVal.toLowerCase();
+      if (lowerTen.includes('tổng cộng') || lowerTen === 'họ và tên' || lowerTen === 'họ tên' || lowerTen === 'họ tên nb') continue;
 
+      // 2. Buồng / Giường
       let phongGiuongVal = '';
       if (mapping.phong_giuong !== -1 && row[mapping.phong_giuong]) {
-        phongGiuongVal = String(row[mapping.phong_giuong]).trim();
+        phongGiuongVal = this.cleanRoomBedString(row[mapping.phong_giuong]);
       } else {
         const p = mapping.phong !== -1 ? String(row[mapping.phong] || '').trim() : '';
         const g = mapping.giuong !== -1 ? String(row[mapping.giuong] || '').trim() : '';
-        if (p && g) phongGiuongVal = `${p}-${g}`;
-        else phongGiuongVal = p || g;
+        if (p && g) {
+          const rp = this.cleanRoom(p);
+          const bg = this.cleanBed(g);
+          phongGiuongVal = bg ? `${rp}-${bg}` : rp;
+        } else if (p) {
+          phongGiuongVal = this.cleanRoom(p);
+        } else if (g) {
+          phongGiuongVal = this.cleanBed(g);
+        }
       }
+      if (!phongGiuongVal) phongGiuongVal = 'D1.01-1';
 
-      phongGiuongVal = this.cleanRoomBedString(phongGiuongVal);
-
+      // 3. Năm sinh / Tuổi
       let namSinhTuoiVal = '';
       if (mapping.nam_sinh_tuoi !== -1 && row[mapping.nam_sinh_tuoi]) {
         namSinhTuoiVal = String(row[mapping.nam_sinh_tuoi]).trim();
       } else {
-        const ns = mapping.ngay_sinh !== -1 ? String(row[mapping.ngay_sinh] || '').trim() : '';
+        const nsRaw = mapping.ngay_sinh !== -1 ? row[mapping.ngay_sinh] : (mapping.nam_sinh !== -1 ? row[mapping.nam_sinh] : '');
         const t = mapping.tuoi !== -1 ? String(row[mapping.tuoi] || '').trim() : '';
+        const nam = this.extractYearFromCell(nsRaw);
+        const curYear = new Date().getFullYear();
 
-        let nam = '';
-        const yearMatch = ns.match(/\b(19\d\d|20\d\d)\b/);
-        if (yearMatch) nam = yearMatch[1];
-        else nam = ns;
-
-        if (nam && t) namSinhTuoiVal = `${nam} (${t})`;
-        else if (nam) namSinhTuoiVal = nam;
-        else if (t) namSinhTuoiVal = `(${t} tuổi)`;
+        if (nam && t) {
+          namSinhTuoiVal = `${nam} (${t})`;
+        } else if (nam && !t) {
+          const calcAge = curYear - parseInt(nam);
+          namSinhTuoiVal = `${nam} (${calcAge})`;
+        } else if (t) {
+          namSinhTuoiVal = `(${t} tuổi)`;
+        }
       }
 
+      // 4. Chẩn đoán
       let cdVal = mapping.chan_doan !== -1 ? String(row[mapping.chan_doan] || '').trim() : '';
+      if (!cdVal && mapping.huong_dieu_tri !== -1 && row[mapping.huong_dieu_tri]) {
+        cdVal = String(row[mapping.huong_dieu_tri]).trim();
+      }
+      if (!cdVal && mapping.ma_nb !== -1 && row[mapping.ma_nb]) {
+        cdVal = `[Mã NB: ${String(row[mapping.ma_nb]).trim()}]`;
+      }
+
+      // 5. Cận lâm sàng (CLS)
       let clsHcVal = mapping.cls_hien_co !== -1 ? String(row[mapping.cls_hien_co] || '').trim() : '';
       let clsClVal = mapping.cls_can_lam !== -1 ? String(row[mapping.cls_can_lam] || '').trim() : '';
       let clsVal = mapping.cls !== -1 ? String(row[mapping.cls] || '').trim() : '';
@@ -1567,6 +1674,7 @@ class PatientController {
         }
       }
 
+      // 6. Y lệnh & Thêm thuốc
       let ylVal = mapping.y_lenh !== -1 ? String(row[mapping.y_lenh] || '').trim() : '';
       let themThuocVal = mapping.them_thuoc !== -1 ? String(row[mapping.them_thuoc] || '').trim() : '';
       if (!themThuocVal && ylVal && ylVal.includes('[Thêm thuốc]:')) {
@@ -1575,16 +1683,35 @@ class PatientController {
         themThuocVal = parts[1] ? parts[1].trim() : '';
       }
 
-      // Chỉ bỏ qua Y lệnh nếu ô đó CHỈ LÀ tên Bác sĩ (tránh việc nạp nhầm cột Bác sĩ vào Y lệnh)
+      // Không để tên Bác sĩ bị nạp nhầm vào Y lệnh
       if (ylVal) {
         const ylLower = ylVal.toLowerCase();
-        if (ylLower === 'bs. nguyễn hữu đông' || ylLower === 'bác sĩ điều trị' || ylLower === 'bs điều trị') {
+        if (ylLower.startsWith('bs.') || ylLower.startsWith('bs ') || ylLower === 'bác sĩ điều trị' || ylLower === 'bs điều trị') {
           ylVal = '';
         }
       }
 
+      // 7. Bác sĩ điều trị
       let docVal = (mapping.bac_si !== -1 && row[mapping.bac_si]) ? String(row[mapping.bac_si]).trim() : myDoc;
       if (!docVal) docVal = myDoc;
+      // Chuẩn hóa tên bác sĩ nếu có tiền tố tài khoản HIS (VD: "baoht - Hồ Thế Bảo" -> "BS. Hồ Thế Bảo")
+      docVal = docVal.replace(/^[a-z0-9_]+\s*[-–—:]\s*/i, '').trim();
+      if (docVal && !docVal.toLowerCase().startsWith('bs')) {
+        docVal = `BS. ${docVal}`;
+      }
+
+      // 8. Trạng thái bàn giao
+      let hoStatus = CONFIG.HANDOVER_STATUS.NONE;
+      if (mapping.trang_thai_bg !== -1 && row[mapping.trang_thai_bg]) {
+        const stStr = String(row[mapping.trang_thai_bg]).toLowerCase();
+        if (stStr.includes('nguy kịch') || stStr.includes('critical')) {
+          hoStatus = CONFIG.HANDOVER_STATUS.CRITICAL;
+        } else if (stStr.includes('bàn giao') || stStr.includes('theo dõi') || stStr.includes('pending')) {
+          hoStatus = CONFIG.HANDOVER_STATUS.PENDING;
+        }
+      }
+      const hoIssues = mapping.van_de_td !== -1 ? String(row[mapping.van_de_td] || '').trim() : '';
+      const hoActions = mapping.xu_tri_tiep !== -1 ? String(row[mapping.xu_tri_tiep] || '').trim() : '';
 
       if (CONFIG.expandMedicalText) {
         cdVal = CONFIG.expandMedicalText(cdVal);
@@ -1612,9 +1739,9 @@ class PatientController {
         them_thuoc: themThuocVal,
         doctor_name: docVal,
         handover_by: docVal,
-        handover_status: CONFIG.HANDOVER_STATUS.NONE,
-        handover_issues: '',
-        handover_actions: '',
+        handover_status: hoStatus,
+        handover_issues: hoIssues,
+        handover_actions: hoActions,
         sort_order: r,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

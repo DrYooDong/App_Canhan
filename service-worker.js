@@ -2,7 +2,7 @@
 // SERVICE WORKER - MEDWARD PRO (OFFLINE ASSETS CACHING)
 // ==============================================================================
 
-const CACHE_NAME = 'medward-pro-cache-v7';
+const CACHE_NAME = 'medward-pro-cache-v9';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   './css/main.css',
   './css/mobile.css',
   './css/print.css',
+  './js/xlsx.full.min.js',
   './js/config.js',
   './js/supabase_service.js',
   './js/auth.js',

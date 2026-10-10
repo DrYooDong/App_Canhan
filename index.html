@@ -17,8 +17,13 @@
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231e3a8a' width='100' height='100' rx='20'/><path d='M50 20v60M20 50h60' stroke='white' stroke-width='14' stroke-linecap='round'/></svg>">
 
-    <!-- Thư viện SheetJS đọc file Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Thư viện SheetJS đọc file Excel (ưu tiên nạp file cục bộ offline, dự phòng CDN) -->
+    <script src="js/xlsx.full.min.js"></script>
+    <script>
+        if (typeof XLSX === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+        }
+    </script>
 
     <!-- Thư viện Supabase JS Client cho Cloud Database & Realtime Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -518,7 +523,8 @@
 
         <!-- 3. THANH ĐIỀU KHIỂN & CÔNG CỤ TINH GỌN (MINIMALIST COMPACT TOOLBAR) -->
         <div class="toolbar no-print">
-            <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;"
+                onchange="window.handleExcelFileUpload ? window.handleExcelFileUpload(event) : (window.medWardApp ? window.medWardApp.handleExcelFileUpload(event) : null)">
 
             <div class="toolbar-actions">
                 <!-- NHÓM 1: NÚT HÀNH ĐỘNG CHÍNH (PRIMARY CTA) -->
@@ -1687,13 +1693,13 @@
     <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
 
     <!-- Scripts -->
-    <script src="js/config.js?v=2.2"></script>
-    <script src="js/supabase_service.js?v=2.2"></script>
-    <script src="js/pattern_lock.js?v=2.2"></script>
-    <script src="js/auth.js?v=2.2"></script>
-    <script src="js/patient_service.js?v=2.2"></script>
-    <script src="js/handover_service.js?v=2.2"></script>
-    <script src="js/app.js?v=2.2"></script>
+    <script src="js/config.js?v=2.5"></script>
+    <script src="js/supabase_service.js?v=2.5"></script>
+    <script src="js/pattern_lock.js?v=2.5"></script>
+    <script src="js/auth.js?v=2.5"></script>
+    <script src="js/patient_service.js?v=2.5"></script>
+    <script src="js/handover_service.js?v=2.5"></script>
+    <script src="js/app.js?v=2.5"></script>
 
 </body>
 
