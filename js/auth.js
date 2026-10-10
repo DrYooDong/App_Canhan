@@ -555,22 +555,22 @@ class AuthController {
 
     if (isAdmin) {
       html += `
-        <div style="background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: #1d4ed8; font-size: 13.5px; margin-bottom: 4px;">
+        <div class="doc-manage-notice notice-admin">
+          <div class="notice-header">
             <span>👑 QUẢN TRỊ VIÊN HỆ THỐNG: BS. NGUYỄN HỮU ĐÔNG</span>
           </div>
-          <p style="font-size: 12px; color: #1e3a8a; margin: 0; line-height: 1.45;">
+          <p class="notice-desc">
             Theo quy định phân quyền, chỉ riêng tài khoản của bạn mới có quyền thêm, chỉnh sửa hoặc loại bỏ hồ sơ các Bác sĩ khác trong hệ thống.
           </p>
         </div>
       `;
     } else {
       html += `
-        <div style="background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: #b45309; font-size: 13.5px; margin-bottom: 4px;">
+        <div class="doc-manage-notice notice-doctor">
+          <div class="notice-header">
             <span>🛡️ PHÂN QUYỀN TRUY CẬP: BÁC SĨ ĐIỀU TRỊ</span>
           </div>
-          <p style="font-size: 12px; color: #78350f; margin: 0; line-height: 1.45;">
+          <p class="notice-desc">
             Bạn đang làm việc với tài khoản: <strong>${this.escape(currentDoc.full_name)}</strong>.<br>
             🔒 <em>Chỉ riêng tài khoản <strong>BS. Nguyễn Hữu Đông</strong> mới có quyền chỉnh sửa hoặc loại bỏ các hồ sơ bác sĩ khác.</em>
           </p>
@@ -579,7 +579,7 @@ class AuthController {
     }
 
     // Danh sách Bác sĩ
-    html += `<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">`;
+    html += `<div class="doc-manage-list">`;
 
     docs.forEach(doc => {
       const isDong = this.isDongAdmin(doc);
@@ -587,27 +587,27 @@ class AuthController {
       const stats = window.patientController?.calculateDoctorStorageUsage?.(doc.id) || { patientsCount: 0, usedFormatted: '0 KB', percent: '0' };
 
       html += `
-        <div style="background: #ffffff; border: 1px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
-            <div style="width: 42px; height: 42px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
+        <div class="doc-manage-item ${isCurrent ? 'is-current' : ''}">
+          <div class="doc-item-left">
+            <div class="doc-item-avatar ${isDong ? 'avatar-admin' : 'avatar-doc'}">
               ${this.getInitials(doc.full_name)}
             </div>
-            <div style="min-width: 0;">
-              <div style="font-size: 14px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                <span>${this.escape(doc.full_name)}</span>
-                ${isDong ? '<span style="background: #fef3c7; color: #92400e; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">Quản trị viên</span>' : ''}
-                ${isCurrent ? '<span style="background: #dcfce7; color: #166534; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">Đang dùng</span>' : ''}
+            <div class="doc-item-details">
+              <div class="doc-item-name-row">
+                <span class="doc-item-name">${this.escape(doc.full_name)}</span>
+                ${isDong ? '<span class="doc-badge badge-admin">Quản trị viên</span>' : ''}
+                ${isCurrent ? '<span class="doc-badge badge-current">Đang dùng</span>' : ''}
               </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              <div class="doc-item-sub">
                 ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
               </div>
-              <div style="font-size: 11.5px; color: #2563eb; font-weight: 600; margin-top: 3px;">
+              <div class="doc-item-storage">
                 🎮 Không gian riêng: <strong>${stats.patientsCount} NB</strong> • Bộ nhớ: <strong>${stats.usedFormatted} / 100 MB</strong>
               </div>
             </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <div class="doc-item-actions">
             ${isAdmin ? `
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này">
                 👁️ Xem
@@ -638,7 +638,7 @@ class AuthController {
 
     if (isAdmin) {
       html += `
-        <div style="display: flex; justify-content: flex-end;">
+        <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
           <button type="button" class="btn btn-primary btn-sm" onclick="window.authController.showGateView('register'); window.authController.closeAuthModal(); window.authController.showGateOverlay();">
             ➕ Thêm Bác Sĩ Mới
           </button>
@@ -652,7 +652,7 @@ class AuthController {
   // Mở modal sửa thông tin Bác sĩ (chỉ cho BS Đông)
   openDoctorEditModal(docId) {
     if (!this.isDongAdmin()) {
-      alert('Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền chỉnh sửa hồ sơ các Bác sĩ khác!');
+      if (window.showToast) window.showToast('⚠️ Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền chỉnh sửa hồ sơ các Bác sĩ khác!');
       return;
     }
 
@@ -670,17 +670,17 @@ class AuthController {
     document.getElementById('adminEditDocPhone').value = doc.phone || '';
     document.getElementById('adminEditDocPin').value = '';
 
-    modal.style.display = 'flex';
+    modal.classList.add('active');
   }
 
   closeDoctorEditModal() {
     const modal = document.getElementById('doctorEditModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.classList.remove('active');
   }
 
   handleAdminSaveDoctor() {
     if (!this.isDongAdmin()) {
-      alert('Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền chỉnh sửa hồ sơ các Bác sĩ khác!');
+      if (window.showToast) window.showToast('⚠️ Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền chỉnh sửa hồ sơ các Bác sĩ khác!');
       return;
     }
 
@@ -692,7 +692,7 @@ class AuthController {
     const pin = document.getElementById('adminEditDocPin')?.value?.trim();
 
     if (!name) {
-      alert('Vui lòng nhập họ và tên Bác sĩ!');
+      if (window.showToast) window.showToast('⚠️ Vui lòng nhập họ và tên Bác sĩ!');
       return;
     }
 
@@ -706,7 +706,7 @@ class AuthController {
     doc.phone = phone || '';
     if (pin) {
       if (!/^\d+$/.test(pin)) {
-        alert('Mã PIN chỉ được bao gồm các chữ số!');
+        if (window.showToast) window.showToast('⚠️ Mã PIN chỉ được bao gồm các chữ số!');
         return;
       }
       doc.pin = pin;
@@ -730,7 +730,7 @@ class AuthController {
 
   deleteDoctor(docId) {
     if (!this.isDongAdmin()) {
-      alert('Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền loại bỏ hồ sơ các Bác sĩ khác!');
+      if (window.showToast) window.showToast('⚠️ Chỉ riêng tài khoản BS. Nguyễn Hữu Đông mới có quyền loại bỏ hồ sơ các Bác sĩ khác!');
       return;
     }
 
@@ -739,7 +739,7 @@ class AuthController {
     if (!doc) return;
 
     if (this.isDongAdmin(doc)) {
-      alert('Không thể xóa tài khoản Quản trị viên của BS. Nguyễn Hữu Đông!');
+      if (window.showToast) window.showToast('⚠️ Không thể xóa tài khoản Quản trị viên của BS. Nguyễn Hữu Đông!');
       return;
     }
 
@@ -817,99 +817,98 @@ class AuthController {
     const effectiveDoc = window.patientController?.getEffectiveDoctor?.()?.doctor || doc;
 
     let html = `
-      <div class="doctor-workspace-status-card logged-in" style="background: #ffffff; border: 1.5px solid var(--primary); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.08);">
-        <div class="ws-card-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="quick-doc-avatar" style="width: 48px; height: 48px; font-size: 16px; background: ${isAdmin ? '#1e3a8a' : 'var(--primary)'}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800;">
+      <div class="doctor-workspace-status-card logged-in">
+        <div class="ws-card-header">
+          <div class="ws-header-left">
+            <div class="quick-doc-avatar ${isAdmin ? 'avatar-admin' : 'avatar-doc'}">
               ${this.getInitials(doc.full_name)}
             </div>
             <div>
-              <div style="font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                <span>${this.escape(doc.full_name)}</span>
-                ${isAdmin ? '<span style="background: #fef3c7; color: #92400e; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">👑 Quản trị viên (Admin)</span>' : '<span style="background: #e0f2fe; color: #0369a1; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; font-weight: 700;">🩺 Bác sĩ điều trị</span>'}
+              <div class="ws-doc-name-row">
+                <span class="ws-doc-name">${this.escape(doc.full_name)}</span>
+                ${isAdmin ? '<span class="doc-badge badge-admin">👑 Admin</span>' : '<span class="doc-badge badge-doc">🩺 Bác sĩ</span>'}
               </div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+              <div class="ws-doc-role">
                 ${this.escape(doc.title || 'Bác sĩ điều trị')} • ${this.escape(doc.department || 'Khoa Nhiễm')}
               </div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">
+              <div class="ws-doc-user">
                 Tài khoản: <strong>${this.escape(doc.username || '')}</strong> (ID: <code>${this.escape(doc.id || '')}</code>)
               </div>
             </div>
           </div>
-          <span class="quick-doc-badge" style="background: #10b981; color: #ffffff; border: none; font-size: 11px; padding: 4px 10px; border-radius: 14px; font-weight: 700;">
+          <span class="quick-doc-badge">
             ✓ Đang trực
           </span>
         </div>
 
         <!-- BẢNG ĐIỀU KHIỂN DUNG LƯỢNG LƯU TRỮ 100MB (GAME-STYLE SAVE SLOT HUD) -->
-        <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1e293b;">
+        <div class="ws-storage-panel">
+          <div class="ws-storage-header">
+            <div class="ws-storage-title">
               <span>🎮 DUNG LƯỢNG KHÔNG GIAN RIÊNG:</span>
-              <span style="color: #2563eb;">${storageStats.usedFormatted} / 100 MB</span>
+              <span class="ws-storage-used">${storageStats.usedFormatted} / 100 MB</span>
             </div>
-            <span style="font-size: 11.5px; font-weight: 700; color: #64748b;">${storageStats.percent}%</span>
+            <span class="ws-storage-pct">${storageStats.percent}%</span>
           </div>
 
-          <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-            <div style="width: ${Math.max(2, Math.min(100, storageStats.percentNum * 20))}%; height: 100%; background: ${storageStats.isFull ? '#ef4444' : (storageStats.isNearLimit ? '#f59e0b' : '#3b82f6')}; transition: width 0.3s ease;"></div>
+          <div class="ws-storage-track">
+            <div class="ws-storage-fill ${storageStats.isFull ? 'fill-full' : (storageStats.isNearLimit ? 'fill-warn' : 'fill-ok')}"
+                 style="width: ${Math.max(2, Math.min(100, storageStats.percentNum * 20))}%;"></div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11.5px; color: #475569;">
+          <div class="ws-storage-grid">
             <div>🗂️ Bệnh nhân: <strong>${storageStats.patientsBytesFormatted}</strong> (${storageStats.patientsCount} NB)</div>
             <div>📋 Nhật ký giao ban: <strong>${storageStats.logsBytesFormatted}</strong></div>
             <div>👤 Hồ sơ cá nhân: <strong>${storageStats.profileBytesFormatted}</strong></div>
-            <div style="color: #059669;">🟢 Còn trống: <strong>${storageStats.remainingFormatted}</strong></div>
+            <div class="ws-storage-free">🟢 Còn trống: <strong>${storageStats.remainingFormatted}</strong></div>
           </div>
         </div>
 
         ${isAdmin ? `
           <!-- KHU VỰC ĐẶC QUYỀN QUẢN TRỊ VIÊN -->
-          <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1d4ed8;">
+          <div class="ws-admin-panel">
+            <div class="ws-admin-header">
+              <div class="ws-admin-title">
                 <span>👑 ĐIỀU HÀNH KHÔNG GIAN CỦA ADMIN</span>
               </div>
-              <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+              <span class="ws-admin-scope-pill">
                 Hiện tại: ${isAllMode ? '🌐 Toàn Khoa' : effectiveDoc.full_name}
               </span>
             </div>
-            <p style="font-size: 11.5px; color: #1e3a8a; margin: 0 0 10px 0; line-height: 1.4;">
+            <p class="ws-admin-desc">
               Mỗi tài khoản ID có 100MB riêng biệt. Quản trị viên có thể chuyển đổi để xem hoặc hỗ trợ bất kỳ Bác sĩ nào trong khoa.
             </p>
-            <button type="button" class="btn btn-primary btn-sm" onclick="window.authController.closeAuthModal(); window.patientController.openAdminWorkspaceSwitcherModal();" style="width: 100%; justify-content: center; font-weight: 700;">
+            <button type="button" class="btn btn-primary btn-sm btn-admin-switcher" onclick="window.authController.closeAuthModal(); window.patientController.openAdminWorkspaceSwitcherModal();">
               🎮 Mở Bảng Chuyển Đổi Không Gian Bác Sĩ
             </button>
           </div>
         ` : ''}
 
-        <div class="ws-stats-row" style="display: flex; gap: 8px; margin: 12px 0;">
-          <div style="flex: 1; padding: 10px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: var(--primary);">${myCount}</div>
-            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Tổng số NB</div>
+        <div class="ws-stats-row">
+          <div class="ws-stat-chip chip-total">
+            <div class="ws-stat-num">${myCount}</div>
+            <div class="ws-stat-lbl">Tổng số NB</div>
           </div>
-          <div style="flex: 1; padding: 10px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: var(--danger);">${criticalCount}</div>
-            <div style="font-size: 11px; color: var(--danger); font-weight: 600;">🚨 Nguy kịch</div>
+          <div class="ws-stat-chip chip-crit">
+            <div class="ws-stat-num">${criticalCount}</div>
+            <div class="ws-stat-lbl">🚨 Nguy kịch</div>
           </div>
-          <div style="flex: 1; padding: 10px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); text-align: center;">
-            <div style="font-size: 20px; font-weight: 800; color: #b45309;">${pendingCount}</div>
-            <div style="font-size: 11px; color: #b45309; font-weight: 600;">⏳ Bàn giao</div>
+          <div class="ws-stat-chip chip-pend">
+            <div class="ws-stat-num">${pendingCount}</div>
+            <div class="ws-stat-lbl">⏳ Bàn giao</div>
           </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
-          <!-- Nút Nạp Excel tiện lợi cho Bác sĩ trên di động & máy tính bảng -->
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #f0fdf4; border-color: #86efac; color: #166534; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
-              <span>Nạp Excel</span>
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="window.patientController.openExportBackupModal(); window.authController.closeAuthModal();" style="flex: 1; justify-content: center; font-weight: 700; height: 38px; background: #eff6ff; border-color: #bfdbfe; color: #1e40af; display: flex; align-items: center; gap: 6px; font-size: 12.5px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Xuất / Sao Lưu</span>
-            </button>
-          </div>
+        <div class="ws-action-row">
+          <button type="button" class="btn btn-secondary btn-ws-action btn-ws-excel" onclick="document.getElementById('excelFileInput').click(); window.authController.closeAuthModal();">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+            <span>Nạp Excel</span>
+          </button>
+          <button type="button" class="btn btn-secondary btn-ws-action btn-ws-backup" onclick="window.patientController.openExportBackupModal(); window.authController.closeAuthModal();">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Xuất / Sao Lưu</span>
+          </button>
+        </div>
 
           <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
             🩺 Vào Bảng Theo Dõi &amp; Y Lệnh

@@ -121,6 +121,28 @@ class PatientController {
     }
   }
 
+  flashPatientRow(patientId) {
+    if (!patientId) return;
+    setTimeout(() => {
+      const row = document.querySelector(`tr[data-id="${patientId}"]`);
+      const card = document.querySelector(`.mobile-patient-card[data-id="${patientId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.remove('row-realtime-flash');
+        void row.offsetWidth;
+        row.classList.add('row-realtime-flash');
+        setTimeout(() => row.classList.remove('row-realtime-flash'), 3000);
+      }
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.remove('card-realtime-flash');
+        void card.offsetWidth;
+        card.classList.add('card-realtime-flash');
+        setTimeout(() => card.classList.remove('card-realtime-flash'), 3000);
+      }
+    }, 100);
+  }
+
   applyRealtimePayload(payload) {
     const eventType = payload.eventType || (payload.new?.is_deleted ? 'DELETE' : 'UPDATE');
     const newRecord = payload.new;
@@ -129,13 +151,21 @@ class PatientController {
     if (eventType === 'DELETE' || newRecord?.is_deleted) {
       const targetId = oldRecord?.id || newRecord?.id;
       if (targetId) {
+        const deletedPatient = this.patientList.find(p => p.id === targetId);
+        const pName = deletedPatient?.ten || oldRecord?.ten || newRecord?.ten || 'Một người bệnh';
+        const pRoom = deletedPatient?.phong_giuong || oldRecord?.phong_giuong || '';
         const prevLen = this.patientList.length;
         this.patientList = this.patientList.filter(p => p.id !== targetId);
         if (this.patientList.length !== prevLen) {
           this.saveLocalCache();
           this.render();
           if (window.showToast) {
-            window.showToast('ℹ️ Một người bệnh vừa được cập nhật/loại khỏi danh sách');
+            window.showToast({
+              title: '🗑️ XUẤT VIỆN / XÓA (REALTIME)',
+              message: `BS khác vừa cập nhật xuất viện hoặc xóa người bệnh ${pName}${pRoom ? ` (${pRoom})` : ''}`,
+              type: 'normal',
+              icon: '🗑️'
+            });
           }
         }
       }
@@ -151,9 +181,20 @@ class PatientController {
           this.patientList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           this.saveLocalCache();
           this.render();
+          const pName = newRecord.ten || 'Người bệnh mới';
+          const pRoom = newRecord.phong_giuong ? ` (${newRecord.phong_giuong})` : '';
+          const docBy = newRecord.doctor_name || newRecord.handover_by || '';
           if (window.showToast) {
-            window.showToast(`➕ Tiếp nhận người bệnh mới: ${newRecord.ten || ''}`);
+            window.showToast({
+              title: '➕ TIẾP NHẬN MỚI (REALTIME)',
+              message: `Tiếp nhận người bệnh mới từ BS khác: ${pName}${pRoom}${docBy ? ` · BS: ${docBy}` : ''}`,
+              type: 'handover',
+              icon: '➕',
+              patientId: newRecord.id,
+              actionText: 'Xem ca này ➔'
+            });
           }
+          this.flashPatientRow(newRecord.id);
         }
       }
       return;
@@ -163,10 +204,88 @@ class PatientController {
       if (newRecord && newRecord.id) {
         const idx = this.patientList.findIndex(p => p.id === newRecord.id);
         if (idx >= 0) {
+          const oldP = this.patientList[idx];
           this.normalizePatientClsAndOrders(newRecord);
           this.patientList[idx] = { ...this.patientList[idx], ...newRecord };
           this.saveLocalCache();
           this.render();
+
+          // Cập nhật ngay Dashboard bàn giao nếu bác sĩ đang mở xem
+          if (window.handoverController && typeof window.handoverController.renderDashboard === 'function') {
+            const hoModal = document.getElementById('handoverDashboardModal');
+            if (hoModal && hoModal.classList.contains('active')) {
+              window.handoverController.renderDashboard();
+            }
+          }
+
+          const pName = newRecord.ten || oldP.ten || 'Người bệnh';
+          const pRoom = newRecord.phong_giuong || oldP.phong_giuong || '';
+          const roomStr = pRoom ? ` (${pRoom})` : '';
+
+          // Phân tích nội dung thay đổi để thông báo rõ ràng cho bác sĩ trực
+          const statusChanged = oldP.handover_status !== newRecord.handover_status;
+          const issuesChanged = (oldP.handover_issues || '').trim() !== (newRecord.handover_issues || '').trim();
+          const ordersChanged = (oldP.y_lenh || '').trim() !== (newRecord.y_lenh || '').trim() || (oldP.them_thuoc || '').trim() !== (newRecord.them_thuoc || '').trim();
+          const labsChanged = (oldP.cls_can_lam || '').trim() !== (newRecord.cls_can_lam || '').trim() || (oldP.cls_hien_co || '').trim() !== (newRecord.cls_hien_co || '').trim();
+
+          if (statusChanged || issuesChanged) {
+            const isCritical = newRecord.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
+            const isPending = newRecord.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
+            const statusCfg = CONFIG.STATUS_CONFIG[newRecord.handover_status] || {};
+            const statusText = statusCfg.label || newRecord.handover_status;
+            const statusIcon = isCritical ? '🚨' : (isPending ? '⏳' : (statusCfg.icon || '🔄'));
+            const docBy = newRecord.handover_by || newRecord.doctor_name || 'BS khác';
+            const issueDetail = (newRecord.handover_issues || '').trim() ? ` • Vấn đề: ${newRecord.handover_issues.trim()}` : '';
+
+            if (window.showToast) {
+              window.showToast({
+                title: isCritical ? '🚨 BÁO ĐỘNG ĐỎ TRỰC LÂM SÀNG' : '🔄 BÀN GIAO TRỰC (REALTIME)',
+                message: `${docBy} cập nhật BÀN GIAO ${pName}${roomStr} ➔ [${statusText}]${issueDetail}`,
+                type: isCritical ? 'critical' : 'handover',
+                icon: statusIcon,
+                patientId: newRecord.id,
+                actionText: 'Xem ca này ➔',
+                duration: isCritical ? 7500 : 5500
+              });
+            }
+            this.flashPatientRow(newRecord.id);
+          } else if (ordersChanged) {
+            if (window.showToast) {
+              window.showToast({
+                title: '💊 Y LỆNH ĐIỀU TRỊ (REALTIME)',
+                message: `Y lệnh điều trị của ${pName}${roomStr} vừa được cập nhật từ thiết bị khác`,
+                type: 'order',
+                icon: '💊',
+                patientId: newRecord.id,
+                actionText: 'Xem ca này ➔'
+              });
+            }
+            this.flashPatientRow(newRecord.id);
+          } else if (labsChanged) {
+            if (window.showToast) {
+              window.showToast({
+                title: '⚡ CHỈ ĐỊNH CLS (REALTIME)',
+                message: `Chỉ định CLS / Kết quả của ${pName}${roomStr} vừa được cập nhật từ thiết bị khác`,
+                type: 'lab',
+                icon: '⚡',
+                patientId: newRecord.id,
+                actionText: 'Xem ca này ➔'
+              });
+            }
+            this.flashPatientRow(newRecord.id);
+          } else {
+            if (window.showToast) {
+              window.showToast({
+                title: '🔄 ĐỒNG BỘ REALTIME',
+                message: `Thông tin ${pName}${roomStr} đã đồng bộ từ thiết bị khác`,
+                type: 'normal',
+                icon: '🔄',
+                patientId: newRecord.id,
+                actionText: 'Xem ca này ➔'
+              });
+            }
+            this.flashPatientRow(newRecord.id);
+          }
         }
       }
     }
@@ -928,98 +1047,73 @@ class PatientController {
 
   // MODAL CHUYỂN ĐỔI KHÔNG GIAN DÀNH CHO ADMIN
   openAdminWorkspaceSwitcherModal() {
-    let modal = document.getElementById('adminWorkspaceModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'adminWorkspaceModal';
-      modal.className = 'modal-overlay';
-      modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px;';
-      document.body.appendChild(modal);
-    }
+    const modal = document.getElementById('adminWorkspaceModal');
+    const container = document.getElementById('adminWorkspaceListContainer');
+    if (!modal || !container) return;
 
     const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
     const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
     const currentMode = this.activeWorkspaceDoctorId || 'my_space';
+    const isAllSelected = currentMode === 'all';
 
-    let docsHtml = '';
+    let html = `
+      <!-- Nút Toàn Khoa -->
+      <div class="admin-ws-item admin-ws-item-all ${isAllSelected ? 'selected' : ''}"
+           onclick="window.patientController.switchWorkspaceDoctor('all'); window.patientController.closeAdminWorkspaceSwitcherModal();">
+        <div class="admin-ws-item-left">
+          <div class="admin-ws-avatar ws-avatar-all">🌐</div>
+          <div>
+            <div class="admin-ws-name">
+              <span>Toàn Khoa (Tất cả Bác sĩ)</span>
+              <span class="admin-ws-badge badge-all">Tổng quan</span>
+            </div>
+            <div class="admin-ws-sub">Giám sát toàn bộ người bệnh đang theo dõi trong khoa</div>
+          </div>
+        </div>
+        <span class="admin-ws-chevron">➔</span>
+      </div>
+
+      <div class="admin-ws-section-label">Không gian riêng từng tài khoản (100MB / ID):</div>
+    `;
+
     allDocs.forEach(d => {
       const stats = this.calculateDoctorStorageUsage(d.id);
       const isSelected = (currentMode === d.id) || (currentMode === 'my_space' && d.id === activeDoc.id);
       const isDong = window.authController?.isDongAdmin?.(d);
 
-      docsHtml += `
-        <div onclick="window.patientController.switchWorkspaceDoctor('${d.id}'); window.patientController.closeAdminWorkspaceSwitcherModal();"
-             style="background: ${isSelected ? '#eff6ff' : '#ffffff'}; border: 1.5px solid ${isSelected ? '#2563eb' : '#e2e8f0'}; border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s ease;"
-             onmouseover="this.style.borderColor='#2563eb'" onmouseout="if(!${isSelected}) this.style.borderColor='#e2e8f0'">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 38px; height: 38px; border-radius: 50%; background: ${isDong ? '#1e3a8a' : '#0284c7'}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+      html += `
+        <div class="admin-ws-item ${isSelected ? 'selected' : ''}"
+             onclick="window.patientController.switchWorkspaceDoctor('${d.id}'); window.patientController.closeAdminWorkspaceSwitcherModal();">
+          <div class="admin-ws-item-left">
+            <div class="admin-ws-avatar ${isDong ? 'ws-avatar-admin' : 'ws-avatar-doc'}">
               ${window.authController?.getInitials?.(d.full_name) || 'BS'}
             </div>
             <div>
-              <div style="font-size: 13.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+              <div class="admin-ws-name">
                 <span>${this.escape(d.full_name)}</span>
-                ${isDong ? '<span style="background: #fef3c7; color: #92400e; font-size: 10px; padding: 1px 6px; border-radius: 6px; font-weight: 700;">Admin</span>' : ''}
+                ${isDong ? '<span class="admin-ws-badge badge-admin">Admin</span>' : ''}
+                ${isSelected ? '<span class="admin-ws-badge badge-current">Đang chọn</span>' : ''}
               </div>
-              <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+              <div class="admin-ws-sub">
                 Tài khoản: <strong>${this.escape(d.username || '')}</strong> • ${this.escape(d.department || 'Khoa Nhiễm')}
               </div>
             </div>
           </div>
-          <div style="text-align: right;">
-            <div style="font-size: 12.5px; font-weight: 700; color: #2563eb;">${stats.patientsCount} người bệnh</div>
-            <div style="font-size: 11px; color: #64748b;">💾 ${stats.usedFormatted} / 100MB</div>
+          <div class="admin-ws-item-right">
+            <div class="admin-ws-count">${stats.patientsCount} người bệnh</div>
+            <div class="admin-ws-storage">💾 ${stats.usedFormatted} / 100MB</div>
           </div>
         </div>
       `;
     });
 
-    const isAllSelected = currentMode === 'all';
-
-    modal.innerHTML = `
-      <div style="background: #ffffff; border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; animation: modalFadeIn 0.2s ease;">
-        <div style="background: #1e3a8a; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 20px;">🎮</span>
-            <div>
-              <div style="font-size: 15px; font-weight: 800;">Chuyển Không Gian Làm Việc</div>
-              <div style="font-size: 11.5px; opacity: 0.9;">Đặc quyền Quản trị viên (Admin: ${this.escape(activeDoc.full_name)})</div>
-            </div>
-          </div>
-          <button onclick="window.patientController.closeAdminWorkspaceSwitcherModal()" style="background: transparent; border: none; color: white; font-size: 20px; cursor: pointer;">✕</button>
-        </div>
-        <div style="padding: 16px 20px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
-          <!-- Nút Toàn Khoa -->
-          <div onclick="window.patientController.switchWorkspaceDoctor('all'); window.patientController.closeAdminWorkspaceSwitcherModal();"
-               style="background: ${isAllSelected ? '#eff6ff' : '#f8fafc'}; border: 1.5px solid ${isAllSelected ? '#2563eb' : '#cbd5e1'}; border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 38px; height: 38px; border-radius: 50%; background: #059669; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                🌐
-              </div>
-              <div>
-                <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;">Toàn Khoa (Tất cả Bác sĩ)</div>
-                <div style="font-size: 11.5px; color: #64748b;">Giám sát toàn bộ người bệnh đang theo dõi trong khoa</div>
-              </div>
-            </div>
-            <span style="font-size: 12px; font-weight: 700; color: #059669;">Tổng quan</span>
-          </div>
-
-          <div style="font-size: 11.5px; font-weight: 700; color: #64748b; margin-top: 4px; text-transform: uppercase;">
-            Không gian riêng từng tài khoản (100MB / ID):
-          </div>
-          ${docsHtml}
-        </div>
-        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 20px; display: flex; justify-content: flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="window.patientController.closeAdminWorkspaceSwitcherModal()">Đóng</button>
-        </div>
-      </div>
-    `;
-
-    modal.style.display = 'flex';
+    container.innerHTML = html;
+    modal.classList.add('active');
   }
 
   closeAdminWorkspaceSwitcherModal() {
     const modal = document.getElementById('adminWorkspaceModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.classList.remove('active');
   }
 
   quickAssignDoctor(patientId, event) {
@@ -1181,13 +1275,13 @@ class PatientController {
   async executeNextDayRollover() {
     const selectedCheckboxes = document.querySelectorAll('.chk-next-day-patient:checked');
     if (selectedCheckboxes.length === 0) {
-      alert('Vui lòng chọn ít nhất một người bệnh để chuyển sang ngày mới!');
+      if (window.showToast) window.showToast('⚠️ Vui lòng chọn ít nhất một người bệnh để chuyển sang ngày mới!');
       return;
     }
 
     const targetDate = document.getElementById('nextDayTargetDate')?.value?.trim();
     if (!targetDate) {
-      alert('Vui lòng nhập ngày tiếp theo!');
+      if (window.showToast) window.showToast('⚠️ Vui lòng nhập ngày tiếp theo!');
       return;
     }
 
@@ -1804,6 +1898,21 @@ class PatientController {
       totalEl.innerText = filtered.length;
     }
 
+    // Cập nhật dải chỉ số KPI lâm sàng
+    const totalCount = this.patientList.length;
+    const criticalCount = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL).length;
+    const pendingCount = this.patientList.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING).length;
+    const stableCount = Math.max(0, totalCount - criticalCount - pendingCount);
+
+    const deskTot = document.getElementById('desktopStatTotal');
+    if (deskTot) deskTot.innerText = totalCount;
+    const deskCrit = document.getElementById('desktopStatCritical');
+    if (deskCrit) deskCrit.innerText = criticalCount;
+    const deskPend = document.getElementById('desktopStatPending');
+    if (deskPend) deskPend.innerText = pendingCount;
+    const deskStab = document.getElementById('desktopStatStable');
+    if (deskStab) deskStab.innerText = stableCount;
+
     // Cập nhật Header Pill Badge
     if (window.authController && window.authController.updateHeaderPill) {
       window.authController.updateHeaderPill(filtered.length, this.patientList.length);
@@ -1972,13 +2081,13 @@ class PatientController {
         const { doctor } = this.getEffectiveDoctor();
         tbody.innerHTML = `
           <tr class="empty-table-row">
-            <td colspan="9" style="text-align: center; padding: 48px 20px; background: #ffffff;">
-              <div style="max-width: 480px; margin: 0 auto; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 26px 20px;">
-                <div style="font-size: 38px; margin-bottom: 8px;">🎮</div>
-                <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
+            <td colspan="9" class="empty-table-cell">
+              <div class="empty-workspace-banner">
+                <div class="empty-banner-icon">🎮</div>
+                <div class="empty-banner-title">
                   Không gian điều trị riêng: ${this.escape(doctor.full_name)}
                 </div>
-                <div style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px;">
+                <div class="empty-banner-desc">
                   Mỗi tài khoản ID là một không gian lưu trữ độc lập (<strong>100MB / ID</strong>).<br>
                   Chưa có người bệnh nào trong không gian này. Dữ liệu của bạn được cách ly an toàn.
                 </div>
@@ -1994,10 +2103,12 @@ class PatientController {
 
       tbody.innerHTML = `
         <tr class="empty-table-row">
-          <td colspan="9" style="text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 13.5px; background: #ffffff;">
-            <div style="font-size: 28px; margin-bottom: 8px;">📋</div>
-            <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px; font-size: 14px;">Chưa có bệnh nhân nào phù hợp bộ lọc</div>
-            <div style="font-size: 12.5px; color: var(--text-muted);">Bấm nút <strong>+ Thêm NB (Ctrl+N)</strong> hoặc xóa từ khóa tìm kiếm.</div>
+          <td colspan="9" class="empty-table-cell">
+            <div class="empty-filter-banner">
+              <div class="empty-banner-icon">📋</div>
+              <div class="empty-banner-title">Chưa có bệnh nhân nào phù hợp bộ lọc</div>
+              <div class="empty-banner-desc">Bấm nút <strong>+ Thêm NB (Ctrl+N)</strong> hoặc xóa từ khóa tìm kiếm.</div>
+            </div>
           </td>
         </tr>
       `;
@@ -2145,15 +2256,15 @@ class PatientController {
       if (this.patientList.length === 0) {
         const { doctor } = this.getEffectiveDoctor();
         container.innerHTML = `
-          <div style="text-align: center; padding: 36px 16px; color: #64748b; background: white; border-radius: 12px; border: 1.5px dashed #cbd5e1; margin-top: 6px;">
-            <div style="font-size: 36px; margin-bottom: 8px;">🎮</div>
-            <div style="font-weight: 800; color: #1e293b; font-size: 15px; margin-bottom: 4px;">Không gian riêng: ${this.escape(doctor.full_name)}</div>
-            <div style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 14px;">Mỗi tài khoản ID có 100MB lưu trữ dữ liệu độc lập.<br>Chưa có người bệnh nào trong không gian này.</div>
-            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
-              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="font-weight: 700; background: #f0fdf4; border-color: #86efac; color: #166534;">
+          <div class="empty-mobile-banner empty-mobile-workspace">
+            <div class="empty-banner-icon">🎮</div>
+            <div class="empty-banner-title">Không gian riêng: ${this.escape(doctor.full_name)}</div>
+            <div class="empty-banner-desc">Mỗi tài khoản ID có 100MB lưu trữ dữ liệu độc lập.<br>Chưa có người bệnh nào trong không gian này.</div>
+            <div class="empty-banner-actions">
+              <button class="btn btn-secondary btn-sm btn-empty-excel" onclick="document.getElementById('excelFileInput').click()">
                 📊 Nhập từ file Excel (.xlsx)
               </button>
-              <button class="btn btn-secondary btn-sm" onclick="window.patientController.openExportBackupModal()" style="font-weight: 700; background: #eff6ff; border-color: #bfdbfe; color: #1e40af;">
+              <button class="btn btn-secondary btn-sm btn-empty-backup" onclick="window.patientController.openExportBackupModal()">
                 🛡️ Sao lưu / Xuất file
               </button>
               <button class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">
@@ -2166,12 +2277,12 @@ class PatientController {
       }
 
       container.innerHTML = `
-        <div style="text-align: center; padding: 40px 16px; color: #64748b; background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 6px;">
-          <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
-          <div style="font-weight: 800; color: #1e293b; font-size: 14px;">Chưa có bệnh nhân nào phù hợp</div>
-          <div style="font-size: 12px; margin: 6px 0 14px 0; color: #64748b;">Chạm nút <strong>+ Thêm NB</strong> hoặc nạp nhanh danh sách từ file Excel.</div>
-          <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excelFileInput').click()" style="font-weight: 700; background: #f0fdf4; border-color: #86efac; color: #166534;">
+        <div class="empty-mobile-banner empty-mobile-filter">
+          <div class="empty-banner-icon">📋</div>
+          <div class="empty-banner-title">Chưa có bệnh nhân nào phù hợp</div>
+          <div class="empty-banner-desc">Chạm nút <strong>+ Thêm NB</strong> hoặc nạp nhanh danh sách từ file Excel.</div>
+          <div class="empty-banner-actions">
+            <button class="btn btn-secondary btn-sm btn-empty-excel" onclick="document.getElementById('excelFileInput').click()">
               📊 Nhập từ file Excel (.xlsx)
             </button>
             <button class="btn btn-primary btn-sm" onclick="window.patientController.openAddPatientModal()" style="font-weight: 700;">

@@ -9,6 +9,7 @@ class MedWardApp {
   }
 
   init() {
+    this.setupTheme();
     this.setupResponsiveAndViews();
     this.setupDatePickers();
     this.setupMetaHandlers();
@@ -116,8 +117,52 @@ class MedWardApp {
           this.toggleViewMode();
           return;
         }
+
+        // Ctrl + Shift + L: Đổi giao diện Sáng ↔ Tối (Dark mode trực đêm)
+        if (lowerKey === 'l' && e.shiftKey) {
+          e.preventDefault();
+          this.toggleTheme();
+          return;
+        }
       }
     });
+  }
+
+  setupTheme() {
+    const savedTheme = localStorage.getItem('medward_theme') || 
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    this.applyTheme(savedTheme, false);
+  }
+
+  applyTheme(theme, showNotice = false) {
+    const isDark = theme === 'dark';
+    if (isDark) {
+      document.documentElement.classList.add('dark-theme');
+      document.body.classList.add('dark-theme');
+    } else {
+      document.documentElement.classList.remove('dark-theme');
+      document.body.classList.remove('dark-theme');
+    }
+    localStorage.setItem('medward_theme', isDark ? 'dark' : 'light');
+
+    const iconDesk = document.getElementById('themeToggleIcon');
+    if (iconDesk) iconDesk.innerText = isDark ? '☀️' : '🌙';
+    const iconMob = document.getElementById('mobileThemeToggleIcon');
+    if (iconMob) iconMob.innerText = isDark ? '☀️' : '🌙';
+
+    const btnDesk = document.getElementById('btnThemeToggle');
+    if (btnDesk) {
+      btnDesk.setAttribute('data-tooltip', isDark ? 'Chuyển sang chế độ Sáng (Ban ngày - Ctrl+Shift+L)' : 'Chuyển sang chế độ Tối (Trực đêm - Ctrl+Shift+L)');
+    }
+
+    if (showNotice && window.showToast) {
+      window.showToast(isDark ? '🌙 Đã kích hoạt Chế độ Tối (Trực đêm dịu mắt)' : '☀️ Đã chuyển sang Chế độ Sáng (Ban ngày)');
+    }
+  }
+
+  toggleTheme() {
+    const isCurrentlyDark = document.body.classList.contains('dark-theme');
+    this.applyTheme(isCurrentlyDark ? 'light' : 'dark', true);
   }
 
   closeAllModals() {
@@ -747,18 +792,176 @@ class MedWardApp {
   }
 }
 
-// Global UI helper functions
-window.showToast = function(msg) {
-  let toast = document.getElementById('appToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'appToast';
-    toast.className = 'app-toast';
-    document.body.appendChild(toast);
+// Web Audio API soft clinical chime for realtime notifications
+function playRealtimeChime(type = 'normal') {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (type === 'critical') {
+      // Soft emergency alert: two gentle pulses
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.12);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc.start(now);
+      osc.stop(now + 0.38);
+    } else {
+      // Gentle clinical chime (warm ding)
+      osc.frequency.setValueAtTime(659.25, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.14);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+      osc.start(now);
+      osc.stop(now + 0.32);
+    }
+  } catch (e) {
+    // Audio can fail if blocked before first user gesture; ignore silently
   }
-  toast.innerText = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+window.playRealtimeChime = playRealtimeChime;
+
+// Global Toast Notification System (Multi-card stacking & Realtime alert support)
+window.showToast = function(input) {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  // Parse options
+  let opts = {};
+  if (typeof input === 'string') {
+    const isCritical = input.includes('🚨') || input.includes('NẶNG') || input.includes('Báo động');
+    const isHandover = input.includes('BÀN GIAO') || input.includes('🔄');
+    const isOrder = input.includes('Y lệnh') || input.includes('💊');
+    const isLab = input.includes('CLS') || input.includes('⚡');
+    opts = {
+      message: input,
+      title: isCritical ? 'BÁO ĐỘNG ĐỎ LÂM SÀNG' : (isHandover ? 'ĐỒNG BỘ BÀN GIAO' : 'MEDWARD PRO'),
+      type: isCritical ? 'critical' : (isHandover ? 'handover' : (isOrder ? 'order' : (isLab ? 'lab' : 'normal'))),
+      icon: isCritical ? '🚨' : (isHandover ? '🔄' : (isOrder ? '💊' : (isLab ? '⚡' : 'ℹ️'))),
+      duration: isCritical ? 6500 : 4500
+    };
+  } else if (typeof input === 'object' && input !== null) {
+    opts = {
+      message: input.message || '',
+      title: input.title || 'ĐỒNG BỘ REALTIME',
+      type: input.type || 'normal',
+      icon: input.icon || (input.type === 'critical' ? '🚨' : (input.type === 'handover' ? '🔄' : (input.type === 'order' ? '💊' : (input.type === 'lab' ? '⚡' : 'ℹ️')))),
+      patientId: input.patientId || null,
+      actionText: input.actionText || (input.patientId ? 'Xem ca này ➔' : null),
+      duration: input.duration || (input.type === 'critical' ? 7000 : 5000)
+    };
+  }
+
+  // Play audio chime for realtime events
+  if (opts.type === 'critical' || opts.type === 'handover' || (opts.title && opts.title.includes('REALTIME'))) {
+    playRealtimeChime(opts.type === 'critical' ? 'critical' : 'normal');
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `toast-item toast-${opts.type || 'normal'}`;
+
+  // Header row
+  const headerRow = document.createElement('div');
+  headerRow.className = 'toast-header-row';
+
+  const metaTag = document.createElement('span');
+  metaTag.className = 'toast-meta-tag';
+  metaTag.innerText = opts.title;
+
+  const timeLabel = document.createElement('span');
+  timeLabel.className = 'toast-time-label';
+  timeLabel.innerText = 'Vừa xong';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'toast-close-btn';
+  closeBtn.innerHTML = '✕';
+  closeBtn.setAttribute('aria-label', 'Đóng thông báo');
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
+    dismissToast();
+  };
+
+  headerRow.appendChild(metaTag);
+  headerRow.appendChild(timeLabel);
+  headerRow.appendChild(closeBtn);
+  toast.appendChild(headerRow);
+
+  // Content row
+  const contentRow = document.createElement('div');
+  contentRow.className = 'toast-content-row';
+
+  const iconEl = document.createElement('span');
+  iconEl.className = 'toast-icon';
+  iconEl.innerText = opts.icon;
+
+  const textEl = document.createElement('div');
+  textEl.className = 'toast-text';
+  textEl.innerText = opts.message;
+
+  contentRow.appendChild(iconEl);
+  contentRow.appendChild(textEl);
+  toast.appendChild(contentRow);
+
+  // Optional Action button (e.g. "Xem ca này")
+  if (opts.actionText && opts.patientId) {
+    const actionBtn = document.createElement('button');
+    actionBtn.className = 'toast-action-btn';
+    actionBtn.innerText = opts.actionText;
+    actionBtn.onclick = () => {
+      if (window.patientController && typeof window.patientController.flashPatientRow === 'function') {
+        window.patientController.flashPatientRow(opts.patientId);
+      }
+      dismissToast();
+    };
+    toast.appendChild(actionBtn);
+  }
+
+  // Progress countdown bar
+  const progressBar = document.createElement('div');
+  progressBar.className = 'toast-progress-bar';
+  progressBar.style.transition = `transform ${opts.duration}ms linear`;
+  progressBar.style.transform = 'scaleX(1)';
+  toast.appendChild(progressBar);
+
+  // Trigger shrinking transition after mount
+  requestAnimationFrame(() => {
+    progressBar.style.transform = 'scaleX(0)';
+  });
+
+  // Keep at most 4 toasts visible at a time
+  while (container.children.length >= 4) {
+    container.removeChild(container.firstChild);
+  }
+
+  container.appendChild(toast);
+
+  let timer = null;
+  function dismissToast() {
+    if (timer) clearTimeout(timer);
+    toast.classList.add('toast-leaving');
+    setTimeout(() => {
+      if (toast.parentNode === container) {
+        container.removeChild(toast);
+      }
+    }, 220);
+  }
+
+  timer = setTimeout(dismissToast, opts.duration);
 };
 
 window.updateSaveStatus = function(msg, type = 'saved') {

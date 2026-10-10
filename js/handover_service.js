@@ -320,7 +320,7 @@ class HandoverController {
       } else if (window.updateSaveStatus) {
         window.updateSaveStatus(successMsg, 'saved');
       } else {
-        alert(successMsg);
+        console.log(successMsg);
       }
     } catch (e) {
       const textarea = document.createElement('textarea');
