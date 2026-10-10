@@ -109,6 +109,13 @@ class MedWardApp {
           }
           return;
         }
+
+        // Ctrl + M: Đổi chế độ xem (Bảng lâm sàng ↔ Thẻ người bệnh)
+        if (lowerKey === 'm') {
+          e.preventDefault();
+          this.toggleViewMode();
+          return;
+        }
       }
     });
   }
@@ -244,10 +251,35 @@ class MedWardApp {
     if (mobileIcon) mobileIcon.innerText = (mode === 'table') ? '📋' : '📱';
     if (mobileText) mobileText.innerText = (mode === 'table') ? 'Bảng' : 'Thẻ';
 
-    // Cập nhật tooltip trên Toolbar
+    // Cập nhật tooltip và biểu tượng trên Toolbar Desktop/Laptop
     const desktopBtn = document.getElementById('btnToggleView');
     if (desktopBtn) {
-      desktopBtn.setAttribute('title', mode === 'table' ? 'Chuyển sang xem dạng Thẻ (Cards)' : 'Chuyển sang xem dạng Bảng (Table)');
+      if (mode === 'cards') {
+        desktopBtn.classList.add('active');
+        desktopBtn.setAttribute('title', 'Chuyển sang xem dạng Bảng lâm sàng (Table)');
+        desktopBtn.setAttribute('data-tooltip', 'Chuyển sang xem dạng Bảng 💻 (Ctrl+M)');
+        desktopBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        `;
+      } else {
+        desktopBtn.classList.remove('active');
+        desktopBtn.setAttribute('title', 'Chuyển sang xem dạng Thẻ người bệnh (Cards)');
+        desktopBtn.setAttribute('data-tooltip', 'Chuyển sang xem dạng Thẻ 📱 (Ctrl+M)');
+        desktopBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        `;
+      }
     }
 
     if (showNotification && window.showToast) {
@@ -264,6 +296,9 @@ class MedWardApp {
   toggleViewMode() {
     const nextMode = (this.viewMode === 'table') ? 'cards' : 'table';
     this.setViewMode(nextMode, true);
+    if (window.patientController && typeof window.patientController.render === 'function') {
+      window.patientController.render();
+    }
   }
 
   formatToDMY(dateObj) {

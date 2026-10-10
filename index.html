@@ -856,8 +856,11 @@
                         <input type="text" id="editRoomBed" class="form-control" placeholder="P/G (VD: D1.14-3)">
                     </div>
                     <div class="form-group">
-                        <label>Năm sinh / Tuổi (NS):</label>
-                        <input type="text" id="editAgeYear" class="form-control" placeholder="Năm sinh (Tuổi)">
+                        <label><span>Năm sinh / Tuổi (NS):</span><span id="calcAgeBadge" class="calc-age-badge"></span></label>
+                        <input type="text" id="editAgeYear" class="form-control" placeholder="Nhập năm sinh (VD: 1985)"
+                            oninput="window.patientController.handleAgeYearInput(this)"
+                            onblur="window.patientController.handleAgeYearBlur(this)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
                     </div>
                 </div>
 
@@ -1563,6 +1566,11 @@
                         <tr>
                             <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
                             <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>M</kbd></td>
+                            <td><strong>Đổi chế độ xem</strong> (Bảng lâm sàng 💻 ↔ Thẻ người bệnh 📱)</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>

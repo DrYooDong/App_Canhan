@@ -64,6 +64,277 @@ body.view-table .mobile-cards-view {
 }
 
 /* ==============================================================================
+   0.1. SHARED CLINICAL PATIENT CARDS ARCHITECTURE (DESKTOP, TABLET & MOBILE)
+   ============================================================================== */
+.mobile-patient-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+  touch-action: manipulation;
+  width: 100%;
+}
+
+.mobile-patient-card.card-critical {
+  border-left: 5px solid #dc2626;
+  border-color: #fca5a5;
+  background: #fffcfc;
+}
+
+.mobile-patient-card.card-pending {
+  border-left: 5px solid #d97706;
+  border-color: #fcd34d;
+  background: #fffdf7;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.card-room-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  letter-spacing: -0.1px;
+}
+
+.card-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.card-status-pill.status-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.card-status-pill.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.card-status-pill.status-none {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.card-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+  gap: 8px;
+}
+
+.patient-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  line-height: 1.3;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.patient-age {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.card-diagnosis-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.card-diagnosis-box strong {
+  color: #475569;
+  font-size: 11px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.card-clinical-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-tier-box {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 8px 10px;
+  background: #ffffff;
+  font-size: 12.5px;
+}
+
+.card-tier-box.tier-cls {
+  border-left: 3.5px solid #0284c7;
+  background: #f0f9ff;
+}
+
+.card-tier-box.tier-yl {
+  border-left: 3.5px solid #16a34a;
+  background: #f0fdf4;
+}
+
+.card-tier-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  letter-spacing: 0.2px;
+}
+
+.tier-cls .card-tier-title { color: #0369a1; }
+.tier-yl .card-tier-title { color: #15803d; }
+
+.card-tier-content {
+  color: #0f172a;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.card-tier-highlight {
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px dashed #cbd5e1;
+  font-weight: 700;
+  color: #b91c1c;
+  font-size: 11.5px;
+}
+
+.card-handover-alert {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #9a3412;
+  line-height: 1.4;
+}
+
+.card-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+.card-btn-action {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.card-btn-action:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.card-btn-action:active {
+  background: #f1f5f9;
+  transform: translateY(0);
+}
+
+.card-btn-action.btn-handover {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+.card-btn-action.btn-handover:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.card-btn-action.btn-zalo {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
+}
+.card-btn-action.btn-zalo:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
+.card-btn-action.btn-danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.card-btn-action.btn-danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+/* ==============================================================================
    TIER 1: DESKTOP & LAPTOP (MIN-WIDTH: 1025px)
    ============================================================================== */
 @media screen and (min-width: 1025px) {
@@ -86,12 +357,24 @@ body.view-table .mobile-cards-view {
     display: none !important;
   }
 
-  /* Khi Bác sĩ chọn xem dạng Thẻ trên Desktop: Lưới 3 - 4 cột hiện đại */
+  /* Khi Bác sĩ chọn xem dạng Thẻ trên Desktop & Laptop: Lưới hiện đại cân đối */
   body.view-cards .mobile-cards-view {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+    align-items: stretch;
+  }
+
+  body.view-cards .mobile-patient-card {
+    height: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 3px 8px -2px rgba(15, 23, 42, 0.05);
+  }
+
+  body.view-cards .mobile-patient-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.09), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+    border-color: #cbd5e1;
   }
 
   .app-container {

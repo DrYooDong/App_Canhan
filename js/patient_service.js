@@ -811,6 +811,11 @@ class PatientController {
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
       }
+    } else if (field === 'nam_sinh_tuoi') {
+      cleanVal = this.formatBirthYearAge(cleanVal);
+      if (el && el.innerText !== cleanVal) {
+        el.innerText = cleanVal;
+      }
     } else if (CONFIG.expandMedicalText && (field === 'chan_doan' || field === 'cls' || field === 'cls_hien_co' || field === 'cls_can_lam' || field === 'y_lenh' || field === 'them_thuoc')) {
       cleanVal = CONFIG.expandMedicalText(cleanVal);
       if (el && el.innerText !== cleanVal) {
@@ -2200,20 +2205,20 @@ class PatientController {
         <!-- HEADER THẺ: BUỒNG GIƯỜNG & TRẠNG THÁI -->
         <div class="card-header" onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-room-badge">
-            <span>🚪</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M15 11h.01"/></svg>
             <span>${this.escape(p.phong_giuong || 'Chưa xếp phòng')}</span>
           </div>
           ${statusPillHtml}
         </div>
 
         <!-- THÂN THẺ: TÊN & CHẨN ĐOÁN -->
-        <div onclick="window.patientController.openPatientDetailModal('${p.id}')">
+        <div class="card-body" onclick="window.patientController.openPatientDetailModal('${p.id}')">
           <div class="card-name-row">
             <h3 class="patient-name">${this.escape(p.ten || 'BỆNH NHÂN CHƯA TÊN')}</h3>
             <span class="patient-age">${this.escape(p.nam_sinh_tuoi || '')}</span>
           </div>
 
-          <div class="card-diagnosis-box" style="margin-bottom: 8px;">
+          <div class="card-diagnosis-box">
             <strong>Chẩn đoán:</strong>
             ${this.escape(p.chan_doan || 'Chưa có chẩn đoán')}
           </div>
@@ -2261,16 +2266,16 @@ class PatientController {
 
         <!-- HÀNG NÚT HÀNH ĐỘNG DẠNG ICON GỌN GÀNG -->
         <div class="card-actions-row">
-          <button type="button" class="card-btn-action btn-handover" title="Bàn giao ca trực" aria-label="Bàn giao ca trực" onclick="window.handoverController.openHandoverModal('${p.id}')">
+          <button type="button" class="card-btn-action btn-handover" title="Bàn giao ca trực" data-tooltip="Bàn giao ca trực" aria-label="Bàn giao ca trực" onclick="window.handoverController.openHandoverModal('${p.id}')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           </button>
-          <button type="button" class="card-btn-action btn-zalo" title="Copy gửi Zalo" aria-label="Copy gửi Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
+          <button type="button" class="card-btn-action btn-zalo" title="Copy gửi Zalo" data-tooltip="Copy gửi Zalo" aria-label="Copy gửi Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v2"></path></svg>
           </button>
-          <button type="button" class="card-btn-action" title="Chi tiết bệnh nhân" aria-label="Chi tiết bệnh nhân" onclick="window.patientController.openPatientDetailModal('${p.id}')">
+          <button type="button" class="card-btn-action" title="Chi tiết bệnh nhân" data-tooltip="Chi tiết bệnh nhân" aria-label="Chi tiết bệnh nhân" onclick="window.patientController.openPatientDetailModal('${p.id}')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button type="button" class="card-btn-action btn-danger" title="Xóa người bệnh" aria-label="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
+          <button type="button" class="card-btn-action btn-danger" title="Xóa người bệnh" data-tooltip="Xóa người bệnh" aria-label="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
@@ -2278,6 +2283,113 @@ class PatientController {
 
       container.appendChild(card);
     });
+  }
+
+  // ==============================================================================
+  // TỰ ĐỘNG TÍNH TUỔI TỪ NĂM SINH
+  // ==============================================================================
+  formatBirthYearAge(val) {
+    if (!val) return '';
+    const s = String(val).trim();
+    if (!s) return '';
+
+    const curYear = new Date().getFullYear();
+
+    // 1. Nếu đã có dạng "1985 (41)" hoặc "1985 (41 tuổi)"
+    const fullMatch = s.match(/^(\d{4})\s*\(([^)]+)\)$/);
+    if (fullMatch) {
+      const y = parseInt(fullMatch[1], 10);
+      if (y >= 1900 && y <= curYear) {
+        const expectedAge = curYear - y;
+        return `${y} (${expectedAge})`;
+      }
+      return s;
+    }
+
+    // 2. Nếu người dùng nhập 4 chữ số năm sinh (VD: "1985", "2003", "1956")
+    const yearMatch = s.match(/\b(19\d{2}|20\d{2})\b/);
+    if (yearMatch) {
+      const y = parseInt(yearMatch[1], 10);
+      if (y >= 1900 && y <= curYear) {
+        const age = curYear - y;
+        return `${y} (${age})`;
+      }
+    }
+
+    // 3. Nếu người dùng nhập ngày tháng năm sinh (VD: "15/08/1985", "1985-08-15")
+    const dateMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (dateMatch) {
+      const y = parseInt(dateMatch[3], 10);
+      if (y >= 1900 && y <= curYear) {
+        const age = curYear - y;
+        return `${y} (${age})`;
+      }
+    }
+
+    // 4. Nếu người dùng chỉ nhập số tuổi (VD: "41 tuổi", "41t", hoặc số nguyên)
+    const ageMatch = s.match(/^(\d{1,3})\s*(?:tuổi|t)?$/i);
+    if (ageMatch) {
+      const age = parseInt(ageMatch[1], 10);
+      if (age >= 0 && age <= 125) {
+        const estYear = curYear - age;
+        return `${estYear} (${age})`;
+      }
+    }
+
+    return s;
+  }
+
+  handleAgeYearInput(inputEl) {
+    if (!inputEl) return;
+    const val = inputEl.value.trim();
+    const badge = document.getElementById('calcAgeBadge');
+    if (!badge) return;
+
+    if (!val) {
+      badge.textContent = '';
+      badge.className = 'calc-age-badge';
+      return;
+    }
+
+    const curYear = new Date().getFullYear();
+
+    // 1. Kiểm tra nếu có năm sinh 4 chữ số
+    const yearMatch = val.match(/\b(19\d{2}|20\d{2})\b/);
+    if (yearMatch) {
+      const y = parseInt(yearMatch[1], 10);
+      if (y >= 1900 && y <= curYear) {
+        const age = curYear - y;
+        badge.textContent = `⚡ Tuổi: ${age}`;
+        badge.className = 'calc-age-badge has-age';
+        return;
+      }
+    }
+
+    // 2. Nếu người dùng nhập số tuổi
+    const ageMatch = val.match(/^(\d{1,3})\s*(?:tuổi|t)?$/i);
+    if (ageMatch) {
+      const age = parseInt(ageMatch[1], 10);
+      if (age >= 0 && age <= 125) {
+        const estYear = curYear - age;
+        badge.textContent = `⚡ Năm sinh: ${estYear}`;
+        badge.className = 'calc-age-badge has-age';
+        return;
+      }
+    }
+
+    badge.textContent = '';
+    badge.className = 'calc-age-badge';
+  }
+
+  handleAgeYearBlur(inputEl) {
+    if (!inputEl) return;
+    const val = inputEl.value.trim();
+    if (!val) return;
+    const formatted = this.formatBirthYearAge(val);
+    if (formatted) {
+      inputEl.value = formatted;
+      this.handleAgeYearInput(inputEl);
+    }
   }
 
   // ==============================================================================
@@ -2307,7 +2419,11 @@ class PatientController {
     document.getElementById('editPatientId').value = p.id;
     document.getElementById('editRoomBed').value = p.phong_giuong || '';
     document.getElementById('editFullName').value = p.ten || '';
-    document.getElementById('editAgeYear').value = p.nam_sinh_tuoi || '';
+    const ageInput = document.getElementById('editAgeYear');
+    if (ageInput) {
+      ageInput.value = p.nam_sinh_tuoi || '';
+      this.handleAgeYearInput(ageInput);
+    }
     document.getElementById('editDoctorName').value = p.doctor_name || p.handover_by || '';
     document.getElementById('editDiagnosis').value = p.chan_doan || '';
     
@@ -2361,11 +2477,15 @@ class PatientController {
     }
 
     const docVal = document.getElementById('editDoctorName')?.value?.trim() || '';
+    const ageYearInput = document.getElementById('editAgeYear');
+    let rawAgeYear = ageYearInput ? ageYearInput.value.trim() : '';
+    const formattedAgeYear = this.formatBirthYearAge(rawAgeYear);
+    if (ageYearInput && formattedAgeYear) ageYearInput.value = formattedAgeYear;
 
     const updateData = {
       phong_giuong: this.cleanRoomBedString(document.getElementById('editRoomBed').value.trim()),
       ten: document.getElementById('editFullName').value.trim(),
-      nam_sinh_tuoi: document.getElementById('editAgeYear').value.trim(),
+      nam_sinh_tuoi: formattedAgeYear,
       doctor_name: docVal,
       chan_doan: cdVal,
       cls: combinedCls,
