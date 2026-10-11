@@ -19,17 +19,24 @@ class PatientController {
     this.init();
   }
 
-  getCurrentDateString() {
-    const repInput = document.getElementById('reportDate');
-    if (repInput && repInput.value && repInput.value.trim().length >= 8) {
-      return repInput.value.trim();
-    }
-    if (this.currentDate) return this.currentDate;
+  getTodayIso() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  getTodayDMY() {
     const now = new Date();
     const d = String(now.getDate()).padStart(2, '0');
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const y = now.getFullYear();
     return `${d}/${m}/${y}`;
+  }
+
+  getCurrentDateString() {
+    return this.getTodayDMY();
   }
 
   formatDateToCompare(d) {
@@ -43,8 +50,31 @@ class PatientController {
   async init() {
     this.loadSettings();
     this.applyMobileViewMode();
-    this.currentDate = this.getCurrentDateString();
+    this.currentDate = this.getTodayDMY();
+
+    // Luôn hiển thị ngày hôm nay trên giao diện
+    const repInput = document.getElementById('reportDate');
+    if (repInput) repInput.value = this.currentDate;
+    const nativePicker = document.getElementById('nativeDatePicker');
+    if (nativePicker) nativePicker.value = this.getTodayIso();
+    const mobSummaryDate = document.getElementById('mobileSummaryDate');
+    if (mobSummaryDate) mobSummaryDate.innerText = this.currentDate;
+
+    // 1. Tải dữ liệu bệnh nhân hiện hành
     await this.reloadFromSource(false, this.currentDate);
+
+    // 2. Dọn dẹp các cache lưu trữ ngày cũ để chỉ duy trì danh sách hôm nay
+    this.cleanupLegacyOldDateStorage();
+
+    // 3. Tự động kiểm tra và chuyển đổi thông minh nếu đã bước sang ngày mới (sau 0h)
+    await this.checkAndExecuteAutoRollover();
+
+    // 4. Kích hoạt bộ theo dõi 0h Realtime (Midnight Watcher)
+    if (this._midnightInterval) clearInterval(this._midnightInterval);
+    this._midnightInterval = setInterval(() => {
+      this.checkMidnightRollover();
+    }, 30000);
+
     this.setupRealtimeListener();
     this.updateStorageHudUI();
   }
@@ -292,13 +322,11 @@ class PatientController {
   }
 
   // ==============================================================================
-  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN & PHÂN VÙNG THEO NGÀY
+  // HỆ THỐNG KHÔNG GIAN BIỆT LẬP TỪNG TÀI KHOẢN (DUY NHẤT DANH SÁCH NGÀY HÔM NAY)
   // ==============================================================================
   getDoctorSpaceKey(docId, dateStr = null) {
-    const dStr = dateStr || this.getCurrentDateString();
-    const cleanDate = String(dStr).replace(/[\/\-\.]/g, '_');
-    if (!docId) return `medward_patients_${cleanDate}`;
-    return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_' + cleanDate;
+    if (!docId) return CONFIG.STORAGE_KEYS.PATIENT_DATA || 'medward_patients_v2';
+    return (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId;
   }
 
   getEffectiveDoctor() {
@@ -319,8 +347,26 @@ class PatientController {
   }
 
   loadDoctorPatients(docId, dateStr = null) {
-    const key = this.getDoctorSpaceKey(docId, dateStr);
-    const local = localStorage.getItem(key);
+    const key = this.getDoctorSpaceKey(docId);
+    let local = localStorage.getItem(key);
+
+    // Migration bảo toàn dữ liệu: Nếu chưa có trong key mới, tìm từ các key cũ có đuôi ngày
+    if (local === null) {
+      const prefix = (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + docId + '_';
+      let foundLegacy = null;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) {
+          foundLegacy = localStorage.getItem(k);
+          if (foundLegacy && foundLegacy !== '[]') break;
+        }
+      }
+      if (foundLegacy) {
+        local = foundLegacy;
+        localStorage.setItem(key, local);
+      }
+    }
+
     if (local !== null) {
       try {
         const parsed = JSON.parse(local);
@@ -330,9 +376,8 @@ class PatientController {
       }
     }
 
-    // Nếu là ngày hôm nay và là BS. Đông và chưa khởi tạo partition riêng
-    const isToday = (this.formatDateToCompare(dateStr) === this.formatDateToCompare(new Date()));
-    if (isToday && (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId })))) {
+    // Nếu là BS. Đông và chưa khởi tạo partition riêng
+    if (docId === 'doc_dongnh' || (window.authController && window.authController.isDongAdmin({ id: docId }))) {
       const oldCache = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
       if (oldCache) {
         try {
@@ -417,7 +462,7 @@ class PatientController {
             });
 
             data = matched;
-            localStorage.setItem(this.getDoctorSpaceKey(doctor.id, reqDate), JSON.stringify(matched));
+            localStorage.setItem(this.getDoctorSpaceKey(doctor.id), JSON.stringify(matched));
           }
         } catch (err) {
           console.warn('Lưu ý kết nối Cloud:', err);
@@ -470,6 +515,12 @@ class PatientController {
           p.y_lenh = '';
           cleaned = true;
         }
+      }
+
+      // Dọn sạch nếu Chẩn đoán bị dính Mã NB trước đây
+      if (p.chan_doan && /^\[Mã\s*(?:NB|BN|BA|hồ\s*sơ):\s*[^\]]+\]$/i.test(p.chan_doan.trim())) {
+        p.chan_doan = '';
+        cleaned = true;
       }
       if (!p.created_at || p.created_at === 'null') {
         p.created_at = nowIso;
@@ -571,11 +622,15 @@ class PatientController {
         p.y_lenh = '';
       }
     }
+
+    // Dọn sạch nếu Chẩn đoán bị dính Mã NB trước đây
+    if (p.chan_doan && /^\[Mã\s*(?:NB|BN|BA|hồ\s*sơ):\s*[^\]]+\]$/i.test(p.chan_doan.trim())) {
+      p.chan_doan = '';
+    }
   }
 
   saveLocalCache() {
     const { doctor, isAll } = this.getEffectiveDoctor();
-    const curDateStr = this.getCurrentDateString();
     if (isAll) {
       const partitionMap = {};
       this.patientList.forEach(p => {
@@ -584,58 +639,53 @@ class PatientController {
         partitionMap[dId].push(p);
       });
       Object.keys(partitionMap).forEach(dId => {
-        localStorage.setItem(this.getDoctorSpaceKey(dId, curDateStr), JSON.stringify(partitionMap[dId]));
+        localStorage.setItem(this.getDoctorSpaceKey(dId), JSON.stringify(partitionMap[dId]));
       });
     } else {
-      const key = this.getDoctorSpaceKey(doctor.id, curDateStr);
+      const key = this.getDoctorSpaceKey(doctor.id);
       localStorage.setItem(key, JSON.stringify(this.patientList));
       if (doctor.id === 'doc_dongnh' || window.authController?.isDongAdmin?.(doctor)) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(this.patientList));
       }
     }
+    // Ghi nhớ mốc ngày hoạt động gần nhất
+    localStorage.setItem('medward_last_active_date', this.getTodayIso());
     this.updateStorageHudUI();
   }
 
   // ==============================================================================
-  // CHUYỂN ĐỔI NGÀY XEM (DATE SWITCHER & HISTORICAL VIEW)
+  // ĐẢM BẢO DUY TRÌ DANH SÁCH NGÀY HÔM NAY (KHÔNG LƯU TRỮ NGÀY CŨ)
   // ==============================================================================
   async changeReportDate(targetDateStr) {
-    if (!targetDateStr) return;
-    const cleanDate = targetDateStr.trim();
-    this.currentDate = cleanDate;
+    const todayDMY = this.getTodayDMY();
+    const todayIso = this.getTodayIso();
+    this.currentDate = todayDMY;
 
     const repInput = document.getElementById('reportDate');
-    if (repInput) repInput.value = cleanDate;
+    if (repInput) repInput.value = todayDMY;
 
     const nativePicker = document.getElementById('nativeDatePicker');
-    if (nativePicker && window.supabaseService) {
-      nativePicker.value = window.supabaseService.formatDateToISO(cleanDate);
-    }
+    if (nativePicker) nativePicker.value = todayIso;
 
     const mobSummaryDate = document.getElementById('mobileSummaryDate');
-    if (mobSummaryDate) mobSummaryDate.innerText = cleanDate;
-
-    await this.reloadFromSource(false, cleanDate);
-    this.render();
+    if (mobSummaryDate) mobSummaryDate.innerText = todayDMY;
 
     if (window.medWardApp && typeof window.medWardApp.updatePrintDateNote === 'function') {
       window.medWardApp.updatePrintDateNote();
     }
 
-    const todayStr = (window.medWardApp && window.medWardApp.formatToDMY)
-      ? window.medWardApp.formatToDMY(new Date())
-      : new Date().toLocaleDateString('vi-VN');
-
-    const isToday = (cleanDate === todayStr);
-    if (window.showToast) {
-      if (isToday) {
-        window.showToast(`📅 Đang xem danh sách: Hôm nay (${cleanDate})`);
-      } else {
-        window.showToast(`📜 Lịch sử người bệnh ngày: ${cleanDate}`);
+    if (targetDateStr && targetDateStr.trim() !== todayDMY) {
+      if (window.showToast) {
+        window.showToast('ℹ️ Ứng dụng chỉ duy trì danh sách người bệnh ngày hôm nay và tự động cập nhật sau 0h mỗi ngày.');
+      }
+    } else {
+      if (window.showToast) {
+        window.showToast(`📅 Đang xem danh sách: Hôm nay (${todayDMY})`);
       }
     }
+
     if (window.updateSaveStatus) {
-      window.updateSaveStatus(isToday ? `🟢 Ngày trực: ${cleanDate}` : `📜 Lịch sử: ${cleanDate}`);
+      window.updateSaveStatus(`🟢 Hôm nay: ${todayDMY}`);
     }
   }
 
@@ -1151,63 +1201,251 @@ class PatientController {
   }
 
   // ==============================================================================
-  // TÍNH NĂNG CHUYỂN NGÀY TIẾP THEO (NEXT DAY ROLLOVER)
+  // TÍNH NĂNG CHUYỂN ĐỔI NGÀY MỚI THÔNG MINH (SMART MIDNIGHT ROLLOVER)
+  // Bỏ lưu trữ ngày cũ — Chỉ duy trì danh sách ngày hôm nay
   // ==============================================================================
-  incrementIllnessDay(diagnosis) {
-    if (!diagnosis) return '';
-    let str = diagnosis;
-
-    // 1. Dạng "ngày X" -> "ngày X+1" (VD: "SXH ngày 4" -> "SXH ngày 5")
-    str = str.replace(/(ng[àa]y\s*)(\d+)/gi, (match, prefix, day) => {
-      return prefix + (parseInt(day, 10) + 1);
-    });
-
-    // 2. Dạng "NX" hoặc "DX" (VD: "VP N3" -> "VP N4", "N1" -> "N2", "D3" -> "D4", "HP N2" -> "HP N3")
-    str = str.replace(/\b(N|D|HP|H[ẬA]U PH[ẪA]U N)(\s*)(\d+)\b/gi, (match, prefix, space, day) => {
-      return prefix + space + (parseInt(day, 10) + 1);
-    });
-
-    return str;
+  
+  // 1. DỌN DẸP CACHE LƯU TRỮ NGÀY CŨ (GIẢI PHÓNG BỘ NHỚ & CHỈ GIỮ NGÀY HÔM NAY)
+  cleanupLegacyOldDateStorage() {
+    try {
+      localStorage.removeItem('medward_archived_days');
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        // Bắt các key ngày cũ: medward_doc_space_*_DD_MM_YYYY hoặc medward_patients_YYYY-MM-DD
+        if (/^medward_doc_space_.*_\d{1,2}_\d{1,2}_\d{4}$/.test(k) || /^medward_patients_\d{4}-\d{2}-\d{2}$/.test(k)) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch (e) {
+      console.warn('Lỗi dọn dẹp storage ngày cũ:', e);
+    }
   }
 
+  // 2. NHẬN DIỆN NGƯỜI BỆNH ĐÃ XUẤT VIỆN / RA VIỆN / XIN VỀ / CHUYỂN VIỆN
   isDischargedPatient(p) {
-    const text = `${p.chan_doan || ''} ${p.y_lenh || ''} ${p.handover_issues || ''} ${p.handover_actions || ''}`.toLowerCase();
-    return /ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|chuy[ểe]n\s*vi[ệe]n|xin\s*v[ềe]|t[ửu]\s*vong/.test(text);
+    if (!p) return false;
+    if (p.is_discharged === true) return true;
+    const text = `${p.chan_doan || ''} ${p.y_lenh || ''} ${p.them_thuoc || ''} ${p.handover_issues || ''} ${p.handover_actions || ''} ${p.phong_giuong || ''} ${p.ghi_chu || ''}`.toLowerCase();
+    return /ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|chuy[ểe]n\s*vi[ệe]n|xin\s*v[ềe]|t[ửu]\s*vong|tr[ốo]n\s*vi[ệe]n|cho\s*v[ềe]|\brv\b|\bxv\b/i.test(text);
+  }
+
+  // 3. TĂNG SỐ NGÀY BỆNH TRONG CHẨN ĐOÁN (+1 hoặc +diffDays)
+  smartIncrementIllnessDay(diagnosis, diffDays = 1) {
+    if (!diagnosis || typeof diagnosis !== 'string') return diagnosis || '';
+    const days = Math.max(1, parseInt(diffDays, 10) || 1);
+    let str = diagnosis;
+    const MARK_START = '\uE000';
+    const MARK_END = '\uE001';
+    const inc = (numStr) => `${MARK_START}${parseInt(numStr, 10) + days}${MARK_END}`;
+
+    // 1. Dạng trong ngoặc: (ngày 3), (N3), (D3), [N2]
+    str = str.replace(/([\(\[])\s*(ng[àa]y|n|d|day)(\s*)(\d{1,2})\s*([\)\]])/gi, (m, open, pref, sp, num, close) => {
+      const space = sp || (pref.length > 1 ? ' ' : '');
+      return `${open}${pref}${space}${inc(num)}${close}`;
+    });
+
+    // 2. Dạng "ngày X", "ngày bệnh thứ X", "ngày thứ X"
+    str = str.replace(/(ng[àa]y(?:\s*b[ệe]nh)?(?:\s*th[ứu])?\s*)(\d{1,2})(?![\/\-\d])/gi, (m, pref, num) => {
+      return `${pref}${inc(num)}`;
+    });
+
+    // 3. Dạng "N3", "D3", "HP N2", "Hậu phẫu N2", "Day 3"
+    str = str.replace(/(^|[\s\,\;\:\+\-\/])(N|D|HP|H[ẬA]U\s*PH[ẪA]U\s*N|DAY)[\.\s]*(\d{1,2})(?=$|[\s\,\;\.\:\+\-\/\)\]])/gi, (m, prefix, letter, num) => {
+      return `${prefix}${letter}${inc(num)}`;
+    });
+
+    return str.split(MARK_START).join('').split(MARK_END).join('');
+  }
+
+  // Alias để bảo đảm tương thích với code cũ
+  incrementIllnessDay(diagnosis) {
+    return this.smartIncrementIllnessDay(diagnosis, 1);
+  }
+
+  // 4. TĂNG SỐ NGÀY KHÁNG SINH & THUỐC CÓ ĐÁNH SỐ NGÀY (+1 hoặc +diffDays)
+  smartIncrementMedicationDay(orders, diffDays = 1) {
+    if (!orders || typeof orders !== 'string') return orders || '';
+    const days = Math.max(1, parseInt(diffDays, 10) || 1);
+    let str = orders;
+    const MARK_START = '\uE000';
+    const MARK_END = '\uE001';
+    const inc = (numStr) => `${MARK_START}${parseInt(numStr, 10) + days}${MARK_END}`;
+
+    // 1. Dạng trong ngoặc đơn/vuông: (N3), [N3], (ngày 3), (ngay 3), (D3), (Day 3)
+    // VD: "Ceftriaxone 2g (N3)" -> "(N4)", "Meropenem 1g (ngày 5)" -> "(ngày 6)"
+    str = str.replace(/([\(\[])\s*(ng[àa]y|n|d|day)(\s*)(\d{1,2})\s*([\)\]])/gi, (m, open, pref, sp, num, close) => {
+      const space = sp || (pref.length > 1 ? ' ' : '');
+      return `${open}${pref}${space}${inc(num)}${close}`;
+    });
+
+    // 2. Dạng Kháng sinh: KS N3, Kháng sinh N3, KS ngày 3, Kháng sinh ngày 3, KS 3
+    str = str.replace(/\b(ks|kh[áa]ng\s*sinh)(\s*(?:ng[àa]y|n|d)?\s*)(\d{1,2})\b/gi, (m, ks, pref, num) => {
+      return `${ks}${pref}${inc(num)}`;
+    });
+
+    // 3. Dạng "ngày X" sau tên thuốc/thủ thuật (loại trừ: lần/ngày, cữ/ngày, viên/ngày, IV/ngày...)
+    str = str.replace(/(?<!(?:l[ầa]n|c[ữu]|vi[êe]n|[ốo]ng|l[ọo]|chai|g|mg|ml|iv|im|ttm|u[ốo]ng)\s*[\/\-]?\s*)(ng[àa]y)\s*(\d{1,2})(?![\/\-\d\w])/gi, (m, word, num) => {
+      return `${word} ${inc(num)}`;
+    });
+
+    // 4. Dạng N3, D3 đứng độc lập sau tên thuốc/dạng dùng: "Augmentin N2", "Vancomycin N1", "TTM N3"
+    str = str.replace(/(^|[\s\,\;\:\+\-\/])(N|D)[\.\s]*(\d{1,2})(?=$|[\s\,\;\.\:\+\-\/\)\]])/gi, (m, prefix, letter, num) => {
+      return `${prefix}${letter}${inc(num)}`;
+    });
+
+    return str.split(MARK_START).join('').split(MARK_END).join('');
+  }
+
+  // 5. THỰC THI CHUYỂN ĐỔI NGÀY MỚI THÔNG MINH TỔNG THỂ
+  async performSmartDailyRollover(diffDays = 1, fromDateStr = '', toDateStr = '', manualTrigger = false) {
+    const todayIso = this.getTodayIso();
+    const todayDMY = this.getTodayDMY();
+    const days = Math.max(1, parseInt(diffDays, 10) || 1);
+
+    if (!this.patientList || this.patientList.length === 0) {
+      localStorage.setItem('medward_last_active_date', todayIso);
+      return;
+    }
+
+    const dischargedPatients = [];
+    const activePatients = [];
+
+    // Phân loại: Xuất viện -> Xóa, Còn nằm viện -> Tăng ngày bệnh & tăng ngày kháng sinh
+    this.patientList.forEach((p) => {
+      if (this.isDischargedPatient(p)) {
+        dischargedPatients.push(p);
+      } else {
+        const oldDiag = p.chan_doan || '';
+        const newDiag = this.smartIncrementIllnessDay(oldDiag, days);
+
+        const oldOrders = p.y_lenh || '';
+        const newOrders = this.smartIncrementMedicationDay(oldOrders, days);
+
+        const oldThemThuoc = p.them_thuoc || '';
+        const newThemThuoc = this.smartIncrementMedicationDay(oldThemThuoc, days);
+
+        // Trạng thái giao ban: Báo động đỏ giữ nguyên, ca khác về bình thường
+        const nextStatus = (p.handover_status === 'critical') ? 'critical' : 'none';
+        const keepIssues = (p.handover_status === 'critical') ? p.handover_issues : '';
+        const keepActions = (p.handover_status === 'critical') ? p.handover_actions : '';
+
+        activePatients.push({
+          ...p,
+          report_date: todayIso,
+          chan_doan: newDiag,
+          y_lenh: newOrders,
+          them_thuoc: newThemThuoc,
+          handover_status: nextStatus,
+          handover_issues: keepIssues,
+          handover_actions: keepActions,
+          updated_at: new Date().toISOString()
+        });
+      }
+    });
+
+    // Cập nhật danh sách ngày hôm nay
+    this.patientList = activePatients;
+    this.saveLocalCache();
+
+    // Đồng bộ lên Supabase Cloud
+    if (window.supabaseService) {
+      // Soft delete các ca xuất viện trên Cloud để không lưu ngày cũ
+      for (const dp of dischargedPatients) {
+        window.supabaseService.deletePatient(dp.id).catch(err => {
+          console.warn('Lỗi xóa ca xuất viện trên Supabase:', err);
+        });
+      }
+      // Đồng bộ danh sách ngày hôm nay
+      window.supabaseService.syncBatchPatients(this.patientList, todayIso).catch(err => {
+        console.warn('Lỗi đồng bộ ngày hôm nay lên Cloud:', err);
+      });
+      window.supabaseService.setWorkDayStatus(todayIso, 'active', this.patientList.length);
+
+      // Tự động xóa dữ liệu cũ trên Cloud (chỉ giữ hôm qua & hôm nay)
+      window.supabaseService.purgeOldData?.().catch(() => {});
+    }
+
+    // Cập nhật mốc ngày hoạt động
+    localStorage.setItem('medward_last_active_date', todayIso);
+    this.currentDate = todayDMY;
+
+    // Cập nhật DOM
+    const repDateInput = document.getElementById('reportDate');
+    if (repDateInput) repDateInput.value = todayDMY;
+    const nativeDate = document.getElementById('nativeDatePicker');
+    if (nativeDate) nativeDate.value = todayIso;
+    const mobSummaryDate = document.getElementById('mobileSummaryDate');
+    if (mobSummaryDate) mobSummaryDate.innerText = todayDMY;
+
+    this.render();
+    this.updateDoctorFilterDropdown();
+    this.updateStorageHudUI();
+
+    const noticeTitle = manualTrigger ? '⏭️ CHUYỂN NGÀY THÀNH CÔNG' : '🌅 TỰ ĐỘNG CHUYỂN NGÀY MỚI (SAU 0H)';
+    const msg = `Hôm nay: ${todayDMY} (+${days} ngày)\n` +
+      `• Đã xóa ${dischargedPatients.length} ca xuất viện / ra viện\n` +
+      `• Đã tăng ngày bệnh & ngày kháng sinh cho ${activePatients.length} ca nội trú`;
+
+    if (window.showToast) {
+      window.showToast({
+        title: noticeTitle,
+        message: msg,
+        type: 'success',
+        duration: 8000
+      });
+    } else if (window.updateSaveStatus) {
+      window.updateSaveStatus(`✓ ${noticeTitle}: Xóa ${dischargedPatients.length} ca xuất viện, tăng số ngày ${activePatients.length} ca`);
+    }
+  }
+
+  // 6. KIỂM TRA CHUYỂN ĐỔI KHI KHỞI ĐỘNG (NẾU MỞ APP VÀO NGÀY MỚI)
+  async checkAndExecuteAutoRollover() {
+    const todayIso = this.getTodayIso();
+    const lastActive = localStorage.getItem('medward_last_active_date');
+    if (!lastActive) {
+      localStorage.setItem('medward_last_active_date', todayIso);
+      return;
+    }
+
+    if (lastActive !== todayIso) {
+      console.log(`🌅 [Auto Rollover] Phát hiện ngày mới: ${lastActive} ➔ ${todayIso}. Đang chuyển đổi thông minh...`);
+      const d1 = new Date(lastActive);
+      const d2 = new Date(todayIso);
+      let diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+      if (isNaN(diffDays) || diffDays < 1) diffDays = 1;
+      await this.performSmartDailyRollover(diffDays, lastActive, todayIso, false);
+    }
+  }
+
+  // 7. THEO DÕI 0H REALTIME (KHI BÁC SĨ MỞ MÁY QUA ĐÊM)
+  checkMidnightRollover() {
+    const todayIso = this.getTodayIso();
+    const lastActive = localStorage.getItem('medward_last_active_date');
+    if (lastActive && lastActive !== todayIso) {
+      console.log(`⏰ [Midnight Watcher] Vừa qua 0h sang ngày mới: ${lastActive} ➔ ${todayIso}`);
+      const d1 = new Date(lastActive);
+      const d2 = new Date(todayIso);
+      let diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+      if (isNaN(diffDays) || diffDays < 1) diffDays = 1;
+      this.performSmartDailyRollover(diffDays, lastActive, todayIso, false);
+    }
   }
 
   openNextDayModal() {
     const modal = document.getElementById('nextDayModal');
     if (!modal) return;
 
-    // 1. Tính toán ngày hiện tại và ngày tiếp theo
-    const currDateStr = document.getElementById('reportDate')?.value || new Date().toLocaleDateString('vi-VN');
+    const currDateStr = this.getTodayDMY();
     const currDateSpan = document.getElementById('nextDayCurrentDate');
     if (currDateSpan) currDateSpan.innerText = currDateStr;
 
-    let nextDate = new Date();
-    const parts = currDateStr.split('/');
-    if (parts.length === 3) {
-      const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1;
-      const y = parseInt(parts[2], 10);
-      const dt = new Date(y, m, d);
-      if (!isNaN(dt.getTime())) {
-        dt.setDate(dt.getDate() + 1);
-        nextDate = dt;
-      }
-    } else {
-      nextDate.setDate(nextDate.getDate() + 1);
-    }
-
-    const dd = String(nextDate.getDate()).padStart(2, '0');
-    const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
-    const yyyy = nextDate.getFullYear();
     const targetInput = document.getElementById('nextDayTargetDate');
-    if (targetInput) targetInput.value = `${dd}/${mm}/${yyyy}`;
+    if (targetInput) targetInput.value = currDateStr;
 
-    // 2. Render danh sách xem trước
     this.renderNextDayPatientList();
-
     modal.classList.add('active');
   }
 
@@ -1231,7 +1469,8 @@ class PatientController {
       const shouldSelect = filterDischarged ? !isDischarged : true;
       if (shouldSelect) selectedCount++;
 
-      const newDiag = autoInc ? this.incrementIllnessDay(p.chan_doan) : p.chan_doan;
+      const newDiag = autoInc ? this.smartIncrementIllnessDay(p.chan_doan, 1) : p.chan_doan;
+      const newOrders = autoInc ? this.smartIncrementMedicationDay(p.y_lenh, 1) : p.y_lenh;
 
       const tr = document.createElement('tr');
       tr.className = isDischarged ? 'discharged-row' : '';
@@ -1245,9 +1484,10 @@ class PatientController {
         <td>
           <div class="diag-preview-old">${this.escape(p.chan_doan || '—')}</div>
           <div class="diag-preview-new">➔ ${this.escape(newDiag || '—')}</div>
+          ${p.y_lenh ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">💊 Y lệnh: ${this.escape(newOrders)}</div>` : ''}
         </td>
         <td style="text-align: center;">
-          ${isDischarged ? '<span class="badge-discharged">Ra viện</span>' : '<span class="badge-inpatient">Nội trú</span>'}
+          ${isDischarged ? '<span class="badge-discharged">Ra viện (Sẽ xóa)</span>' : '<span class="badge-inpatient">Nội trú (+1N)</span>'}
         </td>
       `;
       tbody.appendChild(tr);
@@ -1277,98 +1517,9 @@ class PatientController {
   }
 
   async executeNextDayRollover() {
-    const selectedCheckboxes = document.querySelectorAll('.chk-next-day-patient:checked');
-    if (selectedCheckboxes.length === 0) {
-      if (window.showToast) window.showToast('⚠️ Vui lòng chọn ít nhất một người bệnh để chuyển sang ngày mới!');
-      return;
-    }
-
-    const targetDate = document.getElementById('nextDayTargetDate')?.value?.trim();
-    if (!targetDate) {
-      if (window.showToast) window.showToast('⚠️ Vui lòng nhập ngày tiếp theo!');
-      return;
-    }
-
-    const autoInc = document.getElementById('chkAutoIncrementDay')?.checked ?? true;
-    const resetHandover = document.getElementById('chkResetHandover')?.checked ?? true;
-    const keepOrders = document.getElementById('chkKeepOrders')?.checked ?? true;
-
-    const selectedIds = new Set(Array.from(selectedCheckboxes).map(c => c.dataset.id));
-
-    // Sao lưu ngày cũ vào lịch sử lưu trữ
-    const currDate = document.getElementById('reportDate')?.value || 'Trước ' + targetDate;
-    try {
-      const archives = JSON.parse(localStorage.getItem('medward_archived_days') || '{}');
-      archives[currDate] = {
-        date: currDate,
-        patients: [...this.patientList],
-        archived_at: new Date().toISOString()
-      };
-      localStorage.setItem('medward_archived_days', JSON.stringify(archives));
-    } catch (e) {
-      console.warn('Lỗi lưu archive ngày cũ:', e);
-    }
-
-    const targetIsoDate = window.supabaseService
-      ? window.supabaseService.formatDateToISO(targetDate)
-      : targetDate;
-
-    // Xây dựng danh sách bệnh nhân cho ngày mới
-    const newPatients = [];
-    this.patientList.forEach((p) => {
-      if (selectedIds.has(p.id)) {
-        const nextP = {
-          ...p,
-          id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
-          report_date: targetIsoDate,
-          phong_giuong: this.cleanRoomBedString(p.phong_giuong),
-          chan_doan: autoInc ? this.incrementIllnessDay(p.chan_doan) : p.chan_doan,
-          y_lenh: keepOrders ? p.y_lenh : '',
-          handover_status: resetHandover ? (p.handover_status === 'critical' ? 'critical' : 'none') : p.handover_status,
-          handover_issues: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_issues,
-          handover_actions: resetHandover && p.handover_status !== 'critical' ? '' : p.handover_actions,
-          sort_order: newPatients.length,
-          is_discharged: false,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        newPatients.push(nextP);
-      }
-    });
-
-    this.currentDate = targetDate;
-    this.patientList = newPatients;
-    this.saveLocalCache();
-
-    // Cập nhật ngày báo cáo trên giao diện
-    const repDateInput = document.getElementById('reportDate');
-    if (repDateInput) repDateInput.value = targetDate;
-    const nativeDate = document.getElementById('nativeDatePicker');
-    if (nativeDate && window.supabaseService) {
-      nativeDate.value = window.supabaseService.formatDateToISO(targetDate);
-    }
-    const mobSummaryDate = document.getElementById('mobileSummaryDate');
-    if (mobSummaryDate) mobSummaryDate.innerText = targetDate;
-
-    // Đồng bộ danh sách ngày mới lên Supabase Cloud
-    if (window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList, targetIsoDate).catch(err => {
-        console.warn('Lỗi đồng bộ ngày mới lên cloud:', err);
-      });
-      window.supabaseService.setWorkDayStatus(targetIsoDate, 'active', this.patientList.length);
-    }
-
+    // Chuyển đổi thông minh ngay lập tức
+    await this.performSmartDailyRollover(1, this.currentDate, this.getTodayIso(), true);
     this.closeNextDayModal();
-    this.updateDoctorFilterDropdown();
-    this.render();
-
-    if (window.showToast) {
-      window.showToast(`✓ Đã chuyển ${newPatients.length} người bệnh sang ngày ${targetDate}!`);
-    }
-    if (window.updateSaveStatus) {
-      window.updateSaveStatus(`✓ Danh sách ngày mới: ${targetDate} (${newPatients.length} người bệnh)`);
-    }
   }
 
   // ==============================================================================
@@ -1407,7 +1558,8 @@ class PatientController {
       const badge = document.getElementById('calcAgeBadge');
       if (badge) badge.innerText = '';
     }
-    document.getElementById('editDoctorName').value = myDocName;
+    const docInput = document.getElementById('editDoctorName');
+    if (docInput) docInput.value = myDocName;
     document.getElementById('editDiagnosis').value = '';
     if (document.getElementById('editClsHienCo')) document.getElementById('editClsHienCo').value = '';
     if (document.getElementById('editClsCanLam')) document.getElementById('editClsCanLam').value = '';
@@ -1699,7 +1851,17 @@ class PatientController {
       tuoi: headerRow.findIndex(c => c === 'tuổi' || c === 'age' || (c.includes('tuổi') && !c.includes('năm sinh') && !c.includes('ngày sinh'))),
       nam_sinh_tuoi: headerRow.findIndex(c => c.includes('năm sinh / tuổi') || c.includes('năm sinh/tuổi') || c.includes('ns (tuổi)') || c.includes('ns/tuổi') || ((c.includes('năm sinh') || c.includes('ns')) && c.includes('tuổi'))),
       nam_sinh: headerRow.findIndex(c => c === 'năm sinh' || (c.includes('năm sinh') && !c.includes('tuổi'))),
-      chan_doan: headerRow.findIndex(c => c === 'cđ' || c === 'cd' || c === 'a' || c === 'dx' || c.includes('chẩn đoán') || c.includes('chan doan') || c.includes('bệnh chính') || c.includes('tên bệnh') || c.includes('icd')),
+      chan_doan: (() => {
+        let idx = headerRow.findIndex(c =>
+          c === 'chẩn đoán' || c === 'chan doan' || c === 'chẩn đoán xác định' || c === 'chẩn đoán hiện tại' ||
+          c === 'chẩn đoán vào viện' || c === 'chẩn đoán ra viện' || c === 'chẩn đoán sơ bộ' || c === 'chẩn đoán khoa' ||
+          c === 'cđ' || c === 'cd' || c === 'dx' || c.includes('chẩn đoán') || c.includes('chan doan')
+        );
+        if (idx === -1) idx = headerRow.findIndex(c => c.includes('bệnh chính') || c.includes('tên bệnh') || c.includes('bệnh kèm') || c.includes('lý do vào viện'));
+        if (idx === -1) idx = headerRow.findIndex(c => c === 'icd' || c.includes('mã bệnh') || c.includes('mã icd') || c.includes('icd10') || c.includes('icd-10'));
+        if (idx === -1) idx = headerRow.findIndex(c => c === 'a' || c === 'diagnosis');
+        return idx;
+      })(),
       huong_dieu_tri: headerRow.findIndex(c => c.includes('hướng điều trị')),
       y_lenh: headerRow.findIndex(c => (c === 'yl' || c.includes('y lệnh') || c.includes('y lenh') || c.includes('điều trị')) &&
         !c.includes('bác sĩ') && !c.includes('bác sỹ') && !c.includes('bs') && !c.includes('khoa') &&
@@ -1776,13 +1938,10 @@ class PatientController {
         }
       }
 
-      // 4. Chẩn đoán
+      // 4. Chẩn đoán (không lấy cột Mã NB làm chẩn đoán)
       let cdVal = mapping.chan_doan !== -1 ? String(row[mapping.chan_doan] || '').trim() : '';
       if (!cdVal && mapping.huong_dieu_tri !== -1 && row[mapping.huong_dieu_tri]) {
         cdVal = String(row[mapping.huong_dieu_tri]).trim();
-      }
-      if (!cdVal && mapping.ma_nb !== -1 && row[mapping.ma_nb]) {
-        cdVal = `[Mã NB: ${String(row[mapping.ma_nb]).trim()}]`;
       }
 
       // 5. Cận lâm sàng (CLS)
@@ -2581,7 +2740,13 @@ class PatientController {
       ageInput.value = p.nam_sinh_tuoi || '';
       this.handleAgeYearInput(ageInput);
     }
-    document.getElementById('editDoctorName').value = p.doctor_name || p.handover_by || '';
+    const docInput = document.getElementById('editDoctorName');
+    if (docInput) docInput.value = p.doctor_name || p.handover_by || '';
+
+    // Dọn sạch nếu Chẩn đoán bị dính Mã NB trước đây
+    if (p.chan_doan && /^\[Mã\s*(?:NB|BN|BA|hồ\s*sơ):\s*[^\]]+\]$/i.test(p.chan_doan.trim())) {
+      p.chan_doan = '';
+    }
     document.getElementById('editDiagnosis').value = p.chan_doan || '';
     
     if (document.getElementById('editClsHienCo')) {
@@ -2632,7 +2797,8 @@ class PatientController {
       combinedCls = clsHcVal;
     }
 
-    const docVal = document.getElementById('editDoctorName')?.value?.trim() || '';
+    const existingPatient = this.patientList.find(x => x.id === id);
+    const docVal = document.getElementById('editDoctorName')?.value?.trim() || existingPatient?.doctor_name || this.getEffectiveDoctor()?.doctor?.full_name || '';
     const ageYearInput = document.getElementById('editAgeYear');
     let rawAgeYear = ageYearInput ? ageYearInput.value.trim() : '';
     const formattedAgeYear = this.formatBirthYearAge(rawAgeYear);
@@ -2848,29 +3014,26 @@ class PatientController {
           <td class="nurse-col-birth">${this.escape(p.nam_sinh_tuoi || '—')}</td>
           <td class="nurse-col-cls">${clsCanLamHtml}</td>
           <td class="nurse-col-rx">${themThuocHtml}</td>
-          <td class="nurse-col-sign">
-            <div class="nurse-sign-check">
-              <span class="sign-box"></span>
-              <span class="sign-line">Giờ: ...... Ký: .......</span>
-            </div>
-          </td>
         </tr>
       `;
     });
 
     container.innerHTML = `
       <div class="nurse-sheet-content">
-        <!-- Bảng danh sách phiếu điều dưỡng (Chỉ giữ lại phần bảng, không tiêu đề, không chữ ký) -->
+        <!-- Tiêu đề và ngày in phiếu điều dưỡng nhỏ gọn -->
+        <div class="nurse-print-header">
+          <span class="nurse-print-title">📋 PHIẾU Y LỆNH &amp; CHỈ ĐỊNH CLS CHO ĐIỀU DƯỠNG</span>
+          <span class="nurse-print-date">Ngày: ${todayStr} • ${nowTimeStr}</span>
+        </div>
         <table class="nurse-table">
           <thead>
             <tr>
-              <th style="width: 40px; text-align: center;">STT</th>
-              <th style="width: 95px; text-align: center;">Phòng/Giường</th>
-              <th style="width: 180px;">Họ và Tên NB</th>
-              <th style="width: 90px; text-align: center;">Năm sinh (Tuổi)</th>
-              <th style="width: 31%;">🔬 CLS CẦN LÀM (XN / CĐHA)</th>
-              <th style="width: 31%;">💊 THÊM THUỐC / Y LỆNH MỚI</th>
-              <th style="width: 110px; text-align: center;">Điều Dưỡng Ký Nhận</th>
+              <th style="width: 35px; text-align: center;">STT</th>
+              <th style="width: 85px; text-align: center;">Phòng/Giường</th>
+              <th style="width: 160px;">Họ và Tên NB</th>
+              <th style="width: 80px; text-align: center;">Năm sinh (Tuổi)</th>
+              <th style="width: 42%;">🔬 CLS CẦN LÀM (XN / CĐHA)</th>
+              <th style="width: 42%;">💊 THÊM THUỐC / Y LỆNH MỚI</th>
             </tr>
           </thead>
           <tbody>
@@ -2881,22 +3044,66 @@ class PatientController {
     `;
   }
 
+  printPatientTable() {
+    this.executePrint(() => {
+      if (window.medWardApp?.updatePrintDateNote) {
+        window.medWardApp.updatePrintDateNote();
+      }
+    });
+  }
+
   printNurseWorklist() {
     this.renderNursePrintPreview();
-    document.body.classList.add('print-nurse-mode');
+    const modal = document.getElementById('nursePrintModal');
+    if (modal && !modal.classList.contains('active')) {
+      modal.classList.add('active');
+    }
+    this.executePrint(null, 'print-nurse-mode');
+  }
+
+  executePrint(beforePrintFn, modeClass = null) {
+    const isDark = document.body.classList.contains('dark-theme') || document.documentElement.classList.contains('dark-theme');
     
+    // 1. Tạm ẩn thông báo toast nếu đang hiển thị
+    const toastContainer = document.getElementById('toastContainer');
+    const prevToastDisplay = toastContainer ? toastContainer.style.display : '';
+    if (toastContainer) toastContainer.style.display = 'none';
+
+    // 2. Chuyển tạm thời khỏi giao diện đêm để không dính nền đen và chữ trắng
+    if (isDark) {
+      document.body.classList.remove('dark-theme');
+      document.documentElement.classList.remove('dark-theme');
+    }
+
+    // 3. Kích hoạt class chế độ in chuyên biệt
+    if (modeClass) {
+      document.body.classList.add(modeClass);
+    }
+
+    if (typeof beforePrintFn === 'function') {
+      beforePrintFn();
+    }
+
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      if (modeClass) document.body.classList.remove(modeClass);
+      if (isDark) {
+        document.body.classList.add('dark-theme');
+        document.documentElement.classList.add('dark-theme');
+      }
+      if (toastContainer) toastContainer.style.display = prevToastDisplay;
+      window.removeEventListener('afterprint', restore);
+    };
+
+    window.addEventListener('afterprint', restore);
+
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 120);
 
-    const cleanup = () => {
-      document.body.classList.remove('print-nurse-mode');
-      window.removeEventListener('afterprint', cleanup);
-    };
-    window.addEventListener('afterprint', cleanup);
-    setTimeout(() => {
-      document.body.classList.remove('print-nurse-mode');
-    }, 2500);
+    setTimeout(restore, 3500);
   }
 
   copyNurseWorklistZalo() {

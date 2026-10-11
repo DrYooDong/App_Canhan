@@ -548,18 +548,9 @@
                 <div class="meta-item">
                     <label>Ngày: </label>
                     <div class="date-wrapper">
-                        <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10">
-                        <input type="date" id="nativeDatePicker" tabindex="-1">
-                        <button type="button" class="btn-calendar-trigger"
-                            onclick="window.medWardApp.openCalendarPicker()" data-tooltip="Chọn ngày từ lịch">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg>
-                        </button>
+                        <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10" readonly title="Danh sách người bệnh hôm nay (Tự động chuyển đổi sau 0h)">
+                        <input type="hidden" id="nativeDatePicker">
+                        <span class="badge-today-pill" onclick="window.medWardApp?.openCalendarPicker?.()" data-tooltip="Danh sách ngày hôm nay (Tự động chuyển đổi sau 0h)" title="Hôm nay">🟢 Hôm nay</span>
                     </div>
                 </div>
                 <div class="meta-item" id="workspaceMetaItem">
@@ -650,8 +641,8 @@
 
                 <!-- NHÓM 2: CÁC NÚT LÂM SÀNG CỐT LÕI (CORE CLINICAL ACTIONS - ICON DẠNG GỌN) -->
                 <button class="btn-compact btn-subtle" id="btnNextDayRollover"
-                    onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày tiếp theo (Ctrl+D)"
-                    aria-label="Chuyển ngày tiếp theo">
+                    onclick="window.patientController.openNextDayModal()" data-tooltip="Chuyển ngày mới thông minh (Ctrl+D)"
+                    aria-label="Chuyển ngày mới thông minh">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                         stroke-linecap="round">
                         <polyline points="13 17 18 12 13 7"></polyline>
@@ -693,7 +684,7 @@
                     </svg>
                 </button>
 
-                <button class="btn-compact btn-subtle" onclick="window.print()"
+                <button class="btn-compact btn-subtle" onclick="window.patientController.printPatientTable()"
                     data-tooltip="In bảng theo dõi A4 (Ctrl+P)" aria-label="In A4">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round">
@@ -981,17 +972,12 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Họ và tên người bệnh:</label>
-                        <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA"
-                            style="font-weight: 700; text-transform: uppercase;">
-                    </div>
-                    <div class="form-group">
-                        <label>Bác sĩ điều trị / Phụ trách:</label>
-                        <input type="text" id="editDoctorName" list="doctorListDatalist" class="form-control" placeholder="Chọn hoặc nhập tên Bác sĩ">
-                        <datalist id="doctorListDatalist"></datalist>
-                    </div>
+                <div class="form-group">
+                    <label>Họ và tên người bệnh:</label>
+                    <input type="text" id="editFullName" class="form-control" placeholder="HỌ VÀ TÊN IN HOA"
+                        style="font-weight: 700; text-transform: uppercase;">
+                    <input type="hidden" id="editDoctorName">
+                    <datalist id="doctorListDatalist" style="display:none;"></datalist>
                 </div>
 
                 <div class="form-group">
@@ -1131,7 +1117,7 @@
     <div class="modal-overlay" id="nextDayModal">
         <div class="modal-card modal-lg">
             <div class="modal-header">
-                <div class="modal-title">⏭️ Chuyển Danh Sách Sang Ngày Tiếp Theo</div>
+                <div class="modal-title">⏭️ Chuyển Đổi Danh Sách Sang Ngày Mới Thông Minh</div>
                 <button class="btn-close-modal" onclick="window.patientController.closeNextDayModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -1143,32 +1129,28 @@
                         </div>
                         <span class="step-arrow">➔</span>
                         <div class="step-item">
-                            <span class="step-label">Ngày tiếp theo:</span>
+                            <span class="step-label">Ngày mới:</span>
                             <input type="text" id="nextDayTargetDate" class="form-control date-picker-input"
-                                placeholder="dd/mm/yyyy">
+                                placeholder="dd/mm/yyyy" readonly>
                         </div>
                     </div>
-                    <p class="step-desc">Tự động giữ lại các người bệnh còn đang nằm viện, tăng ngày bệnh trong chẩn
-                        đoán và
-                        chuẩn
-                        bị danh sách đi buồng cho ngày mới.</p>
+                    <p class="step-desc">✨ <strong>Tự động hóa thông minh sau 0h hàng ngày:</strong> Bỏ lưu trữ ngày cũ — Chỉ duy trì danh sách hôm nay. Tự động xóa ca xuất viện, tăng số ngày bệnh và tăng số ngày dùng kháng sinh / thuốc cần đánh số ngày.</p>
                 </div>
 
                 <div class="next-day-options-grid">
                     <label class="custom-checkbox-card">
                         <input type="checkbox" id="chkAutoIncrementDay" checked>
                         <div>
-                            <strong>Tăng số ngày bệnh (+1 ngày)</strong>
-                            <span>VD: "SXH ngày 4" ➔ "ngày 5", "Viêm phổi N3" ➔ "N4", "Hậu phẫu ngày 1" ➔ "ngày
-                                2"</span>
+                            <strong>Tăng số ngày bệnh &amp; ngày kháng sinh (+1)</strong>
+                            <span>"SXH ngày 4" ➔ "ngày 5", "VP N3" ➔ "N4", "Ceftriaxone (N3)" ➔ "(N4)", "KS ngày 2" ➔ "ngày 3"</span>
                         </div>
                     </label>
                     <label class="custom-checkbox-card">
                         <input type="checkbox" id="chkFilterDischarged" checked
                             onchange="window.patientController.handleDischargeFilterToggle(this.checked)">
                         <div>
-                            <strong>Tự động lọc bỏ người bệnh đã xuất viện</strong>
-                            <span>Tự động bỏ chọn các ca ghi chú "ra viện", "xuất viện", "xin về", "chuyển viện"</span>
+                            <strong>Tự động XÓA người bệnh xuất viện</strong>
+                            <span>Xóa hoàn toàn các ca "ra viện", "xuất viện", "xin về", "chuyển viện", "tử vong" khỏi danh sách</span>
                         </div>
                     </label>
                     <label class="custom-checkbox-card">
@@ -1181,7 +1163,7 @@
                     <label class="custom-checkbox-card">
                         <input type="checkbox" id="chkKeepOrders" checked>
                         <div>
-                            <strong>Kế thừa y lệnh cũ</strong>
+                            <strong>Kế thừa y lệnh điều trị</strong>
                             <span>Giữ lại y lệnh hiện tại làm bản nháp để bác sĩ đi buồng điều chỉnh tiếp</span>
                         </div>
                     </label>

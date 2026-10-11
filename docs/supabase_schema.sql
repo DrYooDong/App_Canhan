@@ -229,3 +229,48 @@ drop trigger if exists set_department_settings_updated_at on public.department_s
 create trigger set_department_settings_updated_at
   before update on public.department_settings
   for each row execute function public.handle_general_updated_at();
+
+-- ==============================================================================
+-- 9. TỰ ĐỘNG DỌN DẸP DỮ LIỆU CŨ TRÊN SUPABASE (CHỈ LƯU HÔM QUA & HÔM NAY)
+-- Tự động xóa sạch các bản ghi có report_date trước ngày hôm qua
+-- ==============================================================================
+
+-- Hàm thực hiện dọn dẹp dữ liệu cũ hơn hôm qua
+create or replace function public.purge_old_medical_data()
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  yesterday_cutoff date := current_date - interval '1 day';
+begin
+  -- 1. Xóa người bệnh cũ hơn ngày hôm qua
+  delete from public.patients 
+  where report_date < yesterday_cutoff;
+
+  -- 2. Xóa các ca trực cũ hơn ngày hôm qua
+  delete from public.work_days 
+  where report_date < yesterday_cutoff;
+
+  -- 3. Xóa các nhật ký giao ban cũ hơn ngày hôm qua
+  delete from public.handover_logs 
+  where report_date < yesterday_cutoff;
+end;
+$$;
+
+-- Trigger tự động dọn dẹp mỗi khi có dữ liệu mới được đẩy lên
+create or replace function public.trigger_auto_purge_old_data()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  perform public.purge_old_medical_data();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_auto_purge_patients on public.patients;
+create trigger trg_auto_purge_patients
+  after insert or update on public.patients
+  execute function public.trigger_auto_purge_old_data();

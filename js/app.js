@@ -49,20 +49,19 @@ class MedWardApp {
           return;
         }
 
-        // Ctrl + P: In ấn lâm sàng
+        // Ctrl + P: In ấn lâm sàng & Ctrl + Shift + P: In cho điều dưỡng
         if (lowerKey === 'p') {
           e.preventDefault();
           if (e.shiftKey) {
-            // Ctrl + Shift + P: In cho điều dưỡng
-            window.patientController?.openNursePrintModal?.();
+            // Ctrl + Shift + P: Kích hoạt in phiếu điều dưỡng
+            window.patientController?.printNurseWorklist?.();
           } else {
-            // Ctrl + P: Nếu đang mở modal điều dưỡng thì in phiếu điều dưỡng, ngược lại in bản A4
+            // Ctrl + P: Nếu đang mở modal điều dưỡng thì in phiếu điều dưỡng, ngược lại in bảng A4
             const nurseModal = document.getElementById('nursePrintModal');
             if (nurseModal && nurseModal.classList.contains('active')) {
               window.patientController?.printNurseWorklist?.();
             } else {
-              this.updatePrintDateNote();
-              window.print();
+              window.patientController?.printPatientTable?.();
             }
           }
           return;
@@ -192,51 +191,28 @@ class MedWardApp {
   setupDatePickers() {
     const dateInput = document.getElementById('reportDate');
     const nativePicker = document.getElementById('nativeDatePicker');
+    const todayDMY = this.formatToDMY(new Date());
 
-    if (dateInput && !dateInput.value) {
-      dateInput.value = this.formatToDMY(new Date());
+    if (dateInput) {
+      dateInput.value = todayDMY;
+      dateInput.setAttribute('readonly', 'true');
     }
 
-    if (nativePicker && dateInput) {
-      nativePicker.addEventListener('change', () => {
-        if (nativePicker.value) {
-          const parts = nativePicker.value.split('-');
-          if (parts.length === 3) {
-            const newDateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
-            dateInput.value = newDateStr;
-            this.saveMeta();
-            this.updatePrintDateNote();
-            if (window.patientController && typeof window.patientController.changeReportDate === 'function') {
-              window.patientController.changeReportDate(newDateStr);
-            }
-          }
-        }
-      });
-
-      dateInput.addEventListener('change', () => {
-        const val = dateInput.value.trim();
-        if (val.length >= 8 && window.patientController && typeof window.patientController.changeReportDate === 'function') {
-          window.patientController.changeReportDate(val);
-        }
-      });
-
-      dateInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          dateInput.blur();
-        }
-      });
+    if (nativePicker) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      nativePicker.value = `${y}-${m}-${d}`;
     }
 
     this.updatePrintDateNote();
   }
 
   openCalendarPicker() {
-    const nativePicker = document.getElementById('nativeDatePicker');
-    if (!nativePicker) return;
-    if (nativePicker.showPicker) {
-      nativePicker.showPicker();
-    } else {
-      nativePicker.focus();
+    const todayDMY = this.formatToDMY(new Date());
+    if (window.showToast) {
+      window.showToast(`📅 Hệ thống luôn làm việc trên danh sách hôm nay (${todayDMY}) và tự động chuyển đổi thông minh sau 0h.`);
     }
   }
 
@@ -386,9 +362,9 @@ class MedWardApp {
     const savedMetaStr = localStorage.getItem(CONFIG.STORAGE_KEYS.META_DATA);
     if (savedMetaStr) {
       try {
-        const meta = JSON.parse(savedMetaStr);
-        if (meta.date && document.getElementById('reportDate')) {
-          document.getElementById('reportDate').value = meta.date;
+        // Ngày luôn là ngày hôm nay (không lấy ngày cũ từ meta)
+        if (document.getElementById('reportDate')) {
+          document.getElementById('reportDate').value = this.formatToDMY(new Date());
         }
         if (meta.unit && document.querySelector('.unit-name')) {
           document.querySelector('.unit-name').innerText = meta.unit;

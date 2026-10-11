@@ -68,10 +68,6 @@ class SupabaseService {
   }
 
   getCurrentWorkDate() {
-    const reportDateInput = document.getElementById('reportDate');
-    if (reportDateInput && reportDateInput.value) {
-      return this.formatDateToISO(reportDateInput.value);
-    }
     return this.formatDateToISO(new Date());
   }
 
@@ -83,7 +79,7 @@ class SupabaseService {
     if (configStr) {
       try {
         conf = JSON.parse(configStr);
-      } catch (err) {}
+      } catch (err) { }
     }
 
     // Tự động chuyển đổi nếu chưa có cấu hình hoặc đang lưu cấu hình của project cũ
@@ -95,7 +91,7 @@ class SupabaseService {
         };
         try {
           localStorage.setItem(CONFIG.STORAGE_KEYS.SUPABASE_CONFIG, JSON.stringify(conf));
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -113,6 +109,11 @@ class SupabaseService {
         // Đảm bảo session xác thực để thỏa mãn RLS Supabase
         await this.ensureSession();
         this.setupRealtimeSubscription();
+
+        // Tự động xóa dữ liệu cũ (chỉ giữ hôm qua & hôm nay)
+        setTimeout(() => {
+          this.purgeOldData().catch(() => { });
+        }, 2000);
 
         this.client.auth.onAuthStateChange(async (event, session) => {
           this.notifyStateChange();
@@ -210,7 +211,7 @@ class SupabaseService {
       try {
         const conf = JSON.parse(configStr);
         if (conf.url && conf.key) return conf;
-      } catch (e) {}
+      } catch (e) { }
     }
     return {
       url: CONFIG.DEFAULT_SUPABASE?.URL || '',
@@ -235,7 +236,7 @@ class SupabaseService {
   notifyStateChange() {
     const status = this.getConnectionStatus();
     this.stateListeners.forEach(cb => {
-      try { cb(status); } catch (e) {}
+      try { cb(status); } catch (e) { }
     });
   }
 
@@ -256,7 +257,7 @@ class SupabaseService {
     }
 
     this.syncListeners.forEach(cb => {
-      try { cb(payload); } catch (e) {}
+      try { cb(payload); } catch (e) { }
     });
   }
 
@@ -495,7 +496,7 @@ class SupabaseService {
     try {
       const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES);
       if (saved) docs = JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
 
     const defaultDoctor = { ...(CONFIG.DEFAULT_DEMO_DOCTOR || CONFIG.DEFAULT_DOCTORS[0]) };
     const dongIdx = docs.findIndex(d => (d.username === 'dongnh' || d.id === 'doc_dongnh' || (d.email && d.email.includes('dong'))));
@@ -540,7 +541,7 @@ class SupabaseService {
 
     try {
       localStorage.setItem(CONFIG.STORAGE_KEYS.DOCTOR_WORKSPACES, JSON.stringify(docs));
-    } catch (e) {}
+    } catch (e) { }
 
     return docs;
   }
@@ -595,33 +596,45 @@ class SupabaseService {
         localStorage.setItem(dateCacheKey, JSON.stringify(data));
         return data;
       } else {
-        // Nếu ngày này chưa có bản ghi trên cloud, kiểm tra xem có phải là ngày hôm nay và DB cũ chưa có report_date
+        // Nếu ngày hôm nay chưa có bản ghi trên cloud, tự động lấy danh sách người bệnh đang điều trị gần nhất
         const isToday = (isoDate === this.formatDateToISO(new Date()));
         if (isToday) {
-          const { data: legacyData } = await this.client
-            .from('patients')
-            .select('*')
-            .is('report_date', null)
-            .eq('is_deleted', false)
-            .order('sort_order', { ascending: true });
+          try {
+            const { data: latestActive, error: latestErr } = await this.client
+              .from('patients')
+              .select('*')
+              .eq('is_deleted', false)
+              .order('report_date', { ascending: false })
+              .order('sort_order', { ascending: true })
+              .limit(150);
 
-          if (legacyData && legacyData.length > 0) {
-            // Tự động gán report_date cho các bản ghi cũ
-            legacyData.forEach(p => p.report_date = isoDate);
-            localStorage.setItem(dateCacheKey, JSON.stringify(legacyData));
-            return legacyData;
+            if (!latestErr && latestActive && latestActive.length > 0) {
+              const newestDate = latestActive[0].report_date;
+              const activeRecent = latestActive.filter(p => !newestDate || p.report_date === newestDate);
+
+              activeRecent.forEach(p => {
+                p.report_date = isoDate;
+                if (window.patientController && typeof window.patientController.normalizePatientClsAndOrders === 'function') {
+                  window.patientController.normalizePatientClsAndOrders(p);
+                }
+              });
+              localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(activeRecent));
+              return activeRecent;
+            }
+          } catch (e) {
+            console.warn('Lỗi truy vấn danh sách gần nhất trên cloud:', e);
           }
         }
 
         // Ngày hoàn toàn mới / chưa có bệnh nhân
-        const local = localStorage.getItem(dateCacheKey);
+        const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
         return local ? JSON.parse(local) : [];
       }
     } catch (err) {
       console.warn(`Lỗi tải dữ liệu bệnh nhân ngày ${isoDate} từ cloud:`, err);
       this.isSyncing = false;
       this.notifyStateChange();
-      const local = localStorage.getItem(dateCacheKey) || localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
+      const local = localStorage.getItem(CONFIG.STORAGE_KEYS.PATIENT_DATA);
       return local ? JSON.parse(local) : [...CONFIG.SAMPLE_PATIENTS];
     }
   }
@@ -825,7 +838,7 @@ class SupabaseService {
     }
 
     try {
-      await this.ensureSession().catch(() => {});
+      await this.ensureSession().catch(() => { });
       const currentUser = await this.getCurrentUser().catch(() => null);
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const nowIso = new Date().toISOString();
@@ -892,7 +905,7 @@ class SupabaseService {
               } else {
                 individuallySaved.push(item);
               }
-            } catch (singleErr) {}
+            } catch (singleErr) { }
           }
           if (individuallySaved.length > 0) {
             syncedData = individuallySaved;
@@ -996,7 +1009,7 @@ class SupabaseService {
       if (data && data.report_date) {
         return data.report_date;
       }
-    } catch (e) {}
+    } catch (e) { }
     return this.getCurrentWorkDate();
   }
 
@@ -1013,6 +1026,56 @@ class SupabaseService {
       });
     } catch (e) {
       console.warn('Lỗi cập nhật work_day:', e);
+    }
+  }
+
+  // ================= DATA RETENTION (CHỈ LƯU HÔM QUA & HÔM NAY) =================
+
+  /**
+   * Tự động xóa dữ liệu cũ trên Supabase:
+   * CHỈ LƯU DANH SÁCH: HÔM QUA, HÔM NAY.
+   * Tất cả dữ liệu trước ngày hôm qua (report_date < yesterday) sẽ bị xóa hoàn toàn.
+   */
+  async purgeOldData() {
+    if (!this.isCloudEnabled || !this.client) return { success: true };
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayIso = this.formatDateToISO(yesterday);
+
+    try {
+      await this.ensureSession();
+
+      // 1. Xóa dữ liệu bệnh nhân cũ hơn ngày hôm qua (report_date < yesterdayIso)
+      const { error: errPatients, count: countPatients } = await this.client
+        .from('patients')
+        .delete({ count: 'exact' })
+        .lt('report_date', yesterdayIso);
+
+      if (errPatients) {
+        console.warn('Lưu ý xóa bệnh nhân cũ trên Supabase:', errPatients.message || errPatients);
+      } else if (countPatients && countPatients > 0) {
+        console.log(`🧹 [Supabase Purge] Đã dọn dẹp ${countPatients} bản ghi bệnh nhân cũ hơn ngày ${yesterdayIso}.`);
+      }
+
+      // 2. Xóa các ca trực cũ hơn ngày hôm qua
+      await this.client
+        .from('work_days')
+        .delete()
+        .lt('report_date', yesterdayIso)
+        .catch(() => { });
+
+      // 3. Xóa các nhật ký giao ban cũ hơn ngày hôm qua
+      await this.client
+        .from('handover_logs')
+        .delete()
+        .lt('report_date', yesterdayIso)
+        .catch(() => { });
+
+      return { success: true, yesterdayIso };
+    } catch (e) {
+      console.warn('Lỗi dọn dẹp dữ liệu cũ trên Supabase:', e);
+      return { success: false, error: e };
     }
   }
 }
