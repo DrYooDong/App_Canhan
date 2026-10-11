@@ -10,6 +10,22 @@ class AuthController {
     this.isLoggedIn = false;
     this.knownDoctors = [];
     this.currentGateView = 'unlock'; // 'unlock' | 'login' | 'register'
+
+    // Khởi tạo trạng thái đăng nhập đồng bộ ngay lập tức để chống chớp giật màn hình
+    const isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
+    this.isLoggedIn = isUnlocked;
+    this.activeDoctor = this.getActiveDoctor();
+
+    const overlay = document.getElementById('loginGateOverlay');
+    if (!this.isLoggedIn) {
+      document.body.classList.add('app-locked');
+      if (overlay) overlay.style.display = 'flex';
+      this.showGateView('unlock');
+    } else {
+      document.body.classList.remove('app-locked');
+      if (overlay) overlay.style.display = 'none';
+    }
+
     this.init();
   }
 
@@ -20,11 +36,7 @@ class AuthController {
     // 2. Lấy thông tin user hiện tại (Supabase hoặc Local Storage)
     this.currentUser = await window.supabaseService?.getCurrentUser?.();
 
-    // 3. Khởi tạo phiên làm việc
-    const isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
-    this.isLoggedIn = isUnlocked;
-
-    // Lấy bác sĩ đang chọn hoặc mặc định là BS. Đông
+    // Cập nhật bác sĩ đang chọn hoặc mặc định là BS. Đông
     this.activeDoctor = this.getActiveDoctor();
     this.saveActiveDoctor();
 
@@ -167,8 +179,21 @@ class AuthController {
   }
 
   getDeviceUnlockMode() {
-    // Yêu cầu: Web laptop là nhập mã PIN ('pin'), Di động hoặc máy tính bảng là mở khóa 9 nút ('pattern')
-    return this.isMobileOrTablet() ? 'pattern' : 'pin';
+    // Mặc định sử dụng 'pin' làm phương thức chuẩn, trực quan và tiện dụng trên mọi thiết bị
+    return 'pin';
+  }
+
+  async quickUnlockDefaultDoctor() {
+    const doc = this.getActiveDoctor() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    await this.unlockSession(doc);
+  }
+
+  fillDefaultPin() {
+    const pinInput = document.getElementById('gatePinInput');
+    if (pinInput) {
+      pinInput.value = '123456';
+      pinInput.focus();
+    }
   }
 
   showGateView(viewName) {
@@ -183,9 +208,6 @@ class AuthController {
 
     if (viewName === 'unlock') {
       this.updateGateDoctorPreview();
-      // Tự động chọn phương thức theo thiết bị:
-      // Web laptop: Nhập mã PIN
-      // Di động hoặc máy tính bảng: Mở khóa vẽ hình 9 nút
       const targetMode = this.getDeviceUnlockMode();
       this.switchGateMode(targetMode);
     } else if (viewName === 'login') {
@@ -220,6 +242,12 @@ class AuthController {
     if (roleEl) roleEl.innerText = `${doc?.title || 'Bác sĩ điều trị'} • ${doc?.department || 'Khoa Nhiễm'}`;
     if (userEl) userEl.innerText = doc?.username || 'dongnh';
     if (emailEl) emailEl.innerText = doc?.email ? `(${doc.email})` : '';
+
+    const quickUnlockMain = document.getElementById('quickUnlockMainText');
+    if (quickUnlockMain) {
+      const displayName = doc?.full_name ? (doc.full_name.startsWith('BS') ? doc.full_name : `BS. ${doc.full_name}`) : 'BS. ĐÔNG';
+      quickUnlockMain.innerText = `VÀO NHANH CA TRỰC (${displayName.toUpperCase()})`;
+    }
   }
 
   renderGateDoctorChips() {
@@ -240,7 +268,10 @@ class AuthController {
         const userInput = document.getElementById('gateOtherUser');
         const passInput = document.getElementById('gateOtherPass');
         if (userInput) userInput.value = doc.username || doc.email;
-        if (passInput) passInput.focus();
+        if (passInput) {
+          passInput.value = doc.pin || '123456';
+          passInput.focus();
+        }
       };
       container.appendChild(chip);
     });

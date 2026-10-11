@@ -1,5 +1,6 @@
 // ==============================================================================
-// 9-DOT PATTERN LOCK CONTROLLER (VẼ HÌNH MỞ KHÓA 9 NÚT)
+// 9-DOT PATTERN LOCK CONTROLLER (VẼ HÌNH MỞ KHÓA 9 NÚT CẢM ỨNG & CHẠM NỐI ĐIỂM)
+// MedWard Pro - Hỗ trợ cả 2 chế độ: Vuốt vẽ liên tục (Swipe) & Chạm từng nút (Tap)
 // ==============================================================================
 
 class PatternLockController {
@@ -28,8 +29,8 @@ class PatternLockController {
       '3-7': 5, '7-3': 5
     };
 
-    // Mẫu mặc định: Chữ L (1-4-7-8-9), Chữ Z (1-2-3-5-7-8-9), Chữ L ngược (1-2-3-6-9), v.v.
-    this.defaultPatterns = ['1-4-7-8-9', '1-2-3-6-9', '1-2-3-5-7-8-9', '1-2-3-6'];
+    // Mẫu mặc định hợp lệ: Chữ L (1-4-7-8-9), Chữ Z (1-2-3-5-7-8-9), Chữ L ngược (1-2-3-6-9), v.v.
+    this.defaultPatterns = ['1-4-7-8-9', '1-2-3-6-9', '1-2-3-5-7-8-9', '1-2-3-6', '1-4-7-8', '1-5-9'];
 
     // Trạng thái cho màn hình mở khóa chính
     this.isDrawing = false;
@@ -57,6 +58,7 @@ class PatternLockController {
     if (!svg) return;
     this.buildSvgMarkup(svg);
     this.attachPointerEvents(svg, false);
+    this.renderSvgState(svg, this.selectedDots);
   }
 
   // Khởi tạo bàn vẽ trên Modal đổi hình vẽ
@@ -65,6 +67,7 @@ class PatternLockController {
     if (!svg) return;
     this.buildSvgMarkup(svg);
     this.attachPointerEvents(svg, true);
+    this.renderSvgState(svg, this.recordSelectedDots);
   }
 
   buildSvgMarkup(svg) {
@@ -79,16 +82,18 @@ class PatternLockController {
       <path class="pattern-path" d="" fill="none" stroke-linecap="round" stroke-linejoin="round" />
       <!-- Đường kéo theo con trỏ chuột/ngón tay -->
       <line class="pattern-follower" x1="0" y1="0" x2="0" y2="0" stroke-linecap="round" />
-      <!-- 9 điểm nút -->
+      <!-- 9 điểm nút xúc giác có số thứ tự 1-9 -->
       <g class="pattern-dots-group">
         ${this.dots.map(d => `
           <g class="dot-node" data-id="${d.id}" transform="translate(${d.x}, ${d.y})">
-            <!-- Vùng cảm ứng mở rộng -->
-            <circle class="dot-hit-zone" r="38" fill="transparent" />
-            <!-- Vòng tròn hiệu ứng ngoài -->
+            <!-- Vùng cảm ứng mở rộng cho ngón tay -->
+            <circle class="dot-hit-zone" r="42" fill="transparent" />
+            <!-- Vòng tròn ngoài của nút -->
             <circle class="dot-ring" r="22" />
-            <!-- Lõi điểm tròn giữa -->
-            <circle class="dot-core" r="8" />
+            <!-- Điểm tâm trung tâm -->
+            <circle class="dot-core" r="4" />
+            <!-- Số thứ tự 1-9 rõ nét dễ nhận biết -->
+            <text class="dot-num" text-anchor="middle" dominant-baseline="central" y="-0.5">${d.id}</text>
           </g>
         `).join('')}
       </g>
@@ -96,16 +101,25 @@ class PatternLockController {
   }
 
   attachPointerEvents(svg, isRecord) {
+    if (svg._patternEventsAttached) return;
+    svg._patternEventsAttached = true;
+
+    let pointerDownPt = null;
+    let hasMovedSignificantly = false;
+
     const getPointInSvg = (e) => {
       const rect = svg.getBoundingClientRect();
-      const scale = 300 / rect.width;
+      const width = rect.width || 300;
+      const height = rect.height || 300;
+      const scaleX = 300 / width;
+      const scaleY = 300 / height;
       return {
-        x: (e.clientX - rect.left) * scale,
-        y: (e.clientY - rect.top) * scale
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
       };
     };
 
-    const getNearestDot = (pt, hitRadius = 38) => {
+    const getNearestDot = (pt, hitRadius = 40) => {
       for (const d of this.dots) {
         const dist = Math.hypot(d.x - pt.x, d.y - pt.y);
         if (dist <= hitRadius) return d;
@@ -114,70 +128,132 @@ class PatternLockController {
     };
 
     const onPointerDown = (e) => {
-      svg.setPointerCapture(e.pointerId);
+      if (e.cancelable) e.preventDefault();
+      try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+
       const pt = getPointInSvg(e);
+      pointerDownPt = pt;
+      hasMovedSignificantly = false;
       const dot = getNearestDot(pt);
 
       if (isRecord) {
         this.isRecordDrawing = true;
-        this.recordSelectedDots = dot ? [dot.id] : [];
+        if (dot) {
+          if (!this.recordSelectedDots.includes(dot.id)) {
+            this.handleDotSelection(dot, true);
+          }
+        }
         this.renderSvgState(svg, this.recordSelectedDots, pt);
       } else {
         this.isDrawing = true;
-        this.selectedDots = dot ? [dot.id] : [];
+        if (dot) {
+          if (!this.selectedDots.includes(dot.id)) {
+            this.handleDotSelection(dot, false);
+          }
+        }
         this.renderSvgState(svg, this.selectedDots, pt);
       }
 
       if (dot && navigator.vibrate) {
-        navigator.vibrate(10);
+        try { navigator.vibrate(12); } catch (err) {}
       }
     };
 
     const onPointerMove = (e) => {
       const isDrawing = isRecord ? this.isRecordDrawing : this.isDrawing;
       if (!isDrawing) return;
+      if (e.cancelable) e.preventDefault();
 
       const pt = getPointInSvg(e);
+      if (pointerDownPt && Math.hypot(pt.x - pointerDownPt.x, pt.y - pointerDownPt.y) > 12) {
+        hasMovedSignificantly = true;
+      }
+
       const dot = getNearestDot(pt);
       const currentList = isRecord ? this.recordSelectedDots : this.selectedDots;
 
       if (dot && !currentList.includes(dot.id)) {
-        if (currentList.length > 0) {
-          const lastId = currentList[currentList.length - 1];
-          const bridgeKey = `${lastId}-${dot.id}`;
-          const intermediateId = this.intermediateMap[bridgeKey];
-          if (intermediateId && !currentList.includes(intermediateId)) {
-            currentList.push(intermediateId);
-          }
+        this.handleDotSelection(dot, isRecord);
+        if (navigator.vibrate) {
+          try { navigator.vibrate(14); } catch (err) {}
         }
-        currentList.push(dot.id);
-        if (navigator.vibrate) navigator.vibrate(12);
       }
 
-      this.renderSvgState(svg, currentList, pt);
+      this.renderSvgState(svg, isRecord ? this.recordSelectedDots : this.selectedDots, pt);
     };
 
     const onPointerUp = (e) => {
       const isDrawing = isRecord ? this.isRecordDrawing : this.isDrawing;
       if (!isDrawing) return;
+      if (e.cancelable) e.preventDefault();
 
       try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
 
       if (isRecord) {
         this.isRecordDrawing = false;
         this.renderSvgState(svg, this.recordSelectedDots, null);
-        this.handleRecordPointerUp();
+
+        // Nếu vuốt liên tục hoặc đã nối >= 3 điểm
+        if (hasMovedSignificantly || this.recordSelectedDots.length >= 3) {
+          this.handleRecordPointerUp();
+        } else {
+          this.updateTapModeStatus(true);
+        }
       } else {
         this.isDrawing = false;
         this.renderSvgState(svg, this.selectedDots, null);
-        this.handleGatePointerUp();
+
+        // Nếu vuốt liên tục hoặc đã nối đủ điểm chữ L (5 điểm)
+        if (hasMovedSignificantly || this.selectedDots.length >= 4) {
+          this.handleGatePointerUp();
+        } else if (this.selectedDots.length > 0) {
+          // Chế độ chạm từng nút (Tap mode): giữ nguyên và cho phép chạm tiếp
+          this.updateTapModeStatus(false);
+        }
       }
     };
 
-    svg.addEventListener('pointerdown', onPointerDown);
-    svg.addEventListener('pointermove', onPointerMove);
-    svg.addEventListener('pointerup', onPointerUp);
-    svg.addEventListener('pointercancel', onPointerUp);
+    svg.addEventListener('pointerdown', onPointerDown, { passive: false });
+    svg.addEventListener('pointermove', onPointerMove, { passive: false });
+    svg.addEventListener('pointerup', onPointerUp, { passive: false });
+    svg.addEventListener('pointercancel', onPointerUp, { passive: false });
+  }
+
+  handleDotSelection(dot, isRecord) {
+    const list = isRecord ? this.recordSelectedDots : this.selectedDots;
+    if (list.length > 0) {
+      const lastId = list[list.length - 1];
+      const bridgeKey = `${lastId}-${dot.id}`;
+      const intermediateId = this.intermediateMap[bridgeKey];
+      if (intermediateId && !list.includes(intermediateId)) {
+        list.push(intermediateId);
+      }
+    }
+    list.push(dot.id);
+
+    // Cập nhật nhãn trạng thái khi đang chọn
+    if (!isRecord) {
+      this.updateTapModeStatus(false);
+    }
+  }
+
+  updateTapModeStatus(isRecord) {
+    const list = isRecord ? this.recordSelectedDots : this.selectedDots;
+    const statusEl = document.getElementById(isRecord ? 'patternRecordStatus' : 'gatePatternStatus');
+    const confirmBtn = document.getElementById('btnPatternConfirm');
+
+    if (statusEl && list.length > 0) {
+      statusEl.className = 'gate-pattern-status';
+      statusEl.innerHTML = `Đang nối: <strong style="color: #0284c7;">${list.join(' ➔ ')}</strong> (Chạm tiếp hoặc vuốt)`;
+    }
+
+    if (!isRecord && confirmBtn) {
+      if (list.length >= 3) {
+        confirmBtn.style.display = 'inline-flex';
+      } else {
+        confirmBtn.style.display = 'none';
+      }
+    }
   }
 
   renderSvgState(svg, selectedDotIds, pointerPt = null) {
@@ -225,11 +301,44 @@ class PatternLockController {
     }
   }
 
-  // Xử lý khi thả tay trên bàn vẽ mở khoá chính
+  // Tự động vẽ và mở khóa mẫu mặc định (Chữ L: 1-4-7-8-9) với hiệu ứng thị giác mượt mà
+  drawAndUnlockDefaultPattern() {
+    this.reset();
+    const defaultSeq = [1, 4, 7, 8, 9];
+    const svg = document.getElementById('patternLockSvg');
+    const statusEl = document.getElementById('gatePatternStatus');
+
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      this.selectedDots = defaultSeq.slice(0, step);
+      if (svg) {
+        this.renderSvgState(svg, this.selectedDots, null);
+      }
+      if (statusEl) {
+        statusEl.className = 'gate-pattern-status';
+        statusEl.innerHTML = `⚡ Đang tự động vẽ: <strong>${this.selectedDots.join(' ➔ ')}</strong>`;
+      }
+      if (step >= defaultSeq.length) {
+        clearInterval(interval);
+        setTimeout(() => {
+          this.handleGatePointerUp();
+        }, 140);
+      }
+    }, 70);
+  }
+
+  // Nút bấm "Xác nhận mở khoá" khi người dùng chạm từng nút
+  confirmCurrentPattern() {
+    this.handleGatePointerUp();
+  }
+
+  // Xử lý kiểm tra mở khóa trên màn hình đăng nhập chính
   handleGatePointerUp() {
     const statusEl = document.getElementById('gatePatternStatus');
     const svg = document.getElementById('patternLockSvg');
     const wrap = document.getElementById('patternLockWrap');
+    const confirmBtn = document.getElementById('btnPatternConfirm');
 
     if (this.selectedDots.length === 0) return;
 
@@ -257,10 +366,13 @@ class PatternLockController {
       // Mở khóa thành công!
       if (statusEl) {
         statusEl.className = 'gate-pattern-status success';
-        statusEl.innerText = '✓ Hình vẽ chính xác! Đang mở khoá...';
+        statusEl.innerText = '✓ Hình vẽ chính xác! Đang mở khoá vào ca trực...';
       }
       if (svg) svg.classList.add('pattern-success');
-      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      if (confirmBtn) confirmBtn.style.display = 'none';
+      if (navigator.vibrate) {
+        try { navigator.vibrate([30, 40, 30]); } catch (e) {}
+      }
 
       setTimeout(() => {
         window.authController?.unlockSession?.();
@@ -270,14 +382,14 @@ class PatternLockController {
       // Hình vẽ sai
       if (statusEl) {
         statusEl.className = 'gate-pattern-status error';
-        statusEl.innerText = '❌ Hình vẽ chưa đúng! (Mặc định: Chữ L 1➔4➔7➔8➔9)';
+        statusEl.innerText = '❌ Hình chưa đúng! (Mặc định: Chữ L 1➔4➔7➔8➔9)';
       }
       this.triggerErrorFeedback(svg, wrap);
       setTimeout(() => {
         this.reset();
         if (statusEl) {
           statusEl.className = 'gate-pattern-status';
-          statusEl.innerText = 'Vẽ hình nối các điểm để mở khoá';
+          statusEl.innerText = 'Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá';
         }
       }, 700);
     }
@@ -290,7 +402,9 @@ class PatternLockController {
       void wrap.offsetWidth; // Force reflow
       wrap.classList.add('shake-anim');
     }
-    if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+    if (navigator.vibrate) {
+      try { navigator.vibrate([60, 40, 60]); } catch (e) {}
+    }
   }
 
   // Đặt lại bàn vẽ về ban đầu
@@ -305,12 +419,16 @@ class PatternLockController {
     const statusEl = document.getElementById('gatePatternStatus');
     if (statusEl) {
       statusEl.className = 'gate-pattern-status';
-      statusEl.innerText = 'Vẽ hình nối các điểm để mở khoá';
+      statusEl.innerText = 'Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá';
+    }
+    const confirmBtn = document.getElementById('btnPatternConfirm');
+    if (confirmBtn) {
+      confirmBtn.style.display = 'none';
     }
   }
 
   // ==============================================================================
-  // MODAL ĐỔI / THIẾT LẬP HÌNH VẼ MỚI (PATTERN RECORDER)
+  // MODAL ĐỔI / THIẾT LẬP HÌNH VẼ MỚI (PATTERN RECORDER TRONG CÀI ĐẶT)
   // ==============================================================================
   openPatternChangeModal() {
     const modal = document.getElementById('patternChangeModal');

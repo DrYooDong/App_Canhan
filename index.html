@@ -12,6 +12,15 @@
     <meta property="og:title" content="MedWard Pro">
     <meta property="og:description" content="Quản lý danh sách bệnh nhân nội trú & bàn giao trực lâm sàng">
 
+    <!-- Early Theme Check -->
+    <script>
+        try {
+            if (localStorage.getItem('medward_theme') === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        } catch (e) {}
+    </script>
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml"
@@ -42,7 +51,16 @@
 <body>
 
     <!-- MÀN HÌNH ĐĂNG NHẬP BẢO MẬT BẮT BUỘC KHI VÀO TRANG WEB -->
-    <div id="loginGateOverlay" class="login-gate-overlay" style="display: none;">
+    <div id="loginGateOverlay" class="login-gate-overlay">
+        <script>
+            // Kiểm tra trạng thái mở khóa tức thì để tránh chớp nháy giao diện
+            if (sessionStorage.getItem('medward_session_unlocked') === 'true') {
+                document.getElementById('loginGateOverlay').style.display = 'none';
+            } else {
+                document.getElementById('loginGateOverlay').style.display = 'flex';
+                document.body.classList.add('app-locked');
+            }
+        </script>
         <div class="login-gate-card">
             <div class="login-gate-brand">
                 <div class="login-gate-badge">
@@ -53,7 +71,7 @@
                 </div>
                 <div>
                     <div class="login-gate-hospital">BỆNH VIỆN ĐA KHOA KHU VỰC THỦ ĐỨC</div>
-                    <div class="login-gate-dept">KHOA NHIỄM • BẢNG THEO DÕI NỘI TRÚ</div>
+                    <div class="login-gate-dept">KHOA NHIỄM • BẢNG THEO DÕI NỘI TRÚ & CA TRỰC</div>
                 </div>
             </div>
 
@@ -78,16 +96,28 @@
                     </div>
                 </div>
 
-                <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (WEB LAPTOP) HOẶC VẼ HÌNH 9 NÚT (DI ĐỘNG / TABLET) -->
+                <!-- NÚT 1 CHẠM: VÀO NHANH CA TRỰC (TIỆN LỢI & KHÔNG BỊ KHÓA) -->
+                <div class="login-quick-unlock-wrap">
+                    <button type="button" class="btn-quick-unlock-primary" onclick="window.authController.quickUnlockDefaultDoctor()">
+                        <span class="quick-unlock-icon">⚡</span>
+                        <div class="quick-unlock-text">
+                            <span class="quick-unlock-main" id="quickUnlockMainText">VÀO NHANH CA TRỰC (BS. ĐÔNG)</span>
+                            <span class="quick-unlock-sub">1 chạm truy cập ngay • Mật khẩu mặc định: 123456</span>
+                        </div>
+                        <span class="quick-unlock-arrow">➔</span>
+                    </button>
+                </div>
+
+                <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (MẶC ĐỊNH) HOẶC VẼ HÌNH 9 NÚT -->
                 <div class="gate-mode-selector">
-                    <button type="button" class="gate-mode-btn" id="btnGateModePin"
+                    <button type="button" class="gate-mode-btn active" id="btnGateModePin"
                         onclick="window.authController.switchGateMode('pin')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2.2">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        <span>Mã PIN (Web Laptop)</span>
+                        <span>Mã PIN (123456)</span>
                     </button>
                     <button type="button" class="gate-mode-btn" id="btnGateModePattern"
                         onclick="window.authController.switchGateMode('pattern')">
@@ -103,28 +133,33 @@
                             <circle cx="12" cy="19" r="2.5" />
                             <circle cx="19" cy="19" r="2.5" />
                         </svg>
-                        <span>9 Nút (Di động / Tablet)</span>
+                        <span>9 Nút (Cảm ứng)</span>
                     </button>
                 </div>
 
-                <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH CHO LAPTOP/PC) -->
+                <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH) -->
                 <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();"
-                    class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
+                    class="gate-unlock-panel" style="display: block; padding: 0 16px 14px;">
                     <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
 
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="gatePinInput"
-                            style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <label for="gatePinInput" class="gate-pin-label">
                             <span>Mã PIN / Mật khẩu số:</span>
-                            <span style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);"></span>
+                            <span class="gate-pin-badge">🔑 Mặc định: <strong>123456</strong></span>
                         </label>
                         <div class="pin-input-wrapper">
                             <input type="password" id="gatePinInput" class="form-control gate-pin-input"
-                                placeholder="Nhập mã PIN" pattern="[0-9]*" inputmode="numeric"
+                                placeholder="Nhập mã PIN (123456)" pattern="[0-9]*" inputmode="numeric"
+                                value="123456"
                                 oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <button type="button" class="btn-toggle-pin"
                                 onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1"
                                 title="Hiện/ẩn mã PIN">👁️</button>
+                        </div>
+                        <div class="pin-quick-actions">
+                            <button type="button" class="btn-fill-pin-chip" onclick="window.authController.fillDefaultPin()">
+                                🔑 Điền nhanh 123456
+                            </button>
                         </div>
                     </div>
 
@@ -145,10 +180,14 @@
                     </div>
                 </form>
 
-                <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK - MẶC ĐỊNH CHO DI ĐỘNG/TABLET) -->
+                <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
                 <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
                     <div id="gatePatternStatus" class="gate-pattern-status">
-                        Vẽ hình nối các điểm để mở khoá
+                        Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá
+                    </div>
+
+                    <div class="pattern-hint-banner">
+                        💡 <strong>Mẫu mặc định:</strong> Chữ <strong>L</strong> (1➔4➔7➔8➔9) hoặc chữ <strong>Z</strong>
                     </div>
 
                     <div class="pattern-lock-wrap" id="patternLockWrap">
@@ -157,8 +196,22 @@
                     </div>
 
                     <div class="pattern-action-row">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.reset()">
+                        <button type="button" class="btn btn-primary btn-sm btn-pattern-confirm" id="btnPatternConfirm"
+                            onclick="window.patternLock?.confirmCurrentPattern()" style="display: none;">
+                            ✓ MỞ KHÓA NGAY
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.drawAndUnlockDefaultPattern()">
+                            ⚡ Tự động vẽ mẫu chữ L
+                        </button>
+                        <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.reset()">
                             🔄 Vẽ lại
+                        </button>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 10px;">
+                        <button type="button" class="btn btn-subtle btn-sm"
+                            onclick="window.authController.switchGateMode('pin')" style="font-size: 11.5px;">
+                            🔑 Chuyển sang nhập Mã PIN (123456)
                         </button>
                     </div>
                 </div>
@@ -188,7 +241,10 @@
 
                 <!-- Danh sách bác sĩ đã lưu trên hệ thống để chọn nhanh -->
                 <div class="gate-quick-doctors-wrap">
-                    <div class="gate-sub-label">Bác sĩ trong khoa:</div>
+                    <div class="gate-sub-label">
+                        <span>Bác sĩ trong khoa (Bấm chọn nhanh):</span>
+                        <span class="gate-pin-badge">🔑 PIN mặc định: <strong>123456</strong></span>
+                    </div>
                     <div class="gate-doc-chips" id="gateDocChips">
                         <!-- Render bởi JS -->
                     </div>
@@ -206,14 +262,14 @@
                     </div>
 
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label
-                            style="font-size: 12px; font-weight: 700; display: flex; justify-content: space-between;">
+                        <label class="gate-pin-label">
                             <span>Mật khẩu số (PIN):</span>
-                            <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);"></span>
+                            <span class="gate-pin-badge">🔑 Mặc định: <strong>123456</strong></span>
                         </label>
                         <div class="pin-input-wrapper">
                             <input type="password" id="gateOtherPass" class="form-control"
-                                placeholder="Nhập PIN (chữ số)" pattern="[0-9]*" inputmode="numeric"
+                                placeholder="Nhập PIN (123456)" pattern="[0-9]*" inputmode="numeric"
+                                value="123456"
                                 oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
                             <button type="button" class="btn-toggle-pin"
                                 onclick="window.authController.togglePinVisibility('gateOtherPass', this)"
@@ -458,17 +514,6 @@
                     <span class="cloud-text">Cloud</span>
                 </button>
 
-                <!-- Quota dung lượng Bác sĩ (100MB Game HUD Style) -->
-                <div class="doctor-storage-pill" id="headerStorageHud" style="display: none;"
-                    onclick="window.authController.openAuthModal('workspace')"
-                    data-tooltip="Dung lượng bộ nhớ bác sĩ: 0 KB / 100 MB">
-                    <span class="storage-pill-icon">💾</span>
-                    <span class="storage-pill-text" id="headerStorageText">0 KB / 100 MB</span>
-                    <div class="storage-pill-track">
-                        <div class="storage-pill-bar" id="headerStorageBarFill" style="width: 2%;"></div>
-                    </div>
-                </div>
-
                 <!-- Pill Không Gian Bác Sĩ (Hiển thị khi Bác sĩ đã đăng nhập) -->
                 <div class="doctor-workspace-header-pill" id="userProfileBadge"
                     onclick="window.authController.openAuthModal('workspace')"
@@ -515,9 +560,6 @@
             </div>
             <div class="main-title-box">
                 <div class="main-title" contenteditable="true">BẢNG THEO DÕI &amp; Y LỆNH BỆNH NHÂN NỘI TRÚ</div>
-                <div class="sub-title" contenteditable="true">(Không gian điều trị riêng: BS. Nguyễn Hữu Đông • Khoa
-                    Nhiễm)
-                </div>
             </div>
             <div class="meta-box">
                 <div class="meta-item">
@@ -802,26 +844,14 @@
                 <thead>
                     <tr>
                         <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
-                        <th class="col-room" data-tooltip="Phòng / Buồng bệnh & Giường nằm (P/G)"><span
-                                class="th-title">P/G</span><span class="th-sub">Buồng - Giường</span></th>
-                        <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ
-                                &amp;
-                                Tên</span><span class="th-sub">Người bệnh</span></th>
-                        <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS
-                                (Tuổi)</span><span class="th-sub">Năm sinh</span></th>
-                        <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN
-                                ĐOÁN</span><span class="th-sub">Xác định • Kèm theo</span></th>
-                        <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)">
-                            <span class="th-title">CẬN LÂM SÀNG</span><span class="th-sub">✓ Hiện có • ⚡ Cần làm</span>
-                        </th>
-                        <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span
-                                class="th-title">Y
-                                LỆNH
-                                ĐIỀU TRỊ</span><span class="th-sub">Y lệnh • 💊 Thêm thuốc</span></th>
-                        <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span
-                                class="th-title">BG</span><span class="th-sub">Bàn giao</span></th>
-                        <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao
-                                Tác</span></th>
+                        <th class="col-room" data-tooltip="Phòng / Buồng bệnh &amp; Giường nằm (P/G)"><span class="th-title">P/G</span></th>
+                        <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span></th>
+                        <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span></th>
+                        <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN ĐOÁN</span></th>
+                        <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span class="th-title">CẬN LÂM SÀNG</span></th>
+                        <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span></th>
+                        <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span></th>
+                        <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
                     </tr>
                 </thead>
                 <tbody id="patientTableBody">
@@ -852,15 +882,13 @@
         <!-- Thông báo rỗng -->
         <div id="emptyMessage" class="empty-state" style="display: none;">
             <div>Chưa có người bệnh nào trong danh sách.</div>
-            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-secondary btn-sm"
-                    onclick="document.getElementById('excelFileInput').click()"
-                    style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
+            <div class="empty-state-actions">
+                <button type="button" class="btn btn-secondary btn-sm btn-empty-excel"
+                    onclick="document.getElementById('excelFileInput').click()">
                     📊 Nạp từ file Excel (.xlsx)
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm"
-                    onclick="window.patientController.openExportBackupModal()"
-                    style="background: #eff6ff; border-color: #bfdbfe; color: #1e40af; font-weight: 700;">
+                <button type="button" class="btn btn-secondary btn-sm btn-empty-backup"
+                    onclick="window.patientController.openExportBackupModal()">
                     🛡️ Sao lưu / Xuất file
                 </button>
                 <button type="button" class="btn btn-primary btn-sm"
@@ -963,7 +991,8 @@
                     </div>
                     <div class="form-group">
                         <label>Bác sĩ điều trị / Phụ trách:</label>
-                        <input type="text" id="editDoctorName" class="form-control" placeholder="Họ tên Bác sĩ">
+                        <input type="text" id="editDoctorName" list="doctorListDatalist" class="form-control" placeholder="Chọn hoặc nhập tên Bác sĩ">
+                        <datalist id="doctorListDatalist"></datalist>
                     </div>
                 </div>
 
@@ -976,14 +1005,14 @@
                 <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
-                        <label style="color: #0369a1; font-weight: 700;">
+                        <label class="label-cls-present">
                             <span>🔬 CLS - HIỆN CÓ:</span>
                         </label>
                         <textarea id="editClsHienCo" class="form-control" rows="2"
                             placeholder="Kết quả CLS hiện có..."></textarea>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label style="color: #b45309; font-weight: 700;">
+                        <label class="label-cls-pending">
                             <span>⚡ CLS - CẦN LÀM:</span>
                         </label>
                         <textarea id="editClsCanLam" class="form-control" rows="2"
@@ -1368,8 +1397,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Tài khoản Bác sĩ:</label>
-                                <input type="text" id="profUsername" class="form-control" disabled
-                                    style="background: #f1f5f9;">
+                                <input type="text" id="profUsername" class="form-control" disabled>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1384,16 +1412,12 @@
                         </div>
 
                         <!-- CÀI ĐẶT HÌNH VẼ 9 NÚT (PATTERN LOCK) -->
-                        <div class="pattern-profile-setting"
-                            style="margin: 12px 0 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                                <span
-                                    style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                        <div class="pattern-profile-setting">
+                            <div class="pattern-setting-header">
+                                <span class="pattern-setting-title">
                                     <span>🔲 Hình vẽ mở khoá 9 nút:</span>
                                 </span>
-                                <span id="currentPatternBadge"
-                                    style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; font-weight: 600;">
+                                <span id="currentPatternBadge" class="pattern-badge-info">
                                     Mặc định: Chữ L hoặc Z
                                 </span>
                             </div>
@@ -1735,12 +1759,9 @@
                     <svg id="patternRecordSvg" class="pattern-lock-svg" viewBox="0 0 300 300" touch-action="none"></svg>
                 </div>
 
-                <div
-                    style="font-size: 12px; color: var(--text-muted); line-height: 1.45; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+                <div class="pattern-record-hint">
                     💡 <em>Vẽ nối ít nhất 3 hoặc 4 điểm. Sau khi vẽ xong Bước 1, hệ thống sẽ yêu cầu bạn vẽ lại một lần
-                        nữa để
-                        xác
-                        nhận an toàn.</em>
+                        nữa để xác nhận an toàn.</em>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between;">

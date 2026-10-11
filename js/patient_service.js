@@ -1043,6 +1043,13 @@ class PatientController {
         }
       };
     }
+
+    // Cập nhật danh sách gợi ý bác sĩ vào datalist
+    const datalist = document.getElementById('doctorListDatalist');
+    if (datalist && window.authController?.getKnownDoctors) {
+      const knownDocs = window.authController.getKnownDoctors();
+      datalist.innerHTML = knownDocs.map(d => `<option value="${this.escape(d.full_name)}">${this.escape(d.title || 'Bác sĩ')} • ${this.escape(d.department || 'Khoa Nhiễm')}</option>`).join('');
+    }
   }
 
   // MODAL CHUYỂN ĐỔI KHÔNG GIAN DÀNH CHO ADMIN
@@ -1121,28 +1128,25 @@ class PatientController {
     const idx = this.patientList.findIndex(p => p.id === patientId);
     if (idx === -1) return;
 
+    const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
     const currentDoc = this.patientList[idx].doctor_name || this.patientList[idx].handover_by || '';
-    const activeDoc = window.authController?.getActiveDoctor?.();
-    const defaultDoc = activeDoc ? activeDoc.full_name : '';
 
-    const newDoc = prompt(
-      `Chuyển không gian điều trị cho BN "${this.patientList[idx].ten}":\n(Nhập tên hoặc ID Bác sĩ tiếp nhận)`,
-      currentDoc || defaultDoc
-    );
+    // Luân chuyển sang bác sĩ tiếp theo trong danh sách khoa
+    const currentIdx = allDocs.findIndex(d => d.full_name === currentDoc || d.username === currentDoc);
+    const nextDoc = allDocs[(currentIdx + 1) % allDocs.length];
+    const newDocName = nextDoc.full_name;
 
-    if (newDoc !== null && newDoc.trim()) {
-      this.patientList[idx].doctor_name = newDoc.trim();
-      this.patientList[idx].handover_by = newDoc.trim();
-      this.patientList[idx].updated_at = new Date().toISOString();
-      this.saveLocalCache();
-      window.supabaseService.savePatient(this.patientList[idx]).catch(err => {
-        console.warn('Lỗi đồng bộ chuyển bác sĩ lên cloud:', err);
-      });
-      this.updateDoctorFilterDropdown();
-      this.render();
-      if (window.showToast) {
-        window.showToast(`✓ Đã chuyển BN sang Không gian của ${newDoc.trim()}`);
-      }
+    this.patientList[idx].doctor_name = newDocName;
+    this.patientList[idx].handover_by = newDocName;
+    this.patientList[idx].updated_at = new Date().toISOString();
+    this.saveLocalCache();
+    window.supabaseService.savePatient(this.patientList[idx]).catch(err => {
+      console.warn('Lỗi đồng bộ chuyển bác sĩ lên cloud:', err);
+    });
+    this.updateDoctorFilterDropdown();
+    this.render();
+    if (window.showToast) {
+      window.showToast(`✓ Đã chuyển người bệnh sang BS: ${newDocName}`);
     }
   }
 
@@ -1378,23 +1382,46 @@ class PatientController {
     }
   }
 
-  async openAddPatientModal() {
+  openAddPatientModal() {
     this.flushActiveInput();
     if (!window.authController?.isLoggedIn) {
       window.authController?.showGateOverlay?.();
       return;
     }
-    const newPatient = await this.addPatient({ ten: '', phong_giuong: '' });
-    if (newPatient) {
-      this.openPatientDetailModal(newPatient.id);
-      setTimeout(() => {
-        const roomInput = document.getElementById('editRoomBed');
-        if (roomInput) {
-          roomInput.focus();
-          roomInput.select();
-        }
-      }, 120);
+    const modal = document.getElementById('patientDetailModal');
+    if (!modal) return;
+
+    this.currentEditingPatientId = null;
+    const { doctor } = this.getEffectiveDoctor();
+    const myDocName = doctor.full_name || 'BS. Nguyễn Hữu Đông';
+
+    const titleEl = modal.querySelector('.modal-title');
+    if (titleEl) titleEl.innerText = '➕ Tiếp Nhận Người Bệnh Mới';
+
+    document.getElementById('editPatientId').value = '';
+    document.getElementById('editRoomBed').value = '';
+    document.getElementById('editFullName').value = '';
+    const ageInput = document.getElementById('editAgeYear');
+    if (ageInput) {
+      ageInput.value = '';
+      const badge = document.getElementById('calcAgeBadge');
+      if (badge) badge.innerText = '';
     }
+    document.getElementById('editDoctorName').value = myDocName;
+    document.getElementById('editDiagnosis').value = '';
+    if (document.getElementById('editClsHienCo')) document.getElementById('editClsHienCo').value = '';
+    if (document.getElementById('editClsCanLam')) document.getElementById('editClsCanLam').value = '';
+    document.getElementById('editOrders').value = '';
+    if (document.getElementById('editThemThuoc')) document.getElementById('editThemThuoc').value = '';
+    document.getElementById('editHandoverStatus').value = CONFIG.HANDOVER_STATUS.NONE;
+    document.getElementById('editHandoverIssues').value = '';
+    document.getElementById('editHandoverActions').value = '';
+
+    modal.classList.add('active');
+    setTimeout(() => {
+      const roomInput = document.getElementById('editRoomBed');
+      if (roomInput) roomInput.focus();
+    }, 120);
   }
 
   async addPatient(patientData = {}) {
@@ -2527,6 +2554,9 @@ class PatientController {
     const modal = document.getElementById('patientDetailModal');
     if (!modal) return;
 
+    const titleEl = modal.querySelector('.modal-title');
+    if (titleEl) titleEl.innerText = '🩺 Chi Tiết Người Bệnh';
+
     document.getElementById('editPatientId').value = p.id;
     document.getElementById('editRoomBed').value = p.phong_giuong || '';
     document.getElementById('editFullName').value = p.ten || '';
@@ -2562,7 +2592,6 @@ class PatientController {
 
   savePatientFromDetailModal() {
     const id = document.getElementById('editPatientId').value;
-    if (!id) return;
 
     let cdVal = document.getElementById('editDiagnosis').value.trim();
     let clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value.trim() : '';
@@ -2618,6 +2647,16 @@ class PatientController {
         updateData.handover_by = window.authController.currentUser.full_name || docVal || 'Bác sĩ điều trị';
         updateData.handover_at = new Date().toISOString();
       }
+    }
+
+    if (!id) {
+      if (!updateData.ten) updateData.ten = 'BỆNH NHÂN MỚI';
+      this.addPatient(updateData);
+      this.closePatientDetailModal();
+      if (window.showToast) {
+        window.showToast(`✓ Đã tiếp nhận người bệnh "${updateData.ten}"!`);
+      }
+      return;
     }
 
     this.updatePatient(id, updateData);
