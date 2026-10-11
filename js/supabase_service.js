@@ -911,6 +911,54 @@ class SupabaseService {
             syncedData = individuallySaved;
           }
         }
+      } else {
+        // Danh sách rỗng: Đã xóa trắng trên client -> Xóa toàn bộ bản ghi của ngày này trên Cloud
+        try {
+          await this.client
+            .from('patients')
+            .delete()
+            .eq('report_date', isoDate);
+          console.log(`🧹 Đã xóa toàn bộ bệnh nhân ngày ${isoDate} trên Supabase do danh sách hiện tại rỗng.`);
+        } catch (emptyErr) {
+          console.warn('Lỗi xóa mẻ rỗng trên Cloud:', emptyErr);
+        }
+      }
+
+      // BƯỚC RECONCILE: Luôn chạy để đảm bảo số lượng bản ghi trên Supabase khớp 1:1 với dự án thực tế
+      try {
+        const currentValidIds = new Set(deduplicatedRecords.map(r => String(r.id).toLowerCase()));
+
+        // 1. Xóa ngay tất cả các bản ghi có cờ is_deleted = true trên Supabase
+        await this.client
+          .from('patients')
+          .delete()
+          .eq('is_deleted', true)
+          .catch(() => { });
+
+        // 2. Xóa các bản ghi mồ côi/thừa của ngày này trên Supabase không nằm trong danh sách hiện tại
+        const { data: cloudList } = await this.client
+          .from('patients')
+          .select('id')
+          .eq('report_date', isoDate);
+
+        if (cloudList && cloudList.length > 0) {
+          const orphanIds = cloudList
+            .map(p => p.id)
+            .filter(id => !currentValidIds.has(String(id).toLowerCase()));
+
+          if (orphanIds.length > 0) {
+            await this.client
+              .from('patients')
+              .delete()
+              .in('id', orphanIds);
+            console.log(`🧹 [Reconcile] Đã xóa ${orphanIds.length} bản ghi thừa trên Supabase để khớp chính xác ${deduplicatedRecords.length} ca.`);
+          }
+        }
+
+        // 3. Tự động xóa dữ liệu cũ trước hôm qua (chỉ giữ hôm qua & hôm nay)
+        this.purgeOldData().catch(() => { });
+      } catch (reconcileErr) {
+        console.warn('Lỗi reconcile danh sách trên Cloud:', reconcileErr);
       }
 
       this.batchSyncLock = false;
@@ -945,8 +993,54 @@ class SupabaseService {
   }
 
   /**
-   * Xóa bệnh nhân: Sử dụng SOFT DELETE (is_deleted = true) trên Cloud
-   * để thông báo Realtime xóa tức thì sang các máy khác mà không bị hiện tượng Zombie
+   * Xóa toàn bộ danh sách bệnh nhân trên Cloud theo ngày (hoặc ngày hôm nay)
+   */
+  async clearAllPatients(targetDate = null) {
+    const isoDate = this.formatDateToISO(targetDate || this.getCurrentWorkDate());
+    const dateCacheKey = `medward_patients_${isoDate}`;
+
+    // Làm rỗng cache local
+    localStorage.removeItem(dateCacheKey);
+    localStorage.setItem(dateCacheKey, '[]');
+    localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, '[]');
+
+    if (!this.isCloudEnabled || !this.client) {
+      this.lastSyncedAt = new Date();
+      this.notifyStateChange();
+      return { success: true };
+    }
+
+    try {
+      await this.ensureSession();
+      // Xóa tất cả các bản ghi của ngày làm việc này trên Supabase
+      const { error } = await this.client
+        .from('patients')
+        .delete()
+        .eq('report_date', isoDate);
+
+      if (error) {
+        console.warn('Lỗi xóa toàn bộ trên cloud:', error);
+      }
+
+      // Xóa sạch mọi bản ghi soft-deleted còn sót lại
+      await this.client
+        .from('patients')
+        .delete()
+        .eq('is_deleted', true)
+        .catch(() => {});
+
+      this.lastSyncedAt = new Date();
+      this.notifyStateChange();
+      console.log(`🧹 Đã xóa toàn bộ bệnh nhân ngày ${isoDate} trên Supabase Cloud.`);
+      return { success: true };
+    } catch (err) {
+      console.warn('Lỗi xóa toàn bộ bệnh nhân trên cloud:', err);
+      return { success: false, error: err };
+    }
+  }
+
+  /**
+   * Xóa bệnh nhân: Xóa trực tiếp khỏi bảng trên Cloud (Hard delete)
    */
   async deletePatient(patientId) {
     const isoDate = this.getCurrentWorkDate();
@@ -969,20 +1063,14 @@ class SupabaseService {
 
     try {
       await this.ensureSession();
-      // Soft delete trên Supabase để bắn Realtime DELETE cho các client khác
+      // Hard delete trực tiếp trên Supabase để bảng trên Cloud sạch sẽ tuyệt đối
       const { error } = await this.client
         .from('patients')
-        .update({
-          is_deleted: true,
-          last_client_id: this.clientId,
-          client_updated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('id', patientId);
 
       if (error) {
-        // Fallback hard delete nếu schema cũ chưa có is_deleted
-        await this.client.from('patients').delete().eq('id', patientId);
+        console.warn('Lỗi xóa bệnh nhân trên cloud:', error);
       }
       return { success: true };
     } catch (err) {

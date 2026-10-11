@@ -1738,14 +1738,16 @@ class PatientController {
     }
 
     if (confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách bệnh nhân hiện tại không? Thao tác này không thể hoàn tác.')) {
-      const oldIds = this.patientList.map(p => p.id);
       this.patientList = [];
       this.saveLocalCache();
       this.updateDoctorFilterDropdown();
       this.render();
 
-      for (const pid of oldIds) {
-        await window.supabaseService.deletePatient(pid).catch(() => {});
+      if (window.supabaseService) {
+        await window.supabaseService.clearAllPatients(this.getCurrentDateString()).catch(() => {});
+        if (typeof window.supabaseService.setWorkDayStatus === 'function') {
+          window.supabaseService.setWorkDayStatus(this.getTodayIso(), 'active', 0).catch(() => {});
+        }
       }
       if (window.updateSaveStatus) {
         window.updateSaveStatus('✓ Đã xóa trắng danh sách');
