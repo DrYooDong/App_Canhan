@@ -382,7 +382,7 @@ class PatternLockController {
       // Hình vẽ sai
       if (statusEl) {
         statusEl.className = 'gate-pattern-status error';
-        statusEl.innerText = '❌ Hình chưa đúng! (Mặc định: Chữ L 1➔4➔7➔8➔9)';
+        statusEl.innerText = '❌ Hình vẽ mở khoá chưa chính xác!';
       }
       this.triggerErrorFeedback(svg, wrap);
       setTimeout(() => {
@@ -557,7 +557,7 @@ class PatternLockController {
     localStorage.removeItem('medward_pattern_lock');
     this.updateProfileBadge();
     if (window.showToast) {
-      window.showToast('✓ Đã khôi phục hình vẽ mở khoá về mặc định (Chữ L hoặc Z)');
+      window.showToast('✓ Đã khôi phục hình vẽ mở khoá về mặc định');
     }
     this.reset();
   }
@@ -571,7 +571,7 @@ class PatternLockController {
       badge.style.background = '#dcfce7';
       badge.style.color = '#15803d';
     } else {
-      badge.innerText = 'Mặc định: Chữ L hoặc Z';
+      badge.innerText = 'Hình vẽ mặc định';
       badge.style.background = '#e0f2fe';
       badge.style.color = '#0369a1';
     }

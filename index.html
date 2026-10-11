@@ -102,7 +102,7 @@
                         <span class="quick-unlock-icon">⚡</span>
                         <div class="quick-unlock-text">
                             <span class="quick-unlock-main" id="quickUnlockMainText">VÀO NHANH CA TRỰC (BS. ĐÔNG)</span>
-                            <span class="quick-unlock-sub">1 chạm truy cập ngay • Mật khẩu mặc định: 123456</span>
+                            <span class="quick-unlock-sub">1 chạm truy cập ngay ca trực</span>
                         </div>
                         <span class="quick-unlock-arrow">➔</span>
                     </button>
@@ -117,7 +117,7 @@
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        <span>Mã PIN (123456)</span>
+                        <span>Mã PIN</span>
                     </button>
                     <button type="button" class="gate-mode-btn" id="btnGateModePattern"
                         onclick="window.authController.switchGateMode('pattern')">
@@ -145,21 +145,14 @@
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label for="gatePinInput" class="gate-pin-label">
                             <span>Mã PIN / Mật khẩu số:</span>
-                            <span class="gate-pin-badge">🔑 Mặc định: <strong>123456</strong></span>
                         </label>
                         <div class="pin-input-wrapper">
                             <input type="password" id="gatePinInput" class="form-control gate-pin-input"
-                                placeholder="Nhập mã PIN (123456)" pattern="[0-9]*" inputmode="numeric"
-                                value="123456"
+                                placeholder="Nhập mã PIN" pattern="[0-9]*" inputmode="numeric"
                                 oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <button type="button" class="btn-toggle-pin"
                                 onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1"
                                 title="Hiện/ẩn mã PIN">👁️</button>
-                        </div>
-                        <div class="pin-quick-actions">
-                            <button type="button" class="btn-fill-pin-chip" onclick="window.authController.fillDefaultPin()">
-                                🔑 Điền nhanh 123456
-                            </button>
                         </div>
                     </div>
 
@@ -186,10 +179,6 @@
                         Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá
                     </div>
 
-                    <div class="pattern-hint-banner">
-                        💡 <strong>Mẫu mặc định:</strong> Chữ <strong>L</strong> (1➔4➔7➔8➔9) hoặc chữ <strong>Z</strong>
-                    </div>
-
                     <div class="pattern-lock-wrap" id="patternLockWrap">
                         <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300"
                             touch-action="none"></svg>
@@ -200,9 +189,6 @@
                             onclick="window.patternLock?.confirmCurrentPattern()" style="display: none;">
                             ✓ MỞ KHÓA NGAY
                         </button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.patternLock?.drawAndUnlockDefaultPattern()">
-                            ⚡ Tự động vẽ mẫu chữ L
-                        </button>
                         <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.reset()">
                             🔄 Vẽ lại
                         </button>
@@ -211,7 +197,7 @@
                     <div style="text-align: center; margin-top: 10px;">
                         <button type="button" class="btn btn-subtle btn-sm"
                             onclick="window.authController.switchGateMode('pin')" style="font-size: 11.5px;">
-                            🔑 Chuyển sang nhập Mã PIN (123456)
+                            🔑 Chuyển sang nhập Mã PIN
                         </button>
                     </div>
                 </div>
@@ -243,7 +229,6 @@
                 <div class="gate-quick-doctors-wrap">
                     <div class="gate-sub-label">
                         <span>Bác sĩ trong khoa (Bấm chọn nhanh):</span>
-                        <span class="gate-pin-badge">🔑 PIN mặc định: <strong>123456</strong></span>
                     </div>
                     <div class="gate-doc-chips" id="gateDocChips">
                         <!-- Render bởi JS -->
@@ -264,12 +249,10 @@
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label class="gate-pin-label">
                             <span>Mật khẩu số (PIN):</span>
-                            <span class="gate-pin-badge">🔑 Mặc định: <strong>123456</strong></span>
                         </label>
                         <div class="pin-input-wrapper">
                             <input type="password" id="gateOtherPass" class="form-control"
-                                placeholder="Nhập PIN (123456)" pattern="[0-9]*" inputmode="numeric"
-                                value="123456"
+                                placeholder="Nhập PIN" pattern="[0-9]*" inputmode="numeric"
                                 oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
                             <button type="button" class="btn-toggle-pin"
                                 onclick="window.authController.togglePinVisibility('gateOtherPass', this)"
@@ -762,6 +745,21 @@
                         </svg>
                     </button>
 
+                    <!-- Lọc trùng bệnh nhân (Họ tên & Năm sinh) -->
+                    <button class="btn-icon-minimal btn-filter-duplicates" id="btnFilterDuplicates"
+                        onclick="window.patientController.openDuplicateModal()"
+                        data-tooltip="Lọc trùng bệnh nhân (Trùng Họ tên &amp; Năm sinh)"
+                        aria-label="Lọc trùng bệnh nhân">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span id="duplicateBadgeCount" class="badge-dup-indicator" style="display: none;">0</span>
+                    </button>
+
                     <!-- Đổi chế độ xem (Bảng / Thẻ) -->
                     <button class="btn-icon-minimal" id="btnToggleView" onclick="window.medWardApp.toggleViewMode()"
                         data-tooltip="Đổi chế độ xem (Bảng 💻 / Thẻ 📱)">
@@ -1072,6 +1070,58 @@
                         onclick="window.patientController.closePatientDetailModal()">Đóng</button>
                     <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu
                         Thông Tin</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: LỌC TRÙNG BỆNH NHÂN (TRÙNG HỌ TÊN & NĂM SINH) -->
+    <div class="modal-overlay" id="duplicatePatientModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #0284c7;">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>👥 Lọc Trùng Người Bệnh (Họ &amp; Tên, Năm Sinh)</span>
+                </div>
+                <button class="btn-close-modal" onclick="window.patientController.closeDuplicateModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="duplicateModalBody">
+                <!-- Nội dung danh sách nhóm trùng sẽ render bởi JavaScript -->
+            </div>
+            <div class="modal-footer" id="duplicateModalFooter">
+                <!-- Nút thao tác render bởi JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CẢNH BÁO TRÙNG LẶP KHI TIẾP NHẬN / SỬA NGƯỜI BỆNH -->
+    <div class="modal-overlay" id="duplicateAlertModal">
+        <div class="modal-card" style="max-width: 520px;">
+            <div class="modal-header" style="background: #fffbeb; border-bottom: 1px solid #fef08a;">
+                <div class="modal-title" style="color: #b45309;">
+                    ⚠️ Phát Hiện Trùng Bệnh Nhân
+                </div>
+                <button class="btn-close-modal" onclick="window.patientController.closeDuplicateAlertModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="duplicateAlertBody">
+                <!-- Nội dung chi tiết so sánh ca trùng -->
+            </div>
+            <div class="modal-footer" style="flex-direction: column; gap: 8px;">
+                <button type="button" class="btn btn-warning" id="btnDupOpenExisting" style="width: 100%; justify-content: center; font-weight: 700;">
+                    🩺 Mở Ca Đã Có Để Cập Nhật
+                </button>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="window.patientController.closeDuplicateAlertModal()">
+                        Hủy Bỏ
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnDupProceedAdd" style="flex: 1; font-weight: 700;">
+                        Vẫn Tiếp Tục Thêm
+                    </button>
                 </div>
             </div>
         </div>
@@ -1403,7 +1453,7 @@
                         <div class="form-group">
                             <label>Mật khẩu số (PIN) đăng nhập Không Gian:</label>
                             <input type="password" id="profPin" class="form-control"
-                                placeholder="Để trống nếu không đổi (Mặc định: 123456)" pattern="[0-9]*"
+                                placeholder="Để trống nếu không đổi" pattern="[0-9]*"
                                 inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <small
                                 style="font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 3px;">*
@@ -1418,7 +1468,7 @@
                                     <span>🔲 Hình vẽ mở khoá 9 nút:</span>
                                 </span>
                                 <span id="currentPatternBadge" class="pattern-badge-info">
-                                    Mặc định: Chữ L hoặc Z
+                                    Hình vẽ mặc định
                                 </span>
                             </div>
                             <p
@@ -1434,7 +1484,7 @@
                                 </button>
                                 <button type="button" class="btn btn-subtle btn-sm"
                                     onclick="window.patternLock?.resetToDefaultPattern()">
-                                    Khôi phục mặc định (Chữ L)
+                                    Khôi phục hình vẽ mặc định
                                 </button>
                             </div>
                         </div>
@@ -1767,7 +1817,7 @@
             <div class="modal-footer" style="display: flex; justify-content: space-between;">
                 <button type="button" class="btn btn-subtle"
                     onclick="window.patternLock?.resetToDefaultPattern(); window.patternLock?.closePatternChangeModal();">
-                    Về mặc định (Chữ L)
+                    Về hình mặc định
                 </button>
                 <button type="button" class="btn btn-secondary" onclick="window.patternLock?.closePatternChangeModal()">
                     Đóng

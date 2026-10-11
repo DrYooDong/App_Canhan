@@ -1889,6 +1889,9 @@ class PatientController {
         list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
       } else if (this.activeMobileFilter === 'pending') {
         list = list.filter(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING || p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
+      } else if (this.activeMobileFilter === 'duplicate') {
+        const dupIds = this.getDuplicatePatientIds();
+        list = list.filter(p => dupIds.has(p.id));
       } else if (this.activeMobileFilter.startsWith('room:')) {
         const targetRoom = this.activeMobileFilter.replace('room:', '');
         list = list.filter(p => this.extractRoomCode(p.phong_giuong) === targetRoom);
@@ -1944,6 +1947,9 @@ class PatientController {
     if (window.authController && window.authController.updateHeaderPill) {
       window.authController.updateHeaderPill(filtered.length, this.patientList.length);
     }
+
+    // Cập nhật badge lọc trùng trên thanh công cụ
+    this.updateDuplicateBadge();
 
     // Cập nhật thanh tóm tắt Mobile (Mobile Clinical Header)
     this.updateMobileSummaryBar();
@@ -2046,6 +2052,16 @@ class PatientController {
           </button>
         `;
       });
+
+      // Chip lọc người bệnh trùng lặp (nếu có ca trùng)
+      const dupCount = this.getDuplicatePatientIds().size;
+      if (dupCount > 0) {
+        html += `
+          <button class="${btnClass} chip-duplicate ${this.activeMobileFilter === 'duplicate' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('duplicate')" title="Lọc xem các người bệnh trùng Họ tên & Năm sinh">
+            👥 Trùng lặp (${dupCount})
+          </button>
+        `;
+      }
       return html;
     };
 
@@ -2651,11 +2667,49 @@ class PatientController {
 
     if (!id) {
       if (!updateData.ten) updateData.ten = 'BỆNH NHÂN MỚI';
+
+      // Kiểm tra trùng lặp: Họ tên & Năm sinh
+      const existingDup = this.findFirstDuplicate(updateData.ten, updateData.nam_sinh_tuoi, null);
+      if (existingDup) {
+        this.showDuplicateConfirmModal(updateData, existingDup, () => {
+          // Người dùng chọn vẫn tiếp tục thêm mới
+          this.addPatient(updateData);
+          this.closePatientDetailModal();
+          if (window.showToast) {
+            window.showToast(`✓ Đã tiếp nhận người bệnh "${updateData.ten}"!`);
+          }
+        }, () => {
+          // Người dùng chọn mở ca đã có để cập nhật
+          this.closePatientDetailModal();
+          this.openPatientDetailModal(existingDup.id);
+        });
+        return;
+      }
+
       this.addPatient(updateData);
       this.closePatientDetailModal();
       if (window.showToast) {
         window.showToast(`✓ Đã tiếp nhận người bệnh "${updateData.ten}"!`);
       }
+      return;
+    }
+
+    // Trường hợp cập nhật bệnh nhân: kiểm tra xem có trùng với người bệnh KHÁC không
+    const otherDup = this.findFirstDuplicate(updateData.ten, updateData.nam_sinh_tuoi, id);
+    if (otherDup) {
+      this.showDuplicateConfirmModal(updateData, otherDup, () => {
+        // Vẫn tiếp tục lưu cập nhật
+        this.updatePatient(id, updateData);
+        this.updateDoctorFilterDropdown();
+        this.closePatientDetailModal();
+        if (window.updateSaveStatus) {
+          window.updateSaveStatus('✓ Đã cập nhật thông tin người bệnh');
+        }
+      }, () => {
+        // Mở ca trùng kia
+        this.closePatientDetailModal();
+        this.openPatientDetailModal(otherDup.id);
+      });
       return;
     }
 
@@ -3054,6 +3108,649 @@ class PatientController {
     if (window.showToast) {
       window.showToast(`✓ Đã tải file sao lưu CSV: ${filename}`);
     }
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG LỌC TRÙNG BỆNH NHÂN DỰA VÀO: HỌ & TÊN + NĂM SINH
+  // ==============================================================================
+
+  // 1. Chuẩn hóa họ tên người bệnh (chữ thường, bỏ dấu cách thừa)
+  normalizePatientName(name) {
+    if (!name) return '';
+    return String(name)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  // 2. Trích xuất năm sinh 4 chữ số từ chuỗi nam_sinh_tuoi
+  extractBirthYear(str) {
+    if (!str) return null;
+    const s = String(str).trim();
+    if (!s) return null;
+
+    const curYear = new Date().getFullYear();
+
+    // Dạng 1: Tìm chuỗi 4 chữ số năm sinh 19xx hoặc 20xx
+    const m = s.match(/\b(19\d{2}|20\d{2})\b/);
+    if (m) {
+      const y = parseInt(m[1], 10);
+      if (y >= 1900 && y <= curYear + 1) return y;
+    }
+
+    // Dạng 2: Ngày tháng năm sinh dạng dd/mm/yyyy hoặc yyyy-mm-dd
+    const dateMatch = s.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})|(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dateMatch) {
+      const y = parseInt(dateMatch[1] || dateMatch[6], 10);
+      if (y >= 1900 && y <= curYear + 1) return y;
+    }
+
+    // Dạng 3: Người dùng chỉ ghi số tuổi (VD: "41 tuổi", "41t", "(41)") -> ước tính năm sinh
+    const ageMatch = s.match(/^\(?\s*(\d{1,3})\s*(?:tuổi|t)?\s*\)?$/i);
+    if (ageMatch) {
+      const age = parseInt(ageMatch[1], 10);
+      if (age >= 0 && age <= 125) {
+        return curYear - age;
+      }
+    }
+
+    return null;
+  }
+
+  // 3. Kiểm tra 2 người bệnh có trùng 02 yếu tố: Họ & Tên VÀ Năm Sinh
+  isDuplicatePatient(p1, p2) {
+    if (!p1 || !p2) return false;
+    const n1 = this.normalizePatientName(p1.ten);
+    const n2 = this.normalizePatientName(p2.ten);
+    if (!n1 || !n2 || n1 === 'bệnh nhân mới' || n2 === 'bệnh nhân mới') return false;
+    if (n1 !== n2) return false;
+
+    // Yếu tố 2: Năm sinh
+    const y1 = this.extractBirthYear(p1.nam_sinh_tuoi);
+    const y2 = this.extractBirthYear(p2.nam_sinh_tuoi);
+
+    if (y1 && y2) {
+      return y1 === y2;
+    }
+
+    // Nếu không trích được 4 số nhưng chuỗi nam_sinh_tuoi giống nhau và không rỗng
+    const raw1 = String(p1.nam_sinh_tuoi || '').trim().toLowerCase();
+    const raw2 = String(p2.nam_sinh_tuoi || '').trim().toLowerCase();
+    if (raw1 && raw2 && raw1 === raw2) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // 4. Tìm các nhóm người bệnh trùng lặp trong danh sách
+  findDuplicatePatientGroups(list = this.patientList) {
+    const map = new Map();
+    for (const p of list) {
+      if (p.is_deleted) continue;
+      const normName = this.normalizePatientName(p.ten);
+      if (!normName || normName === 'bệnh nhân mới') continue;
+
+      const bYear = this.extractBirthYear(p.nam_sinh_tuoi);
+      const rawYear = String(p.nam_sinh_tuoi || '').trim().toLowerCase();
+      const yearKey = bYear ? String(bYear) : (rawYear || null);
+
+      // Phải có cả 2 yếu tố: Họ tên VÀ Năm sinh thì mới xác định trùng
+      if (!yearKey) continue;
+
+      const groupKey = `${normName}:::${yearKey}`;
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          key: groupKey,
+          name: (p.ten || '').trim().toUpperCase(),
+          normName: normName,
+          birthYear: bYear || p.nam_sinh_tuoi || 'Chưa rõ',
+          patients: []
+        });
+      }
+      map.get(groupKey).patients.push(p);
+    }
+
+    const dupGroups = [];
+    for (const group of map.values()) {
+      if (group.patients.length >= 2) {
+        dupGroups.push(group);
+      }
+    }
+    return dupGroups;
+  }
+
+  // 5. Lấy tập hợp ID của các người bệnh trùng lặp
+  getDuplicatePatientIds(list = this.patientList) {
+    const groups = this.findDuplicatePatientGroups(list);
+    const idSet = new Set();
+    groups.forEach(g => g.patients.forEach(p => idSet.add(p.id)));
+    return idSet;
+  }
+
+  // 6. Tìm bệnh nhân đầu tiên trùng Họ tên & Năm sinh (dùng khi thêm/sửa)
+  findFirstDuplicate(name, birthYearAge, excludeId = null) {
+    if (!name) return null;
+    const normName = this.normalizePatientName(name);
+    if (!normName || normName === 'bệnh nhân mới') return null;
+
+    const targetYear = this.extractBirthYear(birthYearAge);
+    const targetRaw = String(birthYearAge || '').trim().toLowerCase();
+    if (!targetYear && !targetRaw) return null; // Cần có năm sinh để so khớp 02 yếu tố
+
+    for (const p of this.patientList) {
+      if (p.is_deleted) continue;
+      if (excludeId && p.id === excludeId) continue;
+
+      const pNormName = this.normalizePatientName(p.ten);
+      if (pNormName !== normName) continue;
+
+      const pYear = this.extractBirthYear(p.nam_sinh_tuoi);
+      const pRaw = String(p.nam_sinh_tuoi || '').trim().toLowerCase();
+
+      if (targetYear && pYear && targetYear === pYear) {
+        return p;
+      }
+      if (targetRaw && pRaw && targetRaw === pRaw) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  // 7. Cập nhật Badge báo trùng trên thanh công cụ
+  updateDuplicateBadge() {
+    const badgeEl = document.getElementById('duplicateBadgeCount');
+    if (!badgeEl) return;
+
+    const dupCount = this.getDuplicatePatientIds().size;
+    if (dupCount > 0) {
+      badgeEl.innerText = dupCount;
+      badgeEl.style.display = 'block';
+      badgeEl.title = `Có ${dupCount} người bệnh trùng Họ tên & Năm sinh`;
+    } else {
+      badgeEl.innerText = '0';
+      badgeEl.style.display = 'none';
+    }
+  }
+
+  // 8. Đánh giá độ đầy đủ thông tin của hồ sơ để ưu tiên giữ lại ca tốt nhất
+  calculatePatientScore(p) {
+    if (!p) return 0;
+    let score = 0;
+    if (p.ten && p.ten !== 'BỆNH NHÂN MỚI') score += 10;
+    if (p.phong_giuong && p.phong_giuong !== 'D1.01-1') score += 15;
+    if (p.doctor_name && !p.doctor_name.includes('Chưa')) score += 10;
+    if (p.chan_doan) score += p.chan_doan.length * 2;
+    if (p.cls) score += p.cls.length * 2;
+    if (p.cls_hien_co) score += p.cls_hien_co.length * 2;
+    if (p.cls_can_lam) score += p.cls_can_lam.length * 2;
+    if (p.y_lenh) score += p.y_lenh.length * 2;
+    if (p.them_thuoc) score += p.them_thuoc.length;
+    if (p.handover_status && p.handover_status !== CONFIG.HANDOVER_STATUS.NONE) score += 20;
+    if (p.handover_issues) score += p.handover_issues.length;
+    if (p.handover_actions) score += p.handover_actions.length;
+    return score;
+  }
+
+  // 9. Mở Modal Lọc Trùng Bệnh Nhân
+  openDuplicateModal() {
+    const modal = document.getElementById('duplicatePatientModal');
+    if (!modal) return;
+
+    this.renderDuplicateModalContent();
+    modal.classList.add('active');
+  }
+
+  // 10. Đóng Modal Lọc Trùng Bệnh Nhân
+  closeDuplicateModal() {
+    const modal = document.getElementById('duplicatePatientModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  // 11. Render nội dung Modal Lọc Trùng Bệnh Nhân
+  renderDuplicateModalContent() {
+    const bodyEl = document.getElementById('duplicateModalBody');
+    const footerEl = document.getElementById('duplicateModalFooter');
+    if (!bodyEl) return;
+
+    const dupGroups = this.findDuplicatePatientGroups();
+    const totalDupPatients = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
+
+    // TRƯỜNG HỢP: KHÔNG CÓ BỆNH NHÂN NÀO BỊ TRÙNG
+    if (dupGroups.length === 0) {
+      bodyEl.innerHTML = `
+        <div class="dup-banner-alert success">
+          <div class="dup-banner-icon">✅</div>
+          <div>
+            <div class="dup-banner-title">Danh sách sạch sẽ - Không phát hiện trùng lặp!</div>
+            <div>Tất cả người bệnh trong ngày <strong>${this.escape(this.currentDate)}</strong> đều có thông tin Họ &amp; tên và Năm sinh phân biệt rõ ràng.</div>
+          </div>
+        </div>
+        <div style="text-align: center; padding: 30px 10px; color: var(--text-muted);">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 12px; color: #10b981;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">Hệ thống đã rà soát toàn bộ ${this.patientList.length} người bệnh</div>
+          <div style="font-size: 13px; margin-top: 4px;">Tính năng lọc trùng tự động giúp bạn an tâm không bị trùng lặp hồ sơ và y lệnh.</div>
+        </div>
+      `;
+
+      if (footerEl) {
+        footerEl.innerHTML = `
+          <button type="button" class="btn btn-secondary" onclick="window.patientController.closeDuplicateModal()">Đóng</button>
+        `;
+      }
+      return;
+    }
+
+    // TRƯỜNG HỢP: PHÁT HIỆN CÓ CÁC NHÓM TRÙNG LẶP
+    let bodyHtml = `
+      <div class="dup-banner-alert warning">
+        <div class="dup-banner-icon">⚠️</div>
+        <div>
+          <div class="dup-banner-title">Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDupPatients} ca) trùng Họ tên &amp; Năm sinh!</div>
+          <div>Hệ thống đã nhận diện các hồ sơ có cùng <strong>Họ &amp; Tên</strong> và <strong>Năm sinh</strong>. Vui lòng kiểm tra và lựa chọn bản ghi bạn muốn <strong>GIỮ LẠI</strong> cho mỗi nhóm:</div>
+        </div>
+      </div>
+
+      <div class="dup-options-bar">
+        <label>
+          <input type="checkbox" id="chkAutoMergeNotes" checked>
+          <span>Tự động gộp Chẩn đoán, CLS &amp; Y lệnh từ ca bị xóa sang ca được giữ lại (bảo toàn dữ liệu)</span>
+        </label>
+        <span style="color: var(--text-muted); font-size: 12px;">Đã tự động chọn ca đầy đủ nhất ⚡</span>
+      </div>
+
+      <div class="dup-group-container">
+    `;
+
+    dupGroups.forEach((group, gIdx) => {
+      // Tìm ca có điểm cao nhất để mặc định chọn giữ lại
+      let bestPatient = group.patients[0];
+      let maxScore = -1;
+      group.patients.forEach(p => {
+        const sc = this.calculatePatientScore(p);
+        if (sc > maxScore) {
+          maxScore = sc;
+          bestPatient = p;
+        }
+      });
+
+      bodyHtml += `
+        <div class="dup-group-box" data-group-index="${gIdx}">
+          <div class="dup-group-head">
+            <div class="dup-group-title">
+              <span>👤</span>
+              <span class="dup-name-badge">${this.escape(group.name)}</span>
+              <span class="dup-year-badge">🎂 Năm sinh: ${this.escape(String(group.birthYear))}</span>
+            </div>
+            <span class="dup-count-tag">${group.patients.length} bản ghi trùng</span>
+          </div>
+
+          <div class="dup-items-list">
+      `;
+
+      group.patients.forEach(p => {
+        const isBest = (p.id === bestPatient.id);
+        const radioName = `dup_group_keep_${gIdx}`;
+        const cdShort = p.chan_doan || 'Chưa ghi chẩn đoán';
+        const clsShort = p.cls || (p.cls_hien_co ? `[Hiện có]: ${p.cls_hien_co}` : '') || '';
+        const ylShort = p.y_lenh || '';
+
+        bodyHtml += `
+          <div class="dup-item-card ${isBest ? 'is-selected' : ''}" id="dup_card_${p.id}" onclick="window.patientController.selectDuplicateItemRadio('${radioName}', '${p.id}')">
+            <div class="dup-item-radio">
+              <input type="radio" name="${radioName}" value="${p.id}" ${isBest ? 'checked' : ''} onchange="window.patientController.handleDuplicateRadioChange('${radioName}', '${p.id}')" onclick="event.stopPropagation()">
+            </div>
+            <div class="dup-item-content">
+              <div class="dup-item-header">
+                <div class="dup-item-badges">
+                  <span class="dup-badge-room">🚪 ${this.escape(p.phong_giuong || 'Chưa xếp phòng')}</span>
+                  <span class="dup-badge-doc">👨‍⚕️ ${this.escape(p.doctor_name || 'Chưa phân công')}</span>
+                  ${p.handover_status && p.handover_status !== CONFIG.HANDOVER_STATUS.NONE ? `<span class="ho-status-badge ${p.handover_status}">🚨 Bàn giao: ${this.escape(p.handover_status)}</span>` : ''}
+                </div>
+                <span class="dup-action-badge ${isBest ? 'keep' : 'remove'}" id="dup_status_badge_${p.id}">
+                  ${isBest ? '✓ Giữ lại' : '✕ Sẽ xóa'}
+                </span>
+              </div>
+
+              <div class="dup-item-detail">
+                <strong>Chẩn đoán:</strong> ${this.escape(cdShort)}
+              </div>
+
+              ${clsShort ? `<div class="dup-item-detail"><strong>CLS:</strong> ${this.escape(clsShort.length > 120 ? clsShort.substring(0, 120) + '...' : clsShort)}</div>` : ''}
+              ${ylShort ? `<div class="dup-item-detail"><strong>Y lệnh:</strong> ${this.escape(ylShort.length > 120 ? ylShort.substring(0, 120) + '...' : ylShort)}</div>` : ''}
+
+              <div class="dup-item-actions" onclick="event.stopPropagation()">
+                <button type="button" class="btn-dup-action" onclick="window.patientController.openPatientDetailModal('${p.id}')" title="Xem &amp; sửa hồ sơ này">
+                  👁️ Xem chi tiết
+                </button>
+                <button type="button" class="btn-dup-action danger" onclick="window.patientController.deleteSingleDuplicatePatient('${p.id}')" title="Xóa ngay bản ghi này">
+                  🗑️ Xóa bản ghi này
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      bodyHtml += `
+          </div>
+        </div>
+      `;
+    });
+
+    bodyHtml += `</div>`;
+    bodyEl.innerHTML = bodyHtml;
+
+    if (footerEl) {
+      footerEl.innerHTML = `
+        <button type="button" class="btn btn-secondary" onclick="window.patientController.filterDuplicatesOnMainTable()" title="Lọc hiển thị danh sách các ca trùng trên bảng chính">
+          🔍 Xem Trên Bảng Chính
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" onclick="window.patientController.closeDuplicateModal()">Đóng</button>
+          <button type="button" class="btn btn-primary" onclick="window.patientController.executeSelectedDeduplicate()" style="font-weight: 700;">
+            ✓ Lọc Theo Lựa Chọn Đã Tích
+          </button>
+          <button type="button" class="btn btn-success" onclick="window.patientController.executeAutoDeduplicate()" style="font-weight: 700;" title="Tự động giữ ca đầy đủ nhất của mỗi nhóm và xóa các ca thừa">
+            ⚡ Tự Động Lọc Nhanh
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  // 12. Xử lý khi click vào radio chọn ca giữ lại trong nhóm
+  selectDuplicateItemRadio(radioName, patientId) {
+    const radio = document.querySelector(`input[name="${radioName}"][value="${patientId}"]`);
+    if (radio) {
+      radio.checked = true;
+      this.handleDuplicateRadioChange(radioName, patientId);
+    }
+  }
+
+  handleDuplicateRadioChange(radioName, selectedId) {
+    const radios = document.querySelectorAll(`input[name="${radioName}"]`);
+    radios.forEach(r => {
+      const card = document.getElementById(`dup_card_${r.value}`);
+      const badge = document.getElementById(`dup_status_badge_${r.value}`);
+      if (r.value === selectedId) {
+        if (card) card.classList.add('is-selected');
+        if (badge) {
+          badge.className = 'dup-action-badge keep';
+          badge.innerText = '✓ Giữ lại';
+        }
+      } else {
+        if (card) card.classList.remove('is-selected');
+        if (badge) {
+          badge.className = 'dup-action-badge remove';
+          badge.innerText = '✕ Sẽ xóa';
+        }
+      }
+    });
+  }
+
+  // 13. Xóa một bệnh nhân trùng trực tiếp trong modal
+  async deleteSingleDuplicatePatient(patientId) {
+    const p = this.patientList.find(x => x.id === patientId);
+    const pName = p ? p.ten : 'người bệnh này';
+    const pRoom = p ? p.phong_giuong : '';
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa bản ghi của "${pName}" (${pRoom}) không?`)) {
+      return;
+    }
+
+    this.patientList = this.patientList.filter(x => x.id !== patientId);
+    this.saveLocalCache();
+    this.updateDoctorFilterDropdown();
+    this.render();
+
+    await window.supabaseService.deletePatient(patientId).catch(() => {});
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã xóa bản ghi trùng lặp "${pName}" (${pRoom})`);
+    }
+
+    // Render lại modal lọc trùng
+    this.renderDuplicateModalContent();
+  }
+
+  // 14. Gộp thông tin từ bệnh nhân bị xóa sang bệnh nhân được giữ lại
+  mergeDuplicatePatientData(keepPatient, removePatient) {
+    if (!keepPatient || !removePatient) return;
+
+    // Gộp chẩn đoán nếu ca bị xóa có chẩn đoán bổ sung
+    const cdOld = (removePatient.chan_doan || '').trim();
+    const cdKeep = (keepPatient.chan_doan || '').trim();
+    if (cdOld && !cdKeep.includes(cdOld)) {
+      keepPatient.chan_doan = cdKeep ? `${cdKeep} / [Từ ca trùng]: ${cdOld}` : cdOld;
+    }
+
+    // Gộp Cận lâm sàng
+    const clsOld = (removePatient.cls || '').trim();
+    const clsKeep = (keepPatient.cls || '').trim();
+    if (clsOld && !clsKeep.includes(clsOld)) {
+      keepPatient.cls = clsKeep ? `${clsKeep}\n[CLS ca trùng]: ${clsOld}` : clsOld;
+    }
+
+    // Gộp Y lệnh
+    const ylOld = (removePatient.y_lenh || '').trim();
+    const ylKeep = (keepPatient.y_lenh || '').trim();
+    if (ylOld && !ylKeep.includes(ylOld)) {
+      keepPatient.y_lenh = ylKeep ? `${ylKeep}\n[Y lệnh ca trùng]: ${ylOld}` : ylOld;
+    }
+
+    // Kế thừa báo động đỏ nếu ca bị xóa có báo động đỏ mà ca giữ lại chưa có
+    if (removePatient.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL && keepPatient.handover_status !== CONFIG.HANDOVER_STATUS.CRITICAL) {
+      keepPatient.handover_status = CONFIG.HANDOVER_STATUS.CRITICAL;
+      keepPatient.handover_issues = [keepPatient.handover_issues, removePatient.handover_issues].filter(Boolean).join('\n');
+      keepPatient.handover_actions = [keepPatient.handover_actions, removePatient.handover_actions].filter(Boolean).join('\n');
+    }
+  }
+
+  // 15. Thực hiện Lọc Trùng Tự Động: Giữ ca đầy đủ nhất của mỗi nhóm, xóa các ca thừa
+  async executeAutoDeduplicate() {
+    const dupGroups = this.findDuplicatePatientGroups();
+    if (dupGroups.length === 0) {
+      if (window.showToast) window.showToast('Không có người bệnh nào bị trùng lặp!');
+      return;
+    }
+
+    const shouldMerge = document.getElementById('chkAutoMergeNotes') ? document.getElementById('chkAutoMergeNotes').checked : true;
+    const idsToRemove = [];
+    let keptCount = 0;
+
+    dupGroups.forEach(group => {
+      // Tìm ca có điểm cao nhất
+      let bestPatient = group.patients[0];
+      let maxScore = -1;
+      group.patients.forEach(p => {
+        const sc = this.calculatePatientScore(p);
+        if (sc > maxScore) {
+          maxScore = sc;
+          bestPatient = p;
+        }
+      });
+
+      // Các ca còn lại sẽ bị xóa
+      group.patients.forEach(p => {
+        if (p.id !== bestPatient.id) {
+          if (shouldMerge) {
+            this.mergeDuplicatePatientData(bestPatient, p);
+          }
+          idsToRemove.push(p.id);
+        }
+      });
+      keptCount++;
+    });
+
+    if (idsToRemove.length === 0) return;
+
+    if (!confirm(`Hệ thống sẽ giữ lại ${keptCount} ca bệnh đầy đủ nhất và XÓA ${idsToRemove.length} bản ghi trùng lặp thừa.\n\n${shouldMerge ? '✓ Dữ liệu CĐ, CLS và Y lệnh sẽ được tự động gộp an toàn.\n\n' : ''}Bạn có chắc chắn muốn thực hiện?`)) {
+      return;
+    }
+
+    // Cập nhật danh sách cục bộ
+    this.patientList = this.patientList.filter(p => !idsToRemove.includes(p.id));
+    this.saveLocalCache();
+    this.updateDoctorFilterDropdown();
+    this.render();
+
+    // Đồng bộ lên Supabase Cloud
+    for (const pid of idsToRemove) {
+      await window.supabaseService.deletePatient(pid).catch(() => {});
+    }
+    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(() => {});
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã lọc trùng thành công! Đã xóa ${idsToRemove.length} bản ghi trùng thừa.`);
+    }
+
+    this.closeDuplicateModal();
+  }
+
+  // 16. Thực hiện Lọc Trùng Theo Lựa Chọn Đã Tích của Người Dùng
+  async executeSelectedDeduplicate() {
+    const dupGroups = this.findDuplicatePatientGroups();
+    if (dupGroups.length === 0) {
+      this.closeDuplicateModal();
+      return;
+    }
+
+    const shouldMerge = document.getElementById('chkAutoMergeNotes') ? document.getElementById('chkAutoMergeNotes').checked : true;
+    const idsToRemove = [];
+    let keptCount = 0;
+
+    dupGroups.forEach((group, gIdx) => {
+      const radioName = `dup_group_keep_${gIdx}`;
+      const selectedRadio = document.querySelector(`input[name="${radioName}"]:checked`);
+      const keepId = selectedRadio ? selectedRadio.value : group.patients[0].id;
+      const keepPatient = group.patients.find(p => p.id === keepId) || group.patients[0];
+
+      group.patients.forEach(p => {
+        if (p.id !== keepPatient.id) {
+          if (shouldMerge) {
+            this.mergeDuplicatePatientData(keepPatient, p);
+          }
+          idsToRemove.push(p.id);
+        }
+      });
+      keptCount++;
+    });
+
+    if (idsToRemove.length === 0) {
+      this.closeDuplicateModal();
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn giữ lại ${keptCount} người bệnh đã chọn và xóa ${idsToRemove.length} bản ghi trùng thừa không?`)) {
+      return;
+    }
+
+    this.patientList = this.patientList.filter(p => !idsToRemove.includes(p.id));
+    this.saveLocalCache();
+    this.updateDoctorFilterDropdown();
+    this.render();
+
+    for (const pid of idsToRemove) {
+      await window.supabaseService.deletePatient(pid).catch(() => {});
+    }
+    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(() => {});
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã hoàn tất lọc trùng theo lựa chọn (${idsToRemove.length} bản ghi thừa đã xóa).`);
+    }
+
+    this.closeDuplicateModal();
+  }
+
+  // 17. Lọc chỉ xem các ca trùng lặp ngay trên bảng chính
+  filterDuplicatesOnMainTable() {
+    this.closeDuplicateModal();
+    this.setMobileFilter('duplicate');
+    this.scrollToTop();
+    if (window.showToast) {
+      window.showToast('🔍 Đang lọc danh sách chỉ hiển thị các ca trùng Họ tên & Năm sinh');
+    }
+  }
+
+  // 18. Hiển thị Modal Cảnh Báo Trùng Lặp Khi Tiếp Nhận / Sửa Người Bệnh
+  showDuplicateConfirmModal(newData, existingDup, onProceedAdd, onOpenExisting) {
+    const modal = document.getElementById('duplicateAlertModal');
+    const bodyEl = document.getElementById('duplicateAlertBody');
+    const btnProceed = document.getElementById('btnDupProceedAdd');
+    const btnOpenExist = document.getElementById('btnDupOpenExisting');
+
+    if (!modal || !bodyEl) {
+      // Fallback nếu không tìm thấy modal DOM
+      const ans = confirm(`⚠️ CẢNH BÁO TRÙNG BỆNH NHÂN:\nNgười bệnh "${newData.ten}" (Năm sinh: ${newData.nam_sinh_tuoi || 'chưa rõ'}) đã tồn tại trong danh sách:\n• Buồng/Giường: ${existingDup.phong_giuong}\n• Bác sĩ: ${existingDup.doctor_name}\n• CĐ: ${existingDup.chan_doan}\n\nBạn có muốn tiếp tục thêm người bệnh này không?`);
+      if (ans && typeof onProceedAdd === 'function') onProceedAdd();
+      return;
+    }
+
+    const bYear = this.extractBirthYear(newData.nam_sinh_tuoi) || newData.nam_sinh_tuoi || 'Chưa rõ';
+
+    bodyEl.innerHTML = `
+      <div style="font-size: 13.5px; line-height: 1.5; margin-bottom: 12px; color: var(--text-main);">
+        Hệ thống phát hiện người bệnh <strong>${this.escape(newData.ten)}</strong> (Năm sinh: <strong>${this.escape(String(bYear))}</strong>) đã tồn tại trong danh sách điều trị hôm nay:
+      </div>
+
+      <div class="dup-alert-summary">
+        <div style="font-weight: 800; font-size: 13.5px; color: #0284c7; margin-bottom: 8px;">
+          📋 Hồ sơ người bệnh đã có trong danh sách:
+        </div>
+        <div class="row-info">
+          <span class="row-label">Họ &amp; Tên:</span>
+          <span class="row-val">${this.escape(existingDup.ten)}</span>
+        </div>
+        <div class="row-info">
+          <span class="row-label">Năm sinh:</span>
+          <span class="row-val">${this.escape(existingDup.nam_sinh_tuoi || '—')}</span>
+        </div>
+        <div class="row-info">
+          <span class="row-label">Phòng/Giường:</span>
+          <span class="row-val" style="color: #4338ca;">${this.escape(existingDup.phong_giuong || '—')}</span>
+        </div>
+        <div class="row-info">
+          <span class="row-label">Bác sĩ:</span>
+          <span class="row-val">${this.escape(existingDup.doctor_name || 'Chưa phân công')}</span>
+        </div>
+        <div class="row-info">
+          <span class="row-label">Chẩn đoán:</span>
+          <span class="row-val" style="font-size: 12.5px;">${this.escape(existingDup.chan_doan || 'Chưa ghi')}</span>
+        </div>
+      </div>
+
+      <div style="font-size: 12.5px; color: var(--text-muted); background: #fef3c7; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 6px;">
+        💡 <strong>Gợi ý:</strong> Nếu đây là cùng một người bệnh, bạn nên chọn <strong>"Mở Ca Đã Có Để Cập Nhật"</strong> để tránh trùng lặp số liệu khoa.
+      </div>
+    `;
+
+    // Gán sự kiện
+    if (btnProceed) {
+      btnProceed.onclick = () => {
+        this.closeDuplicateAlertModal();
+        if (typeof onProceedAdd === 'function') onProceedAdd();
+      };
+    }
+
+    if (btnOpenExist) {
+      btnOpenExist.onclick = () => {
+        this.closeDuplicateAlertModal();
+        if (typeof onOpenExisting === 'function') onOpenExisting();
+      };
+    }
+
+    modal.classList.add('active');
+  }
+
+  // 19. Đóng Modal Cảnh Báo Trùng Lặp
+  closeDuplicateAlertModal() {
+    const modal = document.getElementById('duplicateAlertModal');
+    if (modal) modal.classList.remove('active');
   }
 
   escape(str) {

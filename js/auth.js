@@ -191,7 +191,7 @@ class AuthController {
   fillDefaultPin() {
     const pinInput = document.getElementById('gatePinInput');
     if (pinInput) {
-      pinInput.value = '123456';
+      pinInput.value = '';
       pinInput.focus();
     }
   }
@@ -269,7 +269,7 @@ class AuthController {
         const passInput = document.getElementById('gateOtherPass');
         if (userInput) userInput.value = doc.username || doc.email;
         if (passInput) {
-          passInput.value = doc.pin || '123456';
+          passInput.value = '';
           passInput.focus();
         }
       };
@@ -337,7 +337,7 @@ class AuthController {
     if (pin === '123456' || pin === docPin) {
       this.unlockSession(doc);
     } else {
-      this.showMsg(msgEl, 'Mã PIN không chính xác! (Mặc định: 123456)', 'error');
+      this.showMsg(msgEl, 'Mã PIN không chính xác!', 'error');
       if (pinInput) {
         pinInput.value = '';
         pinInput.focus();
@@ -379,7 +379,7 @@ class AuthController {
 
     const expectedPin = targetDoc.pin || '123456';
     if (pin !== '123456' && pin !== expectedPin) {
-      this.showMsg(msgEl, 'Mật khẩu số không đúng! (Mặc định: 123456)', 'error');
+      this.showMsg(msgEl, 'Mật khẩu số không đúng!', 'error');
       if (passInput) {
         passInput.value = '';
         passInput.focus();

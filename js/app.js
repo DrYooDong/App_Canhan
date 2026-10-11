@@ -576,6 +576,17 @@ class MedWardApp {
           } catch (syncErr) {
             window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
           }
+
+          // Kiểm tra và thông báo nếu có bệnh nhân trùng lặp Họ tên & Năm sinh
+          setTimeout(() => {
+            const dupGroups = window.patientController?.findDuplicatePatientGroups?.() || [];
+            if (dupGroups.length > 0) {
+              const totalDup = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
+              if (confirm(`⚠️ Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDup} ca) trùng Họ tên & Năm sinh sau khi dán dữ liệu.\n\nBạn có muốn mở bảng "Lọc trùng bệnh nhân" để kiểm tra và xử lý ngay không?`)) {
+                window.patientController?.openDuplicateModal?.();
+              }
+            }
+          }, 600);
         }
       }
     });
@@ -677,6 +688,17 @@ class MedWardApp {
         } catch (syncErr) {
           window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
         }
+
+        // Kiểm tra và thông báo nếu có bệnh nhân trùng lặp Họ tên & Năm sinh
+        setTimeout(() => {
+          const dupGroups = window.patientController?.findDuplicatePatientGroups?.() || [];
+          if (dupGroups.length > 0) {
+            const totalDup = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
+            if (confirm(`⚠️ Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDup} ca) trùng Họ tên & Năm sinh từ file Excel.\n\nBạn có muốn mở bảng "Lọc trùng bệnh nhân" để kiểm tra và xử lý ngay không?`)) {
+              window.patientController?.openDuplicateModal?.();
+            }
+          }
+        }, 600);
       } catch (err) {
         console.error('Lỗi nạp file Excel:', err);
         window.showToast('⚠️ Lỗi đọc file Excel: ' + (err.message || 'File không hợp lệ'));
