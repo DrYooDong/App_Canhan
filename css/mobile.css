@@ -186,6 +186,8 @@ body.view-table .mobile-cards-view {
   font-size: 12.5px;
   color: #1e293b;
   line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .card-diagnosis-box strong {
@@ -1329,6 +1331,8 @@ body.view-table .mobile-cards-view {
     font-size: 12.5px;
     color: #1e293b;
     line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .card-diagnosis-box strong {
@@ -1715,4 +1719,179 @@ body.view-table .mobile-cards-view {
     padding: 4px 8px;
     font-size: 11px;
   }
+}
+
+/* ==============================================================================
+   MOBILE STYLES: COLOR-CODED ROOMS & DENGUE TRENDLINE
+   ============================================================================== */
+
+/* Mobile Card Room Badge & Accent */
+.card-room-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* Mobile Card Dengue Trend Strip */
+.card-dengue-trend-box {
+  background: linear-gradient(135deg, #fff1f2 0%, #f0f9ff 100%);
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card-dengue-trend-box:active {
+  transform: scale(0.99);
+  background: #ffe4e6;
+}
+
+.trend-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.trend-title-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #9f1239;
+  letter-spacing: 0.2px;
+}
+
+.trend-badge-pulse {
+  font-size: 13px;
+}
+
+.btn-trend-open {
+  background: transparent;
+  border: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0284c7;
+  padding: 0;
+  cursor: pointer;
+}
+
+.trend-box-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trend-sparkline-wrap {
+  flex: 1;
+  max-width: 150px;
+}
+
+.trend-metrics-row {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.trend-metric {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.trend-metric .m-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.trend-metric .m-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.trend-metric.metric-hct .m-val {
+  color: #e11d48;
+}
+
+.trend-metric.metric-tc .m-val {
+  color: #0284c7;
+}
+
+.trend-metric .m-delta {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.trend-metric .m-delta.up {
+  color: #dc2626;
+}
+
+.trend-metric .m-delta.down {
+  color: #2563eb;
+}
+
+.trend-metric.alert-danger {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.trend-box-alert {
+  margin-top: 6px;
+  padding: 3px 6px;
+  background: #fee2e2;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Dark mode for mobile Dengue elements */
+body.dark-theme .card-dengue-trend-box {
+  background: linear-gradient(135deg, #2a0e16 0%, #082137 100%);
+  border-color: #881337;
+}
+
+body.dark-theme .trend-title-tag {
+  color: #fda4af;
+}
+
+body.dark-theme .trend-metric {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+body.dark-theme .trend-metric .m-val {
+  color: #e2e8f0;
+}
+
+body.dark-theme .trend-metric.metric-hct .m-val {
+  color: #fb7185;
+}
+
+body.dark-theme .trend-metric.metric-tc .m-val {
+  color: #38bdf8;
+}
+
+body.dark-theme .trend-box-alert {
+  background: #450a0a;
+  color: #fca5a5;
 }

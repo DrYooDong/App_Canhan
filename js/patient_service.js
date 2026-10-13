@@ -885,6 +885,542 @@ class PatientController {
     return str || 'Chưa xếp phòng';
   }
 
+  // LẤY BỘ MÀU PHÂN LOẠI BUỒNG THEO MÃ BUỒNG (COLOR-CODED ROOMS)
+  getRoomTheme(roomCode) {
+    if (window.CONFIG && typeof window.CONFIG.getRoomColorTheme === 'function') {
+      return window.CONFIG.getRoomColorTheme(roomCode);
+    }
+    return { name: 'cerulean', accent: '#0284c7', bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd' };
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG 2: XU HƯỚNG DENGUE (HCT & TIỂU CẦU TRENDLINE)
+  // ==============================================================================
+  isDenguePatient(p) {
+    if (!p) return false;
+    if (Array.isArray(p.dengue_trends) && p.dengue_trends.length > 0) return true;
+    const cd = (p.chan_doan || '').toLowerCase();
+    if (/\b(sxh|dengue|sốt\s*xuất\s*huyết|sot\s*xuat\s*huyet|cô\s*đặc\s*máu)\b/i.test(cd)) return true;
+    const cls = (p.cls_hien_co || p.cls || '').toLowerCase();
+    if ((cls.includes('hct') || cls.includes('hematocrit')) && (cls.includes('tc') || cls.includes('tiểu cầu') || cls.includes('tieu cau'))) return true;
+    return false;
+  }
+
+  getPatientDengueTrends(p) {
+    if (!p) return [];
+    if (Array.isArray(p.dengue_trends) && p.dengue_trends.length > 0) {
+      return p.dengue_trends;
+    }
+    // Tự động phân tích từ chuỗi kết quả CLS hiện có nếu chưa có mảng riêng
+    const text = `${p.cls_hien_co || ''} ${p.cls || ''}`;
+    const hctMatch = text.match(/(?:hct|hematocrit)\s*[:=]?\s*(\d{2}(?:\.\d)?)\s*%?/i);
+    const tcMatch = text.match(/(?:tc|tiểu\s*cầu|tieu\s*cau)\s*[:=]?\s*(\d{1,3}(?:\.\d)?)\s*(?:k|nghìn|\.000)?/i);
+    if (hctMatch && tcMatch) {
+      const hct = parseFloat(hctMatch[1]);
+      let tc = parseFloat(tcMatch[1]);
+      if (tc < 10 && tc > 0) tc = tc * 100;
+      return [{
+        id: 'auto-base',
+        date: this.currentDate || this.getTodayDMY(),
+        time: '08:00',
+        hct: hct,
+        tc: tc,
+        note: 'Mốc ban đầu'
+      }];
+    }
+    return [];
+  }
+
+  calculateDengueDelta(trends) {
+    if (!trends || trends.length === 0) return null;
+    const latest = trends[trends.length - 1];
+    const first = trends[0];
+    const prev = trends.length >= 2 ? trends[trends.length - 2] : null;
+
+    const deltaHct = prev ? parseFloat((latest.hct - prev.hct).toFixed(1)) : null;
+    const deltaTc = prev ? (latest.tc - prev.tc) : null;
+    const percentRise = first.hct > 0 ? parseFloat(((latest.hct - first.hct) / first.hct * 100).toFixed(1)) : 0;
+
+    const isHemoconcentration = percentRise >= 20 || latest.hct >= 45;
+    const isSevereThrombocytopenia = latest.tc < 50;
+    const isCriticalTc = latest.tc < 20;
+
+    let alertHtml = '';
+    if (isCriticalTc) {
+      alertHtml = `<div class="trend-box-alert">🚨 BÁO ĐỘNG ĐỎ: Tiểu cầu < 20k (nguy cơ xuất huyết cao)!</div>`;
+    } else if (isHemoconcentration) {
+      alertHtml = `<div class="trend-box-alert">⚠️ CÔ ĐẶC MÁU (Hct ${latest.hct}% ${percentRise >= 20 ? '+'+percentRise+'%' : ''})!</div>`;
+    } else if (isSevereThrombocytopenia) {
+      alertHtml = `<div class="trend-box-alert">⚠️ Tiểu cầu thấp (< 50k)!</div>`;
+    }
+
+    return {
+      latestHct: latest.hct,
+      latestTc: latest.tc,
+      deltaHct,
+      deltaTc,
+      percentRise,
+      isHemoconcentration,
+      isSevereThrombocytopenia,
+      isCriticalTc,
+      alertHtml
+    };
+  }
+
+  renderDengueSparklineSvg(trends, width = 140, height = 36) {
+    if (!trends || trends.length === 0) {
+      return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="50%" y="55%" text-anchor="middle" fill="#94a3b8" font-size="10">Chưa có mốc đo</text></svg>`;
+    }
+
+    if (trends.length === 1) {
+      const pt = trends[0];
+      return `
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <line x1="8" y1="${height/2}" x2="${width-8}" y2="${height/2}" stroke="#e2e8f0" stroke-dasharray="2,2" stroke-width="1"/>
+          <circle cx="22" cy="${height/2 - 4}" r="3.5" fill="#f43f5e" />
+          <circle cx="22" cy="${height/2 + 6}" r="3.5" fill="#0284c7" />
+          <text x="32" y="${height/2 + 3}" fill="#64748b" font-size="9.5" font-weight="700">${pt.hct}% / ${pt.tc}k</text>
+        </svg>
+      `;
+    }
+
+    const padX = 10;
+    const padY = 6;
+    const usableW = width - padX * 2;
+    const usableH = height - padY * 2;
+    const n = trends.length;
+
+    const minHct = 30;
+    const maxHct = 55;
+    const getYHct = (val) => padY + usableH - ((Math.max(minHct, Math.min(maxHct, val)) - minHct) / (maxHct - minHct)) * usableH;
+
+    const minTc = 10;
+    const maxTc = 200;
+    const getYTc = (val) => padY + usableH - ((Math.max(minTc, Math.min(maxTc, val)) - minTc) / (maxTc - minTc)) * usableH;
+
+    const getX = (idx) => padX + (idx / (n - 1)) * usableW;
+
+    let dHct = '';
+    let dTc = '';
+    let dotsHct = '';
+    let dotsTc = '';
+
+    trends.forEach((t, i) => {
+      const x = getX(i);
+      const yH = getYHct(t.hct);
+      const yT = getYTc(t.tc);
+
+      if (i === 0) {
+        dHct += `M ${x.toFixed(1)} ${yH.toFixed(1)}`;
+        dTc += `M ${x.toFixed(1)} ${yT.toFixed(1)}`;
+      } else {
+        dHct += ` L ${x.toFixed(1)} ${yH.toFixed(1)}`;
+        dTc += ` L ${x.toFixed(1)} ${yT.toFixed(1)}`;
+      }
+
+      const isLast = i === n - 1;
+      dotsHct += `<circle cx="${x.toFixed(1)}" cy="${yH.toFixed(1)}" r="${isLast ? 3.5 : 2}" fill="#f43f5e" ${isLast ? 'stroke="#ffffff" stroke-width="1.5"' : ''}/>`;
+      dotsTc += `<circle cx="${x.toFixed(1)}" cy="${yT.toFixed(1)}" r="${isLast ? 3.5 : 2}" fill="#0284c7" ${isLast ? 'stroke="#ffffff" stroke-width="1.5"' : ''}/>`;
+    });
+
+    const yWarn = getYHct(45);
+
+    return `
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible;">
+        <line x1="${padX}" y1="${yWarn.toFixed(1)}" x2="${(width-padX)}" y2="${yWarn.toFixed(1)}" stroke="#fecaca" stroke-dasharray="2,2" stroke-width="1" />
+        <path d="${dHct}" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${dTc}" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dotsHct}
+        ${dotsTc}
+      </svg>
+    `;
+  }
+
+  renderCardDengueTrendHtml(p) {
+    const trends = this.getPatientDengueTrends(p);
+    const delta = this.calculateDengueDelta(trends);
+    const sparklineSvg = this.renderDengueSparklineSvg(trends, 130, 34);
+
+    return `
+      <div class="card-dengue-trend-box" onclick="event.stopPropagation(); window.patientController.openDengueTrendModal('${p.id}')">
+        <div class="trend-box-header">
+          <div class="trend-title-tag">
+            <span class="trend-badge-pulse">📈</span>
+            <strong>XU HƯỚNG SXH (Hct &amp; TC)</strong>
+          </div>
+          <button type="button" class="btn-trend-open">Chi tiết ➔</button>
+        </div>
+        <div class="trend-box-content">
+          <div class="trend-sparkline-wrap">
+            ${sparklineSvg}
+          </div>
+          <div class="trend-metrics-row">
+            <div class="trend-metric metric-hct ${delta && delta.isHemoconcentration ? 'alert-danger' : ''}">
+              <span class="m-label">Hct</span>
+              <span class="m-val">${delta ? delta.latestHct + '%' : '—'}</span>
+              ${delta && delta.deltaHct !== null ? `<span class="m-delta ${delta.deltaHct > 0 ? 'up' : 'down'}">${delta.deltaHct > 0 ? '▲+' : '▼'}${delta.deltaHct}%</span>` : ''}
+            </div>
+            <div class="trend-metric metric-tc ${delta && delta.isSevereThrombocytopenia ? 'alert-danger' : ''}">
+              <span class="m-label">TC</span>
+              <span class="m-val">${delta ? delta.latestTc + 'k' : '—'}</span>
+              ${delta && delta.deltaTc !== null ? `<span class="m-delta ${delta.deltaTc < 0 ? 'down' : 'up'}">${delta.deltaTc > 0 ? '▲+' : '▼'}${delta.deltaTc}k</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${delta && delta.alertHtml ? delta.alertHtml : ''}
+      </div>
+    `;
+  }
+
+  openDengueTrendModal(patientId) {
+    this.currentTrendPatientId = patientId;
+    const p = this.patientList.find(item => item.id === patientId);
+    if (!p) return;
+
+    this.renderDengueTrendModalBody(p);
+    const modal = document.getElementById('dengueTrendModal');
+    if (modal) modal.classList.add('active');
+  }
+
+  openDengueTrendModalFromDetail() {
+    const pId = document.getElementById('editPatientId')?.value || this.currentEditingPatientId;
+    if (pId) {
+      this.openDengueTrendModal(pId);
+    }
+  }
+
+  closeDengueTrendModal() {
+    const modal = document.getElementById('dengueTrendModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  renderDengueTrendModalBody(p) {
+    const body = document.getElementById('dengueTrendModalBody');
+    if (!body) return;
+
+    const trends = this.getPatientDengueTrends(p);
+    const delta = this.calculateDengueDelta(trends);
+    const roomTheme = this.getRoomTheme(this.extractRoomCode(p.phong_giuong));
+    const fullSvg = this.renderDengueFullChartSvg(trends, 520, 150);
+
+    let clinicalGuidanceHtml = '';
+    if (delta) {
+      if (delta.isCriticalTc) {
+        clinicalGuidanceHtml = `
+          <div class="dengue-clinical-card alert-danger">
+            <span style="font-size: 20px;">🚨</span>
+            <div>
+              <strong>BÁO ĐỘNG ĐỎ: Tiểu cầu < 20.000/µL</strong><br>
+              Nguy cơ xuất huyết tự nhiên rất cao. Theo dõi sát tri giác, da niêm, phân, nước tiểu. Hạn chế tiêm bắp, lấy ven cẩn trọng, sẵn sàng chỉ định truyền khối tiểu cầu nếu có xuất huyết nặng.
+            </div>
+          </div>
+        `;
+      } else if (delta.isHemoconcentration) {
+        clinicalGuidanceHtml = `
+          <div class="dengue-clinical-card alert-danger">
+            <span style="font-size: 20px;">⚠️</span>
+            <div>
+              <strong>CÔ ĐẶC MÁU RÕ RỆT (Hct: ${delta.latestHct}%, tăng ${delta.percentRise}% so với mốc đầu)</strong><br>
+              Dấu hiệu cảnh báo thoát huyết tương theo phác đồ Bộ Y Tế. Đánh giá sinh hiệu, nước tiểu, xem xét bù dịch điện giải (Ringer Lactate) theo phác đồ SXH Dengue người lớn.
+            </div>
+          </div>
+        `;
+      } else if (delta.isSevereThrombocytopenia) {
+        clinicalGuidanceHtml = `
+          <div class="dengue-clinical-card alert-warning">
+            <span style="font-size: 20px;">⚠️</span>
+            <div>
+              <strong>TIỂU CẦU GIẢM NẶNG (< 50.000/µL)</strong><br>
+              Cần theo dõi dấu hiệu xuất huyết, dặn bệnh nhân nghỉ ngơi tuyệt đối tại giường, tránh va chạm chấn thương.
+            </div>
+          </div>
+        `;
+      } else {
+        clinicalGuidanceHtml = `
+          <div class="dengue-clinical-card alert-success">
+            <span style="font-size: 20px;">✅</span>
+            <div>
+              <strong>Chỉ số trong ngưỡng theo dõi ổn định</strong><br>
+              Hct hiện tại: ${delta.latestHct}%, Tiểu cầu: ${delta.latestTc}k. Tiếp tục theo dõi CTM + Hct theo giờ chỉ định.
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const now = new Date();
+    const curTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const curDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    let tableRows = '';
+    if (trends.length === 0) {
+      tableRows = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">Chưa có dữ liệu theo dõi nào. Hãy thêm mốc đo đầu tiên ở form bên dưới!</td></tr>`;
+    } else {
+      trends.forEach((t, idx) => {
+        tableRows += `
+          <tr>
+            <td style="font-weight: 700;">#${idx + 1}</td>
+            <td>${this.escape(t.date || curDate)}</td>
+            <td style="font-family: var(--font-mono, monospace); font-weight: 700;">${this.escape(t.time || '')}</td>
+            <td style="color: #f43f5e; font-weight: 800; font-family: var(--font-mono, monospace);">${t.hct}%</td>
+            <td style="color: #0284c7; font-weight: 800; font-family: var(--font-mono, monospace);">${t.tc}k</td>
+            <td>${this.escape(t.note || '—')}</td>
+            <td style="text-align: right;">
+              <button type="button" class="btn-table-action action-delete" onclick="window.patientController.deleteDengueTrendPoint('${p.id}', '${t.id}')" title="Xóa mốc này">✕</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    body.innerHTML = `
+      <!-- THẺ THÔNG TIN BỆNH NHÂN -->
+      <div class="dengue-modal-header-card" style="border-left: 5px solid ${roomTheme.accent};">
+        <div class="dengue-patient-meta">
+          <h3>${this.escape(p.ten || 'BỆNH NHÂN')} <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">${this.escape(p.nam_sinh_tuoi || '')}</span></h3>
+          <p>🚪 Buồng/Giường: <strong>${this.escape(p.phong_giuong || 'Chưa xếp phòng')}</strong> • CĐ: <strong>${this.escape(p.chan_doan || 'Sốt xuất huyết Dengue')}</strong></p>
+        </div>
+        <div class="dengue-patient-tags">
+          <span class="table-room-badge" style="border-color: ${roomTheme.border}; background: ${roomTheme.bg}; color: ${roomTheme.text};">
+            ${this.escape(p.phong_giuong || 'P/G')}
+          </span>
+        </div>
+      </div>
+
+      <!-- BIỂU ĐỒ DIỄN TIẾN SVG PHÓNG TO -->
+      <div class="dengue-chart-container">
+        <div class="dengue-chart-header">
+          <strong style="font-size: 13px; color: var(--text-main);">📈 Biểu Đồ Diễn Tiến Hct (%) &amp; Tiểu Cầu (k/µL)</strong>
+          <div class="dengue-chart-legend">
+            <div class="legend-item"><span class="legend-color-box hct"></span> <span>Hct (%) [Đỏ]</span></div>
+            <div class="legend-item"><span class="legend-color-box tc"></span> <span>Tiểu Cầu (k/µL) [Xanh]</span></div>
+          </div>
+        </div>
+        <div class="dengue-svg-wrapper">
+          ${fullSvg}
+        </div>
+      </div>
+
+      <!-- THẺ ĐÁNH GIÁ LÂM SÀNG -->
+      ${clinicalGuidanceHtml}
+
+      <!-- FORM THÊM MỐC ĐO NHANH -->
+      <form class="dengue-add-form" onsubmit="event.preventDefault(); window.patientController.addDengueTrendPoint('${p.id}', this)">
+        <div class="dengue-add-form-title">➕ Thêm Mốc Xét Nghiệm / Theo Dõi Mới:</div>
+        <div class="dengue-form-grid">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 2px;">Ngày:</label>
+            <input type="text" name="trendDate" class="form-control form-control-sm" value="${curDate}" required style="font-size: 12px; padding: 5px 8px;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 2px;">Giờ đo:</label>
+            <input type="time" name="trendTime" class="form-control form-control-sm" value="${curTime}" required style="font-size: 12px; padding: 5px 8px;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 2px; color: #f43f5e;">Hct (%):</label>
+            <input type="number" step="0.1" min="15" max="75" name="trendHct" placeholder="VD: 44" class="form-control form-control-sm" required style="font-size: 12px; padding: 5px 8px; font-weight: 700; color: #f43f5e;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 2px; color: #0284c7;">Tiểu cầu (k):</label>
+            <input type="number" step="1" min="1" max="1000" name="trendTc" placeholder="VD: 65" class="form-control form-control-sm" required style="font-size: 12px; padding: 5px 8px; font-weight: 700; color: #0284c7;">
+          </div>
+          <div>
+            <button type="submit" class="btn btn-primary btn-sm" style="font-size: 12px; padding: 6px 12px; font-weight: 700; white-space: nowrap;">
+              ✓ Thêm Điểm
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- BẢNG LỊCH SỬ CÁC LẦN ĐO -->
+      <div class="dengue-table-wrap">
+        <table class="dengue-points-table">
+          <thead>
+            <tr>
+              <th style="width: 40px;">STT</th>
+              <th style="width: 80px;">Ngày</th>
+              <th style="width: 75px;">Giờ</th>
+              <th style="width: 85px;">Hct (%)</th>
+              <th style="width: 95px;">Tiểu Cầu (k)</th>
+              <th>Ghi chú</th>
+              <th style="width: 40px; text-align: right;">Xóa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  renderDengueFullChartSvg(trends, width = 520, height = 150) {
+    if (!trends || trends.length === 0) {
+      return `
+        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}">
+          <rect width="${width}" height="${height}" fill="transparent"/>
+          <text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#94a3b8" font-size="12">
+            Chưa có điểm dữ liệu nào. Hãy nhập điểm đo ở form bên dưới.
+          </text>
+        </svg>
+      `;
+    }
+
+    const padL = 40;
+    const padR = 40;
+    const padT = 15;
+    const padB = 25;
+    const usableW = width - padL - padR;
+    const usableH = height - padT - padB;
+    const n = trends.length;
+
+    const minHct = 30;
+    const maxHct = 55;
+    const getYHct = (v) => padT + usableH - ((Math.max(minHct, Math.min(maxHct, v)) - minHct) / (maxHct - minHct)) * usableH;
+
+    const minTc = 10;
+    const maxTc = 200;
+    const getYTc = (v) => padT + usableH - ((Math.max(minTc, Math.min(maxTc, v)) - minTc) / (maxTc - minTc)) * usableH;
+
+    const getX = (i) => n === 1 ? padL + usableW / 2 : padL + (i / (n - 1)) * usableW;
+
+    let gridSvg = '';
+    [35, 40, 45, 50].forEach(hctLvl => {
+      const y = getYHct(hctLvl);
+      const isWarn = hctLvl === 45;
+      gridSvg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="${isWarn ? '#fecaca' : '#f1f5f9'}" stroke-dasharray="${isWarn ? '3,3' : 'none'}" stroke-width="${isWarn ? 1.5 : 1}"/>`;
+      gridSvg += `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="${isWarn ? '#f43f5e' : '#94a3b8'}" font-size="9" font-weight="${isWarn ? 700 : 500}">${hctLvl}%</text>`;
+    });
+
+    [50, 100, 150].forEach(tcLvl => {
+      const y = getYTc(tcLvl);
+      gridSvg += `<text x="${width - padR + 6}" y="${(y + 3).toFixed(1)}" text-anchor="start" fill="#0284c7" font-size="9" font-weight="600">${tcLvl}k</text>`;
+    });
+
+    let pathHct = '';
+    let pathTc = '';
+    let ptsSvg = '';
+
+    trends.forEach((t, i) => {
+      const x = getX(i);
+      const yH = getYHct(t.hct);
+      const yT = getYTc(t.tc);
+
+      if (i === 0) {
+        pathHct += `M ${x.toFixed(1)} ${yH.toFixed(1)}`;
+        pathTc += `M ${x.toFixed(1)} ${yT.toFixed(1)}`;
+      } else {
+        pathHct += ` L ${x.toFixed(1)} ${yH.toFixed(1)}`;
+        pathTc += ` L ${x.toFixed(1)} ${yT.toFixed(1)}`;
+      }
+
+      const labelTime = t.time || `${i+1}`;
+      gridSvg += `<text x="${x.toFixed(1)}" y="${(height - 6).toFixed(1)}" text-anchor="middle" fill="#64748b" font-size="9.5" font-weight="600">${labelTime}</text>`;
+
+      ptsSvg += `
+        <circle cx="${x.toFixed(1)}" cy="${yH.toFixed(1)}" r="4" fill="#f43f5e" stroke="#ffffff" stroke-width="2"/>
+        <text x="${x.toFixed(1)}" y="${(yH - 7).toFixed(1)}" text-anchor="middle" fill="#f43f5e" font-size="10" font-weight="800">${t.hct}%</text>
+        <circle cx="${x.toFixed(1)}" cy="${yT.toFixed(1)}" r="4" fill="#0284c7" stroke="#ffffff" stroke-width="2"/>
+        <text x="${x.toFixed(1)}" y="${(yT + 14).toFixed(1)}" text-anchor="middle" fill="#0284c7" font-size="10" font-weight="800">${t.tc}k</text>
+      `;
+    });
+
+    return `
+      <svg class="dengue-svg-chart" width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible;">
+        ${gridSvg}
+        <path d="${pathHct}" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${pathTc}" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        ${ptsSvg}
+      </svg>
+    `;
+  }
+
+  addDengueTrendPoint(patientId, formEl) {
+    const p = this.patientList.find(item => item.id === patientId);
+    if (!p) return;
+
+    const fd = new FormData(formEl);
+    const dateVal = fd.get('trendDate')?.trim() || this.currentDate || this.getTodayDMY();
+    const timeVal = fd.get('trendTime')?.trim() || '08:00';
+    const hctVal = parseFloat(fd.get('trendHct'));
+    const tcVal = parseFloat(fd.get('trendTc'));
+
+    if (isNaN(hctVal) || isNaN(tcVal)) {
+      alert('Vui lòng nhập đầy đủ giá trị số cho Hct và Tiểu cầu!');
+      return;
+    }
+
+    if (!Array.isArray(p.dengue_trends)) {
+      p.dengue_trends = this.getPatientDengueTrends(p);
+    }
+
+    const newPt = {
+      id: 'dt_' + Date.now(),
+      date: dateVal,
+      time: timeVal,
+      hct: hctVal,
+      tc: tcVal,
+      note: ''
+    };
+
+    p.dengue_trends.push(newPt);
+    this.saveLocalCache();
+    this.renderDengueTrendModalBody(p);
+    this.render();
+
+    if (window.updateSaveStatus) {
+      window.updateSaveStatus(`✓ Đã lưu mốc Hct ${hctVal}%, TC ${tcVal}k`);
+    }
+  }
+
+  deleteDengueTrendPoint(patientId, pointId) {
+    const p = this.patientList.find(item => item.id === patientId);
+    if (!p || !Array.isArray(p.dengue_trends)) return;
+
+    p.dengue_trends = p.dengue_trends.filter(pt => pt.id !== pointId);
+    this.saveLocalCache();
+    this.renderDengueTrendModalBody(p);
+    this.render();
+  }
+
+  syncTrendsToCls(patientId) {
+    const pId = patientId || this.currentTrendPatientId;
+    const p = this.patientList.find(item => item.id === pId);
+    if (!p) return;
+
+    const trends = this.getPatientDengueTrends(p);
+    if (!trends || trends.length === 0) {
+      alert('Chưa có dữ liệu xu hướng để đồng bộ!');
+      return;
+    }
+
+    const summaryParts = trends.map(t => `${t.time ? t.time : ''}: Hct ${t.hct}%, TC ${t.tc}k`).join(' -> ');
+    const trendStr = `[Diễn tiến Hct/TC]: ${summaryParts}`;
+
+    let curClsHc = (p.cls_hien_co || '').trim();
+    if (curClsHc.includes('[Diễn tiến Hct/TC]:')) {
+      curClsHc = curClsHc.replace(/\[Diễn tiến Hct\/TC\]:[^\n]+/g, trendStr).trim();
+    } else if (curClsHc) {
+      curClsHc = `${curClsHc}\n${trendStr}`;
+    } else {
+      curClsHc = trendStr;
+    }
+
+    p.cls_hien_co = curClsHc;
+    this.saveLocalCache();
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(p).catch(() => {});
+    }
+    this.render();
+
+    const editClsHc = document.getElementById('editClsHienCo');
+    if (editClsHc && document.getElementById('editPatientId')?.value === p.id) {
+      editClsHc.value = curClsHc;
+    }
+
+    alert('✓ Đã đồng bộ chuỗi xu hướng Hct & Tiểu cầu vào ô CLS Hiện Có thành công!');
+  }
+
   // SẮP XẾP TỰ NHIÊN THEO BUỒNG & GIƯỜNG (NATURAL SORT)
   sortPatientsByRoomAndBed(notify = true, syncCloud = true) {
     this.patientList.sort((a, b) => {
@@ -2110,9 +2646,29 @@ class PatientController {
 
       sortedRooms.forEach(room => {
         const chipKey = `room:${room}`;
+        const theme = this.getRoomTheme(room);
+        const isActive = this.activeMobileFilter === chipKey;
+        const roomPatients = this.patientList.filter(p => this.extractRoomCode(p.phong_giuong) === room);
+        const hasCrit = roomPatients.some(p => p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL);
+        const hasPend = roomPatients.some(p => p.handover_status === CONFIG.HANDOVER_STATUS.PENDING);
+
+        let alertBadge = '';
+        if (hasCrit) {
+          alertBadge = `<span class="room-ruler-alert" title="Buồng có ca Báo động đỏ">🚨</span>`;
+        } else if (hasPend) {
+          alertBadge = `<span class="room-ruler-alert" title="Buồng có ca Cần bàn giao">⏳</span>`;
+        }
+
+        const activeStyle = isActive 
+          ? `background: ${theme.accent}; color: #ffffff; border-color: ${theme.accent}; box-shadow: 0 2px 6px ${theme.accent}66; font-weight: 700;`
+          : `border-left: 3.5px solid ${theme.accent};`;
+
         html += `
-          <button class="${btnClass} ${this.activeMobileFilter === chipKey ? 'active' : ''}" onclick="window.patientController.setMobileFilter('${chipKey}')">
-            🚪 ${this.escape(room)} (${rooms[room]})
+          <button class="${btnClass} ${isActive ? 'active' : ''}" style="${activeStyle}" onclick="window.patientController.setMobileFilter('${chipKey}')">
+            <span class="room-ruler-dot" style="background-color: ${isActive ? '#ffffff' : theme.accent};"></span>
+            <span>${this.escape(room)}</span>
+            <span class="room-ruler-count">${rooms[room]}</span>
+            ${alertBadge}
           </button>
         `;
       });
@@ -2234,6 +2790,9 @@ class PatientController {
     filtered.forEach((p, idx) => {
       this.normalizePatientClsAndOrders(p);
       const roomCode = this.extractRoomCode(p.phong_giuong);
+      const roomTheme = this.getRoomTheme(roomCode);
+      const isDengue = this.isDenguePatient(p);
+      const delta = isDengue ? this.calculateDengueDelta(this.getPatientDengueTrends(p)) : null;
 
       // Nhóm buồng
       if (this.isGroupedByRoom && (!this.currentFilterQuery || this.currentFilterQuery.length === 0)) {
@@ -2241,9 +2800,10 @@ class PatientController {
           lastRoomCode = roomCode;
           const groupTr = document.createElement('tr');
           groupTr.className = 'room-group-row';
+          groupTr.style.borderLeft = `6px solid ${roomTheme.accent}`;
           groupTr.innerHTML = `
             <td colspan="9">
-              🚪 BUỒNG: <strong>${this.escape(roomCode)}</strong>
+              <span class="room-group-color-pill" style="background: ${roomTheme.accent}; color: #ffffff;">🚪 BUỒNG: ${this.escape(roomCode)}</span>
               <span class="room-badge-count">${roomCounts[roomCode] || 1} người bệnh</span>
             </td>
           `;
@@ -2262,6 +2822,7 @@ class PatientController {
       tr.innerHTML = `
         <td class="col-stt">${idx + 1}</td>
         <td class="col-room col-editable" contenteditable="true"
+            style="border-left: 3.5px solid ${roomTheme.accent};"
             oninput="window.patientController.handleCellInput('${p.id}', 'phong_giuong', this.innerText, this)"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
             onblur="window.patientController.handleCellBlur('${p.id}', 'phong_giuong', this.innerText, this)">${this.escape(p.phong_giuong || '')}</td>
@@ -2274,14 +2835,23 @@ class PatientController {
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
             onblur="window.patientController.handleCellBlur('${p.id}', 'nam_sinh_tuoi', this.innerText, this)">${this.escape(p.nam_sinh_tuoi || '')}</td>
         <td class="col-cd col-editable" contenteditable="true"
+            data-placeholder="Chẩn đoán xác định / kèm theo..."
             oninput="window.patientController.handleCellInput('${p.id}', 'chan_doan', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
+            onkeydown="if(event.key==='Escape'||(event.key==='Enter'&&event.ctrlKey)){event.preventDefault();this.blur();}"
             onblur="window.patientController.handleCellBlur('${p.id}', 'chan_doan', this.innerText, this)">${this.escape(p.chan_doan || '')}</td>
         <td class="col-cls col-cls-dual">
           <div class="med-dual-cell">
             <div class="med-tier tier-present" onclick="this.querySelector('.med-cell-editor')?.focus()">
               <div class="med-tier-header">
                 <span class="med-micro-badge badge-present">✓ Hiện có</span>
+                ${isDengue ? `
+                  <div class="desktop-dengue-badge" onclick="event.stopPropagation(); window.patientController.openDengueTrendModal('${p.id}')" title="Nhấn để xem diễn tiến Hct & Tiểu cầu (SXH)">
+                    <span>📈 Xu hướng Hct/TC:</span>
+                    ${delta ? `<strong>${delta.latestHct}%/${delta.latestTc}k</strong>` : '<strong>+ Mở biểu đồ</strong>'}
+                    ${delta && delta.isHemoconcentration ? '<span class="badge-warn">🚨 Cô đặc</span>' : ''}
+                    ${delta && delta.isSevereThrombocytopenia ? '<span class="badge-warn-tc">⚠️ TC thấp</span>' : ''}
+                  </div>
+                ` : ''}
               </div>
               <div class="med-cell-editor col-editable" contenteditable="true"
                    data-placeholder="Chưa có kết quả..."
@@ -2405,6 +2975,8 @@ class PatientController {
       this.normalizePatientClsAndOrders(p);
       const isCritical = p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL;
       const isPending = p.handover_status === CONFIG.HANDOVER_STATUS.PENDING;
+      const roomCode = this.extractRoomCode(p.phong_giuong);
+      const roomTheme = this.getRoomTheme(roomCode);
 
       let statusPillHtml = '';
       if (isCritical) {
@@ -2418,12 +2990,13 @@ class PatientController {
       const card = document.createElement('div');
       card.className = `mobile-patient-card ${isCritical ? 'card-critical' : (isPending ? 'card-pending' : '')}`;
       card.dataset.id = p.id;
+      card.style.borderLeft = `4.5px solid ${roomTheme.accent}`;
 
       card.innerHTML = `
         <!-- HEADER THẺ: BUỒNG GIƯỜNG & TRẠNG THÁI -->
         <div class="card-header" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-          <div class="card-room-badge">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M15 11h.01"/></svg>
+          <div class="card-room-badge" style="background: ${roomTheme.bg}; color: ${roomTheme.text}; border-color: ${roomTheme.border};">
+            <span class="card-room-dot" style="background: ${roomTheme.accent};"></span>
             <span>${this.escape(p.phong_giuong || 'Chưa xếp phòng')}</span>
           </div>
           ${statusPillHtml}
@@ -2440,6 +3013,9 @@ class PatientController {
             <strong>Chẩn đoán:</strong>
             ${this.escape(p.chan_doan || 'Chưa có chẩn đoán')}
           </div>
+
+          <!-- DENGUE TRENDLINE STRIP (NẾU LÀ BỆNH NHÂN SXH HOẶC CÓ THEO DÕI HCT/TC) -->
+          ${this.isDenguePatient(p) ? this.renderCardDengueTrendHtml(p) : ''}
 
           <!-- 2 TẦNG LÂM SÀNG: CLS & Y LỆNH -->
           <div class="card-clinical-grid">
@@ -2667,6 +3243,18 @@ class PatientController {
     document.getElementById('editHandoverStatus').value = p.handover_status || CONFIG.HANDOVER_STATUS.NONE;
     document.getElementById('editHandoverIssues').value = p.handover_issues || '';
     document.getElementById('editHandoverActions').value = p.handover_actions || '';
+
+    // Cập nhật tóm tắt Xu hướng Dengue (Hct & TC)
+    const triggerSub = document.getElementById('detailTrendSummaryText');
+    if (triggerSub) {
+      const trends = this.getPatientDengueTrends(p);
+      const delta = this.calculateDengueDelta(trends);
+      if (delta) {
+        triggerSub.innerHTML = `Hct: <strong>${delta.latestHct}%</strong> ${delta.deltaHct !== null ? (delta.deltaHct > 0 ? '▲+' : '▼') + delta.deltaHct + '%' : ''} • TC: <strong>${delta.latestTc}k</strong> ${delta.deltaTc !== null ? (delta.deltaTc > 0 ? '▲+' : '▼') + delta.deltaTc + 'k' : ''} • Chạm để xem/nhập`;
+      } else {
+        triggerSub.textContent = 'Chưa có mốc theo dõi • Chạm để mở biểu đồ & nhập điểm';
+      }
+    }
 
     modal.classList.add('active');
   }

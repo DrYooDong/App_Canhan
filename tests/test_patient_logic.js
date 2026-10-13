@@ -113,5 +113,89 @@ assert.strictEqual(expandDiagnosisOnly('ttm nacl 0.9% 500ml', pathologyMap), 'tt
 assert.strictEqual(expandDiagnosisOnly('para 500mg uống', pathologyMap), 'para 500mg uống');
 console.log('  ✅ 7. Chỉ chuyển đổi viết tắt bệnh lý trong cột chẩn đoán, không đổi y lệnh/CLS: PASS');
 
-console.log('\n🎉 Toàn bộ 7/7 kiểm thử đơn vị đều vượt qua thành công!');
+// 8. Kiểm tra thuật toán gán màu buồng bệnh nhất quán (Color-Coded Rooms)
+const ROOM_PALETTE = [
+  { name: 'emerald', accent: '#059669' },
+  { name: 'cerulean', accent: '#0284c7' },
+  { name: 'indigo', accent: '#4f46e5' },
+  { name: 'purple', accent: '#7c3aed' },
+  { name: 'rose', accent: '#e11d48' },
+  { name: 'amber', accent: '#d97706' },
+  { name: 'teal', accent: '#0d9488' },
+  { name: 'orange', accent: '#ea580c' },
+  { name: 'cyan', accent: '#0891b2' },
+  { name: 'pink', accent: '#db2777' },
+  { name: 'lime', accent: '#65a30d' },
+  { name: 'slate', accent: '#475569' }
+];
+
+function getRoomColorTheme(roomCode) {
+  if (!roomCode || roomCode === 'Chưa xếp phòng') {
+    return ROOM_PALETTE[11];
+  }
+  const clean = String(roomCode).trim().toUpperCase();
+  let hash = 0;
+  for (let i = 0; i < clean.length; i++) {
+    hash = (hash * 31 + clean.charCodeAt(i)) & 0xffffffff;
+  }
+  const index = Math.abs(hash) % ROOM_PALETTE.length;
+  return ROOM_PALETTE[index];
+}
+
+const theme1 = getRoomColorTheme('D1.12');
+const theme2 = getRoomColorTheme('d1.12'); // Case-insensitive
+assert.strictEqual(theme1.name, theme2.name);
+assert.ok(theme1.accent.startsWith('#'));
+assert.strictEqual(getRoomColorTheme('Chưa xếp phòng').name, 'slate');
+console.log('  ✅ 8. Thuật toán phân loại màu theo buồng nhất quán: PASS');
+
+// 9. Kiểm tra phân tích chỉ số Xu hướng Dengue (Hct & Tiểu cầu)
+function analyzeDengueTrends(trends) {
+  if (!trends || trends.length === 0) return null;
+  const latest = trends[trends.length - 1];
+  const first = trends[0];
+  const prev = trends.length >= 2 ? trends[trends.length - 2] : null;
+
+  const deltaHct = prev ? parseFloat((latest.hct - prev.hct).toFixed(1)) : 0;
+  const deltaTc = prev ? (latest.tc - prev.tc) : 0;
+  const percentRise = first.hct > 0 ? parseFloat(((latest.hct - first.hct) / first.hct * 100).toFixed(1)) : 0;
+
+  return {
+    latestHct: latest.hct,
+    latestTc: latest.tc,
+    deltaHct,
+    deltaTc,
+    percentRise,
+    isHemoconcentration: percentRise >= 20 || latest.hct >= 45,
+    isSevereThrombocytopenia: latest.tc < 50,
+    isCriticalThrombocytopenia: latest.tc < 20
+  };
+}
+
+const mockTrends = [
+  { hct: 38, tc: 120 },
+  { hct: 41, tc: 85 },
+  { hct: 46, tc: 42 } // Hct tăng từ 38 -> 46 (>20%), TC tụt < 50k
+];
+
+const analysis = analyzeDengueTrends(mockTrends);
+assert.strictEqual(analysis.latestHct, 46);
+assert.strictEqual(analysis.latestTc, 42);
+assert.strictEqual(analysis.deltaHct, 5);
+assert.strictEqual(analysis.deltaTc, -43);
+assert.strictEqual(analysis.isHemoconcentration, true); // Cô đặc máu
+assert.strictEqual(analysis.isSevereThrombocytopenia, true); // Tiểu cầu < 50k
+console.log('  ✅ 9. Phân tích lâm sàng xu hướng Hct & Tiểu cầu (Dengue Trendline): PASS');
+
+// 10. Kiểm tra chẩn đoán nhiều dòng (Multiline Diagnosis xuống dòng)
+const multilineCd = "1. sxh ngày 4 cảnh báo\n2. Viêm dạ dày cấp\n3. tha";
+const expandedMulti = expandDiagnosisOnly(multilineCd, pathologyMap);
+assert.strictEqual(expandedMulti.split('\n').length, 3);
+assert.ok(expandedMulti.includes('1. SXH Dengue ngày 4 cảnh báo'));
+assert.ok(expandedMulti.includes('2. Viêm dạ dày cấp'));
+assert.ok(expandedMulti.includes('3. Tăng huyết áp'));
+console.log('  ✅ 10. Chẩn đoán hỗ trợ xuống dòng nhiều hàng (Multiline): PASS');
+
+console.log('\n🎉 Toàn bộ 10/10 kiểm thử đơn vị đều vượt qua thành công!');
+
 

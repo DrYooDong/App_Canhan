@@ -281,6 +281,36 @@ const CONFIG = {
     });
   },
 
+  // HỆ MÀU QUY CHUẨN THƯỚC PHÂN LOẠI BUỒNG BỆNH (COLOR-CODED ROOMS PALETTE)
+  ROOM_PALETTE: [
+    { name: 'emerald', accent: '#059669', bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0', darkBg: 'rgba(6, 78, 59, 0.35)', darkText: '#6ee7b7', darkBorder: '#059669' },
+    { name: 'cerulean', accent: '#0284c7', bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', darkBg: 'rgba(12, 74, 110, 0.35)', darkText: '#7dd3fc', darkBorder: '#0284c7' },
+    { name: 'indigo', accent: '#4f46e5', bg: '#eef2ff', text: '#3730a3', border: '#c7d2fe', darkBg: 'rgba(49, 46, 129, 0.35)', darkText: '#a5b4fc', darkBorder: '#4f46e5' },
+    { name: 'purple', accent: '#7c3aed', bg: '#f5f3ff', text: '#5b21b6', border: '#ddd6fe', darkBg: 'rgba(76, 29, 149, 0.35)', darkText: '#c4b5fd', darkBorder: '#7c3aed' },
+    { name: 'rose', accent: '#e11d48', bg: '#fff1f2', text: '#9f1239', border: '#fecdd3', darkBg: 'rgba(136, 19, 55, 0.35)', darkText: '#fda4af', darkBorder: '#e11d48' },
+    { name: 'amber', accent: '#d97706', bg: '#fffbeb', text: '#92400e', border: '#fde68a', darkBg: 'rgba(120, 53, 15, 0.35)', darkText: '#fcd34d', darkBorder: '#d97706' },
+    { name: 'teal', accent: '#0d9488', bg: '#f0fdfa', text: '#115e59', border: '#99f6e4', darkBg: 'rgba(19, 78, 74, 0.35)', darkText: '#5eead4', darkBorder: '#0d9488' },
+    { name: 'orange', accent: '#ea580c', bg: '#fff7ed', text: '#9a3412', border: '#fed7aa', darkBg: 'rgba(124, 45, 18, 0.35)', darkText: '#fdba74', darkBorder: '#ea580c' },
+    { name: 'cyan', accent: '#0891b2', bg: '#ecfeff', text: '#155e75', border: '#a5f3fc', darkBg: 'rgba(22, 78, 99, 0.35)', darkText: '#67e8f9', darkBorder: '#0891b2' },
+    { name: 'pink', accent: '#db2777', bg: '#fdf2f8', text: '#9d174d', border: '#fbcfe8', darkBg: 'rgba(131, 24, 67, 0.35)', darkText: '#f472b6', darkBorder: '#db2777' },
+    { name: 'lime', accent: '#65a30d', bg: '#f7fee7', text: '#3f6212', border: '#d9f99d', darkBg: 'rgba(54, 83, 20, 0.35)', darkText: '#bef264', darkBorder: '#65a30d' },
+    { name: 'slate', accent: '#475569', bg: '#f8fafc', text: '#1e293b', border: '#cbd5e1', darkBg: 'rgba(30, 41, 59, 0.35)', darkText: '#cbd5e1', darkBorder: '#475569' }
+  ],
+
+  // HÀM LẤY BỘ MÀU PHÂN LOẠI BUỒNG THEO MÃ BUỒNG (DETERMINISTIC ROOM COLOR)
+  getRoomColorTheme(roomCode) {
+    if (!roomCode || roomCode === 'Chưa xếp phòng') {
+      return this.ROOM_PALETTE[11]; // slate
+    }
+    const clean = String(roomCode).trim().toUpperCase();
+    let hash = 0;
+    for (let i = 0; i < clean.length; i++) {
+      hash = (hash * 31 + clean.charCodeAt(i)) & 0xffffffff;
+    }
+    const index = Math.abs(hash) % this.ROOM_PALETTE.length;
+    return this.ROOM_PALETTE[index];
+  },
+
   // DEFAULT SAMPLE DATA BAN ĐẦU
   SAMPLE_PATIENTS: [
     {
@@ -292,6 +322,11 @@ const CONFIG = {
       cls: '[Hiện có]: Tiểu cầu 65k, Hct 44%, AST/ALT 85/92 U/L\n[Cần làm]: Làm lại CTM + Hct lúc 16h và 22h, Siêu âm bụng',
       cls_hien_co: 'Tiểu cầu 65k, Hct 44%, AST/ALT 85/92 U/L',
       cls_can_lam: 'Làm lại CTM + Hct lúc 16h và 22h, Siêu âm bụng',
+      dengue_trends: [
+        { id: 'dt-1', date: '21/09', time: '06:00', hct: 39, tc: 110, note: 'Nhập viện' },
+        { id: 'dt-2', date: '21/09', time: '12:00', hct: 41, tc: 85, note: 'Sốt cao N4' },
+        { id: 'dt-3', date: '21/09', time: '16:00', hct: 44, tc: 65, note: 'Cô đặc máu' }
+      ],
       y_lenh: 'Ringer Lactate 500ml x 2 chai TTM 80 giọt/phút.',
       them_thuoc: 'Paracetamol 500mg 1 viên uống khi sốt >= 38.5°C.',
       handover_status: 'critical',

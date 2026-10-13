@@ -1008,8 +1008,17 @@ table.med-table td.col-cd {
   width: 22%;
   min-width: 150px;
   white-space: pre-wrap;
+  word-break: break-word;
   line-height: 1.45;
   color: var(--text-main);
+  vertical-align: top;
+}
+
+table.med-table td.col-cd:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-dim);
+  font-style: italic;
+  pointer-events: none;
 }
 
 table.med-table th.col-cls { width: 28%; min-width: 200px; }
@@ -5693,5 +5702,395 @@ body.dark-theme .dup-alert-summary {
   background: #0f192c;
   border-color: #24385c;
 }
+
+/* ==============================================================================
+   FEATURE 1: THƯỚC PHÂN LOẠI MÀU THEO BUỒNG (COLOR-CODED ROOMS)
+   ============================================================================== */
+.room-ruler-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.room-ruler-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  margin-left: 4px;
+}
+
+body.dark-theme .room-ruler-count {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.room-ruler-alert {
+  font-size: 11px;
+  margin-left: 3px;
+  animation: pulseCrit 1.5s infinite;
+}
+
+@keyframes pulseCrit {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.8; }
+}
+
+.table-room-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.15s ease;
+}
+
+.room-group-color-pill {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-right: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  letter-spacing: 0.3px;
+}
+
+/* ==============================================================================
+   FEATURE 2: BIỂU ĐỒ ĐỘNG XU HƯỚNG HCT & TIỂU CẦU (DENGUE TRENDLINE)
+   ============================================================================== */
+
+/* Trigger button inside Patient Detail Modal */
+.dengue-trend-modal-trigger-wrap {
+  margin: 10px 0 14px 0;
+}
+
+.btn-dengue-trend-launch {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #fff1f2 0%, #f0f9ff 100%);
+  border: 1.5px solid #fecdd3;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(225, 29, 72, 0.05);
+}
+
+.btn-dengue-trend-launch:hover {
+  background: linear-gradient(135deg, #ffe4e6 0%, #e0f2fe 100%);
+  border-color: #f43f5e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.12);
+}
+
+.btn-dengue-trend-launch .trend-icon {
+  font-size: 22px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.btn-dengue-trend-launch .trend-launch-info {
+  flex: 1;
+}
+
+.btn-dengue-trend-launch .trend-launch-title {
+  display: block;
+  font-weight: 700;
+  font-size: 13px;
+  color: #9f1239;
+}
+
+.btn-dengue-trend-launch .trend-launch-sub {
+  display: block;
+  font-size: 11.5px;
+  color: #475569;
+  margin-top: 2px;
+}
+
+.btn-dengue-trend-launch .trend-launch-arrow {
+  font-size: 16px;
+  color: #e11d48;
+  font-weight: 800;
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+
+.btn-dengue-trend-launch:hover .trend-launch-arrow {
+  transform: translateX(3px);
+}
+
+/* Desktop CLS Trend Badge */
+.desktop-dengue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 3px 7px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #9f1239;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.desktop-dengue-badge:hover {
+  background: #ffe4e6;
+  border-color: #f43f5e;
+}
+
+.desktop-dengue-badge .badge-warn {
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  animation: pulseCrit 1.5s infinite;
+}
+
+.desktop-dengue-badge .badge-warn-tc {
+  background: #ea580c;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* Modal Trendline Styling */
+.dengue-modal-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.dengue-patient-meta h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.dengue-patient-meta p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.dengue-patient-tags {
+  display: flex;
+  gap: 8px;
+}
+
+.dengue-chart-container {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dengue-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.dengue-chart-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color-box {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.legend-color-box.hct { background: #f43f5e; }
+.legend-color-box.tc { background: #0284c7; }
+
+.dengue-svg-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dengue-svg-chart {
+  display: block;
+  width: 100%;
+  min-width: 480px;
+  height: auto;
+}
+
+.dengue-clinical-card {
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.dengue-clinical-card.alert-danger {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.dengue-clinical-card.alert-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.dengue-clinical-card.alert-success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.dengue-add-form {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.dengue-add-form-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.dengue-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.5fr auto;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.dengue-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dengue-points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dengue-points-table th {
+  background: var(--bg-subtle);
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.dengue-points-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dengue-points-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Dark theme overrides for Feature 1 & 2 */
+body.dark-theme .btn-dengue-trend-launch {
+  background: linear-gradient(135deg, #3b111a 0%, #0c2b45 100%);
+  border-color: #881337;
+}
+
+body.dark-theme .btn-dengue-trend-launch:hover {
+  background: linear-gradient(135deg, #4c1d27 0%, #0f385c 100%);
+  border-color: #f43f5e;
+}
+
+body.dark-theme .btn-dengue-trend-launch .trend-launch-title {
+  color: #fda4af;
+}
+
+body.dark-theme .btn-dengue-trend-launch .trend-launch-sub {
+  color: #cbd5e1;
+}
+
+body.dark-theme .desktop-dengue-badge {
+  background: #3b111a;
+  border-color: #881337;
+  color: #fda4af;
+}
+
+body.dark-theme .desktop-dengue-badge:hover {
+  background: #4c1d27;
+}
+
+body.dark-theme .dengue-modal-header-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+body.dark-theme .dengue-patient-meta h3 {
+  color: #e2e8f0;
+}
+
+body.dark-theme .dengue-chart-container {
+  background: #0b1324;
+  border-color: #1e293b;
+}
+
+body.dark-theme .dengue-add-form {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+body.dark-theme .dengue-points-table th {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+body.dark-theme .dengue-points-table td {
+  border-color: #1e293b;
+  color: #e2e8f0;
+}
+
 
 

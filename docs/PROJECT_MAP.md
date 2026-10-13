@@ -24,6 +24,13 @@ Tài liệu này tra cứu nhanh các ID giao diện trong `index.html` và các
 | `editHandoverStatus`| `<select>` | Trạng thái bàn giao | Gán `p.handover_status`| Cập nhật badge & màu sắc |
 | `editHandoverIssues`| `<textarea>` | Vấn đề tồn đọng | Gán `p.handover_issues`| `savePatientFromDetailModal()` |
 | `editHandoverActions`| `<textarea>` | Xử trí tiếp / theo dõi | Gán `p.handover_actions`| `savePatientFromDetailModal()` |
+| `detailDengueTrendTriggerWrap` | `<div>` | Nút mở theo dõi Hct & TC | `openPatientDetailModal()` | `openDengueTrendModalFromDetail()` |
+
+### Modal Theo Dõi Diễn Tiến Hct & Tiểu Cầu Dengue (`#dengueTrendModal`)
+| DOM ID | Loại phần tử | Mục đích | Hàm khởi tạo | Hàm lưu / đồng bộ |
+|---|---|---|---|---|
+| `dengueTrendModal` | Container | Modal pop-up biểu đồ | `openDengueTrendModal(id)` | `closeDengueTrendModal()` |
+| `dengueTrendModalBody` | `<div>` | Biểu đồ SVG & bảng mốc đo | `renderDengueTrendModalBody(p)` | `addDengueTrendPoint()`, `syncTrendsToCls()` |
 
 ---
 
