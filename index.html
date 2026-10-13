@@ -1134,25 +1134,10 @@
                                 placeholder="dd/mm/yyyy" readonly>
                         </div>
                     </div>
-                    <p class="step-desc">✨ <strong>Tự động hóa thông minh sau 0h hàng ngày:</strong> Bỏ lưu trữ ngày cũ — Chỉ duy trì danh sách hôm nay. Tự động xóa ca xuất viện, tăng số ngày bệnh và tăng số ngày dùng kháng sinh / thuốc cần đánh số ngày.</p>
+                    <p class="step-desc">✨ <strong>Chuyển đổi danh sách sang ngày mới:</strong> Cập nhật ngày làm việc mới và đồng bộ dữ liệu. Giữ nguyên toàn bộ thông tin người bệnh, chẩn đoán và y lệnh điều trị.</p>
                 </div>
 
                 <div class="next-day-options-grid">
-                    <label class="custom-checkbox-card">
-                        <input type="checkbox" id="chkAutoIncrementDay" checked>
-                        <div>
-                            <strong>Tăng số ngày bệnh &amp; ngày kháng sinh (+1)</strong>
-                            <span>"SXH ngày 4" ➔ "ngày 5", "VP N3" ➔ "N4", "Ceftriaxone (N3)" ➔ "(N4)", "KS ngày 2" ➔ "ngày 3"</span>
-                        </div>
-                    </label>
-                    <label class="custom-checkbox-card">
-                        <input type="checkbox" id="chkFilterDischarged" checked
-                            onchange="window.patientController.handleDischargeFilterToggle(this.checked)">
-                        <div>
-                            <strong>Tự động XÓA người bệnh xuất viện</strong>
-                            <span>Xóa hoàn toàn các ca "ra viện", "xuất viện", "xin về", "chuyển viện", "tử vong" khỏi danh sách</span>
-                        </div>
-                    </label>
                     <label class="custom-checkbox-card">
                         <input type="checkbox" id="chkResetHandover" checked>
                         <div>
@@ -1190,7 +1175,7 @@
                                 <th style="width: 80px;">P/G</th>
                                 <th style="width: 170px;">Họ và tên</th>
                                 <th style="width: 120px;">Bác sĩ</th>
-                                <th>Chẩn đoán: Hiện tại ➔ Ngày mới</th>
+                                <th>Chẩn đoán &amp; Y lệnh</th>
                                 <th style="width: 100px; text-align: center;">Trạng thái</th>
                             </tr>
                         </thead>

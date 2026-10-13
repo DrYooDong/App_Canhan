@@ -985,7 +985,7 @@ class PatientController {
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
       }
-    } else if (CONFIG.expandMedicalText && (field === 'chan_doan' || field === 'cls' || field === 'cls_hien_co' || field === 'cls_can_lam' || field === 'y_lenh' || field === 'them_thuoc')) {
+    } else if (CONFIG.expandMedicalText && field === 'chan_doan') {
       cleanVal = CONFIG.expandMedicalText(cleanVal);
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
@@ -1232,32 +1232,9 @@ class PatientController {
     return /ra\s*vi[ệe]n|xu[ấa]t\s*vi[ệe]n|chuy[ểe]n\s*vi[ệe]n|xin\s*v[ềe]|t[ửu]\s*vong|tr[ốo]n\s*vi[ệe]n|cho\s*v[ềe]|\brv\b|\bxv\b/i.test(text);
   }
 
-  // 3. TĂNG SỐ NGÀY BỆNH TRONG CHẨN ĐOÁN (+1 hoặc +diffDays)
+  // 3. KHÔNG TỰ ĐỘNG TĂNG SỐ NGÀY BỆNH (GIỮ NGUYÊN CHẨN ĐOÁN GỐC CỦA BÁC SĨ)
   smartIncrementIllnessDay(diagnosis, diffDays = 1) {
-    if (!diagnosis || typeof diagnosis !== 'string') return diagnosis || '';
-    const days = Math.max(1, parseInt(diffDays, 10) || 1);
-    let str = diagnosis;
-    const MARK_START = '\uE000';
-    const MARK_END = '\uE001';
-    const inc = (numStr) => `${MARK_START}${parseInt(numStr, 10) + days}${MARK_END}`;
-
-    // 1. Dạng trong ngoặc: (ngày 3), (N3), (D3), [N2]
-    str = str.replace(/([\(\[])\s*(ng[àa]y|n|d|day)(\s*)(\d{1,2})\s*([\)\]])/gi, (m, open, pref, sp, num, close) => {
-      const space = sp || (pref.length > 1 ? ' ' : '');
-      return `${open}${pref}${space}${inc(num)}${close}`;
-    });
-
-    // 2. Dạng "ngày X", "ngày bệnh thứ X", "ngày thứ X"
-    str = str.replace(/(ng[àa]y(?:\s*b[ệe]nh)?(?:\s*th[ứu])?\s*)(\d{1,2})(?![\/\-\d])/gi, (m, pref, num) => {
-      return `${pref}${inc(num)}`;
-    });
-
-    // 3. Dạng "N3", "D3", "HP N2", "Hậu phẫu N2", "Day 3"
-    str = str.replace(/(^|[\s\,\;\:\+\-\/])(N|D|HP|H[ẬA]U\s*PH[ẪA]U\s*N|DAY)[\.\s]*(\d{1,2})(?=$|[\s\,\;\.\:\+\-\/\)\]])/gi, (m, prefix, letter, num) => {
-      return `${prefix}${letter}${inc(num)}`;
-    });
-
-    return str.split(MARK_START).join('').split(MARK_END).join('');
+    return diagnosis || '';
   }
 
   // Alias để bảo đảm tương thích với code cũ
@@ -1265,85 +1242,39 @@ class PatientController {
     return this.smartIncrementIllnessDay(diagnosis, 1);
   }
 
-  // 4. TĂNG SỐ NGÀY KHÁNG SINH & THUỐC CÓ ĐÁNH SỐ NGÀY (+1 hoặc +diffDays)
+  // 4. KHÔNG TỰ ĐỘNG TĂNG SỐ NGÀY KHÁNG SINH & THUỐC (GIỮ NGUYÊN Y LỆNH GỐC CỦA BÁC SĨ)
   smartIncrementMedicationDay(orders, diffDays = 1) {
-    if (!orders || typeof orders !== 'string') return orders || '';
-    const days = Math.max(1, parseInt(diffDays, 10) || 1);
-    let str = orders;
-    const MARK_START = '\uE000';
-    const MARK_END = '\uE001';
-    const inc = (numStr) => `${MARK_START}${parseInt(numStr, 10) + days}${MARK_END}`;
-
-    // 1. Dạng trong ngoặc đơn/vuông: (N3), [N3], (ngày 3), (ngay 3), (D3), (Day 3)
-    // VD: "Ceftriaxone 2g (N3)" -> "(N4)", "Meropenem 1g (ngày 5)" -> "(ngày 6)"
-    str = str.replace(/([\(\[])\s*(ng[àa]y|n|d|day)(\s*)(\d{1,2})\s*([\)\]])/gi, (m, open, pref, sp, num, close) => {
-      const space = sp || (pref.length > 1 ? ' ' : '');
-      return `${open}${pref}${space}${inc(num)}${close}`;
-    });
-
-    // 2. Dạng Kháng sinh: KS N3, Kháng sinh N3, KS ngày 3, Kháng sinh ngày 3, KS 3
-    str = str.replace(/\b(ks|kh[áa]ng\s*sinh)(\s*(?:ng[àa]y|n|d)?\s*)(\d{1,2})\b/gi, (m, ks, pref, num) => {
-      return `${ks}${pref}${inc(num)}`;
-    });
-
-    // 3. Dạng "ngày X" sau tên thuốc/thủ thuật (loại trừ: lần/ngày, cữ/ngày, viên/ngày, IV/ngày...)
-    str = str.replace(/(?<!(?:l[ầa]n|c[ữu]|vi[êe]n|[ốo]ng|l[ọo]|chai|g|mg|ml|iv|im|ttm|u[ốo]ng)\s*[\/\-]?\s*)(ng[àa]y)\s*(\d{1,2})(?![\/\-\d\w])/gi, (m, word, num) => {
-      return `${word} ${inc(num)}`;
-    });
-
-    // 4. Dạng N3, D3 đứng độc lập sau tên thuốc/dạng dùng: "Augmentin N2", "Vancomycin N1", "TTM N3"
-    str = str.replace(/(^|[\s\,\;\:\+\-\/])(N|D)[\.\s]*(\d{1,2})(?=$|[\s\,\;\.\:\+\-\/\)\]])/gi, (m, prefix, letter, num) => {
-      return `${prefix}${letter}${inc(num)}`;
-    });
-
-    return str.split(MARK_START).join('').split(MARK_END).join('');
+    return orders || '';
   }
 
-  // 5. THỰC THI CHUYỂN ĐỔI NGÀY MỚI THÔNG MINH TỔNG THỂ
+  // 5. THỰC THI CHUYỂN ĐỔI NGÀY MỚI (KHÔNG TỰ ĐỘNG XÓA XUẤT VIỆN, KHÔNG TỰ ĐỘNG TĂNG NGÀY)
   async performSmartDailyRollover(diffDays = 1, fromDateStr = '', toDateStr = '', manualTrigger = false) {
     const todayIso = this.getTodayIso();
     const todayDMY = this.getTodayDMY();
-    const days = Math.max(1, parseInt(diffDays, 10) || 1);
 
     if (!this.patientList || this.patientList.length === 0) {
       localStorage.setItem('medward_last_active_date', todayIso);
       return;
     }
 
-    const dischargedPatients = [];
-    const activePatients = [];
+    // Giữ nguyên toàn bộ danh sách người bệnh (không xóa ca xuất viện, không tăng số ngày)
+    const activePatients = this.patientList.map((p) => {
+      // Trạng thái giao ban: Báo động đỏ giữ nguyên, ca khác về bình thường khi chuyển ngày thủ công
+      const nextStatus = (p.handover_status === 'critical') ? 'critical' : (manualTrigger ? 'none' : (p.handover_status || 'none'));
+      const keepIssues = (p.handover_status === 'critical') ? p.handover_issues : (manualTrigger ? '' : (p.handover_issues || ''));
+      const keepActions = (p.handover_status === 'critical') ? p.handover_actions : (manualTrigger ? '' : (p.handover_actions || ''));
 
-    // Phân loại: Xuất viện -> Xóa, Còn nằm viện -> Tăng ngày bệnh & tăng ngày kháng sinh
-    this.patientList.forEach((p) => {
-      if (this.isDischargedPatient(p)) {
-        dischargedPatients.push(p);
-      } else {
-        const oldDiag = p.chan_doan || '';
-        const newDiag = this.smartIncrementIllnessDay(oldDiag, days);
-
-        const oldOrders = p.y_lenh || '';
-        const newOrders = this.smartIncrementMedicationDay(oldOrders, days);
-
-        const oldThemThuoc = p.them_thuoc || '';
-        const newThemThuoc = this.smartIncrementMedicationDay(oldThemThuoc, days);
-
-        // Trạng thái giao ban: Báo động đỏ giữ nguyên, ca khác về bình thường
-        const nextStatus = (p.handover_status === 'critical') ? 'critical' : 'none';
-        const keepIssues = (p.handover_status === 'critical') ? p.handover_issues : '';
-        const keepActions = (p.handover_status === 'critical') ? p.handover_actions : '';
-
-        activePatients.push({
-          ...p,
-          report_date: todayIso,
-          chan_doan: newDiag,
-          y_lenh: newOrders,
-          them_thuoc: newThemThuoc,
-          handover_status: nextStatus,
-          handover_issues: keepIssues,
-          handover_actions: keepActions,
-          updated_at: new Date().toISOString()
-        });
-      }
+      return {
+        ...p,
+        report_date: todayIso,
+        chan_doan: p.chan_doan || '',
+        y_lenh: p.y_lenh || '',
+        them_thuoc: p.them_thuoc || '',
+        handover_status: nextStatus,
+        handover_issues: keepIssues,
+        handover_actions: keepActions,
+        updated_at: new Date().toISOString()
+      };
     });
 
     // Cập nhật danh sách ngày hôm nay
@@ -1352,12 +1283,6 @@ class PatientController {
 
     // Đồng bộ lên Supabase Cloud
     if (window.supabaseService) {
-      // Soft delete các ca xuất viện trên Cloud để không lưu ngày cũ
-      for (const dp of dischargedPatients) {
-        window.supabaseService.deletePatient(dp.id).catch(err => {
-          console.warn('Lỗi xóa ca xuất viện trên Supabase:', err);
-        });
-      }
       // Đồng bộ danh sách ngày hôm nay
       window.supabaseService.syncBatchPatients(this.patientList, todayIso).catch(err => {
         console.warn('Lỗi đồng bộ ngày hôm nay lên Cloud:', err);
@@ -1384,20 +1309,18 @@ class PatientController {
     this.updateDoctorFilterDropdown();
     this.updateStorageHudUI();
 
-    const noticeTitle = manualTrigger ? '⏭️ CHUYỂN NGÀY THÀNH CÔNG' : '🌅 TỰ ĐỘNG CHUYỂN NGÀY MỚI (SAU 0H)';
-    const msg = `Hôm nay: ${todayDMY} (+${days} ngày)\n` +
-      `• Đã xóa ${dischargedPatients.length} ca xuất viện / ra viện\n` +
-      `• Đã tăng ngày bệnh & ngày kháng sinh cho ${activePatients.length} ca nội trú`;
+    const noticeTitle = manualTrigger ? '⏭️ CHUYỂN NGÀY THÀNH CÔNG' : '🌅 CẬP NHẬT NGÀY MỚI';
+    const msg = `Hôm nay: ${todayDMY}\n• Đã cập nhật danh sách ${activePatients.length} người bệnh sang ngày mới`;
 
     if (window.showToast) {
       window.showToast({
         title: noticeTitle,
         message: msg,
         type: 'success',
-        duration: 8000
+        duration: 5000
       });
     } else if (window.updateSaveStatus) {
-      window.updateSaveStatus(`✓ ${noticeTitle}: Xóa ${dischargedPatients.length} ca xuất viện, tăng số ngày ${activePatients.length} ca`);
+      window.updateSaveStatus(`✓ ${noticeTitle}: Cập nhật ${activePatients.length} người bệnh`);
     }
   }
 
@@ -1459,35 +1382,25 @@ class PatientController {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const autoInc = document.getElementById('chkAutoIncrementDay')?.checked ?? true;
-    const filterDischarged = document.getElementById('chkFilterDischarged')?.checked ?? true;
-
     let selectedCount = 0;
 
     this.patientList.forEach((p) => {
-      const isDischarged = this.isDischargedPatient(p);
-      const shouldSelect = filterDischarged ? !isDischarged : true;
-      if (shouldSelect) selectedCount++;
-
-      const newDiag = autoInc ? this.smartIncrementIllnessDay(p.chan_doan, 1) : p.chan_doan;
-      const newOrders = autoInc ? this.smartIncrementMedicationDay(p.y_lenh, 1) : p.y_lenh;
+      selectedCount++;
 
       const tr = document.createElement('tr');
-      tr.className = isDischarged ? 'discharged-row' : '';
       tr.innerHTML = `
         <td style="text-align: center;">
-          <input type="checkbox" class="chk-next-day-patient" data-id="${p.id}" ${shouldSelect ? 'checked' : ''} onchange="window.patientController.updateNextDaySelectedCount()">
+          <input type="checkbox" class="chk-next-day-patient" data-id="${p.id}" checked onchange="window.patientController.updateNextDaySelectedCount()">
         </td>
         <td><strong>${this.escape(p.phong_giuong || '—')}</strong></td>
         <td><strong>${this.escape(p.ten || '—')}</strong></td>
         <td><small>🩺 ${this.escape(p.doctor_name || p.handover_by || 'Chưa phân')}</small></td>
         <td>
           <div class="diag-preview-old">${this.escape(p.chan_doan || '—')}</div>
-          <div class="diag-preview-new">➔ ${this.escape(newDiag || '—')}</div>
-          ${p.y_lenh ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">💊 Y lệnh: ${this.escape(newOrders)}</div>` : ''}
+          ${p.y_lenh ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">💊 Y lệnh: ${this.escape(p.y_lenh)}</div>` : ''}
         </td>
         <td style="text-align: center;">
-          ${isDischarged ? '<span class="badge-discharged">Ra viện (Sẽ xóa)</span>' : '<span class="badge-inpatient">Nội trú (+1N)</span>'}
+          <span class="badge-inpatient">Nội trú</span>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1691,12 +1604,6 @@ class PatientController {
     }
     if (fields.chan_doan && CONFIG.expandMedicalText) {
       fields.chan_doan = CONFIG.expandMedicalText(fields.chan_doan);
-    }
-    if (fields.cls && CONFIG.expandMedicalText) {
-      fields.cls = CONFIG.expandMedicalText(fields.cls);
-    }
-    if (fields.y_lenh && CONFIG.expandMedicalText) {
-      fields.y_lenh = CONFIG.expandMedicalText(fields.y_lenh);
     }
 
     const updated = {
@@ -2002,10 +1909,6 @@ class PatientController {
 
       if (CONFIG.expandMedicalText) {
         cdVal = CONFIG.expandMedicalText(cdVal);
-        clsHcVal = CONFIG.expandMedicalText(clsHcVal);
-        clsClVal = CONFIG.expandMedicalText(clsClVal);
-        ylVal = CONFIG.expandMedicalText(ylVal);
-        themThuocVal = CONFIG.expandMedicalText(themThuocVal);
       }
 
       let combinedCls = '';
@@ -2784,10 +2687,6 @@ class PatientController {
 
     if (CONFIG.expandMedicalText) {
       cdVal = CONFIG.expandMedicalText(cdVal);
-      clsHcVal = CONFIG.expandMedicalText(clsHcVal);
-      clsClVal = CONFIG.expandMedicalText(clsClVal);
-      ylVal = CONFIG.expandMedicalText(ylVal);
-      themThuocVal = CONFIG.expandMedicalText(themThuocVal);
     }
 
     let combinedCls = '';

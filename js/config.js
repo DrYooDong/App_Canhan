@@ -352,12 +352,10 @@ const CONFIG = {
   ]
 };
 
-// Tự động map từ điển viết tắt từ danh mục
-if (CONFIG.ABBREVIATIONS_CATEGORIES) {
-  for (const list of Object.values(CONFIG.ABBREVIATIONS_CATEGORIES)) {
-    for (const item of list) {
-      CONFIG.ABBREVIATIONS[item.abbr.toLowerCase()] = item.full;
-    }
+// Chỉ tự động map từ điển viết tắt các bệnh lý (Chẩn đoán thường gặp) cho cột chẩn đoán
+if (CONFIG.ABBREVIATIONS_CATEGORIES && CONFIG.ABBREVIATIONS_CATEGORIES['Chẩn đoán thường gặp']) {
+  for (const item of CONFIG.ABBREVIATIONS_CATEGORIES['Chẩn đoán thường gặp']) {
+    CONFIG.ABBREVIATIONS[item.abbr.toLowerCase()] = item.full;
   }
 }
 
