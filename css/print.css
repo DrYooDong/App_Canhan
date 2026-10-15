@@ -93,7 +93,6 @@
   .lock-screen,
   #patternOverlay,
   .top-nav-bar,
-  .hospital-header,
   .nav-tabs-wrapper,
   .toolbar,
   .status-bar,
@@ -145,6 +144,85 @@
     background: transparent !important;
   }
 
+  /* TIÊU ĐỀ BỆNH VIỆN / KHOA / TÊN BẢNG CHUẨN Y KHOA (A4 LANDSCAPE) */
+  .hospital-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    border-bottom: 1.2px solid #000000 !important;
+    padding: 0 0 3px 0 !important;
+    margin: 0 0 4px 0 !important;
+    background: transparent !important;
+  }
+  .hospital-info {
+    text-align: left !important;
+    line-height: 1.2 !important;
+  }
+  .hospital-info .unit-name {
+    font-size: 7.5pt !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+  }
+  .hospital-info .hospital-title {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+  }
+  .hospital-info .dept-name {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+  .main-title-box {
+    text-align: center !important;
+    flex: 1 !important;
+    padding: 0 8px !important;
+  }
+  .main-title-box .main-title {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    letter-spacing: 0.5px !important;
+  }
+  .meta-box {
+    text-align: right !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    gap: 1px !important;
+  }
+  .meta-box .meta-item {
+    font-size: 8pt !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .meta-box #reportDate {
+    border: none !important;
+    background: transparent !important;
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    width: 72px !important;
+    box-shadow: none !important;
+    text-align: right !important;
+  }
+  .meta-box .badge-today-pill,
+  .meta-box #nativeDatePicker,
+  .meta-box .btn-calendar-trigger,
+  .meta-box button {
+    display: none !important;
+  }
+  .meta-box #currentWorkspaceText {
+    background: transparent !important;
+    border: none !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+
   .table-wrapper {
     display: block !important;
     border: none !important;
@@ -154,12 +232,27 @@
   }
 
   .print-date-note {
+    display: none !important;
+  }
+
+  /* ẨN WIDGET ĐỒ THỊ SXH VÀ NÚT TƯƠNG TÁC KHI IN */
+  .desktop-dengue-badge {
+    display: none !important;
+  }
+
+  /* ẨN TẦNG CHỈ ĐỊNH TRỐNG KHI IN ĐỂ TIẾT KIỆM DIỆN TÍCH BẢNG */
+  .med-tier.tier-pending:not(.has-content),
+  .med-tier.tier-rx:not(.has-content) {
+    display: none !important;
+  }
+  .med-tier-divider {
+    display: none !important;
+  }
+  .med-dual-cell:has(.tier-pending.has-content) .med-tier-divider,
+  .med-dual-cell:has(.tier-rx.has-content) .med-tier-divider {
     display: block !important;
-    font-size: 8.5pt !important;
-    font-weight: 600 !important;
-    margin-bottom: 3px !important;
-    text-align: right !important;
-    color: #000000 !important;
+    border-top: 0.5pt dashed #888888 !important;
+    margin: 2px 0 !important;
   }
 
   table.med-table {
@@ -560,5 +653,209 @@
   body.print-nurse-mode .nurse-item-empty {
     color: #666666 !important;
     font-size: 8pt !important;
+  }
+
+  /* ==============================================================================
+     C. CHẾ ĐỘ IN BIÊN BẢN BÀN GIAO TUA TRỰC (PRINTING-HANDOVER-ONLY)
+     ============================================================================== */
+  body.printing-handover-only > *:not(#handoverDashboardModal) {
+    display: none !important;
+  }
+
+  body.printing-handover-only .app-container {
+    display: none !important;
+  }
+
+  body.printing-handover-only {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal {
+    display: block !important;
+    position: static !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    inset: auto !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal .modal-card {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal .btn-close-modal,
+  body.printing-handover-only #handoverDashboardModal .modal-footer,
+  body.printing-handover-only #handoverDashboardModal .ho-action-btns,
+  body.printing-handover-only #handoverDashboardModal .bottom-sheet-drag-handle {
+    display: none !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal .modal-header {
+    border-bottom: 1.5px solid #000000 !important;
+    padding: 0 0 6px 0 !important;
+    margin-bottom: 8px !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal .modal-title {
+    font-size: 13pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    text-transform: uppercase !important;
+    text-align: center !important;
+  }
+
+  body.printing-handover-only #handoverDashboardModal .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-handover-only .handover-stat-cards {
+    display: flex !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.printing-handover-only .ho-stat-card {
+    flex: 1 !important;
+    border: 1px solid #000000 !important;
+    border-radius: 4px !important;
+    padding: 6px !important;
+    text-align: center !important;
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover-only .ho-stat-card .stat-number {
+    font-size: 14pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+  }
+
+  body.printing-handover-only .ho-stat-card .stat-title {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    color: #333333 !important;
+  }
+
+  body.printing-handover-only .ho-summary-card {
+    border: 1px solid #000000 !important;
+    border-radius: 4px !important;
+    margin-bottom: 8px !important;
+    padding: 6px 8px !important;
+    page-break-inside: avoid !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body.printing-handover-only .ho-card-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 3px !important;
+    border-bottom: 0.5pt dashed #999999 !important;
+  }
+
+  body.printing-handover-only .badge-bed {
+    font-weight: 800 !important;
+    font-size: 9pt !important;
+    color: #000000 !important;
+  }
+
+  body.printing-handover-only .ho-card-name {
+    font-size: 9.5pt !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    color: #000000 !important;
+    margin: 0 4px !important;
+  }
+
+  body.printing-handover-only .ho-card-age {
+    font-size: 8.5pt !important;
+    color: #333333 !important;
+  }
+
+  body.printing-handover-only .badge-status {
+    border: 1px solid #000000 !important;
+    padding: 1px 6px !important;
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    border-radius: 3px !important;
+    color: #000000 !important;
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover-only .ho-card-diag {
+    font-size: 8.5pt !important;
+    color: #000000 !important;
+    margin-bottom: 4px !important;
+  }
+
+  body.printing-handover-only .ho-card-issues-box {
+    background: #f8fafc !important;
+    border: 0.5pt solid #cccccc !important;
+    padding: 4px 6px !important;
+    border-radius: 3px !important;
+    margin-bottom: 4px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-handover-only .ho-issue-row,
+  body.printing-handover-only .ho-action-row {
+    font-size: 8.5pt !important;
+    line-height: 1.25 !important;
+    margin-bottom: 2px !important;
+  }
+
+  body.printing-handover-only .ho-label {
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+
+  body.printing-handover-only .ho-val {
+    color: #000000 !important;
+  }
+
+  body.printing-handover-only .ho-card-bottom {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 8pt !important;
+  }
+
+  body.printing-handover-only .ho-doc-note {
+    color: #333333 !important;
   }
 }

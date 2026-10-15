@@ -1033,14 +1033,15 @@
 
                 <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
 
-                <!-- MỤC BÀN GIAO TRỰC TRONG MODAL CHI TIẾT -->
+                <!-- MỤC TRẠNG THÁI TRONG MODAL CHI TIẾT -->
                 <div class="form-group">
-                    <label>🚨 Trạng thái bàn giao tua trực (BG):</label>
+                    <label>Trạng thái:</label>
                     <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
-                        <option value="none">🟢 Bình thường / Ổn định</option>
-                        <option value="pending">⏳ Cần bàn giao / Vấn đề tồn đọng</option>
-                        <option value="critical">🚨 Báo động đỏ / Bệnh nặng theo dõi sát</option>
-                        <option value="resolved">✅ Đã xử trí xong</option>
+                        <option value="none">🟢 Ổn định</option>
+                        <option value="waiting_cls">🧪 Chờ CLS</option>
+                        <option value="resolved">✅ Đã xong</option>
+                        <option value="pending">⏳ Cần bàn giao</option>
+                        <option value="discharged">🏠 Xuất viện</option>
                     </select>
                 </div>
 
@@ -1248,23 +1249,27 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Mức độ bàn giao:</label>
+                    <label>Trạng thái:</label>
                     <div class="status-radio-group">
                         <label class="status-radio-item">
                             <input type="radio" name="hoStatusRadio" value="none">
-                            <span>🟢 Ổn định (Không cần bàn giao)</span>
+                            <span>🟢 Ổn định</span>
                         </label>
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="pending">
-                            <span>⏳ Cần theo dõi sát / Tồn đọng</span>
-                        </label>
-                        <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="critical">
-                            <span>🚨 Báo động đỏ (Nguy kịch / Nặng)</span>
+                            <input type="radio" name="hoStatusRadio" value="waiting_cls">
+                            <span>🧪 Chờ CLS</span>
                         </label>
                         <label class="status-radio-item">
                             <input type="radio" name="hoStatusRadio" value="resolved">
-                            <span>✅ Đã xử trí xong trong tua</span>
+                            <span>✅ Đã xong</span>
+                        </label>
+                        <label class="status-radio-item">
+                            <input type="radio" name="hoStatusRadio" value="pending">
+                            <span>⏳ Cần bàn giao</span>
+                        </label>
+                        <label class="status-radio-item">
+                            <input type="radio" name="hoStatusRadio" value="discharged">
+                            <span>🏠 Xuất viện</span>
                         </label>
                     </div>
                 </div>
@@ -1669,24 +1674,67 @@
         </div>
     </div>
 
-    <!-- MODAL 6: TỪ ĐIỂN VIẾT TẮT Y KHOA & TRA CỨU NHANH -->
+    <!-- MODAL 6: TỪ ĐIỂN VIẾT TẮT Y KHOA & QUẢN LÝ TỪ VIẾT TẮT CÁ NHÂN -->
     <div class="modal-overlay" id="abbreviationModal">
-        <div class="modal-card" style="max-width: 720px;">
+        <div class="modal-card" style="max-width: 760px;">
             <div class="modal-header">
-                <div class="modal-title">📖 Quy Chuẩn & Từ Điển Viết Tắt Lâm Sàng</div>
+                <div class="modal-title">📖 Từ Điển Viết Tắt Y Khoa &amp; Cá Nhân</div>
                 <button class="btn-close-modal" onclick="window.medWardApp.closeAbbreviationModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Tìm kiếm & Bộ lọc phân loại -->
-                <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="abbrSearchInput" class="form-control"
-                        placeholder="Tìm từ viết tắt, tên bệnh, xét nghiệm, y lệnh..."
-                        style="flex: 1; min-width: 220px;">
-                    <div class="abbr-category-tabs" id="abbrCategoryTabs">
-                        <button type="button" class="btn-filter-pill active" data-cat="all">Tất cả</button>
-                        <button type="button" class="btn-filter-pill" data-cat="Chẩn đoán thường gặp">CĐ</button>
-                        <button type="button" class="btn-filter-pill" data-cat="Cận lâm sàng & Xét nghiệm">CLS</button>
-                        <button type="button" class="btn-filter-pill" data-cat="Y lệnh & Điều trị">Y Lệnh</button>
+                <!-- Thanh công cụ tìm kiếm, phân loại & nút thêm mới -->
+                <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; gap: 8px; flex: 1; min-width: 260px;">
+                        <input type="text" id="abbrSearchInput" class="form-control"
+                            placeholder="Tìm từ viết tắt, tên bệnh, xét nghiệm, y lệnh..."
+                            style="flex: 1;">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="window.medWardApp.toggleAbbrCustomForm()" style="padding: 7px 14px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>➕ Thêm Từ Viết Tắt</span>
+                    </button>
+                </div>
+
+                <div class="abbr-category-tabs" id="abbrCategoryTabs" style="margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn-filter-pill active" data-cat="all">Tất cả</button>
+                    <button type="button" class="btn-filter-pill" data-cat="custom" style="border-color: #c084fc; color: #7e22ce;">✨ Cá nhân (<span id="abbrCustomCount">0</span>)</button>
+                    <button type="button" class="btn-filter-pill" data-cat="Chẩn đoán thường gặp">CĐ</button>
+                    <button type="button" class="btn-filter-pill" data-cat="Cận lâm sàng & Xét nghiệm">CLS</button>
+                    <button type="button" class="btn-filter-pill" data-cat="Y lệnh & Điều trị">Y Lệnh</button>
+                </div>
+
+                <!-- CARD FORM THÊM / SỬA TỪ VIẾT TẮT CÁ NHÂN (ẨN/HIỆN THÔNG MINH) -->
+                <div id="abbrCustomFormCard" class="abbr-custom-card" style="display: none;">
+                    <div class="abbr-card-header">
+                        <span id="abbrFormTitle" style="font-weight: 700; color: var(--primary);">➕ Thêm Từ Viết Tắt Cá Nhân Mới</span>
+                        <button type="button" class="btn-close-mini" onclick="window.medWardApp.closeAbbrCustomForm()">&times;</button>
+                    </div>
+                    <input type="hidden" id="customAbbrEditId" value="">
+                    <div class="abbr-form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+                        <div class="form-group" style="margin-bottom: 4px;">
+                            <label style="font-size: 12px; font-weight: 600;">Từ viết tắt (*):</label>
+                            <input type="text" id="customAbbrInput" class="form-control" placeholder="Ví dụ: ksc, bno, ntt..." style="text-transform: lowercase;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 4px;">
+                            <label style="font-size: 12px; font-weight: 600;">Thuật ngữ đầy đủ khi bung (*):</label>
+                            <input type="text" id="customAbbrFullInput" class="form-control" placeholder="Ví dụ: Kháng sinh cữ chiều 14h...">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 4px;">
+                            <label style="font-size: 12px; font-weight: 600;">Diễn giải lâm sàng (Tùy chọn):</label>
+                            <input type="text" id="customAbbrDescInput" class="form-control" placeholder="Ví dụ: Dùng khi y lệnh buổi chiều...">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 4px;">
+                            <label style="font-size: 12px; font-weight: 600;">Chuyên mục phân loại:</label>
+                            <select id="customAbbrCategorySelect" class="form-control">
+                                <option value="Chẩn đoán thường gặp">Chẩn đoán thường gặp (CĐ)</option>
+                                <option value="Y lệnh & Điều trị">Y lệnh &amp; Điều trị</option>
+                                <option value="Cận lâm sàng & Xét nghiệm">Cận lâm sàng &amp; Xét nghiệm</option>
+                                <option value="Khác">Cá nhân / Khác</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border);">
+                        <button type="button" class="btn btn-secondary" onclick="window.medWardApp.closeAbbrCustomForm()" style="padding: 6px 14px; font-size: 12.5px;">Hủy bỏ</button>
+                        <button type="button" class="btn btn-primary" onclick="window.medWardApp.saveCustomAbbr()" style="padding: 6px 18px; font-size: 12.5px; font-weight: 700;">💾 Lưu Từ Viết Tắt</button>
                     </div>
                 </div>
 
@@ -1695,9 +1743,10 @@
                     <table class="abbr-table" id="abbrListTable">
                         <thead>
                             <tr>
-                                <th style="width: 22%;">Chữ viết tắt</th>
-                                <th style="width: 43%;">Thuật ngữ đầy đủ</th>
-                                <th style="width: 35%;">Diễn giải lâm sàng</th>
+                                <th style="width: 20%;">Chữ viết tắt</th>
+                                <th style="width: 38%;">Thuật ngữ đầy đủ</th>
+                                <th style="width: 27%;">Diễn giải lâm sàng</th>
+                                <th style="width: 15%; text-align: center;">Nguồn / Thao tác</th>
                             </tr>
                         </thead>
                         <tbody id="abbrTableBody">
@@ -1706,7 +1755,12 @@
                     </table>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="justify-content: space-between;">
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnResetCustomAbbr" onclick="window.medWardApp.resetCustomAbbrToDefault()" style="font-size: 12px; color: var(--text-muted); display: none;">
+                        ↺ Xóa từ cá nhân
+                    </button>
+                </div>
                 <button class="btn btn-secondary" onclick="window.medWardApp.closeAbbreviationModal()">Đóng</button>
             </div>
         </div>

@@ -1260,6 +1260,14 @@ tr.row-pending td:first-child {
   background: var(--stable-bg);
   border-color: var(--stable-border);
 }
+.icon-status-btn.badge-waiting-cls {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.icon-status-btn.badge-discharged {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
 
 .handover-mini-icon {
   margin-left: 4px;
@@ -2641,6 +2649,32 @@ textarea.form-control {
   border: 1px solid #fde68a;
 }
 
+.badge-waiting-cls {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badge-discharged {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+tr.row-discharged {
+  opacity: 0.62;
+  background: #f8fafc;
+}
+
+tr.row-discharged:hover {
+  opacity: 0.92;
+}
+
+body.dark-theme tr.row-discharged {
+  opacity: 0.55;
+  background: #0f172a;
+}
+
 .ho-card-diag {
   font-size: 12.5px;
   color: var(--text-main);
@@ -2949,6 +2983,93 @@ textarea.form-control {
 .abbr-desc-text {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+/* TỪ ĐIỂN CÁ NHÂN & THAO TÁC */
+.abbr-custom-card {
+  background: #f8fafc;
+  border: 1.5px solid #c7d2fe;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
+  animation: fadeInDown 0.2s ease;
+}
+
+.abbr-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+}
+
+.btn-close-mini {
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.btn-close-mini:hover {
+  color: var(--critical-text);
+}
+
+.badge-source-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-source-system {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-source-custom {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+.abbr-action-btns {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-abbr-sm {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.btn-abbr-sm:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--bg-subtle);
+}
+
+.btn-abbr-sm.btn-abbr-del:hover {
+  color: #dc2626;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* 8.7. KEYBOARD SHORTCUTS */
@@ -4292,6 +4413,52 @@ body.dark-theme .abbr-table td {
 
 body.dark-theme .abbr-table tr:hover td {
   background: #16243e;
+}
+
+body.dark-theme .abbr-custom-card {
+  background: #101c31;
+  border-color: #3730a3;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .badge-source-system {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+body.dark-theme .badge-source-custom {
+  background: rgba(124, 58, 237, 0.2);
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+body.dark-theme .btn-abbr-sm {
+  background: #17243c;
+  border-color: #24385c;
+  color: #cbd5e1;
+}
+
+body.dark-theme .icon-status-btn.badge-waiting-cls {
+  background: rgba(30, 58, 138, 0.35);
+  border-color: #1e40af;
+}
+
+body.dark-theme .icon-status-btn.badge-discharged {
+  background: rgba(51, 65, 85, 0.35);
+  border-color: #475569;
+}
+
+body.dark-theme .badge-waiting-cls {
+  background: rgba(30, 58, 138, 0.4);
+  color: #93c5fd;
+  border-color: #1d4ed8;
+}
+
+body.dark-theme .badge-discharged {
+  background: rgba(51, 65, 85, 0.4);
+  color: #94a3b8;
+  border-color: #475569;
 }
 
 body.dark-theme .shortcuts-table th {

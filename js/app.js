@@ -695,6 +695,9 @@ class MedWardApp {
     this.currentAbbrCategory = 'all';
     this.currentAbbrQuery = '';
 
+    // Đóng form thêm nếu đang mở
+    this.closeAbbrCustomForm();
+
     const searchInput = document.getElementById('abbrSearchInput');
     if (searchInput && !searchInput.dataset.bound) {
       searchInput.dataset.bound = 'true';
@@ -723,6 +726,7 @@ class MedWardApp {
       else b.classList.remove('active');
     });
 
+    this.updateCustomAbbrCount();
     this.renderAbbreviationList();
     modal.classList.add('active');
   }
@@ -730,6 +734,152 @@ class MedWardApp {
   closeAbbreviationModal() {
     const modal = document.getElementById('abbreviationModal');
     if (modal) modal.classList.remove('active');
+    this.closeAbbrCustomForm();
+  }
+
+  updateCustomAbbrCount() {
+    const customList = CONFIG.CUSTOM_ABBREVIATIONS || [];
+    const countEl = document.getElementById('abbrCustomCount');
+    if (countEl) countEl.innerText = customList.length;
+
+    const resetBtn = document.getElementById('btnResetCustomAbbr');
+    if (resetBtn) {
+      resetBtn.style.display = customList.length > 0 ? 'inline-block' : 'none';
+    }
+  }
+
+  toggleAbbrCustomForm(editItem = null) {
+    const card = document.getElementById('abbrCustomFormCard');
+    if (!card) return;
+
+    if (editItem) {
+      // Chế độ chỉnh sửa
+      document.getElementById('abbrFormTitle').innerText = '✏️ Chỉnh Sửa Từ Viết Tắt Cá Nhân';
+      document.getElementById('customAbbrEditId').value = editItem.id;
+      document.getElementById('customAbbrInput').value = editItem.abbr || '';
+      document.getElementById('customAbbrFullInput').value = editItem.full || '';
+      document.getElementById('customAbbrDescInput').value = editItem.desc || '';
+      document.getElementById('customAbbrCategorySelect').value = editItem.category || 'Chẩn đoán thường gặp';
+      card.style.display = 'block';
+      document.getElementById('customAbbrInput').focus();
+    } else {
+      if (card.style.display === 'block' && !document.getElementById('customAbbrEditId').value) {
+        card.style.display = 'none';
+      } else {
+        // Mở form thêm mới
+        document.getElementById('abbrFormTitle').innerText = '➕ Thêm Từ Viết Tắt Cá Nhân Mới';
+        document.getElementById('customAbbrEditId').value = '';
+        document.getElementById('customAbbrInput').value = '';
+        document.getElementById('customAbbrFullInput').value = '';
+        document.getElementById('customAbbrDescInput').value = '';
+        document.getElementById('customAbbrCategorySelect').value = 'Chẩn đoán thường gặp';
+        card.style.display = 'block';
+        document.getElementById('customAbbrInput').focus();
+      }
+    }
+  }
+
+  closeAbbrCustomForm() {
+    const card = document.getElementById('abbrCustomFormCard');
+    if (card) {
+      card.style.display = 'none';
+      document.getElementById('customAbbrEditId').value = '';
+    }
+  }
+
+  saveCustomAbbr() {
+    const editId = document.getElementById('customAbbrEditId').value.trim();
+    const abbr = document.getElementById('customAbbrInput').value.trim().toLowerCase();
+    const full = document.getElementById('customAbbrFullInput').value.trim();
+    const desc = document.getElementById('customAbbrDescInput').value.trim();
+    const category = document.getElementById('customAbbrCategorySelect').value;
+
+    if (!abbr) {
+      alert('Vui lòng nhập từ viết tắt (Ví dụ: ksc, bno...)');
+      document.getElementById('customAbbrInput').focus();
+      return;
+    }
+
+    if (!full) {
+      alert('Vui lòng nhập thuật ngữ/cụm từ đầy đủ khi mở rộng!');
+      document.getElementById('customAbbrFullInput').focus();
+      return;
+    }
+
+    let list = [...(CONFIG.CUSTOM_ABBREVIATIONS || [])];
+
+    if (editId) {
+      const idx = list.findIndex(x => x.id === editId);
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], abbr, full, desc, category, updated_at: new Date().toISOString() };
+      }
+    } else {
+      // Kiểm tra trùng lặp
+      const existing = list.find(x => x.abbr.toLowerCase() === abbr);
+      if (existing) {
+        if (!confirm(`Từ viết tắt "${abbr}" đã tồn tại. Bạn có muốn ghi đè nội dung mới không?`)) {
+          return;
+        }
+        existing.full = full;
+        existing.desc = desc;
+        existing.category = category;
+        existing.updated_at = new Date().toISOString();
+      } else {
+        const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'abbr_' + Date.now();
+        list.unshift({
+          id: newId,
+          abbr,
+          full,
+          desc,
+          category,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    CONFIG.saveCustomAbbreviations(list);
+    this.closeAbbrCustomForm();
+    this.updateCustomAbbrCount();
+    this.renderAbbreviationList();
+
+    if (window.showToast) {
+      window.showToast(`✓ Đã lưu từ viết tắt cá nhân: "${abbr}" ➔ "${full}"`);
+    }
+  }
+
+  editCustomAbbr(id) {
+    const list = CONFIG.CUSTOM_ABBREVIATIONS || [];
+    const item = list.find(x => x.id === id);
+    if (!item) return;
+    this.toggleAbbrCustomForm(item);
+  }
+
+  deleteCustomAbbr(id) {
+    const list = CONFIG.CUSTOM_ABBREVIATIONS || [];
+    const item = list.find(x => x.id === id);
+    if (!item) return;
+
+    if (confirm(`Xác nhận xóa từ viết tắt cá nhân "${item.abbr}" (${item.full})?`)) {
+      const updatedList = list.filter(x => x.id !== id);
+      CONFIG.saveCustomAbbreviations(updatedList);
+      this.updateCustomAbbrCount();
+      this.renderAbbreviationList();
+
+      if (window.showToast) {
+        window.showToast(`✓ Đã xóa từ viết tắt "${item.abbr}"`);
+      }
+    }
+  }
+
+  resetCustomAbbrToDefault() {
+    if (confirm('Xác nhận xóa TOÀN BỘ từ viết tắt cá nhân đã lưu trên máy này?')) {
+      CONFIG.saveCustomAbbreviations([]);
+      this.updateCustomAbbrCount();
+      this.renderAbbreviationList();
+      if (window.showToast) {
+        window.showToast('✓ Đã khôi phục từ điển viết tắt về mặc định!');
+      }
+    }
   }
 
   renderAbbreviationList() {
@@ -740,14 +890,45 @@ class MedWardApp {
     const q = this.currentAbbrQuery || '';
 
     let items = [];
+
+    // 1. Thêm các từ viết tắt cá nhân
+    const customList = CONFIG.CUSTOM_ABBREVIATIONS || [];
+    customList.forEach(item => {
+      items.push({
+        id: item.id,
+        abbr: item.abbr,
+        full: item.full,
+        desc: item.desc,
+        category: item.category || 'Cá nhân',
+        isCustom: true
+      });
+    });
+
+    // 2. Thêm các từ viết tắt chuẩn hệ thống
     for (const [categoryName, list] of Object.entries(CONFIG.ABBREVIATIONS_CATEGORIES)) {
-      if (cat === 'all' || cat === categoryName) {
-        list.forEach(item => {
-          items.push({ ...item, category: categoryName });
-        });
-      }
+      list.forEach(item => {
+        // Nếu đã bị cá nhân ghi đè cùng abbr thì không hiển thị dòng hệ thống nữa
+        const isOverridden = customList.some(c => c.abbr.toLowerCase() === item.abbr.toLowerCase());
+        if (!isOverridden) {
+          items.push({
+            abbr: item.abbr,
+            full: item.full,
+            desc: item.desc,
+            category: categoryName,
+            isCustom: false
+          });
+        }
+      });
     }
 
+    // Lọc theo Chuyên mục
+    if (cat === 'custom') {
+      items = items.filter(x => x.isCustom);
+    } else if (cat !== 'all') {
+      items = items.filter(x => x.category === cat);
+    }
+
+    // Lọc theo Từ khóa tìm kiếm
     if (q) {
       items = items.filter(item => 
         item.abbr.toLowerCase().includes(q) ||
@@ -757,20 +938,31 @@ class MedWardApp {
     }
 
     if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 24px 10px;">Không tìm thấy từ viết tắt nào khớp với "${q}"</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px 10px;">Không tìm thấy từ viết tắt nào phù hợp với bộ lọc hiện tại.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = items.map(item => `
       <tr>
         <td>
-          <span class="abbr-code-badge">${item.abbr}</span>
+          <span class="abbr-code-badge">${this.escape(item.abbr)}</span>
         </td>
         <td>
-          <span class="abbr-full-text">${item.full}</span>
+          <span class="abbr-full-text">${this.escape(item.full)}</span>
         </td>
         <td>
-          <span class="abbr-desc-text">${item.desc || ''}</span>
+          <span class="abbr-desc-text">${this.escape(item.desc || '')}</span>
+        </td>
+        <td style="text-align: center;">
+          ${item.isCustom ? `
+            <div class="abbr-action-btns">
+              <span class="badge-source-tag badge-source-custom" title="Từ điển do bạn tự thêm">Cá nhân</span>
+              <button type="button" class="btn-abbr-sm" onclick="window.medWardApp.editCustomAbbr('${item.id}')" title="Sửa từ này">✏️</button>
+              <button type="button" class="btn-abbr-sm btn-abbr-del" onclick="window.medWardApp.deleteCustomAbbr('${item.id}')" title="Xóa từ này">🗑️</button>
+            </div>
+          ` : `
+            <span class="badge-source-tag badge-source-system" title="Từ điển y khoa chuẩn">Hệ thống</span>
+          `}
         </td>
       </tr>
     `).join('');

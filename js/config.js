@@ -17,7 +17,8 @@ const CONFIG = {
     HANDOVER_LOGS: 'medward_handover_logs_v2',
     DOCTOR_WORKSPACES: 'medward_doctor_workspaces_v2',
     ACTIVE_WORKSPACE: 'medward_active_workspace_v2',
-    DOCTOR_SPACE_PREFIX: 'medward_doc_space_'
+    DOCTOR_SPACE_PREFIX: 'medward_doc_space_',
+    CUSTOM_ABBREVIATIONS: 'medward_custom_abbreviations_v2'
   },
 
   // DUNG LƯỢNG LƯU TRỮ CHO MỖI TÀI KHOẢN / ID (100MB SAVE SLOT)
@@ -69,12 +70,14 @@ const CONFIG = {
     }
   ],
 
-  // HANDOVER STATUS TYPES
+  // TRẠNG THÁI NGƯỜI BỆNH / BÀN GIAO (STATUS TYPES)
   HANDOVER_STATUS: {
-    NONE: 'none',          // Bình thường, ổn định
-    PENDING: 'pending',    // Vấn đề chưa giải quyết / Cần bàn giao
-    CRITICAL: 'critical',  // Báo động đỏ / Bệnh nặng theo dõi sát
-    RESOLVED: 'resolved'   // Đã xử trí xong trong ca trực
+    NONE: 'none',             // Ổn định
+    WAITING_CLS: 'waiting_cls', // Chờ CLS
+    RESOLVED: 'resolved',     // Đã xong
+    PENDING: 'pending',       // Cần bàn giao
+    DISCHARGED: 'discharged', // Xuất viện
+    CRITICAL: 'critical'      // Báo động đỏ (duy trì tương thích dữ liệu cũ)
   },
 
   // STATUS LABELS & STYLES
@@ -84,20 +87,30 @@ const CONFIG = {
       badgeClass: 'badge-stable',
       icon: '🟢'
     },
+    waiting_cls: {
+      label: 'Chờ CLS',
+      badgeClass: 'badge-waiting-cls',
+      icon: '🧪'
+    },
+    resolved: {
+      label: 'Đã xong',
+      badgeClass: 'badge-resolved',
+      icon: '✅'
+    },
     pending: {
       label: 'Cần bàn giao',
       badgeClass: 'badge-pending',
       icon: '⏳'
     },
+    discharged: {
+      label: 'Xuất viện',
+      badgeClass: 'badge-discharged',
+      icon: '🏠'
+    },
     critical: {
       label: 'Báo động đỏ (Nặng)',
       badgeClass: 'badge-critical',
       icon: '🚨'
-    },
-    resolved: {
-      label: 'Đã xử trí',
-      badgeClass: 'badge-resolved',
-      icon: '✅'
     }
   },
 
@@ -238,7 +251,7 @@ const CONFIG = {
     ]
   },
 
-  // HÀM TỰ ĐỘNG MỞ RỘNG TỪ VIẾT TẮT Y KHOA THÔNG MINH (SINGLE-PASS & IDEMPOTENT)
+  // HÀM TỰ ĐỘNG MỞ RỘNG TỪ VIẾT TẮT Y KHOA THÔNG MINH (SINGLE-PASS, IDEMPOTENT & ANTI-DUPLICATION)
   expandMedicalText(text) {
     if (!text || typeof text !== 'string') return text;
 
@@ -256,13 +269,27 @@ const CONFIG = {
         return replacement;
       }
 
-      // Kiểm tra vùng ngữ cảnh xung quanh xem từ này đã nằm trong cụm từ mở rộng hay chưa (Tránh lặp vô hạn)
+      // 1. Kiểm tra chống lặp vô hạn nếu từ này đã nằm trong cụm từ mở rộng
       const startWindow = Math.max(0, offset - replacement.length);
       const endWindow = Math.min(fullStr.length, offset + match.length + replacement.length);
       const windowText = fullStr.slice(startWindow, endWindow).toLowerCase();
 
       if (windowText.includes(replacement.toLowerCase())) {
         return match; // Đã nằm trong cụm đã mở rộng
+      }
+
+      // 2. Kiểm tra trùng lặp hậu tố (ví dụ: gõ 'dtđ type 2' -> không bị lặp thành 'ĐTĐ type 2 type 2')
+      const rest = fullStr.slice(offset + match.length);
+      const repWords = replacement.trim().split(/\s+/);
+      if (repWords.length > 1) {
+        for (let i = 1; i < repWords.length; i++) {
+          const suffix = repWords.slice(i).join(' ');
+          const regex = new RegExp(`^\\s*${suffix.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}`, 'i');
+          if (regex.test(rest)) {
+            // Phần sau đã có sẵn hậu tố, chỉ lấy phần trước của replacement
+            return repWords.slice(0, i).join(' ');
+          }
+        }
       }
 
       return replacement;
@@ -387,12 +414,75 @@ const CONFIG = {
   ]
 };
 
-// Chỉ tự động map từ điển viết tắt các bệnh lý (Chẩn đoán thường gặp) cho cột chẩn đoán
-if (CONFIG.ABBREVIATIONS_CATEGORIES && CONFIG.ABBREVIATIONS_CATEGORIES['Chẩn đoán thường gặp']) {
-  for (const item of CONFIG.ABBREVIATIONS_CATEGORIES['Chẩn đoán thường gặp']) {
-    CONFIG.ABBREVIATIONS[item.abbr.toLowerCase()] = item.full;
+// ==============================================================================
+// QUẢN LÝ TỪ ĐIỂN VIẾT TẮT CÁ NHÂN & ĐỒNG BỘ LOCALSTORAGE
+// ==============================================================================
+CONFIG.CUSTOM_ABBREVIATIONS = [];
+
+CONFIG.rebuildAbbreviationsMap = function() {
+  CONFIG.ABBREVIATIONS = {};
+  
+  // 1. Nạp từ điển chuẩn hệ thống (Chẩn đoán, Y lệnh, Cận lâm sàng)
+  if (CONFIG.ABBREVIATIONS_CATEGORIES) {
+    for (const [categoryName, list] of Object.entries(CONFIG.ABBREVIATIONS_CATEGORIES)) {
+      if (Array.isArray(list)) {
+        for (const item of list) {
+          if (item.abbr && item.full) {
+            CONFIG.ABBREVIATIONS[item.abbr.toLowerCase().trim()] = item.full.trim();
+          }
+        }
+      }
+    }
   }
+
+  // 2. Nạp đè / bổ sung từ điển cá nhân của bác sĩ
+  if (Array.isArray(CONFIG.CUSTOM_ABBREVIATIONS)) {
+    for (const item of CONFIG.CUSTOM_ABBREVIATIONS) {
+      if (item.abbr && item.full) {
+        CONFIG.ABBREVIATIONS[item.abbr.toLowerCase().trim()] = item.full.trim();
+      }
+    }
+  }
+};
+
+CONFIG.loadCustomAbbreviations = function() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.CUSTOM_ABBREVIATIONS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          CONFIG.CUSTOM_ABBREVIATIONS = parsed;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Không thể đọc từ điển viết tắt cá nhân từ localStorage:', e);
+  }
+  CONFIG.rebuildAbbreviationsMap();
+  return CONFIG.CUSTOM_ABBREVIATIONS;
+};
+
+CONFIG.saveCustomAbbreviations = function(list) {
+  try {
+    if (!Array.isArray(list)) list = [];
+    CONFIG.CUSTOM_ABBREVIATIONS = list;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.CUSTOM_ABBREVIATIONS, JSON.stringify(list));
+    }
+    CONFIG.rebuildAbbreviationsMap();
+    return true;
+  } catch (e) {
+    console.error('Lỗi lưu từ điển viết tắt cá nhân:', e);
+    return false;
+  }
+};
+
+// Khởi tạo nạp từ điển khi tải script
+CONFIG.loadCustomAbbreviations();
+
+if (typeof window !== 'undefined') {
+  window.CONFIG = CONFIG;
 }
 
-window.CONFIG = CONFIG;
 

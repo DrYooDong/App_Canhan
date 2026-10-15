@@ -370,12 +370,19 @@ class HandoverController {
   }
 
   printHandoverReport() {
-    // Kích hoạt in chỉ danh sách bàn giao
-    document.body.classList.add('printing-handover-only');
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('printing-handover-only');
-    }, 1000);
+    // Kích hoạt in chỉ danh sách bàn giao tua trực
+    if (window.patientController?.executePrint) {
+      window.patientController.executePrint(null, 'printing-handover-only');
+    } else {
+      document.body.classList.add('printing-handover-only');
+      window.print();
+      const restore = () => {
+        document.body.classList.remove('printing-handover-only');
+        window.removeEventListener('afterprint', restore);
+      };
+      window.addEventListener('afterprint', restore);
+      setTimeout(restore, 3500);
+    }
   }
 
   escape(str) {

@@ -21,7 +21,7 @@ Tài liệu này tra cứu nhanh các ID giao diện trong `index.html` và các
 | `editClsCanLam` | `<textarea>` | Cận lâm sàng cần làm | Gán `p.cls_can_lam` | Ghép vào `p.cls` |
 | `editOrders` | `<textarea>` | Y lệnh điều trị & Thuốc chính | Gán `p.y_lenh` | Tự động bung viết tắt |
 | `editThemThuoc` | `<textarea>` | Bổ sung thuốc mới | Gán `p.them_thuoc` | `savePatientFromDetailModal()` |
-| `editHandoverStatus`| `<select>` | Trạng thái bàn giao | Gán `p.handover_status`| Cập nhật badge & màu sắc |
+| `editHandoverStatus`| `<select>` | Trạng thái (Ổn định, Chờ CLS, Đã xong, Cần bàn giao, Xuất viện) | Gán `p.handover_status`| Cập nhật badge & màu sắc |
 | `editHandoverIssues`| `<textarea>` | Vấn đề tồn đọng | Gán `p.handover_issues`| `savePatientFromDetailModal()` |
 | `editHandoverActions`| `<textarea>` | Xử trí tiếp / theo dõi | Gán `p.handover_actions`| `savePatientFromDetailModal()` |
 | `detailDengueTrendTriggerWrap` | `<div>` | Nút mở theo dõi Hct & TC | `openPatientDetailModal()` | `openDengueTrendModalFromDetail()` |
