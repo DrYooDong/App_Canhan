@@ -454,6 +454,60 @@ class MedWardApp {
     window.addEventListener('beforeprint', () => {
       this.updatePrintDateNote();
     });
+
+    // Hỗ trợ đánh số giống Word & phím tắt Ctrl+B / Alt+N trên các ô Textarea
+    ['editDiagnosis', 'editOrders', 'editThemThuoc'].forEach(id => {
+      const ta = document.getElementById(id);
+      if (ta) {
+        ta.addEventListener('keydown', (e) => {
+          // Alt + N: Bật / tắt đánh số
+          if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            window.patientController?.toggleTextareaNumbering?.(id);
+            return;
+          }
+
+          // Ctrl + B: In đậm bôi đen
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+            e.preventDefault();
+            window.patientController?.boldSelectionInTextarea?.(id);
+            return;
+          }
+
+          // Enter: Tự động nhảy số thứ tự giống Word
+          if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+            const pos = ta.selectionStart;
+            const val = ta.value;
+            const textBefore = val.slice(0, pos);
+            const lines = textBefore.split(/\r?\n/);
+            const curLine = lines[lines.length - 1] || '';
+
+            const m = curLine.match(/^(\s*)(\d+)([\.\/\)])(\s*)(.*)$/);
+            if (m) {
+              e.preventDefault();
+              const num = parseInt(m[2], 10);
+              const sep = m[3];
+              const rest = m[5];
+
+              if (!rest.trim()) {
+                // Dòng trống có số -> Thoát đánh số
+                const lineStart = pos - curLine.length;
+                ta.value = val.slice(0, lineStart) + val.slice(pos);
+                ta.selectionStart = ta.selectionEnd = lineStart;
+              } else {
+                // Nhảy số kế tiếp
+                const nextNum = num + 1;
+                const insertText = `\n${nextNum}${sep} `;
+                const textAfter = val.slice(pos);
+                ta.value = textBefore + insertText + textAfter;
+                ta.selectionStart = ta.selectionEnd = pos + insertText.length;
+              }
+              ta.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }
+        });
+      }
+    });
   }
 
   switchTab(tabName) {

@@ -1222,6 +1222,171 @@ tr.row-pending td:first-child {
 }
 
 /* ==============================================================================
+   5.1B CLINICAL NUMBERING, CLS BRACKETS & MICRO TOOLS
+   ============================================================================== */
+.med-cd-cell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 48px;
+}
+
+.med-cd-cell .cd-editor {
+  flex: 1;
+}
+
+.med-micro-badge.badge-cd {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+body.dark-theme .med-micro-badge.badge-cd {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.th-num-hint {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--primary-accent, #0284c7);
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+body.dark-theme .th-num-hint {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+/* ĐỊNH DẠNG CỘT CLS: IN ĐẬM CẤU TRÚC [MÁU], [SINH HÓA]... */
+.cls-bracket-tag {
+  font-weight: 700 !important;
+  color: #0369a1;
+  background: rgba(3, 105, 161, 0.08);
+  padding: 0 3px;
+  border-radius: 3px;
+  display: inline-block;
+  line-height: 1.35;
+}
+
+body.dark-theme .cls-bracket-tag {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+/* ĐỊNH DẠNG SỐ THỨ TỰ (NUMBERING 1. 2. 3...) IN ĐẬM */
+.med-num-prefix {
+  font-weight: 700 !important;
+  color: #0f172a;
+}
+
+body.dark-theme .med-num-prefix {
+  color: #f8fafc !important;
+}
+
+/* THANH CÔNG CỤ NHỎ TRÊN CELL */
+.med-cell-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.btn-micro-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  color: var(--primary-accent, #0284c7);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.btn-micro-tool:hover {
+  background: var(--primary-accent, #0284c7);
+  color: #ffffff;
+  border-color: var(--primary-accent, #0284c7);
+  transform: translateY(-0.5px);
+}
+
+body.dark-theme .btn-micro-tool {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+}
+
+body.dark-theme .btn-micro-tool:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+/* CÔNG CỤ TRÊN MODAL CHI TIẾT */
+.form-label-with-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.form-label-with-tools label {
+  margin-bottom: 0;
+}
+
+.modal-label-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-modal-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-secondary, #f8fafc);
+  border: 1px solid var(--border, #cbd5e1);
+  color: var(--text-main, #334155);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-modal-tool:hover {
+  background: var(--primary-accent, #0284c7);
+  color: #ffffff;
+  border-color: var(--primary-accent, #0284c7);
+}
+
+body.dark-theme .btn-modal-tool {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+
+body.dark-theme .btn-modal-tool:hover {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+}
+
+/* ==============================================================================
    5.2 HANDOVER STATUS BUTTONS & ACTION CONTROLS
    ============================================================================== */
 .icon-status-btn {

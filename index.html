@@ -836,9 +836,9 @@
                         <th class="col-room" data-tooltip="Phòng / Buồng bệnh &amp; Giường nằm (P/G)"><span class="th-title">P/G</span></th>
                         <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span></th>
                         <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span></th>
-                        <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ)"><span class="th-title">CHẨN ĐOÁN</span></th>
-                        <th class="col-cls" data-tooltip="Cận lâm sàng: Kết quả hiện có &amp; Chỉ định cần làm (CLS)"><span class="th-title">CẬN LÂM SÀNG</span></th>
-                        <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc (Y Lệnh)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span></th>
+                        <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ) - Đánh số 1, 2, 3... giống Word (Alt+N)"><span class="th-title">CHẨN ĐOÁN</span> <span class="th-num-hint no-print" title="Hỗ trợ đánh số 1. 2. 3... (Alt+N) &amp; In đậm Ctrl+B">🔢 1.2.3</span></th>
+                        <th class="col-cls" data-tooltip="Cận lâm sàng: Tự động in đậm [Máu], [Sinh hóa], [Cần làm]..."><span class="th-title">CẬN LÂM SÀNG</span> <span class="th-num-hint no-print" title="Tự động in đậm các nhãn [Máu], [Cần làm]..."><b>[CLS]</b></span></th>
+                        <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc - Đánh số 1, 2, 3... giống Word (Alt+N)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span> <span class="th-num-hint no-print" title="Hỗ trợ đánh số 1. 2. 3... (Alt+N) &amp; In đậm Ctrl+B">🔢 1.2.3</span></th>
                         <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span></th>
                         <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
                     </tr>
@@ -981,24 +981,42 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Chẩn đoán (CĐ):</label>
-                    <textarea id="editDiagnosis" class="form-control" rows="2"
+                    <div class="form-label-with-tools">
+                        <label>Chẩn đoán (CĐ):</label>
+                        <div class="modal-label-actions">
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editDiagnosis')" title="Đánh số thứ tự (1, 2, 3...) giống Word">🔢 Đánh số</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editDiagnosis')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b> In đậm</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editDiagnosis', 'Chẩn đoán')" title="Chép sang Bệnh án điện tử (giữ nguyên số thứ tự)">📋 Chép Bệnh án</button>
+                        </div>
+                    </div>
+                    <textarea id="editDiagnosis" class="form-control" rows="3"
                         placeholder="Chẩn đoán xác định / kèm theo..."></textarea>
                 </div>
 
                 <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
-                        <label class="label-cls-present">
-                            <span>🔬 CLS - HIỆN CÓ:</span>
-                        </label>
+                        <div class="form-label-with-tools">
+                            <label class="label-cls-present">
+                                <span>🔬 CLS - HIỆN CÓ:</span>
+                            </label>
+                            <div class="modal-label-actions">
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.insertClsTag('editClsHienCo', '[Máu]')" title="Chèn nhanh [Máu]">+ [Máu]</button>
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsHienCo', 'CLS Hiện có')" title="Chép sang Bệnh án">📋 Chép</button>
+                            </div>
+                        </div>
                         <textarea id="editClsHienCo" class="form-control" rows="2"
                             placeholder="Kết quả CLS hiện có..."></textarea>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label class="label-cls-pending">
-                            <span>⚡ CLS - CẦN LÀM:</span>
-                        </label>
+                        <div class="form-label-with-tools">
+                            <label class="label-cls-pending">
+                                <span>⚡ CLS - CẦN LÀM:</span>
+                            </label>
+                            <div class="modal-label-actions">
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsCanLam', 'CLS Cần làm')" title="Chép sang Bệnh án">📋 Chép</button>
+                            </div>
+                        </div>
                         <textarea id="editClsCanLam" class="form-control" rows="2"
                             placeholder="Chỉ định CLS cần thực hiện..."></textarea>
                     </div>
@@ -1017,16 +1035,29 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
-                    <textarea id="editOrders" class="form-control" rows="2"
+                    <div class="form-label-with-tools">
+                        <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
+                        <div class="modal-label-actions">
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editOrders')" title="Đánh số thứ tự (1, 2, 3...) giống Word">🔢 Đánh số</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editOrders')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b> In đậm</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editOrders', 'Y lệnh')" title="Chép sang Bệnh án điện tử (giữ nguyên số thứ tự)">📋 Chép Bệnh án</button>
+                        </div>
+                    </div>
+                    <textarea id="editOrders" class="form-control" rows="3"
                         placeholder="Thuốc, dịch truyền, chăm sóc theo dõi..."></textarea>
                 </div>
 
                 <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
                 <div class="form-group form-group-rx-extra">
-                    <label class="label-rx-extra">
-                        <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng):</span>
-                    </label>
+                    <div class="form-label-with-tools">
+                        <label class="label-rx-extra">
+                            <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng):</span>
+                        </label>
+                        <div class="modal-label-actions">
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editThemThuoc')" title="Đánh số thứ tự (1, 2, 3...)">🔢 Đánh số</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editThemThuoc', 'Thêm thuốc')" title="Chép sang Bệnh án">📋 Chép</button>
+                        </div>
+                    </div>
                     <textarea id="editThemThuoc" class="form-control" rows="2"
                         placeholder="Thuốc bổ sung mới trong ngày..."></textarea>
                 </div>
@@ -1832,6 +1863,21 @@
                             <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></td>
                             <td><strong>Đổi giao diện Sáng / Tối</strong> (Dark mode trực đêm dịu mắt 🌙)</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>N</kbd></td>
+                            <td><strong>Tự động đánh số (Numbering 1. 2. 3...)</strong> cho Chẩn đoán &amp; Y lệnh giống Word</td>
+                            <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>B</kbd></td>
+                            <td><strong>In đậm (Bold)</strong> đoạn văn bản bôi đen trong Chẩn đoán &amp; Y lệnh</td>
+                            <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Enter</kbd> (trong danh sách số)</td>
+                            <td><strong>Tự động nhảy số kế tiếp</strong> (1. ➔ 2. ➔ 3.) hoặc thoát đánh số nếu dòng trống</td>
+                            <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
                         </tr>
                         <tr>
                             <td><kbd>Esc</kbd></td>

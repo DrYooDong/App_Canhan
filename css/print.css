@@ -374,6 +374,24 @@
     line-height: 1.2 !important;
   }
 
+  .cls-bracket-tag {
+    font-weight: 700 !important;
+    color: #000000 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .med-num-prefix {
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+
+  .th-num-hint,
+  .med-cell-tools,
+  .modal-label-actions {
+    display: none !important;
+  }
+
   table.med-table th.col-handover,
   table.med-table td.col-handover,
   table.med-table th.col-actions,
