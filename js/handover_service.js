@@ -64,6 +64,7 @@ class HandoverController {
     const status = p.handover_status || CONFIG.HANDOVER_STATUS.NONE;
     const radio = document.querySelector(`input[name="hoStatusRadio"][value="${status}"]`);
     if (radio) radio.checked = true;
+    this.onStatusRadioChange(status);
 
     document.getElementById('hoIssues').value = p.handover_issues || '';
     document.getElementById('hoActions').value = p.handover_actions || '';
@@ -72,6 +73,36 @@ class HandoverController {
     document.getElementById('hoDoctorFrom').value = p.handover_by || currentDoc;
 
     modal.classList.add('active');
+  }
+
+  // CẬP NHẬT NHÃN ĐỘNG TRONG MODAL BÀN GIAO THEO TRẠNG THÁI ĐƯỢC CHỌN
+  onStatusRadioChange(status) {
+    const lblIssues = document.getElementById('lblHoIssues');
+    const txtIssues = document.getElementById('hoIssues');
+    const lblActions = document.getElementById('lblHoActions');
+    const txtActions = document.getElementById('hoActions');
+
+    if (status === CONFIG.HANDOVER_STATUS.NOTE) {
+      if (lblIssues) lblIssues.innerHTML = '📝 Nội dung ghi chú / Lưu ý:';
+      if (txtIssues) txtIssues.placeholder = 'Nhập nội dung lưu ý cho người bệnh này (dị ứng, chế độ ăn, dặn dò đặc biệt...)...';
+      if (lblActions) lblActions.innerHTML = '🎯 Dặn dò / Hành động kèm theo (nếu có):';
+      if (txtActions) txtActions.placeholder = 'Dặn dò hoặc hành động kèm theo nếu cần...';
+    } else if (status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      if (lblIssues) lblIssues.innerHTML = '🧪 Cận lâm sàng đang chờ kết quả:';
+      if (txtIssues) txtIssues.placeholder = 'Các chỉ định CLS đang chờ kết quả để xử trí...';
+      if (lblActions) lblActions.innerHTML = '🎯 Hướng xử trí khi có kết quả:';
+      if (txtActions) txtActions.placeholder = 'Kế hoạch điều trị khi có kết quả CLS...';
+    } else if (status === CONFIG.HANDOVER_STATUS.PENDING || status === CONFIG.HANDOVER_STATUS.CRITICAL) {
+      if (lblIssues) lblIssues.innerHTML = '⚠️ Vấn đề tồn đọng:';
+      if (txtIssues) txtIssues.placeholder = 'Ghi nhận vấn đề tồn đọng...';
+      if (lblActions) lblActions.innerHTML = '🎯 Y lệnh / Hành động bác sĩ trực cần làm:';
+      if (txtActions) txtActions.placeholder = 'Y lệnh / hành động cần xử trí...';
+    } else {
+      if (lblIssues) lblIssues.innerHTML = '📝 Ghi chú / Vấn đề lưu ý (nếu có):';
+      if (txtIssues) txtIssues.placeholder = 'Ghi nhận ghi chú hoặc lưu ý...';
+      if (lblActions) lblActions.innerHTML = '🎯 Y lệnh / Hành động bác sĩ trực cần làm:';
+      if (txtActions) txtActions.placeholder = 'Y lệnh / hành động cần xử trí...';
+    }
   }
 
   closeHandoverModal() {
@@ -246,6 +277,10 @@ class HandoverController {
     if (p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) {
       if (!res.includes('Báo động đỏ') && !res.includes('NẶNG')) {
         res = `[🚨 NẶNG] ${res}`;
+      }
+    } else if (p.handover_status === CONFIG.HANDOVER_STATUS.NOTE) {
+      if (!res.includes('LƯU Ý') && !res.includes('Lưu ý')) {
+        res = `[📝 LƯU Ý] ${res}`;
       }
     }
     return res;

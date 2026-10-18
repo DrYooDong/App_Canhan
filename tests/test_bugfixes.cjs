@@ -27,20 +27,23 @@ const samplePatients = [
   { id: '3', handover_status: 'pending' },
   { id: '4', handover_status: 'waiting_cls' },
   { id: '5', handover_status: 'discharged' },
-  { id: '6', handover_status: '' } // coi như ổn định
+  { id: '6', handover_status: '' }, // coi như ổn định
+  { id: '7', handover_status: 'note' } // trạng thái Lưu ý mới
 ];
 
 const totalCount = samplePatients.length;
 const criticalCount = samplePatients.filter(p => p.handover_status === 'critical').length;
 const pendingCount = samplePatients.filter(p => p.handover_status === 'pending').length;
 const waitingClsCount = samplePatients.filter(p => p.handover_status === 'waiting_cls').length;
+const noteCount = samplePatients.filter(p => p.handover_status === 'note').length;
 const dischargedCount = samplePatients.filter(p => p.handover_status === 'discharged').length;
 const stableCount = samplePatients.filter(p => p.handover_status === 'none' || !p.handover_status).length;
 
-assert.strictEqual(totalCount, 6);
+assert.strictEqual(totalCount, 7);
 assert.strictEqual(criticalCount, 1);
 assert.strictEqual(pendingCount, 1);
 assert.strictEqual(waitingClsCount, 1);
+assert.strictEqual(noteCount, 1);
 assert.strictEqual(dischargedCount, 1);
 assert.strictEqual(stableCount, 2); // id 1 và 6
 console.log('✓ Test 2 ĐẠT!\n');

@@ -1067,9 +1067,11 @@
                 <!-- MỤC TRẠNG THÁI TRONG MODAL CHI TIẾT -->
                 <div class="form-group">
                     <label>Trạng thái:</label>
-                    <select id="editHandoverStatus" class="form-control" style="font-weight: 600;">
+                    <select id="editHandoverStatus" class="form-control" style="font-weight: 600;"
+                        onchange="window.patientController.onDetailStatusChange(this.value)">
                         <option value="none">🟢 Ổn định</option>
                         <option value="waiting_cls">🧪 Chờ CLS</option>
+                        <option value="note">📝 Lưu ý</option>
                         <option value="resolved">✅ Đã xong</option>
                         <option value="pending">⏳ Cần bàn giao</option>
                         <option value="discharged">🏠 Xuất viện</option>
@@ -1077,13 +1079,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>⚠️ Vấn đề lâm sàng tồn đọng:</label>
+                    <label id="lblEditHandoverIssues">⚠️ Vấn đề lâm sàng tồn đọng:</label>
                     <textarea id="editHandoverIssues" class="form-control" rows="2"
                         placeholder="Vấn đề lâm sàng tồn đọng..."></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label>🎯 Y lệnh &amp; Hành động tua trực cần xử trí:</label>
+                    <label id="lblEditHandoverActions">🎯 Y lệnh &amp; Hành động tua trực cần xử trí:</label>
                     <textarea id="editHandoverActions" class="form-control" rows="2"
                         placeholder="Y lệnh &amp; hành động ca trực..."></textarea>
                 </div>
@@ -1283,36 +1285,40 @@
                     <label>Trạng thái:</label>
                     <div class="status-radio-group">
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="none">
+                            <input type="radio" name="hoStatusRadio" value="none" onchange="window.handoverController.onStatusRadioChange(this.value)">
                             <span>🟢 Ổn định</span>
                         </label>
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="waiting_cls">
+                            <input type="radio" name="hoStatusRadio" value="waiting_cls" onchange="window.handoverController.onStatusRadioChange(this.value)">
                             <span>🧪 Chờ CLS</span>
                         </label>
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="resolved">
+                            <input type="radio" name="hoStatusRadio" value="note" onchange="window.handoverController.onStatusRadioChange(this.value)">
+                            <span>📝 Lưu ý</span>
+                        </label>
+                        <label class="status-radio-item">
+                            <input type="radio" name="hoStatusRadio" value="resolved" onchange="window.handoverController.onStatusRadioChange(this.value)">
                             <span>✅ Đã xong</span>
                         </label>
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="pending">
+                            <input type="radio" name="hoStatusRadio" value="pending" onchange="window.handoverController.onStatusRadioChange(this.value)">
                             <span>⏳ Cần bàn giao</span>
                         </label>
                         <label class="status-radio-item">
-                            <input type="radio" name="hoStatusRadio" value="discharged">
+                            <input type="radio" name="hoStatusRadio" value="discharged" onchange="window.handoverController.onStatusRadioChange(this.value)">
                             <span>🏠 Xuất viện</span>
                         </label>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>⚠️ Vấn đề tồn đọng:</label>
+                    <label id="lblHoIssues">⚠️ Vấn đề tồn đọng:</label>
                     <textarea id="hoIssues" class="form-control" rows="2"
                         placeholder="Ghi nhận vấn đề tồn đọng..."></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label>🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
+                    <label id="lblHoActions">🎯 Y lệnh / Hành động bác sĩ trực cần làm:</label>
                     <textarea id="hoActions" class="form-control" rows="2"
                         placeholder="Y lệnh / hành động cần xử trí..."></textarea>
                 </div>

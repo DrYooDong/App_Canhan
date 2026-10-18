@@ -883,6 +883,20 @@ body.dark-theme .date-wrapper .badge-today-pill {
   box-shadow: 0 2px 6px rgba(180, 83, 9, 0.25);
 }
 
+.clinical-filter-chip.chip-waiting-cls.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.clinical-filter-chip.chip-note.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+}
+
 /* ==============================================================================
    5. PATIENT INFORMATION TABLE (MODERN CLINICAL DATA GRID)
    ============================================================================== */
@@ -1428,6 +1442,10 @@ body.dark-theme .btn-modal-tool:hover {
 .icon-status-btn.badge-waiting-cls {
   background: #eff6ff;
   border-color: #bfdbfe;
+}
+.icon-status-btn.badge-note {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
 }
 .icon-status-btn.badge-discharged {
   background: #f1f5f9;
@@ -2818,6 +2836,12 @@ textarea.form-control {
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+
+.badge-note {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
 }
 
 .badge-discharged {
@@ -4609,6 +4633,11 @@ body.dark-theme .icon-status-btn.badge-waiting-cls {
   border-color: #1e40af;
 }
 
+body.dark-theme .icon-status-btn.badge-note {
+  background: rgba(109, 40, 217, 0.3);
+  border-color: #7c3aed;
+}
+
 body.dark-theme .icon-status-btn.badge-discharged {
   background: rgba(51, 65, 85, 0.35);
   border-color: #475569;
@@ -4618,6 +4647,18 @@ body.dark-theme .badge-waiting-cls {
   background: rgba(30, 58, 138, 0.4);
   color: #93c5fd;
   border-color: #1d4ed8;
+}
+
+body.dark-theme .badge-note {
+  background: rgba(109, 40, 217, 0.35);
+  color: #c4b5fd;
+  border-color: #7c3aed;
+}
+
+body.dark-theme .clinical-filter-chip.chip-note.active {
+  background: #6d28d9;
+  border-color: #8b5cf6;
+  color: #ffffff;
 }
 
 body.dark-theme .badge-discharged {

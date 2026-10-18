@@ -74,6 +74,7 @@ const CONFIG = {
   HANDOVER_STATUS: {
     NONE: 'none',             // Ổn định
     WAITING_CLS: 'waiting_cls', // Chờ CLS
+    NOTE: 'note',             // Lưu ý
     RESOLVED: 'resolved',     // Đã xong
     PENDING: 'pending',       // Cần bàn giao
     DISCHARGED: 'discharged', // Xuất viện
@@ -91,6 +92,11 @@ const CONFIG = {
       label: 'Chờ CLS',
       badgeClass: 'badge-waiting-cls',
       icon: '🧪'
+    },
+    note: {
+      label: 'Lưu ý',
+      badgeClass: 'badge-note',
+      icon: '📝'
     },
     resolved: {
       label: 'Đã xong',
