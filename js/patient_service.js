@@ -115,19 +115,45 @@ class PatientController {
           }
         }
 
-        // 2. Nếu người dùng đang tập trung gõ phím trên màn hình này:
-        const isUserTyping = document.activeElement && (
-          document.activeElement.isContentEditable ||
-          document.activeElement.tagName === 'INPUT' ||
-          document.activeElement.tagName === 'TEXTAREA'
+        const targetId = record?.id;
+
+        // 2. Xác định ca bệnh người dùng đang trực tiếp thao tác (nếu có)
+        const activeEl = document.activeElement;
+        const isUserTyping = activeEl && (
+          activeEl.isContentEditable ||
+          activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA'
         );
 
+        let activePatientId = null;
         if (isUserTyping) {
+          const rowEl = activeEl.closest('tr[data-id]');
+          const cardEl = activeEl.closest('.mobile-patient-card[data-id]');
+          if (rowEl) activePatientId = rowEl.dataset.id;
+          else if (cardEl) activePatientId = cardEl.dataset.id;
+        }
+
+        // Kiểm tra xem Modal chi tiết bệnh nhân có đang mở cho ca này không
+        const detailModal = document.getElementById('patientDetailModal');
+        const isDetailModalOpen = detailModal && detailModal.classList.contains('active');
+        const modalPatientId = isDetailModalOpen ? (document.getElementById('editPatientId')?.value || this.currentEditingPatientId) : null;
+
+        // Nếu bản ghi đến thuộc ca bệnh ĐANG ĐƯỢC CHỈNH SỬA trên màn hình này:
+        if ((activePatientId && targetId === activePatientId) || (isDetailModalOpen && targetId === modalPatientId)) {
+          if (isDetailModalOpen && targetId === modalPatientId && payload.new) {
+            // Cập nhật ngầm trong patientList nhưng báo người dùng để họ chủ động nạp mà không mất chữ đang gõ
+            const idx = this.patientList.findIndex(p => p.id === targetId);
+            if (idx >= 0) {
+              this.normalizePatientClsAndOrders(payload.new);
+              this.patientList[idx] = { ...this.patientList[idx], ...payload.new };
+            }
+            this.showModalRemoteUpdateNotice(payload.new);
+          }
           this.pendingRealtimePatches.push(payload);
           return;
         }
 
-        // 3. Thực hiện áp dụng trực tiếp bản cập nhật
+        // 3. Nếu là ca bệnh khác hoặc người dùng không gõ phím: Áp dụng trực tiếp ngay lập tức
         this.applyRealtimePayload(payload);
       });
 
@@ -147,6 +173,90 @@ class PatientController {
             }
           }, 350);
         }
+      });
+    }
+  }
+
+  // ==============================================================================
+  // TỰ ĐỘNG ĐỒNG BỘ 2 CHIỀU KHI THỨC DẬY / MỞ LẠI APP / MẠNG PHỤC HỒI
+  // ==============================================================================
+  async syncWithCloudOnResume(showToast = false) {
+    if (!window.supabaseService || !window.supabaseService.isCloudEnabled) return;
+
+    // 1. Kiểm tra & đảm bảo kênh Realtime hoạt động
+    window.supabaseService.checkRealtimeHealth();
+
+    // 2. Kéo toàn bộ danh sách ngày hôm nay từ Cloud để đối soát
+    const isoDate = window.supabaseService.formatDateToISO(this.getCurrentDateString());
+    const cloudPatients = await window.supabaseService.pullLatestChanges(isoDate);
+    if (!cloudPatients) return;
+
+    let changeCount = 0;
+    const localMap = new Map();
+    this.patientList.forEach(p => localMap.set(p.id, p));
+
+    const mergedList = [];
+    cloudPatients.forEach(cloudP => {
+      this.normalizePatientClsAndOrders(cloudP);
+      if (cloudP.is_deleted) {
+        if (localMap.has(cloudP.id)) {
+          changeCount++;
+        }
+        return;
+      }
+
+      if (localMap.has(cloudP.id)) {
+        const localP = localMap.get(cloudP.id);
+        const cloudTime = new Date(cloudP.updated_at || cloudP.client_updated_at || 0).getTime();
+        const localTime = new Date(localP.updated_at || localP.client_updated_at || 0).getTime();
+
+        // So sánh mốc cập nhật: Cloud mới hơn thì nhận Cloud
+        if (cloudTime > localTime) {
+          mergedList.push({ ...localP, ...cloudP });
+          changeCount++;
+        } else if (localTime > cloudTime) {
+          // Local mới hơn (vừa chỉnh offline): giữ local và đồng bộ lên cloud
+          mergedList.push(localP);
+          window.supabaseService.savePatient(localP, isoDate).catch(() => {});
+        } else {
+          mergedList.push(localP);
+        }
+        localMap.delete(cloudP.id);
+      } else {
+        // Ca mới được thêm từ thiết bị khác
+        mergedList.push(cloudP);
+        changeCount++;
+      }
+    });
+
+    // Các ca bệnh còn sót trong localMap (ca tạo offline trên máy chưa kịp đẩy lên cloud)
+    for (const [id, localP] of localMap.entries()) {
+      if (!localP.is_deleted) {
+        mergedList.push(localP);
+        window.supabaseService.savePatient(localP, isoDate).catch(() => {});
+      }
+    }
+
+    mergedList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    if (changeCount > 0) {
+      this.patientList = mergedList;
+      this.saveLocalCache();
+      this.render();
+      if (showToast && window.showToast) {
+        window.showToast({
+          title: '🔄 ĐỒNG BỘ ĐA THIẾT BỊ',
+          message: `Đã tự động cập nhật ${changeCount} thay đổi mới nhất từ thiết bị khác`,
+          type: 'normal',
+          icon: '📱'
+        });
+      }
+    } else if (showToast && window.showToast) {
+      window.showToast({
+        title: '✓ ĐÃ ĐỒNG BỘ',
+        message: 'Dữ liệu trên máy hoàn toàn khớp với Cloud và các thiết bị khác',
+        type: 'normal',
+        icon: '🟢'
       });
     }
   }
@@ -3703,22 +3813,17 @@ class PatientController {
     el.focus();
   }
 
-  openPatientDetailModal(patientId) {
-    this.currentEditingPatientId = patientId;
-    const p = this.patientList.find(item => item.id === patientId);
+  populateDetailModalFields(p) {
     if (!p) return;
-
     this.normalizePatientClsAndOrders(p);
 
-    const modal = document.getElementById('patientDetailModal');
-    if (!modal) return;
+    const idEl = document.getElementById('editPatientId');
+    if (idEl) idEl.value = p.id || '';
+    const rbEl = document.getElementById('editRoomBed');
+    if (rbEl) rbEl.value = p.phong_giuong || '';
+    const fnEl = document.getElementById('editFullName');
+    if (fnEl) fnEl.value = p.ten || '';
 
-    const titleEl = modal.querySelector('.modal-title');
-    if (titleEl) titleEl.innerText = '🩺 Chi Tiết Người Bệnh';
-
-    document.getElementById('editPatientId').value = p.id;
-    document.getElementById('editRoomBed').value = p.phong_giuong || '';
-    document.getElementById('editFullName').value = p.ten || '';
     const ageInput = document.getElementById('editAgeYear');
     if (ageInput) {
       ageInput.value = p.nam_sinh_tuoi || '';
@@ -3731,7 +3836,8 @@ class PatientController {
     if (p.chan_doan && /^\[Mã\s*(?:NB|BN|BA|hồ\s*sơ):\s*[^\]]+\]$/i.test(p.chan_doan.trim())) {
       p.chan_doan = '';
     }
-    document.getElementById('editDiagnosis').value = p.chan_doan || '';
+    const diagInput = document.getElementById('editDiagnosis');
+    if (diagInput) diagInput.value = p.chan_doan || '';
     
     if (document.getElementById('editClsHienCo')) {
       document.getElementById('editClsHienCo').value = p.cls_hien_co || '';
@@ -3739,7 +3845,8 @@ class PatientController {
     if (document.getElementById('editClsCanLam')) {
       document.getElementById('editClsCanLam').value = p.cls_can_lam || '';
     }
-    document.getElementById('editOrders').value = p.y_lenh || '';
+    const ordInput = document.getElementById('editOrders');
+    if (ordInput) ordInput.value = p.y_lenh || '';
     if (document.getElementById('editThemThuoc')) {
       document.getElementById('editThemThuoc').value = p.them_thuoc || '';
     }
@@ -3757,8 +3864,10 @@ class PatientController {
       statusSelect.value = currentStatus;
       this.onDetailStatusChange(currentStatus);
     }
-    document.getElementById('editHandoverIssues').value = p.handover_issues || '';
-    document.getElementById('editHandoverActions').value = p.handover_actions || '';
+    const issInput = document.getElementById('editHandoverIssues');
+    if (issInput) issInput.value = p.handover_issues || '';
+    const actInput = document.getElementById('editHandoverActions');
+    if (actInput) actInput.value = p.handover_actions || '';
 
     // Cập nhật tóm tắt Xu hướng Dengue (Hct & TC)
     const triggerSub = document.getElementById('detailTrendSummaryText');
@@ -3771,13 +3880,80 @@ class PatientController {
         triggerSub.textContent = 'Chưa có mốc theo dõi • Chạm để mở biểu đồ & nhập điểm';
       }
     }
+  }
 
+  showModalRemoteUpdateNotice(record) {
+    const alertBox = document.getElementById('modalRemoteUpdateAlert');
+    if (!alertBox) return;
+
+    const timeStr = new Date().toLocaleTimeString('vi-VN');
+    const docName = record.doctor_name || record.handover_by || 'BS khác';
+
+    alertBox.innerHTML = `
+      <div class="remote-update-banner">
+        <div class="remote-update-text">
+          <span class="pulse-icon">⚡</span>
+          <span><strong>Dữ liệu vừa cập nhật từ thiết bị khác</strong> (${timeStr} · ${docName})</span>
+        </div>
+        <button type="button" class="btn-remote-reload" onclick="window.patientController.reloadCurrentModalData()">
+          Nạp dữ liệu mới
+        </button>
+      </div>
+    `;
+    alertBox.style.display = 'block';
+  }
+
+  reloadCurrentModalData() {
+    const id = document.getElementById('editPatientId')?.value || this.currentEditingPatientId;
+    if (!id) return;
+    const p = this.patientList.find(x => x.id === id);
+    if (!p) return;
+
+    this.populateDetailModalFields(p);
+
+    const alertBox = document.getElementById('modalRemoteUpdateAlert');
+    if (alertBox) {
+      alertBox.innerHTML = `
+        <div class="remote-update-banner success">
+          <span>✓ Đã nạp thành công dữ liệu mới nhất từ thiết bị khác!</span>
+        </div>
+      `;
+      setTimeout(() => {
+        alertBox.style.display = 'none';
+      }, 2500);
+    }
+  }
+
+  openPatientDetailModal(patientId) {
+    this.currentEditingPatientId = patientId;
+    const p = this.patientList.find(item => item.id === patientId);
+    if (!p) return;
+
+    const modal = document.getElementById('patientDetailModal');
+    if (!modal) return;
+
+    const titleEl = modal.querySelector('.modal-title');
+    if (titleEl) titleEl.innerText = '🩺 Chi Tiết Người Bệnh';
+
+    const alertBox = document.getElementById('modalRemoteUpdateAlert');
+    if (alertBox) {
+      alertBox.style.display = 'none';
+      alertBox.innerHTML = '';
+    }
+
+    this.populateDetailModalFields(p);
     modal.classList.add('active');
   }
 
   closePatientDetailModal() {
+    this.currentEditingPatientId = null;
     const modal = document.getElementById('patientDetailModal');
     if (modal) modal.classList.remove('active');
+    const alertBox = document.getElementById('modalRemoteUpdateAlert');
+    if (alertBox) {
+      alertBox.style.display = 'none';
+      alertBox.innerHTML = '';
+    }
   }
 
   // CẬP NHẬT NHÃN ĐỘNG THEO TRẠNG THÁI NGƯỜI BỆNH TRONG MODAL CHI TIẾT

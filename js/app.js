@@ -17,6 +17,61 @@ class MedWardApp {
     this.setupKeyboardShortcuts();
     this.setupClipboardPaste();
     this.setupPWA();
+    this.setupMultiDeviceLifecycle();
+  }
+
+  setupMultiDeviceLifecycle() {
+    // 1. Khi người dùng mở lại tab hoặc mở lại màn hình điện thoại (Wake-up / Resume)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(() => {
+          window.patientController?.syncWithCloudOnResume?.(false);
+        }, 150);
+      }
+    });
+
+    window.addEventListener('pageshow', () => {
+      setTimeout(() => {
+        window.patientController?.syncWithCloudOnResume?.(false);
+      }, 200);
+    });
+
+    window.addEventListener('focus', () => {
+      window.supabaseService?.checkRealtimeHealth?.();
+    });
+
+    // 2. Tự động phục hồi & đồng bộ ngay khi mạng Internet bật lại
+    window.addEventListener('online', () => {
+      if (window.showToast) {
+        window.showToast({
+          title: '🌐 KẾT NỐI MẠNG ĐÃ PHỤC HỒI',
+          message: 'Đang tự động đồng bộ hai chiều với Cloud & các thiết bị...',
+          type: 'normal',
+          icon: '🟢'
+        });
+      }
+      setTimeout(() => {
+        window.patientController?.syncWithCloudOnResume?.(true);
+      }, 300);
+    });
+
+    window.addEventListener('offline', () => {
+      if (window.showToast) {
+        window.showToast({
+          title: '⚠️ MẤT KẾT NỐI MẠNG',
+          message: 'Ứng dụng đã chuyển sang chế độ Offline an toàn trên máy.',
+          type: 'normal',
+          icon: '📡'
+        });
+      }
+    });
+
+    // 3. Heartbeat kiểm tra sức khỏe kênh Realtime định kỳ mỗi 40s (khi tab đang mở)
+    setInterval(() => {
+      if (document.visibilityState === 'visible' && window.supabaseService?.isCloudEnabled) {
+        window.supabaseService.checkRealtimeHealth();
+      }
+    }, 40000);
   }
 
   setupKeyboardShortcuts() {
@@ -595,7 +650,7 @@ class MedWardApp {
           }
 
           try {
-            const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+            const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, null, { isFullReplace: replace });
             if (syncRes && syncRes.offlineSaved) {
               window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
             } else if (syncRes && syncRes.error) {
@@ -707,7 +762,7 @@ class MedWardApp {
         }
 
         try {
-          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList);
+          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, null, { isFullReplace: replace });
           if (syncRes && syncRes.offlineSaved) {
             window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ "${file.name}"! (Lưu an toàn offline)`);
           } else if (syncRes && syncRes.error) {

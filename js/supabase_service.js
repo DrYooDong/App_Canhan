@@ -16,7 +16,12 @@ class SupabaseService {
     this.pendingBatch = null;
 
     // Định danh phiên làm việc hiện tại (Device/Tab ID) để triệt tiêu triệt để echo loop
-    this.clientId = 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+    const devType = (typeof window !== 'undefined' && window.innerWidth < 768) ? 'mob' : ((typeof window !== 'undefined' && window.innerWidth < 1025) ? 'tab' : 'desk');
+    this.clientId = 'client_' + devType + '_' + Math.random().toString(36).substring(2, 8) + '_' + Date.now();
+    this.deviceType = devType;
+    this.recentlySavedPatientIds = new Map(); // patientId -> timestamp để chống echo chính xác theo ca bệnh
+    this.realtimeStatus = 'DISCONNECTED';
+    this.reconnectTimer = null;
     this.lastLocalSaveTimestamp = 0;
 
     this.init();
@@ -224,7 +229,10 @@ class SupabaseService {
     return {
       isCloud: this.isCloudEnabled,
       isSyncing: this.isSyncing,
-      lastSyncedAt: this.lastSyncedAt
+      lastSyncedAt: this.lastSyncedAt,
+      realtimeStatus: this.realtimeStatus,
+      clientId: this.clientId,
+      deviceType: this.deviceType
     };
   }
 
@@ -246,16 +254,22 @@ class SupabaseService {
   }
 
   notifyRealtimeSubscribers(payload) {
-    // 1. Kiểm tra Client ID để triệt tiêu echo loop
-    if (payload?.new?.last_client_id && payload.new.last_client_id === this.clientId) {
+    const record = payload?.new || payload?.old;
+
+    // 1. Kiểm tra Client ID để triệt tiêu echo loop (bản ghi do chính phiên/thiết bị này gửi lên)
+    if (record?.last_client_id && record.last_client_id === this.clientId) {
       return;
     }
 
-    // 2. Kiểm tra nếu vừa mới lưu từ chính phiên này trong 1.5s
-    if (this.lastLocalSaveTimestamp && (Date.now() - this.lastLocalSaveTimestamp < 1500)) {
-      return;
+    // 2. Dự phòng: Nếu bản ghi không có last_client_id nhưng chính ID ca bệnh này vừa lưu trên phiên này trong 1200ms
+    if (!record?.last_client_id && record?.id && this.recentlySavedPatientIds?.has(record.id)) {
+      const saveTime = this.recentlySavedPatientIds.get(record.id);
+      if (Date.now() - saveTime < 1200) {
+        return;
+      }
     }
 
+    // 3. Chuyển tiếp ngay lập tức đến các bộ lắng nghe (không bỏ sót bất kỳ thay đổi nào từ thiết bị khác)
     this.syncListeners.forEach(cb => {
       try { cb(payload); } catch (e) { }
     });
@@ -263,10 +277,13 @@ class SupabaseService {
 
   // Lắng nghe thay đổi Realtime qua Supabase Channels
   setupRealtimeSubscription() {
-    if (!this.client) return;
+    if (!this.client || !this.isCloudEnabled) return;
 
     if (this.realtimeChannel) {
-      this.realtimeChannel.unsubscribe();
+      try {
+        this.realtimeChannel.unsubscribe();
+      } catch (e) { }
+      this.realtimeChannel = null;
     }
 
     try {
@@ -305,9 +322,64 @@ class SupabaseService {
         )
         .subscribe((status) => {
           console.log('📡 Trạng thái kênh Realtime Supabase:', status);
+          if (status === 'SUBSCRIBED') {
+            this.realtimeStatus = 'CONNECTED';
+            this.notifyStateChange();
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            this.realtimeStatus = 'DISCONNECTED';
+            this.notifyStateChange();
+            this.scheduleReconnect();
+          }
         });
     } catch (e) {
       console.warn('Không thể khởi tạo kênh Realtime:', e);
+      this.realtimeStatus = 'DISCONNECTED';
+      this.notifyStateChange();
+      this.scheduleReconnect();
+    }
+  }
+
+  scheduleReconnect(delayMs = 3000) {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.isCloudEnabled && this.client) {
+        console.log('🔄 Đang tự động kết nối lại kênh Realtime...');
+        this.setupRealtimeSubscription();
+      }
+    }, delayMs);
+  }
+
+  checkRealtimeHealth() {
+    if (!this.client || !this.isCloudEnabled) return;
+    if (!this.realtimeChannel || this.realtimeStatus !== 'CONNECTED') {
+      console.log('⚡ Phát hiện kênh Realtime chưa kết nối hoặc bị ngắt, đang kích hoạt kết nối lại...');
+      this.setupRealtimeSubscription();
+    }
+  }
+
+  /**
+   * Kéo dữ liệu mới nhất của ngày làm việc từ Cloud (hỗ trợ đồng bộ khi chuyển tab / mở lại app)
+   */
+  async pullLatestChanges(targetDate = null) {
+    if (!this.isCloudEnabled || !this.client) return null;
+    const isoDate = this.formatDateToISO(targetDate || this.getCurrentWorkDate());
+    try {
+      await this.ensureSession();
+      const { data, error } = await this.client
+        .from('patients')
+        .select('*')
+        .eq('report_date', isoDate)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      this.lastSyncedAt = new Date();
+      this.notifyStateChange();
+      return data || [];
+    } catch (e) {
+      console.warn(`Lỗi kéo dữ liệu ngày ${isoDate} từ Cloud:`, e);
+      return null;
     }
   }
 
@@ -748,6 +820,15 @@ class SupabaseService {
 
   async savePatient(patient, targetDate = null) {
     this.lastLocalSaveTimestamp = Date.now();
+    if (patient && patient.id) {
+      this.recentlySavedPatientIds.set(patient.id, Date.now());
+      if (this.recentlySavedPatientIds.size > 100) {
+        const threshold = Date.now() - 15000;
+        for (const [id, t] of this.recentlySavedPatientIds.entries()) {
+          if (t < threshold) this.recentlySavedPatientIds.delete(id);
+        }
+      }
+    }
     this.isSyncing = true;
     this.notifyStateChange();
 
@@ -807,7 +888,7 @@ class SupabaseService {
     }
   }
 
-  async syncBatchPatients(patientsArray, targetDate = null) {
+  async syncBatchPatients(patientsArray, targetDate = null, options = {}) {
     if (!patientsArray || !Array.isArray(patientsArray)) {
       return { data: [], error: null };
     }
@@ -820,7 +901,7 @@ class SupabaseService {
     localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(patientsArray));
 
     if (this.batchSyncLock) {
-      this.pendingBatch = { array: patientsArray, date: isoDate };
+      this.pendingBatch = { array: patientsArray, date: isoDate, options };
       return { data: patientsArray, error: null, queued: true };
     }
 
@@ -913,18 +994,20 @@ class SupabaseService {
         }
       } else {
         // Danh sách rỗng: Đã xóa trắng trên client -> Xóa toàn bộ bản ghi của ngày này trên Cloud
-        try {
-          await this.client
-            .from('patients')
-            .delete()
-            .eq('report_date', isoDate);
-          console.log(`🧹 Đã xóa toàn bộ bệnh nhân ngày ${isoDate} trên Supabase do danh sách hiện tại rỗng.`);
-        } catch (emptyErr) {
-          console.warn('Lỗi xóa mẻ rỗng trên Cloud:', emptyErr);
+        if (options && options.isFullReplace) {
+          try {
+            await this.client
+              .from('patients')
+              .delete()
+              .eq('report_date', isoDate);
+            console.log(`🧹 Đã xóa toàn bộ bệnh nhân ngày ${isoDate} trên Supabase do danh sách hiện tại rỗng.`);
+          } catch (emptyErr) {
+            console.warn('Lỗi xóa mẻ rỗng trên Cloud:', emptyErr);
+          }
         }
       }
 
-      // BƯỚC RECONCILE: Luôn chạy để đảm bảo số lượng bản ghi trên Supabase khớp 1:1 với dự án thực tế
+      // BƯỚC RECONCILE:
       try {
         const currentValidIds = new Set(deduplicatedRecords.map(r => String(r.id).toLowerCase()));
 
@@ -935,23 +1018,46 @@ class SupabaseService {
           .eq('is_deleted', true)
           .catch(() => { });
 
-        // 2. Xóa các bản ghi mồ côi/thừa của ngày này trên Supabase không nằm trong danh sách hiện tại
-        const { data: cloudList } = await this.client
-          .from('patients')
-          .select('id')
-          .eq('report_date', isoDate);
+        // 2. Xử lý bản ghi mồ côi: CHỈ XÓA khi người dùng chủ động nạp đè/thay thế toàn bộ (options.isFullReplace === true)
+        if (options && options.isFullReplace) {
+          const { data: cloudList } = await this.client
+            .from('patients')
+            .select('id')
+            .eq('report_date', isoDate);
 
-        if (cloudList && cloudList.length > 0) {
-          const orphanIds = cloudList
-            .map(p => p.id)
-            .filter(id => !currentValidIds.has(String(id).toLowerCase()));
+          if (cloudList && cloudList.length > 0) {
+            const orphanIds = cloudList
+              .map(p => p.id)
+              .filter(id => !currentValidIds.has(String(id).toLowerCase()));
 
-          if (orphanIds.length > 0) {
-            await this.client
-              .from('patients')
-              .delete()
-              .in('id', orphanIds);
-            console.log(`🧹 [Reconcile] Đã xóa ${orphanIds.length} bản ghi thừa trên Supabase để khớp chính xác ${deduplicatedRecords.length} ca.`);
+            if (orphanIds.length > 0) {
+              await this.client
+                .from('patients')
+                .delete()
+                .in('id', orphanIds);
+              console.log(`🧹 [Reconcile Full-Replace] Đã xóa ${orphanIds.length} bản ghi thừa trên Supabase để khớp chính xác ${deduplicatedRecords.length} ca.`);
+            }
+          }
+        } else {
+          // Khi chạy ở chế độ đồng bộ thông thường (Multi-Device Safe):
+          // Kiểm tra xem trên Cloud có ca bệnh nào được thiết bị khác thêm vào mà local chưa có không
+          const { data: cloudList } = await this.client
+            .from('patients')
+            .select('*')
+            .eq('report_date', isoDate)
+            .eq('is_deleted', false);
+
+          if (cloudList && cloudList.length > 0) {
+            const localIdSet = new Set(deduplicatedRecords.map(p => String(p.id).toLowerCase()));
+            const missingFromLocal = cloudList.filter(p => !localIdSet.has(String(p.id).toLowerCase()));
+
+            if (missingFromLocal.length > 0) {
+              console.log(`📡 [Multi-Device Safe] Phát hiện ${missingFromLocal.length} người bệnh từ thiết bị khác trên Cloud, tự động bảo toàn và gộp vào máy.`);
+              syncedData = [...syncedData, ...missingFromLocal];
+              syncedData.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+              localStorage.setItem(dateCacheKey, JSON.stringify(syncedData));
+              localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
+            }
           }
         }
 
@@ -969,7 +1075,7 @@ class SupabaseService {
       if (this.pendingBatch) {
         const nextBatch = this.pendingBatch;
         this.pendingBatch = null;
-        setTimeout(() => this.syncBatchPatients(nextBatch.array, nextBatch.date), 50);
+        setTimeout(() => this.syncBatchPatients(nextBatch.array, nextBatch.date, nextBatch.options), 50);
       }
 
       return { data: syncedData, error: null };

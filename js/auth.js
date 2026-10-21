@@ -1118,6 +1118,29 @@ class AuthController {
     const keyInput = document.getElementById('cfgSupabaseKey');
     if (urlInput) urlInput.value = conf.url || '';
     if (keyInput) keyInput.value = conf.key || '';
+
+    // Cập nhật trạng thái đa thiết bị
+    const status = window.supabaseService?.getConnectionStatus?.() || {};
+    const dot = document.getElementById('cloudRealtimeStatusDot');
+    const txt = document.getElementById('cloudRealtimeStatusText');
+    const devInfo = document.getElementById('cloudDeviceInfoText');
+
+    if (dot && txt) {
+      if (status.isCloud) {
+        const isConn = status.realtimeStatus === 'CONNECTED';
+        dot.style.background = isConn ? '#10b981' : '#f59e0b';
+        txt.innerText = isConn ? 'Đồng bộ Đa thiết bị Realtime (Đang kết nối)' : 'Đồng bộ Đa thiết bị Realtime (Đang kết nối lại...)';
+      } else {
+        dot.style.background = '#94a3b8';
+        txt.innerText = 'Chế độ lưu nội bộ (Chưa bật Cloud)';
+      }
+    }
+
+    if (devInfo && status.clientId) {
+      const devName = (status.deviceType === 'mob') ? 'Điện thoại (Mobile)' : ((status.deviceType === 'tab') ? 'Máy tính bảng (Tablet)' : 'Máy tính (Desktop/Laptop)');
+      devInfo.innerText = `Thiết bị này: ${devName} · Mã phiên: ${status.clientId}`;
+    }
+
     modal.classList.add('active');
   }
 
