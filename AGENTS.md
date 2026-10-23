@@ -13,9 +13,8 @@ i:\Drive của tôi\apps\App_Canhan\
 ├── index.html               # Cấu trúc giao diện toàn bộ (Desktop table, Mobile cards, Modal chi tiết, In ấn A4)
 ├── index.css                # CSS entry point
 ├── css/
-│   ├── main.css             # Giao diện Desktop, Bảng điều trị, KPI lâm sàng, Themes, Modal
+│   ├── main.css             # Giao diện Desktop, Bảng điều trị, KPI lâm sàng, Themes, Modal, Khóa PIN & Pattern Lock
 │   ├── mobile.css           # Thẻ bệnh nhân di động, Action bar, Filter chips, Touch UX
-│   ├── lockscreen.css       # Màn hình khóa PIN & Khóa vẽ cử chỉ (Pattern Lock)
 │   └── print.css            # Định dạng trang in sổ giao ban lâm sàng A4
 ├── js/
 │   ├── config.js            # Từ điển viết tắt y khoa, hằng số cấu hình, trạng thái ca trực
