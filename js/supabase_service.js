@@ -1052,11 +1052,30 @@ class SupabaseService {
             const missingFromLocal = cloudList.filter(p => !localIdSet.has(String(p.id).toLowerCase()));
 
             if (missingFromLocal.length > 0) {
-              console.log(`📡 [Multi-Device Safe] Phát hiện ${missingFromLocal.length} người bệnh từ thiết bị khác trên Cloud, tự động bảo toàn và gộp vào máy.`);
-              syncedData = [...syncedData, ...missingFromLocal];
-              syncedData.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-              localStorage.setItem(dateCacheKey, JSON.stringify(syncedData));
-              localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
+              // Lọc bỏ những ca từ Cloud mà local đã có người bệnh tương ứng (trùng Họ tên & Năm sinh/Phòng) để triệt tiêu bóng ma trùng lặp
+              const trulyMissing = missingFromLocal.filter(cloudP => {
+                const cName = (cloudP.ten || '').trim().toLowerCase();
+                if (!cName) return false;
+                return !deduplicatedRecords.some(localP => {
+                  const lName = (localP.ten || '').trim().toLowerCase();
+                  if (cName !== lName) return false;
+                  const cYear = String(cloudP.nam_sinh_tuoi || '').trim().toLowerCase();
+                  const lYear = String(localP.nam_sinh_tuoi || '').trim().toLowerCase();
+                  if (cYear && lYear && cYear === lYear) return true;
+                  const cRoom = String(cloudP.phong_giuong || '').trim().toLowerCase();
+                  const lRoom = String(localP.phong_giuong || '').trim().toLowerCase();
+                  if (cRoom && lRoom && cRoom === lRoom) return true;
+                  return false;
+                });
+              });
+
+              if (trulyMissing.length > 0) {
+                console.log(`📡 [Multi-Device Safe] Phát hiện ${trulyMissing.length} người bệnh từ thiết bị khác trên Cloud, tự động bảo toàn và gộp vào máy.`);
+                syncedData = [...syncedData, ...trulyMissing];
+                syncedData.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+                localStorage.setItem(dateCacheKey, JSON.stringify(syncedData));
+                localStorage.setItem(CONFIG.STORAGE_KEYS.PATIENT_DATA, JSON.stringify(syncedData));
+              }
             }
           }
         }

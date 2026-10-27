@@ -5,6 +5,8 @@
 class MedWardApp {
   constructor() {
     this.viewMode = 'auto'; // 'auto' | 'table' | 'cards'
+    this.isImportingExcel = false;
+    this.pendingImportData = null;
     this.init();
   }
 
@@ -622,81 +624,47 @@ class MedWardApp {
       if (pastedText && (pastedText.includes('\t') || pastedText.includes('\n'))) {
         const lines = pastedText.trim().split(/\r?\n/);
         const matrix = lines.map(line => line.split('\t'));
-        const imported = window.patientController.parseExcelRawRows(matrix);
+        const imported = window.patientController?.parseExcelRawRows(matrix) || [];
 
         if (imported.length > 0) {
           e.preventDefault();
-          const curCount = window.patientController.patientList.length;
-          let replace = false;
-
-          if (curCount > 0) {
-            replace = confirm(`Phát hiện dữ liệu Excel gồm ${imported.length} người bệnh. Bạn muốn THAY THẾ danh sách hiện tại (OK) hay NỐI TIẾP thêm (Cancel)?`);
-          } else {
-            replace = true;
-          }
-
-          if (replace) {
-            window.patientController.patientList = imported;
-          } else {
-            window.patientController.patientList = window.patientController.patientList.concat(imported);
-          }
-
-          window.patientController.sortPatientsByRoomAndBed(false, false);
-          window.patientController.saveLocalCache();
-          window.patientController.render();
-
-          if (window.updateSaveStatus) {
-            window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
-          }
-
-          try {
-            const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, null, { isFullReplace: replace });
-            if (syncRes && syncRes.offlineSaved) {
-              window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ máy! (Lưu an toàn offline)`);
-            } else if (syncRes && syncRes.error) {
-              window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
-            } else {
-              window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh và đồng bộ lên Cloud!`);
-            }
-          } catch (syncErr) {
-            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
-          }
-
-          // Kiểm tra và thông báo nếu có bệnh nhân trùng lặp Họ tên & Năm sinh
-          setTimeout(() => {
-            const dupGroups = window.patientController?.findDuplicatePatientGroups?.() || [];
-            if (dupGroups.length > 0) {
-              const totalDup = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
-              if (confirm(`⚠️ Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDup} ca) trùng Họ tên & Năm sinh sau khi dán dữ liệu.\n\nBạn có muốn mở bảng "Lọc trùng bệnh nhân" để kiểm tra và xử lý ngay không?`)) {
-                window.patientController?.openDuplicateModal?.();
-              }
-            }
-          }, 600);
+          this.processImportedPatients(imported, {
+            sourceName: 'Dán bảng từ Excel (Ctrl+V)',
+            isPaste: true
+          });
         }
       }
     });
   }
 
   handleExcelFileUpload(e) {
+    if (this.isImportingExcel) {
+      if (e?.target) e.target.value = '';
+      return;
+    }
+
     if (window.authController && !window.authController.isLoggedIn) {
       const gateOverlay = document.getElementById('loginGateOverlay');
       if (gateOverlay && gateOverlay.style.display !== 'none') {
         window.authController?.showGateOverlay?.();
-        e.target.value = '';
+        if (e?.target) e.target.value = '';
         return;
       } else {
         window.authController.isLoggedIn = true;
       }
     }
 
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    // Ngay lập tức xóa value của input để tránh lưu trạng thái cũ và sẵn sàng cho lần chọn file tiếp theo
+    if (e?.target) e.target.value = '';
     if (!file) return;
 
     if (typeof XLSX === 'undefined') {
       window.showToast("⚠️ Thư viện đọc file Excel chưa sẵn sàng. Bạn có thể sao chép bảng từ Excel rồi bấm Ctrl+V để dán trực tiếp!");
-      e.target.value = '';
       return;
     }
+
+    this.isImportingExcel = true;
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -706,6 +674,7 @@ class MedWardApp {
 
         if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
           window.showToast('⚠️ File Excel không có bảng tính (sheet) nào!');
+          this.isImportingExcel = false;
           return;
         }
 
@@ -718,7 +687,7 @@ class MedWardApp {
           if (!sheet || !sheet['!ref']) continue;
           const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
           if (!rawRows || rawRows.length === 0) continue;
-          const parsed = window.patientController.parseExcelRawRows(rawRows);
+          const parsed = window.patientController?.parseExcelRawRows(rawRows) || [];
           if (parsed.length > imported.length) {
             imported = parsed;
             chosenSheetName = sheetName;
@@ -730,72 +699,304 @@ class MedWardApp {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           if (firstSheet) {
             const rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
-            imported = window.patientController.parseExcelRawRows(rawRows);
+            imported = window.patientController?.parseExcelRawRows(rawRows) || [];
           }
         }
 
         if (imported.length === 0) {
           window.showToast('⚠️ Không tìm thấy hàng dữ liệu người bệnh phù hợp trong file Excel. Vui lòng kiểm tra lại cột Họ tên!');
+          this.isImportingExcel = false;
           return;
         }
 
-        const curCount = window.patientController.patientList.length;
-        let replace = false;
-        if (curCount > 0) {
-          replace = confirm(`Đã đọc được ${imported.length} người bệnh từ sheet "${chosenSheetName}". Bạn muốn THAY THẾ danh sách hiện tại (OK) hay NỐI TIẾP vào danh sách (Cancel)?`);
-        } else {
-          replace = true;
-        }
-
-        if (replace) {
-          window.patientController.patientList = imported;
-        } else {
-          window.patientController.patientList = window.patientController.patientList.concat(imported);
-        }
-
-        window.patientController.sortPatientsByRoomAndBed(false, false);
-        window.patientController.saveLocalCache();
-        window.patientController.render();
-
-        if (window.updateSaveStatus) {
-          window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
-        }
-
-        try {
-          const syncRes = await window.supabaseService.syncBatchPatients(window.patientController.patientList, null, { isFullReplace: replace });
-          if (syncRes && syncRes.offlineSaved) {
-            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ "${file.name}"! (Lưu an toàn offline)`);
-          } else if (syncRes && syncRes.error) {
-            window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh vào bộ nhớ máy (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
-          } else {
-            window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ file "${file.name}"!`);
-          }
-        } catch (syncErr) {
-          window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
-        }
-
-        // Kiểm tra và thông báo nếu có bệnh nhân trùng lặp Họ tên & Năm sinh
-        setTimeout(() => {
-          const dupGroups = window.patientController?.findDuplicatePatientGroups?.() || [];
-          if (dupGroups.length > 0) {
-            const totalDup = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
-            if (confirm(`⚠️ Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDup} ca) trùng Họ tên & Năm sinh từ file Excel.\n\nBạn có muốn mở bảng "Lọc trùng bệnh nhân" để kiểm tra và xử lý ngay không?`)) {
-              window.patientController?.openDuplicateModal?.();
-            }
-          }
-        }, 600);
+        this.processImportedPatients(imported, {
+          sourceName: `"${file.name}" (sheet "${chosenSheetName}")`,
+          isPaste: false
+        });
       } catch (err) {
         console.error('Lỗi nạp file Excel:', err);
         window.showToast('⚠️ Lỗi đọc file Excel: ' + (err.message || 'File không hợp lệ'));
-      } finally {
-        e.target.value = '';
+        this.isImportingExcel = false;
       }
     };
+
     reader.onerror = () => {
       window.showToast('⚠️ Không thể đọc file. Vui lòng thử lại!');
-      e.target.value = '';
+      this.isImportingExcel = false;
     };
+
     reader.readAsArrayBuffer(file);
+  }
+
+  processImportedPatients(imported, options = {}) {
+    const pCtrl = window.patientController;
+    if (!pCtrl) {
+      this.isImportingExcel = false;
+      return;
+    }
+
+    const curList = pCtrl.patientList || [];
+    const curCount = curList.length;
+
+    // TRƯỜNG HỢP 1: Danh sách hiện tại đang rỗng -> Nạp thẳng ngay không cần hỏi
+    if (curCount === 0) {
+      this.executeImport(imported, { isReplace: true, sourceName: options.sourceName });
+      return;
+    }
+
+    // TRƯỜNG HỢP 2: Đang có sẵn người bệnh trên danh sách -> Phân tích trùng lặp và mở Modal lựa chọn
+    this.pendingImportData = {
+      imported,
+      options
+    };
+
+    // Phân tích: Có bao nhiêu ca trong imported đã tồn tại trong curList
+    let existingMatchCount = 0;
+    let newCount = 0;
+
+    imported.forEach(item => {
+      const isExisting = this.findMatchingPatient(item, curList);
+      if (isExisting) {
+        existingMatchCount++;
+      } else {
+        newCount++;
+      }
+    });
+
+    const modal = document.getElementById('excelImportModal');
+    const bodyEl = document.getElementById('excelImportModalBody');
+    const titleEl = document.getElementById('excelImportModalTitle');
+    const btnSmart = document.getElementById('btnImportSmartAppend');
+    const btnReplace = document.getElementById('btnImportReplaceAll');
+
+    if (!modal || !bodyEl) {
+      // Fallback nếu không tìm thấy Modal DOM
+      const msg = `Phát hiện ${imported.length} người bệnh từ ${options.sourceName}.\n` +
+        `Danh sách hiện tại đang có ${curCount} người bệnh.\n\n` +
+        `• Bấm OK: THAY THẾ toàn bộ danh sách hiện tại.\n` +
+        `• Bấm Cancel: NỐI TIẾP THÔNG MINH (chỉ thêm ${newCount} ca mới, tự động loại trừ trùng lặp).`;
+      const replace = confirm(msg);
+      if (replace) {
+        this.executeImport(imported, { isReplace: true, sourceName: options.sourceName });
+      } else {
+        this.executeSmartAppend(imported, options);
+      }
+      return;
+    }
+
+    if (titleEl) {
+      titleEl.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="8" y1="13" x2="16" y2="13"></line>
+          <line x1="8" y1="17" x2="16" y2="17"></line>
+        </svg>
+        <span>${options.isPaste ? 'Xác Nhận Dán Bảng Excel (Ctrl+V)' : 'Tùy Chọn Nạp File Excel'}</span>
+      `;
+    }
+
+    bodyEl.innerHTML = `
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start;">
+        <div style="font-size: 22px; line-height: 1;">📊</div>
+        <div style="font-size: 13.5px; line-height: 1.5; color: #166534;">
+          <div>Nguồn dữ liệu: <strong>${options.sourceName || 'File Excel'}</strong></div>
+          <div>Đã đọc được: <strong style="font-size: 15px; color: #047857;">${imported.length}</strong> người bệnh trong bảng tính.</div>
+          <div style="margin-top: 4px; color: #374151;">Danh sách hiện tại trên máy đang có <strong>${curCount}</strong> người bệnh.</div>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-card, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 12px 14px; font-size: 13px;">
+        <div style="font-weight: 700; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+          <span>🔍 Phân tích trùng lặp thông minh:</span>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+          <span style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 13px;">
+            ➕ ${newCount} ca mới chưa có
+          </span>
+          <span style="background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 13px;">
+            🔄 ${existingMatchCount} ca đã có trong danh sách
+          </span>
+        </div>
+        <div style="color: var(--text-muted); font-size: 12.5px; line-height: 1.45;">
+          ${existingMatchCount > 0
+            ? '• <strong>Nối tiếp thông minh:</strong> Giữ nguyên ' + curCount + ' ca hiện có, chỉ bổ sung <strong>' + newCount + ' ca mới</strong> và hợp nhất thông tin còn thiếu cho ' + existingMatchCount + ' ca đã có. <em>Không bao giờ bị nhân đôi danh sách!</em>'
+            : '• Toàn bộ <strong>' + newCount + ' ca</strong> từ file Excel đều là bệnh nhân mới, sẵn sàng nạp nối tiếp.'}
+        </div>
+      </div>
+    `;
+
+    if (btnSmart) {
+      btnSmart.onclick = () => {
+        this.closeImportModal();
+        this.executeSmartAppend(imported, options);
+      };
+    }
+
+    if (btnReplace) {
+      btnReplace.onclick = () => {
+        this.closeImportModal();
+        this.executeImport(imported, { isReplace: true, sourceName: options.sourceName });
+      };
+    }
+
+    modal.classList.add('active');
+  }
+
+  findMatchingPatient(item, targetList) {
+    if (!item || !targetList || targetList.length === 0) return null;
+    const pCtrl = window.patientController;
+    const normItemName = pCtrl?.normalizePatientName ? pCtrl.normalizePatientName(item.ten) : (item.ten || '').trim().toLowerCase();
+    if (!normItemName || normItemName === 'bệnh nhân mới') return null;
+
+    const itemYear = pCtrl?.extractBirthYear ? pCtrl.extractBirthYear(item.nam_sinh_tuoi) : null;
+    const itemRoom = (item.phong_giuong || '').trim().toLowerCase();
+
+    for (const p of targetList) {
+      if (p.is_deleted) continue;
+      const normPName = pCtrl?.normalizePatientName ? pCtrl.normalizePatientName(p.ten) : (p.ten || '').trim().toLowerCase();
+      if (normPName !== normItemName) continue;
+
+      const pYear = pCtrl?.extractBirthYear ? pCtrl.extractBirthYear(p.nam_sinh_tuoi) : null;
+      const pRoom = (p.phong_giuong || '').trim().toLowerCase();
+
+      // 1. Khớp theo Năm sinh (nếu cả 2 bên đều có năm sinh)
+      if (itemYear && pYear && itemYear === pYear) return p;
+
+      // 2. Khớp theo Buồng/Giường (nếu cùng tên và cùng buồng giường)
+      if (itemRoom && pRoom && itemRoom === pRoom) return p;
+
+      // 3. Khớp chuỗi năm sinh tuổi thô nếu giống hệt
+      if (item.nam_sinh_tuoi && p.nam_sinh_tuoi && item.nam_sinh_tuoi.trim().toLowerCase() === p.nam_sinh_tuoi.trim().toLowerCase()) return p;
+
+      // 4. Nếu cả 2 đều không có năm sinh nhưng tên trùng khớp trong cùng khoa
+      if (!itemYear && !pYear) return p;
+    }
+    return null;
+  }
+
+  async executeSmartAppend(imported, options = {}) {
+    const pCtrl = window.patientController;
+    if (!pCtrl) {
+      this.isImportingExcel = false;
+      return;
+    }
+
+    const curList = [...(pCtrl.patientList || [])];
+    let newAddedCount = 0;
+    let mergedCount = 0;
+
+    for (const item of imported) {
+      const existing = this.findMatchingPatient(item, curList);
+      if (existing) {
+        // Hợp nhất thông tin nếu ca hiện tại bị thiếu
+        let updated = false;
+        if (!existing.chan_doan && item.chan_doan) { existing.chan_doan = item.chan_doan; updated = true; }
+        if (!existing.nam_sinh_tuoi && item.nam_sinh_tuoi) { existing.nam_sinh_tuoi = item.nam_sinh_tuoi; updated = true; }
+        if ((!existing.phong_giuong || existing.phong_giuong === 'D1.01-1') && item.phong_giuong && item.phong_giuong !== 'D1.01-1') {
+          existing.phong_giuong = item.phong_giuong;
+          updated = true;
+        }
+        if (!existing.cls && item.cls) {
+          existing.cls = item.cls;
+          existing.cls_hien_co = item.cls_hien_co || existing.cls_hien_co;
+          existing.cls_can_lam = item.cls_can_lam || existing.cls_can_lam;
+          updated = true;
+        }
+        if (!existing.y_lenh && item.y_lenh) { existing.y_lenh = item.y_lenh; updated = true; }
+        if (!existing.them_thuoc && item.them_thuoc) { existing.them_thuoc = item.them_thuoc; updated = true; }
+        if (!existing.doctor_name && item.doctor_name) { existing.doctor_name = item.doctor_name; updated = true; }
+
+        if (updated) {
+          existing.updated_at = new Date().toISOString();
+        }
+        mergedCount++;
+      } else {
+        // Ca mới hoàn toàn
+        curList.push(item);
+        newAddedCount++;
+      }
+    }
+
+    pCtrl.patientList = curList;
+    pCtrl.sortPatientsByRoomAndBed(false, false);
+    pCtrl.saveLocalCache();
+    pCtrl.render();
+
+    if (window.updateSaveStatus) {
+      window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
+    }
+
+    try {
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, null, { isFullReplace: false });
+      const toastMsg = newAddedCount > 0
+        ? `✓ Đã thêm ${newAddedCount} người bệnh mới` + (mergedCount > 0 ? ` (hợp nhất ${mergedCount} ca đã có, không trùng lặp)` : '') + '!'
+        : `✓ Đã rà soát & cập nhật ${mergedCount} người bệnh đã có (không có ca mới phát sinh)!`;
+
+      if (syncRes && syncRes.offlineSaved) {
+        window.showToast(toastMsg + ' (Lưu an toàn offline)');
+      } else if (syncRes && syncRes.error) {
+        window.showToast(`⚠️ ${toastMsg} (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
+      } else {
+        window.showToast(toastMsg + ' Đã đồng bộ Cloud.');
+      }
+    } catch (syncErr) {
+      window.showToast(`✓ Đã cập nhật danh sách vào bộ nhớ thiết bị!`);
+    } finally {
+      this.isImportingExcel = false;
+      this.pendingImportData = null;
+    }
+  }
+
+  async executeImport(imported, { isReplace = true, sourceName = 'file Excel' } = {}) {
+    const pCtrl = window.patientController;
+    if (!pCtrl) {
+      this.isImportingExcel = false;
+      return;
+    }
+
+    pCtrl.patientList = imported;
+    pCtrl.sortPatientsByRoomAndBed(false, false);
+    pCtrl.saveLocalCache();
+    pCtrl.render();
+
+    if (window.updateSaveStatus) {
+      window.updateSaveStatus('⏳ Đang đồng bộ danh sách lên Cloud...');
+    }
+
+    try {
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, null, { isFullReplace: true });
+      if (syncRes && syncRes.offlineSaved) {
+        window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ ${sourceName}! (Lưu an toàn offline)`);
+      } else if (syncRes && syncRes.error) {
+        window.showToast(`⚠️ Đã nạp ${imported.length} người bệnh (Lỗi Cloud: ${syncRes.error.message || 'Lỗi mạng'})`);
+      } else {
+        window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ ${sourceName} và đồng bộ lên Cloud!`);
+      }
+    } catch (syncErr) {
+      window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh vào bộ nhớ thiết bị!`);
+    } finally {
+      this.isImportingExcel = false;
+      this.pendingImportData = null;
+    }
+
+    // Kiểm tra thông báo nếu file gốc bản thân nó đã chứa các hàng trùng lặp nội bộ
+    setTimeout(() => {
+      const dupGroups = pCtrl?.findDuplicatePatientGroups?.() || [];
+      if (dupGroups.length > 0) {
+        const totalDup = dupGroups.reduce((acc, g) => acc + g.patients.length, 0);
+        if (confirm(`⚠️ Phát hiện ${dupGroups.length} nhóm người bệnh (${totalDup} ca) trùng Họ tên & Năm sinh ngay trong file Excel gốc.\n\nBạn có muốn mở bảng "Lọc trùng bệnh nhân" để kiểm tra và xử lý ngay không?`)) {
+          pCtrl?.openDuplicateModal?.();
+        }
+      }
+    }, 600);
+  }
+
+  closeImportModal() {
+    const modal = document.getElementById('excelImportModal');
+    if (modal) modal.classList.remove('active');
+    this.isImportingExcel = false;
+    this.pendingImportData = null;
   }
 
   openAbbreviationModal() {
