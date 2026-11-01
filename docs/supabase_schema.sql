@@ -11,7 +11,7 @@ create extension if not exists "uuid-ossp";
 -- 2. BẢNG HỒ SƠ BÁC SĨ (PROFILES)
 -- ==============================================================================
 create table if not exists public.profiles (
-  id uuid references auth.users on delete cascade primary key,
+  id uuid primary key default gen_random_uuid(),
   email text,
   username text unique,
   full_name text not null default '',
@@ -41,7 +41,7 @@ create table if not exists public.work_days (
   doctor_on_duty text default '',        -- Bác sĩ trưởng tua trực
   total_patients integer default 0,
   handover_notes text default '',
-  created_by uuid references auth.users on delete set null,
+  created_by uuid,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -55,7 +55,7 @@ create index if not exists idx_work_days_status on public.work_days(status);
 create table if not exists public.patients (
   id uuid default gen_random_uuid() primary key,
   report_date date not null default current_date,  -- PHÂN VÙNG THEO NGÀY (CỐT LÕI)
-  user_id uuid references auth.users on delete set null,
+  user_id uuid,
   department text default 'Khoa Nhiễm',
   
   -- THÔNG TIN HÀNH CHÍNH
@@ -87,7 +87,7 @@ create table if not exists public.patients (
   handover_issues text default '',
   handover_actions text default '',
   handover_by text default '',
-  handover_by_id uuid references auth.users on delete set null,
+  handover_by_id uuid,
   handover_at timestamp with time zone,
   handover_resolved_by text default '',
   handover_resolved_at timestamp with time zone,
@@ -140,12 +140,20 @@ create table if not exists public.department_settings (
   main_title text not null default 'BẢNG THEO DÕI & Y LỆNH BỆNH NHÂN NỘI TRÚ',
   sub_title text not null default '(Giao ban - Đi buồng - Theo dõi SOAP lâm sàng & Bàn giao trực)',
   active_date date default current_date,  -- Ngày trực hiện hành đồng bộ cho cả khoa
-  updated_by uuid references auth.users on delete set null,
+  updated_by uuid,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- ==============================================================================
--- 7. THIẾT LẬP BẢO MẬT ROW LEVEL SECURITY (RLS)
+-- 7. CẤP QUYỀN TRUY CẬP (GRANTS) CHO ANON VÀ AUTHENTICATED
+-- Cần thiết để các truy vấn API từ client không bị lỗi 403 / 42501 Permission Denied
+-- ==============================================================================
+grant usage on schema public to anon, authenticated;
+grant all on all tables in schema public to anon, authenticated;
+grant all on all sequences in schema public to anon, authenticated;
+
+-- ==============================================================================
+-- 8. THIẾT LẬP BẢO MẬT ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
 alter table public.profiles enable row level security;
 alter table public.work_days enable row level security;
@@ -170,7 +178,7 @@ drop policy if exists "Department settings access policy" on public.department_s
 create policy "Department settings access policy" on public.department_settings for all using (true) with check (true);
 
 -- ==============================================================================
--- 8. KÍCH HOẠT REPLICA IDENTITY FULL & SUPABASE REALTIME
+-- 9. KÍCH HOẠT REPLICA IDENTITY FULL & SUPABASE REALTIME AN TOÀN
 -- Bắt buộc có REPLICA IDENTITY FULL để nhận đầy đủ payload cũ khi UPDATE / DELETE
 -- ==============================================================================
 alter table public.patients replica identity full;
@@ -179,19 +187,30 @@ alter table public.handover_logs replica identity full;
 alter table public.department_settings replica identity full;
 alter table public.profiles replica identity full;
 
-begin;
-  drop publication if exists supabase_realtime;
-  create publication supabase_realtime;
-commit;
+-- Đăng ký bảng vào publication supabase_realtime an toàn (idempotent, không drop làm ngắt kết nối replication)
+do $$
+declare
+  tbl text;
+  tables text[] := array['patients', 'work_days', 'handover_logs', 'department_settings', 'profiles'];
+begin
+  -- Tạo publication supabase_realtime nếu chưa tồn tại
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
 
-alter publication supabase_realtime add table public.patients;
-alter publication supabase_realtime add table public.work_days;
-alter publication supabase_realtime add table public.handover_logs;
-alter publication supabase_realtime add table public.department_settings;
-alter publication supabase_realtime add table public.profiles;
+  -- Thêm từng bảng vào publication nếu chưa có
+  foreach tbl in array tables loop
+    if not exists (
+      select 1 from pg_publication_tables 
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', tbl);
+    end if;
+  end loop;
+end $$;
 
 -- ==============================================================================
--- 9. TRIGGERS TỰ ĐỘNG CẬP NHẬT UPDATED_AT & TĂNG VERSION
+-- 10. TRIGGERS TỰ ĐỘNG CẬP NHẬT UPDATED_AT & TĂNG VERSION
 -- ==============================================================================
 create or replace function public.handle_patient_sync_version()
 returns trigger as $$
@@ -233,18 +252,24 @@ create trigger set_department_settings_updated_at
   for each row execute function public.handle_general_updated_at();
 
 -- ==============================================================================
--- 9. TỰ ĐỘNG DỌN DẸP DỮ LIỆU CŨ TRÊN SUPABASE (CHỈ LƯU HÔM QUA & HÔM NAY)
--- Tự động xóa sạch các bản ghi có report_date trước ngày hôm qua
+-- 11. HÀM DỌN DẸP DỮ LIỆU CŨ TRÊN SUPABASE (CHỈ LƯU HÔM QUA & HÔM NAY)
+-- Chạy theo yêu cầu / RPC hoặc cron job, KHÔNG gắn trigger trực tiếp vào INSERT/UPDATE
+-- để tránh deadlock, tranh chấp khóa và lỗi rollback transaction khi đồng bộ
 -- ==============================================================================
 
--- Hàm thực hiện dọn dẹp dữ liệu cũ hơn hôm qua
+-- Gỡ bỏ trigger tự động cũ nếu trước đây đã lỡ tạo (để khôi phục hoạt động đồng bộ)
+drop trigger if exists trg_auto_purge_patients on public.patients;
+drop function if exists public.trigger_auto_purge_old_data();
+
+-- Hàm dọn dẹp dữ liệu chuẩn hóa theo múi giờ Việt Nam (UTC+7)
 create or replace function public.purge_old_medical_data()
 returns void
 language plpgsql
 security definer
 as $$
 declare
-  yesterday_cutoff date := current_date - interval '1 day';
+  -- Chuẩn hóa múi giờ Việt Nam: ngày hôm qua
+  yesterday_cutoff date := (timezone('Asia/Ho_Chi_Minh', now()))::date - interval '1 day';
 begin
   -- 1. Xóa người bệnh cũ hơn ngày hôm qua
   delete from public.patients 
@@ -259,20 +284,3 @@ begin
   where report_date < yesterday_cutoff;
 end;
 $$;
-
--- Trigger tự động dọn dẹp mỗi khi có dữ liệu mới được đẩy lên
-create or replace function public.trigger_auto_purge_old_data()
-returns trigger
-language plpgsql
-security definer
-as $$
-begin
-  perform public.purge_old_medical_data();
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_auto_purge_patients on public.patients;
-create trigger trg_auto_purge_patients
-  after insert or update on public.patients
-  execute function public.trigger_auto_purge_old_data();
