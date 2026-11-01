@@ -26,8 +26,8 @@ const CONFIG = {
 
   // CẤU HÌNH SUPABASE CLOUD CỐ ĐỊNH (PERMANENT REALTIME SYNC)
   DEFAULT_SUPABASE: {
-    URL: 'https://woeuegduajgglykqpbzq.supabase.co',
-    KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvZXVlZ2R1YWpnZ2x5a3FwYnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTIzMjMsImV4cCI6MjEwNzAyODMyM30.s1Z4MR9Chh7wFqbO-x3Y21nWggKJpS9jjkm6n_rXvpc'
+    URL: 'https://xingzrhsdyaefjnyqpvs.supabase.co',
+    KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhpbmd6cmhzZHlhZWZqbnlxcHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzU5NTAsImV4cCI6MjEwOTExMTk1MH0.XrXj5-LFIhR1JjOA0-oXJ3kdInP7R9kcjQshXHmas1s'
   },
 
   // DEFAULT HOSPITAL META
@@ -431,9 +431,9 @@ const CONFIG = {
 // ==============================================================================
 CONFIG.CUSTOM_ABBREVIATIONS = [];
 
-CONFIG.rebuildAbbreviationsMap = function() {
+CONFIG.rebuildAbbreviationsMap = function () {
   CONFIG.ABBREVIATIONS = {};
-  
+
   // 1. Nạp từ điển chuẩn hệ thống (Chẩn đoán, Y lệnh, Cận lâm sàng)
   if (CONFIG.ABBREVIATIONS_CATEGORIES) {
     for (const [categoryName, list] of Object.entries(CONFIG.ABBREVIATIONS_CATEGORIES)) {
@@ -457,7 +457,7 @@ CONFIG.rebuildAbbreviationsMap = function() {
   }
 };
 
-CONFIG.loadCustomAbbreviations = function() {
+CONFIG.loadCustomAbbreviations = function () {
   try {
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.CUSTOM_ABBREVIATIONS);
@@ -475,7 +475,7 @@ CONFIG.loadCustomAbbreviations = function() {
   return CONFIG.CUSTOM_ABBREVIATIONS;
 };
 
-CONFIG.saveCustomAbbreviations = function(list) {
+CONFIG.saveCustomAbbreviations = function (list) {
   try {
     if (!Array.isArray(list)) list = [];
     CONFIG.CUSTOM_ABBREVIATIONS = list;
