@@ -83,6 +83,7 @@ class MedWardApp {
       const lowerKey = key.toLowerCase();
       const activeEl = document.activeElement;
       const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+      const isModalOpen = !!document.querySelector('.modal-overlay.active');
 
       // 1. Phím ESC: Luôn đóng bất kỳ modal nào đang mở
       if (key === 'Escape') {
@@ -99,6 +100,22 @@ class MedWardApp {
 
       // 3. Các phím tắt kết hợp với Ctrl / Cmd
       if (isCtrlOrCmd) {
+        // Ctrl + Enter: Lưu tức thì và đóng Modal Chi tiết người bệnh hoặc Modal Bàn giao
+        if (key === 'Enter') {
+          const detailModal = document.getElementById('patientDetailModal');
+          if (detailModal && detailModal.classList.contains('active')) {
+            e.preventDefault();
+            window.patientController?.savePatientFromDetailModal?.();
+            return;
+          }
+          const handoverModal = document.getElementById('handoverModal');
+          if (handoverModal && handoverModal.classList.contains('active')) {
+            e.preventDefault();
+            window.handoverController?.saveHandoverFromModal?.();
+            return;
+          }
+        }
+
         // Ctrl + N: Thêm bệnh nhân mới & mở ngay form nhập liệu
         if (lowerKey === 'n') {
           e.preventDefault();
@@ -142,10 +159,21 @@ class MedWardApp {
           return;
         }
 
-        // Ctrl + D: Chuyển sang ngày mới (Rollover)
+        // Ctrl + D: Chuyển sang ngày mới (Rollover) & Ctrl + Shift + D: Lọc trùng bệnh nhân
         if (lowerKey === 'd') {
           e.preventDefault();
-          window.patientController?.openNextDayModal?.();
+          if (e.shiftKey) {
+            window.patientController?.openDuplicateModal?.();
+          } else {
+            window.patientController?.openNextDayModal?.();
+          }
+          return;
+        }
+
+        // Ctrl + I: Nạp nhanh file Excel bệnh viện (HIS / eHospital)
+        if (lowerKey === 'i') {
+          e.preventDefault();
+          document.getElementById('excelFileInput')?.click();
           return;
         }
 
@@ -179,6 +207,139 @@ class MedWardApp {
           e.preventDefault();
           this.toggleTheme();
           return;
+        }
+
+        // Ctrl + Shift + K: Khóa nhanh màn hình ca trực (bảo vệ buồng trực)
+        if (lowerKey === 'k' && e.shiftKey) {
+          e.preventDefault();
+          window.authController?.handleLogout?.();
+          if (window.showToast) {
+            window.showToast('🔒 Đã khóa nhanh màn hình buồng trực');
+          }
+          return;
+        }
+
+        // Ctrl + Shift + A: Mở Từ điển viết tắt Y khoa
+        if (lowerKey === 'a' && e.shiftKey) {
+          e.preventDefault();
+          this.openAbbreviationModal();
+          return;
+        }
+      }
+
+      // 4. Các phím tắt kết hợp với Alt (Lọc nhanh 1 chạm & thao tác soạn thảo)
+      if (e.altKey && !isCtrlOrCmd) {
+        // Alt + 1: Tất cả người bệnh
+        if (key === '1') {
+          e.preventDefault();
+          window.patientController?.setMobileFilter?.('all');
+          if (window.showToast) window.showToast('📋 Bộ lọc: Tất cả người bệnh');
+          return;
+        }
+        // Alt + 2: Báo động đỏ (Cấp cứu / Ca nặng)
+        if (key === '2') {
+          e.preventDefault();
+          window.patientController?.setMobileFilter?.('critical');
+          if (window.showToast) window.showToast('🚨 Bộ lọc: Báo động đỏ (Ca nặng)');
+          return;
+        }
+        // Alt + 3: Cần bàn giao
+        if (key === '3') {
+          e.preventDefault();
+          window.patientController?.setMobileFilter?.('pending');
+          if (window.showToast) window.showToast('⏳ Bộ lọc: Cần bàn giao');
+          return;
+        }
+        // Alt + 4: Chờ kết quả CLS
+        if (key === '4') {
+          e.preventDefault();
+          window.patientController?.setMobileFilter?.('waiting_cls');
+          if (window.showToast) window.showToast('🔬 Bộ lọc: Chờ kết quả CLS');
+          return;
+        }
+        // Alt + 5: Diễn tiến ổn định
+        if (key === '5') {
+          e.preventDefault();
+          window.patientController?.setMobileFilter?.('none');
+          if (window.showToast) window.showToast('🟢 Bộ lọc: Diễn tiến ổn định');
+          return;
+        }
+        // Alt + G: Bật / Tắt gom buồng
+        if (lowerKey === 'g') {
+          e.preventDefault();
+          const chk = document.getElementById('toggleRoomGroup');
+          if (chk) {
+            chk.checked = !chk.checked;
+            chk.dispatchEvent(new Event('change'));
+            if (window.showToast) {
+              window.showToast(chk.checked ? '🚪 Đã bật Gom nhóm buồng bệnh' : '📋 Đã tắt Gom nhóm buồng bệnh');
+            }
+          }
+          return;
+        }
+        // Alt + T: Mở Từ điển viết tắt Y khoa
+        if (lowerKey === 't') {
+          e.preventDefault();
+          this.openAbbreviationModal();
+          return;
+        }
+        // Alt + M: Chèn nhanh tiền tố [Máu] khi đang trong ô nhập CLS
+        if (lowerKey === 'm' && isInput) {
+          e.preventDefault();
+          const targetId = activeEl.id;
+          if (targetId) {
+            window.patientController?.insertClsTag?.(targetId, '[Máu]');
+          } else if (activeEl.classList.contains('col-editable')) {
+            const row = activeEl.closest('tr');
+            const pId = row?.dataset?.id;
+            if (pId) {
+              window.patientController?.insertClsTagToCell?.(activeEl, pId, 'cls_hien_co', '[Máu] ');
+            }
+          }
+          return;
+        }
+      }
+
+      // 5. Điều hướng bằng phím mũi tên / J, K khi không gõ chữ & không mở modal
+      if (!isInput && !isModalOpen && !isCtrlOrCmd && !e.altKey) {
+        // Phím ↓ hoặc J: Chọn hàng người bệnh kế tiếp
+        if (key === 'ArrowDown' || lowerKey === 'j') {
+          e.preventDefault();
+          window.patientController?.navigateTableRow?.(1);
+          return;
+        }
+        // Phím ↑ hoặc K: Chọn hàng người bệnh phía trước
+        if (key === 'ArrowUp' || lowerKey === 'k') {
+          e.preventDefault();
+          window.patientController?.navigateTableRow?.(-1);
+          return;
+        }
+        // Phím Enter hoặc Space: Mở xem/sửa chi tiết người bệnh đang chọn
+        if (key === 'Enter' || key === ' ') {
+          const selId = window.patientController?.getSelectedRowPatientId?.();
+          if (selId) {
+            e.preventDefault();
+            window.patientController?.openPatientDetailModal?.(selId);
+            return;
+          }
+        }
+        // Phím H: Mở Bàn giao ca trực cho người bệnh đang chọn
+        if (lowerKey === 'h') {
+          const selId = window.patientController?.getSelectedRowPatientId?.();
+          if (selId) {
+            e.preventDefault();
+            window.handoverController?.openHandoverModal?.(selId);
+            return;
+          }
+        }
+        // Phím Z: Copy thông tin gửi Zalo người bệnh đang chọn
+        if (lowerKey === 'z') {
+          const selId = window.patientController?.getSelectedRowPatientId?.();
+          if (selId) {
+            e.preventDefault();
+            window.patientController?.copySinglePatientZalo?.(selId);
+            return;
+          }
         }
       }
     });

@@ -73,7 +73,7 @@ const CONFIG = {
   // TRẠNG THÁI NGƯỜI BỆNH / BÀN GIAO (STATUS TYPES)
   HANDOVER_STATUS: {
     NONE: 'none',             // Ổn định
-    WAITING_CLS: 'waiting_cls', // Chờ CLS
+    WAITING_CLS: 'waiting_cls', // Chờ thực hiện (CLS & Thêm thuốc)
     NOTE: 'note',             // Lưu ý
     RESOLVED: 'resolved',     // Đã xong
     PENDING: 'pending',       // Cần bàn giao
@@ -89,9 +89,9 @@ const CONFIG = {
       icon: '🟢'
     },
     waiting_cls: {
-      label: 'Chờ CLS',
+      label: 'Chờ thực hiện',
       badgeClass: 'badge-waiting-cls',
-      icon: '🧪'
+      icon: '⏳'
     },
     note: {
       label: 'Lưu ý',
@@ -351,6 +351,8 @@ const CONFIG = {
       phong_giuong: 'D1.12-1',
       ten: 'NGUYỄN HÀ TRỊNH THỊNH',
       nam_sinh_tuoi: '2003 (23)',
+      trieu_chung: 'Sốt cao liên tục N4, đau đầu, đau mỏi cơ toàn thân, buồn nôn, đau tức hạ sườn phải.',
+      kham_lam_sang: 'Bệnh tỉnh, tiếp xúc tốt. Da niêm hồng, có vài chấm xuất huyết dưới da cẳng tay 2 bên.\nM: 88 l/p, HA: 115/75 mmHg, T°: 38.8°C, SpO2: 98%.\nBụng mềm, ấn đau tức hạ sườn (P), gan to 1cm dưới bờ sườn. Dấu véo da (-).',
       chan_doan: 'SXH Dengue ngày 4 có dấu hiệu cảnh báo',
       cls: '[Hiện có]: Tiểu cầu 65k, Hct 44%, AST/ALT 85/92 U/L\n[Cần làm]: Làm lại CTM + Hct lúc 16h và 22h, Siêu âm bụng',
       cls_hien_co: 'Tiểu cầu 65k, Hct 44%, AST/ALT 85/92 U/L',
@@ -378,6 +380,8 @@ const CONFIG = {
       phong_giuong: 'D1.12-2',
       ten: 'TRẦN VĂN HOÀNG',
       nam_sinh_tuoi: '1988 (38)',
+      trieu_chung: 'Ho đàm vàng đục, sốt lạnh run N3, đau tức ngực phải khi hít sâu, khó thở nhẹ khi vận động.',
+      kham_lam_sang: 'Tỉnh, thở co kéo cơ liên sườn nhẹ. Da nóng, môi khô, lưỡi bẩn.\nM: 96 l/p, HA: 125/80 mmHg, NT: 22 l/p, T°: 38.2°C, SpO2: 95% khí trời.\nPhổi (P) giảm thông khí đáy, ran nổ rải rác. Tim đều, T1 T2 rõ.',
       chan_doan: 'Viêm phổi cộng đồng mức độ trung bình',
       cls: '[Hiện có]: X-Quang ngực: thâm nhiễm đáy phổi (P), BC 14.5k\n[Cần làm]: Lấy mẫu đàm cấy KSĐ sáng mai, Khí máu động mạch nếu SpO2 < 93%',
       cls_hien_co: 'X-Quang ngực: thâm nhiễm đáy phổi (P), BC 14.5k',
@@ -400,6 +404,8 @@ const CONFIG = {
       phong_giuong: 'D1.14-1',
       ten: 'LÊ THỊ MAI',
       nam_sinh_tuoi: '1965 (61)',
+      trieu_chung: 'Tiêu phân lỏng tóe nước 5-6 lần/ngày, đau quặn bụng quanh rốn từng cơn, buồn nôn, mệt lả.',
+      kham_lam_sang: 'Tỉnh, mệt mỏi, mắt trũng nhẹ, niêm mạc lưỡi khô. Mắt không vàng.\nM: 82 l/p, HA: 130/80 mmHg, T°: 37.3°C, SpO2: 98%.\nBụng mềm, tăng nhu động ruột, ấn đau mơ hồ quanh rốn, không phản ứng thành bụng.',
       chan_doan: 'Nhiễm trùng tiêu hóa / ĐTĐ type 2',
       cls: '[Hiện có]: Đường huyết mao mạch 8.2 mmol/L, Ion đồ ổn định\n[Cần làm]: Đo ĐHMM trước ăn chiều lúc 17h',
       cls_hien_co: 'Đường huyết mao mạch 8.2 mmol/L, Ion đồ ổn định',

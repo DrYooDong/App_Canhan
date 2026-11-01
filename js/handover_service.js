@@ -179,6 +179,10 @@ class HandoverController {
     if (modal) modal.classList.remove('active');
   }
 
+  renderDashboard() {
+    return this.renderHandoverDashboard();
+  }
+
   renderHandoverDashboard() {
     const container = document.getElementById('handoverDashboardList');
     if (!container) return;

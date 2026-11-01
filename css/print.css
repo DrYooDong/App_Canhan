@@ -322,9 +322,56 @@
   /* ĐỘ RỘNG CÁC CỘT TRÊN BẢN IN A4 (TỔNG VỪA KHÍT 100%, NHỎ GỌN TIẾT KIỆM GIẤY) */
   table.med-table th.col-stt,
   table.med-table td.col-stt {
-    width: 3.5% !important;
+    width: 3% !important;
     text-align: center !important;
     font-size: 8pt !important;
+    vertical-align: middle !important;
+  }
+
+  table.med-table th.col-admin,
+  table.med-table td.col-admin {
+    width: 9.5% !important;
+    font-size: 8pt !important;
+    vertical-align: top !important;
+  }
+
+  table.med-table th.col-s,
+  table.med-table td.col-s {
+    width: 11% !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    vertical-align: top !important;
+  }
+
+  table.med-table th.col-o,
+  table.med-table td.col-o {
+    width: 38% !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    vertical-align: top !important;
+  }
+
+  table.med-table th.col-a,
+  table.med-table td.col-a {
+    width: 13.5% !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    vertical-align: top !important;
+  }
+
+  table.med-table th.col-p,
+  table.med-table td.col-p {
+    width: 18.5% !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    vertical-align: top !important;
+  }
+
+  table.med-table th.col-handover,
+  table.med-table td.col-handover {
+    width: 6.5% !important;
+    font-size: 8pt !important;
+    text-align: center !important;
     vertical-align: middle !important;
   }
 
@@ -432,6 +479,32 @@
     flex-direction: column !important;
     gap: 2px !important;
     background: transparent !important;
+  }
+  .med-o-cell {
+    display: flex !important;
+    flex-direction: column !important;
+    border: none !important;
+    background: transparent !important;
+  }
+  .med-o-top-row {
+    display: flex !important;
+    flex-direction: row !important;
+    border-bottom: 0.5pt dashed #888888 !important;
+  }
+  .med-o-pane {
+    flex: 1 1 50% !important;
+    padding: 0 3px !important;
+    background: transparent !important;
+  }
+  .med-o-pane.med-o-ls {
+    border-right: 0.5pt dashed #888888 !important;
+  }
+  .med-o-bottom-row {
+    padding: 1px 3px !important;
+    background: transparent !important;
+  }
+  .med-o-bottom-row:not(.has-content) {
+    display: none !important;
   }
   .med-tier, .cls-sub-box, .yl-sub-box {
     border: none !important;

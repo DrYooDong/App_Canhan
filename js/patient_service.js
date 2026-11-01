@@ -351,10 +351,15 @@ class PatientController {
           this.render();
 
           // Cập nhật ngay Dashboard bàn giao nếu bác sĩ đang mở xem
-          if (window.handoverController && typeof window.handoverController.renderDashboard === 'function') {
+          const hoController = window.handoverController;
+          if (hoController && (typeof hoController.renderHandoverDashboard === 'function' || typeof hoController.renderDashboard === 'function')) {
             const hoModal = document.getElementById('handoverDashboardModal');
             if (hoModal && hoModal.classList.contains('active')) {
-              window.handoverController.renderDashboard();
+              if (typeof hoController.renderHandoverDashboard === 'function') {
+                hoController.renderHandoverDashboard();
+              } else {
+                hoController.renderDashboard();
+              }
             }
           }
 
@@ -669,6 +674,8 @@ class PatientController {
     if (!p) return;
 
     // Đảm bảo các thuộc tính chuỗi luôn tồn tại
+    if (typeof p.trieu_chung !== 'string') p.trieu_chung = p.trieu_chung ? String(p.trieu_chung) : '';
+    if (typeof p.kham_lam_sang !== 'string') p.kham_lam_sang = p.kham_lam_sang ? String(p.kham_lam_sang) : '';
     if (typeof p.cls_hien_co !== 'string') p.cls_hien_co = p.cls_hien_co ? String(p.cls_hien_co) : '';
     if (typeof p.cls_can_lam !== 'string') p.cls_can_lam = p.cls_can_lam ? String(p.cls_can_lam) : '';
     if (typeof p.cls !== 'string') p.cls = p.cls ? String(p.cls) : '';
@@ -1593,6 +1600,21 @@ class PatientController {
       }
     }
 
+    // Tự động chuyển đổi trạng thái sang "Chờ thực hiện" (waiting_cls) khi có "CLS cần làm" hoặc "Thêm thuốc"
+    if (field === 'cls_can_lam' || field === 'them_thuoc') {
+      const p = this.patientList[idx];
+      const hasPendingCls = (p.cls_can_lam && p.cls_can_lam.trim().length > 0);
+      const hasExtraRx = (p.them_thuoc && p.them_thuoc.trim().length > 0);
+
+      if (hasPendingCls || hasExtraRx) {
+        if (!p.handover_status || p.handover_status === CONFIG.HANDOVER_STATUS.NONE || p.handover_status === CONFIG.HANDOVER_STATUS.RESOLVED) {
+          p.handover_status = CONFIG.HANDOVER_STATUS.WAITING_CLS;
+        }
+      } else if (!hasPendingCls && !hasExtraRx && p.handover_status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+        p.handover_status = CONFIG.HANDOVER_STATUS.NONE;
+      }
+    }
+
     this.patientList[idx].updated_at = new Date().toISOString();
 
     // 2. Lưu ngay vào localStorage (phòng ngừa F5/đóng tab)
@@ -1645,7 +1667,7 @@ class PatientController {
       if (el && el.innerText !== cleanVal) {
         el.innerText = cleanVal;
       }
-    } else if (CONFIG.expandMedicalText && (field === 'chan_doan' || field === 'y_lenh' || field === 'them_thuoc')) {
+    } else if (CONFIG.expandMedicalText && (field === 'trieu_chung' || field === 'kham_lam_sang' || field === 'chan_doan' || field === 'y_lenh' || field === 'them_thuoc')) {
       cleanVal = CONFIG.expandMedicalText(cleanVal);
       if (el) {
         el.innerHTML = this.formatClinicalDisplay(cleanVal);
@@ -1860,7 +1882,7 @@ class PatientController {
       ? this.formatClsDisplay(val)
       : this.formatClinicalDisplay(val);
 
-    const label = field === 'chan_doan' ? 'Chẩn đoán' : (field === 'y_lenh' ? 'Y lệnh' : (field === 'them_thuoc' ? 'Thêm thuốc' : 'CLS'));
+    const label = field === 'chan_doan' ? 'Chẩn đoán' : (field === 'y_lenh' ? 'Y lệnh' : (field === 'them_thuoc' ? 'Thêm thuốc' : (field === 'kham_lam_sang' ? 'Khám LS' : (field === 'trieu_chung' ? 'Triệu chứng' : 'CLS'))));
 
     if (navigator.clipboard && window.ClipboardItem) {
       try {
@@ -2534,6 +2556,8 @@ class PatientController {
     }
     const docInput = document.getElementById('editDoctorName');
     if (docInput) docInput.value = myDocName;
+    if (document.getElementById('editTrieuChung')) document.getElementById('editTrieuChung').value = '';
+    if (document.getElementById('editKhamLamSang')) document.getElementById('editKhamLamSang').value = '';
     document.getElementById('editDiagnosis').value = '';
     if (document.getElementById('editClsHienCo')) document.getElementById('editClsHienCo').value = '';
     if (document.getElementById('editClsCanLam')) document.getElementById('editClsCanLam').value = '';
@@ -2763,6 +2787,8 @@ class PatientController {
           !c.includes('kết quả') && !c.includes('số ngày') && !c.includes('sơ kết') && !c.includes('hướng điều trị')) score += 2;
       if (c.includes('bác sĩ') || c.includes('bác sỹ') || c === 'bs' || c.includes('bs điều trị')) score += 2;
       if (c.includes('cls') || c.includes('xét nghiệm') || c.includes('cận lâm sàng')) score += 2;
+      if (c.includes('triệu chứng') || c.includes('cơ năng') || c === 'trieu_chung' || c === 's') score += 2;
+      if (c.includes('khám') || c.includes('thực thể') || c === 'kham_lam_sang' || c === 'o') score += 2;
       if (c.includes('mã nb') || c.includes('mã bn') || c.includes('mã ba') || c.includes('mã người bệnh') || c.includes('mã hồ sơ')) score += 2;
       if (c.includes('giới tính') || c === 'giới' || c === 'phái') score += 1;
     }
@@ -2842,6 +2868,8 @@ class PatientController {
       cls_hien_co: headerRow.findIndex(c => c.includes('hiện có') || c === 'cls_hien_co'),
       cls_can_lam: headerRow.findIndex(c => c.includes('cần làm') || c === 'cls_can_lam'),
       cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm')),
+      trieu_chung: headerRow.findIndex(c => c === 'trieu_chung' || c === 'triệu chứng' || c === 'cơ năng' || c.includes('triệu chứng') || c === 's'),
+      kham_lam_sang: headerRow.findIndex(c => c === 'kham_lam_sang' || c === 'khám lâm sàng' || c === 'thực thể' || c === 'khám' || c.includes('khám lâm sàng') || c.includes('thực thể') || c === 'o'),
       trang_thai_bg: headerRow.findIndex(c => c.includes('trạng thái bàn giao') || c === 'bàn giao'),
       van_de_td: headerRow.findIndex(c => c.includes('vấn đề tồn đọng') || c.includes('tồn đọng')),
       xu_tri_tiep: headerRow.findIndex(c => c.includes('xử trí / cần làm tiếp') || c.includes('cần làm tiếp') || c.includes('xử trí tiếp'))
@@ -2985,11 +3013,16 @@ class PatientController {
       else if (clsClVal) combinedCls = `[Cần làm]: ${clsClVal}`;
       else combinedCls = clsHcVal;
 
+      let trieuChungVal = mapping.trieu_chung !== -1 ? String(row[mapping.trieu_chung] || '').trim() : '';
+      let khamLsVal = mapping.kham_lam_sang !== -1 ? String(row[mapping.kham_lam_sang] || '').trim() : '';
+
       results.push({
         id: (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID()),
         phong_giuong: phongGiuongVal,
         ten: tenVal,
         nam_sinh_tuoi: namSinhTuoiVal,
+        trieu_chung: trieuChungVal,
+        kham_lam_sang: khamLsVal,
         chan_doan: cdVal,
         cls: combinedCls,
         cls_hien_co: clsHcVal,
@@ -3189,7 +3222,7 @@ class PatientController {
       if (waitingCls > 0) {
         html += `
           <button class="${btnClass} chip-waiting-cls ${this.activeMobileFilter === 'waiting_cls' ? 'active' : ''}" onclick="window.patientController.setMobileFilter('waiting_cls')">
-            🧪 Chờ CLS (${waitingCls})
+            ⏳ Chờ thực hiện (${waitingCls})
           </button>
         `;
       }
@@ -3310,7 +3343,7 @@ class PatientController {
         const { doctor } = this.getEffectiveDoctor();
         tbody.innerHTML = `
           <tr class="empty-table-row">
-            <td colspan="9" class="empty-table-cell">
+            <td colspan="7" class="empty-table-cell">
               <div class="empty-workspace-banner">
                 <div class="empty-banner-icon">🎮</div>
                 <div class="empty-banner-title">
@@ -3332,7 +3365,7 @@ class PatientController {
 
       tbody.innerHTML = `
         <tr class="empty-table-row">
-          <td colspan="9" class="empty-table-cell">
+          <td colspan="7" class="empty-table-cell">
             <div class="empty-filter-banner">
               <div class="empty-banner-icon">📋</div>
               <div class="empty-banner-title">Chưa có bệnh nhân nào phù hợp bộ lọc</div>
@@ -3368,7 +3401,7 @@ class PatientController {
           groupTr.className = 'room-group-row';
           groupTr.style.borderLeft = `6px solid ${roomTheme.accent}`;
           groupTr.innerHTML = `
-            <td colspan="9">
+            <td colspan="7">
               <span class="room-group-color-pill" style="background: ${roomTheme.accent}; color: #ffffff;">🚪 BUỒNG: ${this.escape(roomCode)}</span>
               <span class="room-badge-count">${roomCounts[roomCode] || 1} người bệnh</span>
             </td>
@@ -3384,29 +3417,120 @@ class PatientController {
       const tr = document.createElement('tr');
       tr.className = `patient-row ${isCritical ? 'row-critical' : (isPending ? 'row-pending' : '')}`;
       tr.dataset.id = p.id;
+      tr.title = 'Nhấn vào Tên/Hành chính để xem chi tiết / Chuột phải để mở Menu';
+
+      // Chỉ mở Modal Chi tiết khi nhấp vào Cột Hành chính (Tên, Buồng-Giường, Tuổi) hoặc Cột STT
+      // TUYỆT ĐỐI KHÔNG mở modal khi nhấp vào các ô nhập liệu lâm sàng (LS, CLS, CĐ, Y lệnh, Triệu chứng, Trạng thái) hoặc các nút
+      tr.addEventListener('click', (e) => {
+        if (
+          e.target.closest('.col-s') || 
+          e.target.closest('.col-o') || 
+          e.target.closest('.col-a') || 
+          e.target.closest('.col-p') || 
+          e.target.closest('.col-handover') || 
+          e.target.closest('.med-cell-editor') || 
+          e.target.closest('button') || 
+          e.target.closest('.icon-status-btn')
+        ) {
+          return;
+        }
+        const adminCell = e.target.closest('.col-admin') || e.target.closest('.col-stt');
+        if (adminCell) {
+          window.patientController.openPatientDetailModal(p.id);
+        }
+      });
+
+      // Bắt sự kiện Right-Click mở Context Menu thao tác
+      tr.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        window.patientController.showRowContextMenu(e, p.id);
+      });
 
       tr.innerHTML = `
         <td class="col-stt">${idx + 1}</td>
-        <td class="col-room col-editable" contenteditable="true"
-            style="border-left: 3.5px solid ${roomTheme.accent};"
-            oninput="window.patientController.handleCellInput('${p.id}', 'phong_giuong', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
-            onblur="window.patientController.handleCellBlur('${p.id}', 'phong_giuong', this.innerText, this)">${this.escape(p.phong_giuong || '')}</td>
-        <td class="col-name col-editable" contenteditable="true"
-            oninput="window.patientController.handleCellInput('${p.id}', 'ten', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
-            onblur="window.patientController.handleCellBlur('${p.id}', 'ten', this.innerText, this)">${this.escape(p.ten || '')}</td>
-        <td class="col-birth col-editable" contenteditable="true"
-            oninput="window.patientController.handleCellInput('${p.id}', 'nam_sinh_tuoi', this.innerText, this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur();}"
-            onblur="window.patientController.handleCellBlur('${p.id}', 'nam_sinh_tuoi', this.innerText, this)">${this.escape(p.nam_sinh_tuoi || '')}</td>
-        <td class="col-cd col-cd-wrap">
+        
+        <!-- CỘT 2: HÀNH CHÍNH (P/G, HỌ TÊN, NS) -->
+        <td class="col-admin" style="border-left: 3.5px solid ${roomTheme.accent};">
+          <div class="med-admin-cell">
+            <span class="med-admin-room" title="Buồng - Giường">${this.escape(p.phong_giuong || 'Chưa xếp')}</span>
+            <span class="med-admin-name" title="Họ và tên người bệnh">${this.escape(p.ten || '')}</span>
+            <span class="med-admin-age" title="Năm sinh / Tuổi">${this.escape(p.nam_sinh_tuoi || '')}</span>
+          </div>
+        </td>
+
+        <!-- CỘT 3: (S) TRIỆU CHỨNG CƠ NĂNG -->
+        <td class="col-s">
+          <div class="med-tier-header no-print">
+            <span class="med-micro-badge badge-s" title="Triệu chứng cơ năng">🗣️ Cơ năng</span>
+            <div class="med-cell-tools">
+              <button type="button" class="btn-micro-tool" title="Chép Triệu chứng sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'trieu_chung')">📋</button>
+            </div>
+          </div>
+          <div class="med-cell-editor col-editable" contenteditable="true"
+               data-placeholder="Triệu chứng cơ năng, bệnh sử..."
+               oninput="window.patientController.handleCellInput('${p.id}', 'trieu_chung', window.patientController.getClinicalCellContent(this), this)"
+               onblur="window.patientController.handleCellBlur('${p.id}', 'trieu_chung', window.patientController.getClinicalCellContent(this), this)">${this.formatClinicalDisplay(p.trieu_chung || '')}</div>
+        </td>
+
+        <!-- CỘT 4: (O) THỰC THỂ & CẬN LÂM SÀNG (CHIA 2 CỘT LS/CLS TRÊN + 1 DÒNG CLS CẦN LÀM DƯỚI) -->
+        <td class="col-o col-cls-dual">
+          <div class="med-o-cell">
+            <div class="med-o-top-row">
+              <div class="med-o-pane med-o-ls" onclick="this.querySelector('.med-cell-editor')?.focus()">
+                <div class="med-tier-header">
+                  <span class="med-micro-badge badge-ls">LS:</span>
+                  <div class="med-cell-tools no-print">
+                    <button type="button" class="btn-micro-tool" title="Chép Khám LS sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'kham_lam_sang')">📋</button>
+                  </div>
+                </div>
+                <div class="med-cell-editor col-editable" contenteditable="true"
+                     data-placeholder="Khám LS, sinh hiệu..."
+                     oninput="window.patientController.handleCellInput('${p.id}', 'kham_lam_sang', window.patientController.getClinicalCellContent(this), this)"
+                     onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'kham_lam_sang', this)"
+                     onblur="window.patientController.handleCellBlur('${p.id}', 'kham_lam_sang', window.patientController.getClinicalCellContent(this), this)">${this.formatClinicalDisplay(p.kham_lam_sang || '')}</div>
+              </div>
+              <div class="med-o-pane med-o-cls" onclick="this.querySelector('.med-cell-editor')?.focus()">
+                <div class="med-tier-header">
+                  <span class="med-micro-badge badge-cls">CLS:</span>
+                  <div class="med-cell-tools no-print">
+                    <button type="button" class="btn-micro-tool" title="Chèn nhanh [Máu] (Alt+M)" onclick="event.stopPropagation(); window.patientController.insertClsTagToCell(this.closest('.med-o-pane').querySelector('.med-cell-editor'), '${p.id}', 'cls_hien_co', '[Máu] ')">💉</button>
+                    <button type="button" class="btn-micro-tool" title="Chép CLS Hiện có" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_hien_co')">📋</button>
+                  </div>
+                </div>
+                <div class="med-cell-editor col-editable" contenteditable="true"
+                     data-placeholder="Kết quả CLS..."
+                     oninput="window.patientController.handleCellInput('${p.id}', 'cls_hien_co', this.innerText, this)"
+                     onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'cls_hien_co', this)"
+                     onblur="window.patientController.handleCellBlur('${p.id}', 'cls_hien_co', this.innerText, this)">${this.formatClsDisplay(p.cls_hien_co || '')}</div>
+              </div>
+            </div>
+            <div class="med-o-bottom-row ${p.cls_can_lam ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
+              <div class="med-tier-header">
+                <span class="med-micro-badge badge-pending ${p.cls_can_lam ? 'active' : ''}">${p.cls_can_lam ? '⚡ Cần làm' : 'Cần làm'}</span>
+                <div class="med-cell-tools no-print">
+                  ${p.cls_can_lam ? `
+                    <button type="button" class="btn-micro-tool" title="Đã có kết quả: Tự động chuyển nội dung vào CLS Hiện Có" onclick="event.stopPropagation(); window.patientController.transferPendingClsToPresent('${p.id}')">📥</button>
+                  ` : ''}
+                  <button type="button" class="btn-micro-tool" title="Chép CLS Cần làm sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_can_lam')">📋</button>
+                </div>
+              </div>
+              <div class="med-cell-editor col-editable ${p.cls_can_lam ? 'text-pending-highlight' : ''}" contenteditable="true"
+                   data-placeholder="+ Chỉ định CLS mới cần làm..."
+                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_can_lam', this.innerText, this)"
+                   onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'cls_can_lam', this)"
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_can_lam', this.innerText, this)">${this.formatClsDisplay(p.cls_can_lam || '')}</div>
+            </div>
+          </div>
+        </td>
+
+        <!-- CỘT 5: (A) CHẨN ĐOÁN & VẤN ĐỀ (Thu nhỏ lại) -->
+        <td class="col-a col-cd-wrap">
           <div class="med-cd-cell">
             <div class="med-tier-header no-print">
               <span class="med-micro-badge badge-cd">🩺 CĐ</span>
               <div class="med-cell-tools">
-                <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... giống Word (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-cd-cell').querySelector('.med-cell-editor'), '${p.id}', 'chan_doan')">🔢 1.2.3</button>
-                <button type="button" class="btn-micro-tool" title="Chép Chẩn đoán sang Bệnh án điện tử" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'chan_doan')">📋 Chép</button>
+                <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... giống Word (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-cd-cell').querySelector('.med-cell-editor'), '${p.id}', 'chan_doan')">🔢</button>
+                <button type="button" class="btn-micro-tool" title="Chép Chẩn đoán sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'chan_doan')">📋</button>
               </div>
             </div>
             <div class="med-cell-editor col-editable cd-editor" contenteditable="true"
@@ -3416,56 +3540,20 @@ class PatientController {
                  onblur="window.patientController.handleCellBlur('${p.id}', 'chan_doan', window.patientController.getClinicalCellContent(this), this)">${this.formatClinicalDisplay(p.chan_doan || '')}</div>
           </div>
         </td>
-        <td class="col-cls col-cls-dual">
-          <div class="med-dual-cell">
-            <div class="med-tier tier-present" onclick="this.querySelector('.med-cell-editor')?.focus()">
-              <div class="med-tier-header">
-                <span class="med-micro-badge badge-present">✓ Hiện có</span>
-                <div class="med-cell-tools no-print">
-                  <button type="button" class="btn-micro-tool" title="Chèn nhanh [Máu]" onclick="event.stopPropagation(); window.patientController.insertClsTagToCell(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'cls_hien_co', '[Máu] ')">+ [Máu]</button>
-                  <button type="button" class="btn-micro-tool" title="Chép CLS Hiện có sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_hien_co')">📋 Chép</button>
-                </div>
-                ${isDengue ? `
-                  <div class="desktop-dengue-badge" onclick="event.stopPropagation(); window.patientController.openDengueTrendModal('${p.id}')" title="Nhấn để xem diễn tiến Hct & Tiểu cầu (SXH)">
-                    <span>📈 Xu hướng Hct/TC:</span>
-                    ${delta ? `<strong>${delta.latestHct}%/${delta.latestTc}k</strong>` : '<strong>+ Mở biểu đồ</strong>'}
-                    ${delta && delta.isHemoconcentration ? '<span class="badge-warn">🚨 Cô đặc</span>' : ''}
-                    ${delta && delta.isSevereThrombocytopenia ? '<span class="badge-warn-tc">⚠️ TC thấp</span>' : ''}
-                  </div>
-                ` : ''}
-              </div>
-              <div class="med-cell-editor col-editable" contenteditable="true"
-                   data-placeholder="Chưa có kết quả..."
-                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_hien_co', this.innerText, this)"
-                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_hien_co', this.innerText, this)">${this.formatClsDisplay(p.cls_hien_co || '')}</div>
-            </div>
-            <div class="med-tier-divider"></div>
-            <div class="med-tier tier-pending ${p.cls_can_lam ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
-              <div class="med-tier-header">
-                <span class="med-micro-badge badge-pending ${p.cls_can_lam ? 'active' : ''}">${p.cls_can_lam ? '⚡ Cần làm' : '+ Cần làm'}</span>
-                <div class="med-cell-tools no-print">
-                  <button type="button" class="btn-micro-tool" title="Chép CLS Cần làm sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_can_lam')">📋 Chép</button>
-                </div>
-              </div>
-              <div class="med-cell-editor col-editable ${p.cls_can_lam ? 'text-pending-highlight' : ''}" contenteditable="true"
-                   data-placeholder="+ Chỉ định mới cần làm..."
-                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_can_lam', this.innerText, this)"
-                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_can_lam', this.innerText, this)">${this.formatClsDisplay(p.cls_can_lam || '')}</div>
-            </div>
-          </div>
-        </td>
-        <td class="col-yl col-yl-dual">
+
+        <!-- CỘT 6: (P) Y LỆNH & ĐIỀU TRỊ (2 PHẦN: ĐIỀU TRỊ HIỆN CÓ & THÊM THUỐC) -->
+        <td class="col-p col-yl-dual">
           <div class="med-dual-cell">
             <div class="med-tier tier-orders" onclick="this.querySelector('.med-cell-editor')?.focus()">
               <div class="med-tier-header">
-                <span class="med-micro-badge badge-orders">📋 Y lệnh chính</span>
+                <span class="med-micro-badge badge-orders">📋 Y lệnh</span>
                 <div class="med-cell-tools no-print">
-                  <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... giống Word (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'y_lenh')">🔢 1.2.3</button>
-                  <button type="button" class="btn-micro-tool" title="Chép Y lệnh sang Bệnh án (giữ nguyên số thứ tự)" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'y_lenh')">📋 Chép</button>
+                  <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'y_lenh')">🔢</button>
+                  <button type="button" class="btn-micro-tool" title="Chép Y lệnh" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'y_lenh')">📋</button>
                 </div>
               </div>
               <div class="med-cell-editor col-editable" contenteditable="true"
-                   data-placeholder="Y lệnh điều trị, thuốc, chăm sóc..."
+                   data-placeholder="Y lệnh điều trị, thuốc, dịch truyền..."
                    oninput="window.patientController.handleCellInput('${p.id}', 'y_lenh', window.patientController.getClinicalCellContent(this), this)"
                    onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'y_lenh', this)"
                    onblur="window.patientController.handleCellBlur('${p.id}', 'y_lenh', window.patientController.getClinicalCellContent(this), this)">${this.formatClinicalDisplay(p.y_lenh || '')}</div>
@@ -3473,10 +3561,13 @@ class PatientController {
             <div class="med-tier-divider"></div>
             <div class="med-tier tier-rx ${p.them_thuoc ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
               <div class="med-tier-header">
-                <span class="med-micro-badge badge-rx ${p.them_thuoc ? 'active' : ''}">${p.them_thuoc ? '💊 Thêm thuốc' : '+ Thêm thuốc'}</span>
+                <span class="med-micro-badge badge-rx ${p.them_thuoc ? 'active' : ''}">💊 Bổ sung</span>
                 <div class="med-cell-tools no-print">
-                  <button type="button" class="btn-micro-tool" title="Đánh số thuốc (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'them_thuoc')">🔢</button>
-                  <button type="button" class="btn-micro-tool" title="Chép thuốc bổ sung" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'them_thuoc')">📋 Chép</button>
+                  ${p.them_thuoc ? `
+                    <button type="button" class="btn-micro-tool" title="Đã duyệt: Tự động chuyển thuốc bổ sung vào Y Lệnh Điều Trị" onclick="event.stopPropagation(); window.patientController.transferExtraRxToOrders('${p.id}')">📥</button>
+                  ` : ''}
+                  <button type="button" class="btn-micro-tool" title="Đánh số thuốc" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'them_thuoc')">🔢</button>
+                  <button type="button" class="btn-micro-tool" title="Chép thuốc bổ sung" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'them_thuoc')">📋</button>
                 </div>
               </div>
               <div class="med-cell-editor col-editable ${p.them_thuoc ? 'text-rx-highlight' : ''}" contenteditable="true"
@@ -3487,34 +3578,56 @@ class PatientController {
             </div>
           </div>
         </td>
+
+        <!-- CỘT 7: TRẠNG THÁI & BÀN GIAO -->
         <td class="col-handover">
-          <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
+          <button class="icon-status-btn ${statusCfg.badgeClass}" onclick="event.stopPropagation(); window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${statusCfg.label}">
             ${statusCfg.icon}
           </button>
-          ${p.handover_issues ? `<span class="handover-mini-icon" onclick="window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${this.escape(p.handover_issues)}">${p.handover_status === CONFIG.HANDOVER_STATUS.NOTE ? '📝' : '⚠️'}</span>` : ''}
+          ${p.handover_issues ? `<span class="handover-mini-icon" onclick="event.stopPropagation(); window.handoverController.openHandoverModal('${p.id}')" data-tooltip="${this.escape(p.handover_issues)}">${p.handover_status === CONFIG.HANDOVER_STATUS.NOTE ? '📝' : '⚠️'}</span>` : ''}
           <div class="print-handover-view">
             <span class="print-status-tag ${statusCfg.badgeClass}">${statusCfg.label || 'Bình thường'}</span>
             ${p.handover_issues ? `<div class="print-issue-text">${p.handover_status === CONFIG.HANDOVER_STATUS.NOTE ? '📝' : '⚠️'} ${this.escape(p.handover_issues)}</div>` : ''}
           </div>
         </td>
-        <td class="col-actions no-print">
-          <div class="action-btn-group">
-            <button class="btn-table-action" data-tooltip="Copy qua Zalo" onclick="window.patientController.copySinglePatientZalo('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            </button>
-            <button class="btn-table-action" data-tooltip="Thêm dòng dưới" onclick="window.patientController.insertRowAfter('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-            <button class="btn-table-action" data-tooltip="Chi tiết &amp; Chẩn đoán" onclick="window.patientController.openPatientDetailModal('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="btn-table-action btn-del" data-tooltip="Xóa người bệnh" onclick="window.patientController.deletePatient('${p.id}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          </div>
-        </td>
       `;
       tbody.appendChild(tr);
+    });
+  }
+
+  // ==============================================================================
+  // ĐIỀU HƯỚNG BẰNG BÀN PHÍM TRÊN BẢNG LÂM SÀNG (KEYBOARD ROW NAVIGATION)
+  // ==============================================================================
+  navigateTableRow(direction) {
+    const rows = Array.from(document.querySelectorAll('#patientTableBody tr.patient-row'));
+    if (rows.length === 0) return null;
+    const currentIdx = rows.findIndex(r => r.classList.contains('keyboard-focused-row'));
+    let newIdx = 0;
+    if (currentIdx === -1) {
+      newIdx = direction > 0 ? 0 : rows.length - 1;
+    } else {
+      newIdx = currentIdx + direction;
+      if (newIdx < 0) newIdx = 0;
+      if (newIdx >= rows.length) newIdx = rows.length - 1;
+    }
+    rows.forEach(r => r.classList.remove('keyboard-focused-row'));
+    const targetRow = rows[newIdx];
+    if (targetRow) {
+      targetRow.classList.add('keyboard-focused-row');
+      targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return targetRow.dataset.id;
+    }
+    return null;
+  }
+
+  getSelectedRowPatientId() {
+    const row = document.querySelector('#patientTableBody tr.patient-row.keyboard-focused-row');
+    return row ? row.dataset.id : null;
+  }
+
+  clearRowFocus() {
+    document.querySelectorAll('#patientTableBody tr.patient-row.keyboard-focused-row').forEach(r => {
+      r.classList.remove('keyboard-focused-row');
     });
   }
 
@@ -3583,7 +3696,7 @@ class PatientController {
       } else if (p.handover_status === CONFIG.HANDOVER_STATUS.NOTE) {
         statusPillHtml = `<span class="card-status-pill status-note">📝 LƯU Ý</span>`;
       } else if (p.handover_status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
-        statusPillHtml = `<span class="card-status-pill status-waiting-cls">🧪 CHỜ CLS</span>`;
+        statusPillHtml = `<span class="card-status-pill status-waiting-cls">⏳ CHỜ THỰC HIỆN</span>`;
       } else if (p.handover_status === CONFIG.HANDOVER_STATUS.DISCHARGED) {
         statusPillHtml = `<span class="card-status-pill status-discharged">🏠 XUẤT VIỆN</span>`;
       } else if (p.handover_status === CONFIG.HANDOVER_STATUS.RESOLVED) {
@@ -3615,24 +3728,35 @@ class PatientController {
           </div>
 
           <div class="card-diagnosis-box">
-            <strong>Chẩn đoán:</strong>
+            <strong>(A) Chẩn đoán &amp; Vấn đề:</strong>
             <div>${this.formatClinicalDisplay(p.chan_doan || 'Chưa có chẩn đoán')}</div>
           </div>
 
-          <!-- DENGUE TRENDLINE STRIP (NẾU LÀ BỆNH NHÂN SXH HOẶC CÓ THEO DÕI HCT/TC) -->
-          ${this.isDenguePatient(p) ? this.renderCardDengueTrendHtml(p) : ''}
+          ${p.trieu_chung ? `
+            <div class="card-s-box" style="margin-top: 6px; padding: 6px 8px; background: rgba(243, 232, 255, 0.4); border-left: 3px solid #a855f7; border-radius: var(--radius-xs); font-size: 12px; line-height: 1.35;">
+              <strong style="color: #7e22ce;">🗣️ (S) Cơ năng:</strong>
+              <div>${this.formatClinicalDisplay(p.trieu_chung)}</div>
+            </div>
+          ` : ''}
 
           <!-- 2 TẦNG LÂM SÀNG: CLS & Y LỆNH -->
           <div class="card-clinical-grid">
             <div class="card-tier-box tier-cls">
               <div class="card-tier-title">
-                <span>🔬 Cận lâm sàng (CLS)</span>
+                <span>🔬 (O) Thực thể &amp; CLS</span>
               </div>
               <div class="card-tier-content">
-                <div><span style="font-weight: 700; color: #0284c7;">✓ Hiện có:</span> ${this.formatClsDisplay(p.cls_hien_co || '—')}</div>
+                ${p.kham_lam_sang ? `
+                  <div class="card-mobile-o-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dashed var(--border);">
+                    <div><span style="font-weight: 700; color: #0d9488;">LS:</span> ${this.formatClinicalDisplay(p.kham_lam_sang)}</div>
+                    <div><span style="font-weight: 700; color: #0284c7;">CLS:</span> ${this.formatClsDisplay(p.cls_hien_co || '—')}</div>
+                  </div>
+                ` : `
+                  <div><span style="font-weight: 700; color: #0284c7;">✓ CLS:</span> ${this.formatClsDisplay(p.cls_hien_co || '—')}</div>
+                `}
                 ${p.cls_can_lam ? `
                   <div class="card-tier-highlight">
-                    <span>⚡ Cần làm:</span> ${this.formatClsDisplay(p.cls_can_lam)}
+                    <span>⚡ CLS cần làm:</span> ${this.formatClsDisplay(p.cls_can_lam)}
                   </div>
                 ` : ''}
               </div>
@@ -3640,7 +3764,7 @@ class PatientController {
 
             <div class="card-tier-box tier-yl">
               <div class="card-tier-title">
-                <span>💊 Y lệnh điều trị</span>
+                <span>📋 (P) Y lệnh &amp; Điều trị</span>
               </div>
               <div class="card-tier-content">
                 <div>${this.formatClinicalDisplay(p.y_lenh || '—')}</div>
@@ -3836,6 +3960,14 @@ class PatientController {
     if (p.chan_doan && /^\[Mã\s*(?:NB|BN|BA|hồ\s*sơ):\s*[^\]]+\]$/i.test(p.chan_doan.trim())) {
       p.chan_doan = '';
     }
+
+    if (document.getElementById('editTrieuChung')) {
+      document.getElementById('editTrieuChung').value = p.trieu_chung || '';
+    }
+    if (document.getElementById('editKhamLamSang')) {
+      document.getElementById('editKhamLamSang').value = p.kham_lam_sang || '';
+    }
+
     const diagInput = document.getElementById('editDiagnosis');
     if (diagInput) diagInput.value = p.chan_doan || '';
     
@@ -3868,18 +4000,6 @@ class PatientController {
     if (issInput) issInput.value = p.handover_issues || '';
     const actInput = document.getElementById('editHandoverActions');
     if (actInput) actInput.value = p.handover_actions || '';
-
-    // Cập nhật tóm tắt Xu hướng Dengue (Hct & TC)
-    const triggerSub = document.getElementById('detailTrendSummaryText');
-    if (triggerSub) {
-      const trends = this.getPatientDengueTrends(p);
-      const delta = this.calculateDengueDelta(trends);
-      if (delta) {
-        triggerSub.innerHTML = `Hct: <strong>${delta.latestHct}%</strong> ${delta.deltaHct !== null ? (delta.deltaHct > 0 ? '▲+' : '▼') + delta.deltaHct + '%' : ''} • TC: <strong>${delta.latestTc}k</strong> ${delta.deltaTc !== null ? (delta.deltaTc > 0 ? '▲+' : '▼') + delta.deltaTc + 'k' : ''} • Chạm để xem/nhập`;
-      } else {
-        triggerSub.textContent = 'Chưa có mốc theo dõi • Chạm để mở biểu đồ & nhập điểm';
-      }
-    }
   }
 
   showModalRemoteUpdateNotice(record) {
@@ -3969,10 +4089,10 @@ class PatientController {
       if (lblActions) lblActions.innerHTML = '🎯 Dặn dò / Hành động kèm theo (nếu có):';
       if (txtActions) txtActions.placeholder = 'Dặn dò hoặc hành động kèm theo nếu cần...';
     } else if (status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
-      if (lblIssues) lblIssues.innerHTML = '🧪 Cận lâm sàng đang chờ kết quả:';
-      if (txtIssues) txtIssues.placeholder = 'Các chỉ định CLS đang chờ kết quả để xử trí...';
-      if (lblActions) lblActions.innerHTML = '🎯 Hướng xử trí khi có kết quả:';
-      if (txtActions) txtActions.placeholder = 'Kế hoạch điều trị khi có kết quả CLS...';
+      if (lblIssues) lblIssues.innerHTML = '⏳ Chỉ định / Thuốc đang chờ thực hiện:';
+      if (txtIssues) txtIssues.placeholder = 'Các chỉ định CLS hoặc thuốc đang chờ thực hiện...';
+      if (lblActions) lblActions.innerHTML = '🎯 Hướng xử trí tiếp theo:';
+      if (txtActions) txtActions.placeholder = 'Kế hoạch điều trị hoặc theo dõi tiếp...';
     } else if (status === CONFIG.HANDOVER_STATUS.PENDING || status === CONFIG.HANDOVER_STATUS.CRITICAL) {
       if (lblIssues) lblIssues.innerHTML = '⚠️ Vấn đề lâm sàng tồn đọng:';
       if (txtIssues) txtIssues.placeholder = 'Vấn đề lâm sàng tồn đọng...';
@@ -3990,6 +4110,8 @@ class PatientController {
     const id = document.getElementById('editPatientId').value;
 
     let cdVal = document.getElementById('editDiagnosis').value.trim();
+    let trieuChungVal = document.getElementById('editTrieuChung') ? document.getElementById('editTrieuChung').value.trim() : '';
+    let khamLsVal = document.getElementById('editKhamLamSang') ? document.getElementById('editKhamLamSang').value.trim() : '';
     let clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value.trim() : '';
     let clsClVal = document.getElementById('editClsCanLam') ? document.getElementById('editClsCanLam').value.trim() : '';
     let ylVal = document.getElementById('editOrders').value.trim();
@@ -3997,6 +4119,8 @@ class PatientController {
 
     if (CONFIG.expandMedicalText) {
       cdVal = CONFIG.expandMedicalText(cdVal);
+      trieuChungVal = CONFIG.expandMedicalText(trieuChungVal);
+      khamLsVal = CONFIG.expandMedicalText(khamLsVal);
       ylVal = CONFIG.expandMedicalText(ylVal);
       if (themThuocVal) themThuocVal = CONFIG.expandMedicalText(themThuocVal);
     }
@@ -4017,18 +4141,35 @@ class PatientController {
     const formattedAgeYear = this.formatBirthYearAge(rawAgeYear);
     if (ageYearInput && formattedAgeYear) ageYearInput.value = formattedAgeYear;
 
+    const selectedStatus = document.getElementById('editHandoverStatus').value;
+    let finalStatus = selectedStatus;
+
+    // Tự động chuyển đổi sang "Chờ thực hiện" nếu có CLS cần làm hoặc Thêm thuốc mà trạng thái đang là Ổn định hoặc Đã xong
+    const hasPendingCls = (clsClVal && clsClVal.trim().length > 0);
+    const hasExtraRx = (themThuocVal && themThuocVal.trim().length > 0);
+
+    if (hasPendingCls || hasExtraRx) {
+      if (!selectedStatus || selectedStatus === CONFIG.HANDOVER_STATUS.NONE || selectedStatus === CONFIG.HANDOVER_STATUS.RESOLVED) {
+        finalStatus = CONFIG.HANDOVER_STATUS.WAITING_CLS;
+      }
+    } else if (!hasPendingCls && !hasExtraRx && selectedStatus === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      finalStatus = CONFIG.HANDOVER_STATUS.NONE;
+    }
+
     const updateData = {
       phong_giuong: this.cleanRoomBedString(document.getElementById('editRoomBed').value.trim()),
       ten: document.getElementById('editFullName').value.trim(),
       nam_sinh_tuoi: formattedAgeYear,
       doctor_name: docVal,
+      trieu_chung: trieuChungVal,
+      kham_lam_sang: khamLsVal,
       chan_doan: cdVal,
       cls: combinedCls,
       cls_hien_co: clsHcVal,
       cls_can_lam: clsClVal,
       y_lenh: ylVal,
       them_thuoc: themThuocVal,
-      handover_status: document.getElementById('editHandoverStatus').value,
+      handover_status: finalStatus,
       handover_issues: document.getElementById('editHandoverIssues').value.trim(),
       handover_actions: document.getElementById('editHandoverActions').value.trim()
     };
@@ -4103,6 +4244,437 @@ class PatientController {
     if (window.updateSaveStatus) {
       window.updateSaveStatus('✓ Đã cập nhật thông tin người bệnh');
     }
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG COPY DIỄN TIẾN BỆNH MỖI NGÀY THEO CHUẨN SOAP BỆNH VIỆN
+  // ==============================================================================
+  generateDailySoapText(patient) {
+    if (!patient) return '';
+    const p = { ...patient };
+    this.normalizePatientClsAndOrders(p);
+
+    let lines = [];
+
+    // (S) Triệu chứng cơ năng
+    lines.push('(S)');
+    if (p.trieu_chung && p.trieu_chung.trim()) {
+      lines.push(p.trieu_chung.trim());
+    } else {
+      lines.push('Tỉnh táo, không sốt, ăn uống được');
+    }
+
+    // (O) Khám thực thể & Cận lâm sàng
+    lines.push('(O)');
+    if (p.kham_lam_sang && p.kham_lam_sang.trim()) {
+      lines.push(p.kham_lam_sang.trim());
+    } else {
+      lines.push('Bệnh nhân tỉnh, tiếp xúc tốt\nDa niêm hồng, chi ấm, mạch rõ\nTim đều, phổi trong, bụng mềm');
+    }
+
+    if (p.cls_hien_co && p.cls_hien_co.trim()) {
+      lines.push('CLS:');
+      const clsLines = p.cls_hien_co.trim().split('\n');
+      clsLines.forEach(l => {
+        const trL = l.trim();
+        if (trL) {
+          lines.push(trL.startsWith('-') ? trL : `- ${trL}`);
+        }
+      });
+    }
+
+    // (A) Chẩn đoán & Vấn đề
+    lines.push('(A)');
+    if (p.chan_doan && p.chan_doan.trim()) {
+      lines.push(p.chan_doan.trim());
+    } else {
+      lines.push('Theo dõi diễn tiến ổn định');
+    }
+
+    // (P) Y lệnh & Điều trị
+    lines.push('(P)');
+    if (p.y_lenh && p.y_lenh.trim()) {
+      lines.push(p.y_lenh.trim());
+    }
+    if (p.them_thuoc && p.them_thuoc.trim()) {
+      lines.push(`[Thêm thuốc]: ${p.them_thuoc.trim()}`);
+    }
+    if (p.cls_can_lam && p.cls_can_lam.trim()) {
+      lines.push(`Chỉ định cận lâm sàng:\n${p.cls_can_lam.trim()}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  copyDailySoapProgress(patientId) {
+    let p = null;
+    if (patientId) {
+      p = this.patientList.find(item => item.id === patientId);
+    }
+    if (!p && this.currentEditingPatientId) {
+      p = this.patientList.find(item => item.id === this.currentEditingPatientId);
+    }
+    if (!p) return;
+
+    // Nếu đang mở trong modal, ưu tiên lấy trực tiếp giá trị đang hiển thị trên các ô nhập
+    const modalId = document.getElementById('editPatientId')?.value;
+    if (modalId && modalId === p.id) {
+      p = {
+        ...p,
+        trieu_chung: document.getElementById('editTrieuChung')?.value.trim() || p.trieu_chung,
+        kham_lam_sang: document.getElementById('editKhamLamSang')?.value.trim() || p.kham_lam_sang,
+        chan_doan: document.getElementById('editDiagnosis')?.value.trim() || p.chan_doan,
+        cls_hien_co: document.getElementById('editClsHienCo')?.value.trim() || p.cls_hien_co,
+        cls_can_lam: document.getElementById('editClsCanLam')?.value.trim() || p.cls_can_lam,
+        y_lenh: document.getElementById('editOrders')?.value.trim() || p.y_lenh,
+        them_thuoc: document.getElementById('editThemThuoc')?.value.trim() || p.them_thuoc
+      };
+    }
+
+    const text = this.generateDailySoapText(p);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (window.showToast) {
+          window.showToast({
+            title: '📄 ĐÃ SAO CHÉP DIỄN TIẾN BỆNH (SOAP)',
+            message: `Đã copy diễn tiến ca "${p.ten || 'NB'}" ra clipboard, dán trực tiếp vào bệnh án!`,
+            type: 'success',
+            icon: '📄'
+          });
+        }
+      }).catch(err => {
+        this.fallbackCopyText(text, '📄 Đã copy diễn tiến bệnh (SOAP)');
+      });
+    } else {
+      this.fallbackCopyText(text, '📄 Đã copy diễn tiến bệnh (SOAP)');
+    }
+  }
+
+  // ==============================================================================
+  // CHUYỂN NỘI DUNG TỰ ĐỘNG TỪ "CLS CẦN LÀM" -> "CLS HIỆN CÓ" & "THÊM THUỐC" -> "Y LỆNH"
+  // ==============================================================================
+  async transferPendingClsToPresent(patientId) {
+    const idx = this.patientList.findIndex(p => p.id === patientId);
+    if (idx === -1) return;
+    const p = this.patientList[idx];
+    const pending = (p.cls_can_lam || '').trim();
+    if (!pending) return;
+
+    const currentPresent = (p.cls_hien_co || '').trim();
+    const newPresent = currentPresent ? `${currentPresent}\n${pending}` : pending;
+
+    p.cls_hien_co = newPresent;
+    p.cls_can_lam = '';
+    p.cls = newPresent;
+
+    // Kiểm tra xem còn mục chờ thực hiện nào không (nếu không còn thêm thuốc thì chuyển về Ổn định)
+    if ((!p.them_thuoc || !p.them_thuoc.trim()) && p.handover_status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      p.handover_status = CONFIG.HANDOVER_STATUS.NONE;
+    }
+
+    p.updated_at = new Date().toISOString();
+    this.saveLocalCache();
+    this.render();
+
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(p, this.currentDate).catch(() => {});
+    }
+
+    if (window.showToast) {
+      window.showToast({
+        title: '☑️ ĐÃ CHUYỂN VÀO CLS HIỆN CÓ',
+        message: `Đã cập nhật chỉ định sang CLS hiện có cho người bệnh ${p.ten || ''}`,
+        type: 'success',
+        icon: '🔬'
+      });
+    }
+  }
+
+  async transferExtraRxToOrders(patientId) {
+    const idx = this.patientList.findIndex(p => p.id === patientId);
+    if (idx === -1) return;
+    const p = this.patientList[idx];
+    const extra = (p.them_thuoc || '').trim();
+    if (!extra) return;
+
+    const currentOrders = (p.y_lenh || '').trim();
+    const newOrders = currentOrders ? `${currentOrders}\n${extra}` : extra;
+
+    p.y_lenh = newOrders;
+    p.them_thuoc = '';
+
+    // Kiểm tra xem còn mục chờ thực hiện nào không (nếu không còn CLS cần làm thì chuyển về Ổn định)
+    if ((!p.cls_can_lam || !p.cls_can_lam.trim()) && p.handover_status === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      p.handover_status = CONFIG.HANDOVER_STATUS.NONE;
+    }
+
+    p.updated_at = new Date().toISOString();
+    this.saveLocalCache();
+    this.render();
+
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(p, this.currentDate).catch(() => {});
+    }
+
+    if (window.showToast) {
+      window.showToast({
+        title: '☑️ ĐÃ NHẬP VÀO Y LỆNH ĐIỀU TRỊ',
+        message: `Đã đưa thuốc bổ sung vào Y lệnh điều trị chính cho người bệnh ${p.ten || ''}`,
+        type: 'success',
+        icon: '💊'
+      });
+    }
+  }
+
+  transferPendingClsToPresentInModal() {
+    const pendingEl = document.getElementById('editClsCanLam');
+    const presentEl = document.getElementById('editClsHienCo');
+    if (!pendingEl || !presentEl) return;
+
+    const pending = pendingEl.value.trim();
+    if (!pending) {
+      if (window.showToast) window.showToast('Không có nội dung CLS cần làm để chuyển!');
+      return;
+    }
+
+    const present = presentEl.value.trim();
+    presentEl.value = present ? `${present}\n${pending}` : pending;
+    pendingEl.value = '';
+
+    // Kiểm tra trạng thái nếu không còn thêm thuốc thì chuyển select về Ổn định
+    const extraRx = document.getElementById('editThemThuoc')?.value.trim();
+    const statusSelect = document.getElementById('editHandoverStatus');
+    if (!extraRx && statusSelect && statusSelect.value === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      statusSelect.value = CONFIG.HANDOVER_STATUS.NONE;
+      this.onDetailStatusChange(CONFIG.HANDOVER_STATUS.NONE);
+    }
+
+    if (window.showToast) {
+      window.showToast('☑️ Đã chuyển nội dung sang ô CLS Hiện có!');
+    }
+  }
+
+  transferExtraRxToOrdersInModal() {
+    const extraEl = document.getElementById('editThemThuoc');
+    const ordersEl = document.getElementById('editOrders');
+    if (!extraEl || !ordersEl) return;
+
+    const extra = extraEl.value.trim();
+    if (!extra) {
+      if (window.showToast) window.showToast('Không có thuốc bổ sung để nhập vào Y lệnh!');
+      return;
+    }
+
+    const orders = ordersEl.value.trim();
+    ordersEl.value = orders ? `${orders}\n${extra}` : extra;
+    extraEl.value = '';
+
+    // Kiểm tra trạng thái nếu không còn CLS cần làm thì chuyển select về Ổn định
+    const pendingCls = document.getElementById('editClsCanLam')?.value.trim();
+    const statusSelect = document.getElementById('editHandoverStatus');
+    if (!pendingCls && statusSelect && statusSelect.value === CONFIG.HANDOVER_STATUS.WAITING_CLS) {
+      statusSelect.value = CONFIG.HANDOVER_STATUS.NONE;
+      this.onDetailStatusChange(CONFIG.HANDOVER_STATUS.NONE);
+    }
+
+    if (window.showToast) {
+      window.showToast('☑️ Đã chuyển thuốc vào Y lệnh điều trị chính!');
+    }
+  }
+
+  // ==============================================================================
+  // TÍNH NĂNG SMART SOAP PASTE: BÓC TÁCH NỘI DUNG TỰ ĐỘNG
+  // ==============================================================================
+  openSmartSoapPasteModal() {
+    const modal = document.getElementById('smartSoapModal');
+    if (modal) {
+      const input = document.getElementById('smartSoapInput');
+      if (input) input.value = '';
+      modal.classList.add('active');
+      setTimeout(() => input?.focus(), 100);
+    }
+  }
+
+  closeSmartSoapPasteModal() {
+    const modal = document.getElementById('smartSoapModal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  parseSoapText(text) {
+    if (!text || typeof text !== 'string') return {};
+    let raw = text.replace(/\r\n/g, '\n');
+
+    // Tự động loại bỏ các dòng chữ mặc định "DIỄN TIẾN BỆNH", "DIỄN BIẾN BỆNH", "DIỄN TIẾN:" ở đầu hoặc các dòng riêng
+    raw = raw.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN|DIEN TIEN BENH|DIEN BIEN BENH)\s*[:\-]?\s*$/gim, '').trim();
+
+    const result = {
+      trieu_chung: '',
+      kham_lam_sang: '',
+      cls_hien_co: '',
+      cls_can_lam: '',
+      chan_doan: '',
+      y_lenh: '',
+      them_thuoc: ''
+    };
+
+    // Tìm các mốc phân tách chính: (S), (O), (A), (P)
+    const markerRegex = /(?:^|\n)\s*(?:\(?([SOAPsoap])\)?|CLS:|CẬN LÂM SÀNG:|Y LỆNH:)\s*[:\-]?\s*/gi;
+    
+    // Thu thập các mốc phân đoạn
+    const matches = [];
+    let match;
+    while ((match = markerRegex.exec(raw)) !== null) {
+      matches.push({
+        index: match.index + (match[0].startsWith('\n') ? 1 : 0),
+        tagLength: match[0].length,
+        matchedStr: match[0].trim().toUpperCase()
+      });
+    }
+
+    if (matches.length === 0) {
+      // Nếu không có marker chuẩn, loại bỏ dòng tiêu đề mặc định nếu có rồi đưa vào khám thực thể
+      const cleaned = raw.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN|DIEN TIEN BENH|DIEN BIEN BENH)\s*[:\-]?\s*/i, '').trim();
+      result.kham_lam_sang = cleaned;
+      return result;
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const startContent = current.index + current.tagLength;
+      const endContent = (i + 1 < matches.length) ? matches[i + 1].index : raw.length;
+      let blockContent = raw.slice(startContent, endContent).trim();
+
+      // Dọn sạch nếu còn sót dòng tiêu đề mặc định trong block
+      blockContent = blockContent.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN)\s*[:\-]?\s*/i, '').trim();
+
+      const tag = current.matchedStr;
+
+      if (tag.includes('(S)') || tag === 'S' || tag.startsWith('S:')) {
+        result.trieu_chung = blockContent;
+      } else if (tag.includes('(O)') || tag === 'O' || tag.startsWith('O:')) {
+        // Tách riêng nếu trong (O) có phần CLS:
+        if (/CLS:|Cận lâm sàng:/i.test(blockContent)) {
+          const clsSplit = blockContent.split(/CLS:|Cận lâm sàng:/i);
+          result.kham_lam_sang = clsSplit[0].trim();
+          result.cls_hien_co = clsSplit[1] ? clsSplit[1].trim() : '';
+        } else {
+          result.kham_lam_sang = blockContent;
+        }
+      } else if (tag.includes('CLS') || tag.includes('CẬN LÂM SÀNG')) {
+        result.cls_hien_co = blockContent;
+      } else if (tag.includes('(A)') || tag === 'A' || tag.startsWith('A:')) {
+        result.chan_doan = blockContent;
+      } else if (tag.includes('(P)') || tag === 'P' || tag.startsWith('P:') || tag.includes('Y LỆNH')) {
+        result.y_lenh = blockContent;
+      }
+    }
+
+    return result;
+  }
+
+  applySmartSoapPaste() {
+    const input = document.getElementById('smartSoapInput');
+    if (!input || !input.value.trim()) {
+      if (window.showToast) window.showToast('Vui lòng dán nội dung diễn tiến trước!');
+      return;
+    }
+
+    const parsed = this.parseSoapText(input.value);
+
+    // Điền vào các ô của Detail Modal
+    if (parsed.trieu_chung && document.getElementById('editTrieuChung')) {
+      document.getElementById('editTrieuChung').value = parsed.trieu_chung;
+    }
+    if (parsed.kham_lam_sang && document.getElementById('editKhamLamSang')) {
+      document.getElementById('editKhamLamSang').value = parsed.kham_lam_sang;
+    }
+    if (parsed.cls_hien_co && document.getElementById('editClsHienCo')) {
+      document.getElementById('editClsHienCo').value = parsed.cls_hien_co;
+    }
+    if (parsed.chan_doan && document.getElementById('editDiagnosis')) {
+      document.getElementById('editDiagnosis').value = parsed.chan_doan;
+    }
+    if (parsed.y_lenh && document.getElementById('editOrders')) {
+      document.getElementById('editOrders').value = parsed.y_lenh;
+    }
+
+    this.closeSmartSoapPasteModal();
+
+    if (window.showToast) {
+      window.showToast({
+        title: '⚡ TỰ ĐỘNG BÓC TÁCH SOAP THÀNH CÔNG',
+        message: 'Đã phân tách nội dung vào các ô (S), (O), (A), (P). Bạn có thể kiểm tra và bấm Lưu!',
+        type: 'success',
+        icon: '✨'
+      });
+    }
+  }
+
+  // ==============================================================================
+  // MENU THAO TÁC NHANH (CONTEXT MENU) THAY THẾ CỘT THAO TÁC RIÊNG
+  // ==============================================================================
+  showRowContextMenu(event, patientId) {
+    const p = this.patientList.find(x => x.id === patientId);
+    if (!p) return;
+
+    // Xóa menu cũ nếu đang mở
+    this.closeRowContextMenu();
+
+    const menu = document.createElement('div');
+    menu.id = 'activeRowContextMenu';
+    menu.className = 'med-context-menu';
+
+    menu.innerHTML = `
+      <div style="padding: 4px 8px; font-size: 11px; font-weight: 800; color: var(--primary-accent); border-bottom: 1px solid var(--border); margin-bottom: 4px;">
+        👤 ${this.escape(p.ten || 'Người bệnh')} (${this.escape(p.phong_giuong || 'P/G')})
+      </div>
+      <div class="med-context-item" onclick="window.patientController.openPatientDetailModal('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>✏️</span> <span>Sửa Chi Tiết (SOAP)</span>
+      </div>
+      <div class="med-context-item" onclick="window.patientController.copyDailySoapProgress('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>📄</span> <span>Copy Diễn Tiến (SOAP)</span>
+      </div>
+      <div class="med-context-item" onclick="window.patientController.copySinglePatientZalo('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>📋</span> <span>Copy Bàn Giao Zalo</span>
+      </div>
+      <div class="med-context-item" onclick="window.handoverController.openHandoverModal('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>🔔</span> <span>Đổi Trạng Thái / Bàn Giao</span>
+      </div>
+      <div class="med-context-divider"></div>
+      <div class="med-context-item" onclick="window.patientController.insertRowAfter('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>➕</span> <span>Thêm dòng bên dưới</span>
+      </div>
+      <div class="med-context-item danger" onclick="window.patientController.deletePatient('${p.id}'); window.patientController.closeRowContextMenu();">
+        <span>🗑️</span> <span>Xóa Người Bệnh</span>
+      </div>
+    `;
+
+    document.body.appendChild(menu);
+
+    // Tính toán tọa độ hiển thị trong màn hình
+    const x = Math.min(event.clientX, window.innerWidth - 230);
+    const y = Math.min(event.clientY, window.innerHeight - 270);
+    menu.style.left = `${Math.max(10, x)}px`;
+    menu.style.top = `${Math.max(10, y)}px`;
+
+    // Đóng khi click ra ngoài
+    const onOutsideClick = (e) => {
+      if (!menu.contains(e.target)) {
+        this.closeRowContextMenu();
+        document.removeEventListener('click', onOutsideClick);
+        document.removeEventListener('contextmenu', onOutsideClick);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', onOutsideClick);
+      document.addEventListener('contextmenu', onOutsideClick);
+    }, 50);
+  }
+
+  closeRowContextMenu() {
+    const existing = document.getElementById('activeRowContextMenu');
+    if (existing) existing.remove();
   }
 
   // ==============================================================================
@@ -4706,6 +5278,8 @@ class PatientController {
     if (p.ten && p.ten !== 'BỆNH NHÂN MỚI') score += 10;
     if (p.phong_giuong && p.phong_giuong !== 'D1.01-1') score += 15;
     if (p.doctor_name && !p.doctor_name.includes('Chưa')) score += 10;
+    if (p.trieu_chung) score += p.trieu_chung.length * 2;
+    if (p.kham_lam_sang) score += p.kham_lam_sang.length * 2;
     if (p.chan_doan) score += p.chan_doan.length * 2;
     if (p.cls) score += p.cls.length * 2;
     if (p.cls_hien_co) score += p.cls_hien_co.length * 2;

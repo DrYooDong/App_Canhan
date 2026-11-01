@@ -832,14 +832,12 @@
                 <thead>
                     <tr>
                         <th class="col-stt" data-tooltip="Số thứ tự"><span class="th-title">STT</span></th>
-                        <th class="col-room" data-tooltip="Phòng / Buồng bệnh &amp; Giường nằm (P/G)"><span class="th-title">P/G</span></th>
-                        <th class="col-name" data-tooltip="Họ và tên người bệnh (Họ tên NB)"><span class="th-title">Họ &amp; Tên</span></th>
-                        <th class="col-birth" data-tooltip="Năm sinh và số tuổi (NS)"><span class="th-title">NS (Tuổi)</span></th>
-                        <th class="col-cd" data-tooltip="Chẩn đoán xác định / kèm theo (CĐ) - Đánh số 1, 2, 3... giống Word (Alt+N)"><span class="th-title">CHẨN ĐOÁN</span> <span class="th-num-hint no-print" title="Hỗ trợ đánh số 1. 2. 3... (Alt+N) &amp; In đậm Ctrl+B">🔢 1.2.3</span></th>
-                        <th class="col-cls" data-tooltip="Cận lâm sàng: Tự động in đậm [Máu], [Sinh hóa], [Cần làm]..."><span class="th-title">CẬN LÂM SÀNG</span> <span class="th-num-hint no-print" title="Tự động in đậm các nhãn [Máu], [Cần làm]..."><b>[CLS]</b></span></th>
-                        <th class="col-yl" data-tooltip="Y lệnh điều trị &amp; Bổ sung thuốc - Đánh số 1, 2, 3... giống Word (Alt+N)"><span class="th-title">Y LỆNH ĐIỀU TRỊ</span> <span class="th-num-hint no-print" title="Hỗ trợ đánh số 1. 2. 3... (Alt+N) &amp; In đậm Ctrl+B">🔢 1.2.3</span></th>
-                        <th class="col-handover" data-tooltip="Trạng thái bàn giao tua trực (BG)"><span class="th-title">BG</span></th>
-                        <th class="col-actions no-print" data-tooltip="Thao tác nhanh"><span class="th-title">Thao Tác</span></th>
+                        <th class="col-admin" data-tooltip="Hành chính: Buồng-Giường, Họ tên, Năm sinh &amp; Tuổi"><span class="th-title">Hành Chính</span></th>
+                        <th class="col-s" data-tooltip="(S) - Subjective: Triệu chứng cơ năng, bệnh sử, cảm giác người bệnh"><span class="th-title">(S) TRIỆU CHỨNG</span></th>
+                        <th class="col-o" data-tooltip="(O) - Objective: Khám thực thể &amp; Cận lâm sàng (Hiện có / Cần làm)"><span class="th-title">(O) THỰC THỂ &amp; CLS</span></th>
+                        <th class="col-a" data-tooltip="(A) - Assessment: Chẩn đoán xác định / kèm theo &amp; Các vấn đề người bệnh (Alt+N để đánh số)"><span class="th-title">(A) CHẨN ĐOÁN</span></th>
+                        <th class="col-p" data-tooltip="(P) - Plan: Y lệnh điều trị, Thuốc, Dịch truyền &amp; Bổ sung thuốc"><span class="th-title">(P) Y LỆNH &amp; ĐIỀU TRỊ</span></th>
+                        <th class="col-handover" data-tooltip="Trạng thái &amp; Bàn giao: Ổn định, Chờ thực hiện, Lưu ý, Đã xong, Cần bàn giao, Xuất viện"><span class="th-title">Trạng Thái</span></th>
                     </tr>
                 </thead>
                 <tbody id="patientTableBody">
@@ -951,8 +949,13 @@
             <div class="bottom-sheet-drag-handle"></div>
             <div class="modal-header">
                 <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
-                <button class="btn-close-modal"
-                    onclick="window.patientController.closePatientDetailModal()">&times;</button>
+                <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.openSmartSoapPasteModal()" title="Tự động phân tách nội dung diễn tiến (S, O, A, P)" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 600; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); white-space: nowrap; cursor: pointer;">
+                        📋 Dán SOAP
+                    </button>
+                    <button class="btn-close-modal"
+                        onclick="window.patientController.closePatientDetailModal()">&times;</button>
+                </div>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editPatientId">
@@ -980,29 +983,42 @@
                     <datalist id="doctorListDatalist" style="display:none;"></datalist>
                 </div>
 
-                <div class="form-group">
+                <!-- (S) TRIỆU CHỨNG CƠ NĂNG -->
+                <div class="form-group" style="background: rgba(243, 232, 255, 0.25); padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(168, 85, 247, 0.2);">
                     <div class="form-label-with-tools">
-                        <label>Chẩn đoán (CĐ):</label>
+                        <label style="color: #7e22ce; font-weight: 700;">🗣️ (S) - Triệu chứng cơ năng &amp; Bệnh sử:</label>
                         <div class="modal-label-actions">
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editDiagnosis')" title="Đánh số thứ tự (1, 2, 3...) giống Word">🔢 Đánh số</button>
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editDiagnosis')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b> In đậm</button>
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editDiagnosis', 'Chẩn đoán')" title="Chép sang Bệnh án điện tử (giữ nguyên số thứ tự)">📋 Chép Bệnh án</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editTrieuChung')" title="Đánh số thứ tự (Alt+N)">🔢</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editTrieuChung', 'Triệu chứng (S)')" title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editDiagnosis" class="form-control" rows="3"
-                        placeholder="Chẩn đoán xác định / kèm theo..."></textarea>
+                    <textarea id="editTrieuChung" class="form-control" rows="2"
+                        placeholder="Triệu chứng cơ năng: Sốt, đau đầu, mệt mỏi, ho, đau bụng, buồn nôn..."></textarea>
                 </div>
 
-                <!-- CẬN LÂM SÀNG: PHÂN TÁCH 2 PHẦN (HIỆN CÓ & CẦN LÀM) -->
+                <!-- (O) PHẦN 1: KHÁM LÂM SÀNG & KHÁM THỰC THỂ -->
+                <div class="form-group" style="background: rgba(236, 254, 255, 0.35); padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(6, 182, 212, 0.25);">
+                    <div class="form-label-with-tools">
+                        <label style="color: #0e7490; font-weight: 700;">🔍 (O) - Khám thực thể &amp; Dấu hiệu sinh tồn:</label>
+                        <div class="modal-label-actions">
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editKhamLamSang')" title="Đánh số thứ tự (Alt+N)">🔢</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editKhamLamSang', 'Khám thực thể (O)')" title="Chép sang Bệnh án">📋</button>
+                        </div>
+                    </div>
+                    <textarea id="editKhamLamSang" class="form-control" rows="3"
+                        placeholder="Mạch, HA, Nhiệt, SpO2; Tri giác, Da niêm, Tim, Phổi, Bụng mềm..."></textarea>
+                </div>
+
+                <!-- (O) PHẦN 2: CẬN LÂM SÀNG (HIỆN CÓ & CẦN LÀM) -->
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
                         <div class="form-label-with-tools">
                             <label class="label-cls-present">
-                                <span>🔬 CLS - HIỆN CÓ:</span>
+                                <span>🔬 (O) CLS - HIỆN CÓ:</span>
                             </label>
                             <div class="modal-label-actions">
-                                <button type="button" class="btn-modal-tool" onclick="window.patientController.insertClsTag('editClsHienCo', '[Máu]')" title="Chèn nhanh [Máu]">+ [Máu]</button>
-                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsHienCo', 'CLS Hiện có')" title="Chép sang Bệnh án">📋 Chép</button>
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.insertClsTag('editClsHienCo', '[Máu]')" title="Chèn nhanh [Máu] (Alt+M)">💉</button>
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsHienCo', 'CLS Hiện có')" title="Chép sang Bệnh án">📋</button>
                             </div>
                         </div>
                         <textarea id="editClsHienCo" class="form-control" rows="2"
@@ -1011,10 +1027,13 @@
                     <div class="form-group" style="flex: 1;">
                         <div class="form-label-with-tools">
                             <label class="label-cls-pending">
-                                <span>⚡ CLS - CẦN LÀM:</span>
+                                <span>⚡ (O) CLS - CẦN LÀM:</span>
                             </label>
                             <div class="modal-label-actions">
-                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsCanLam', 'CLS Cần làm')" title="Chép sang Bệnh án">📋 Chép</button>
+                                <button type="button" class="btn-modal-tool btn-transfer-action" onclick="window.patientController.transferPendingClsToPresentInModal()" title="Đã có kết quả: Tự động chuyển sang CLS Hiện có">
+                                    📥
+                                </button>
+                                <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editClsCanLam', 'CLS Cần làm')" title="Chép sang Bệnh án">📋</button>
                             </div>
                         </div>
                         <textarea id="editClsCanLam" class="form-control" rows="2"
@@ -1022,25 +1041,31 @@
                     </div>
                 </div>
 
-                <!-- NÚT MỞ THEO DÕI XU HƯỚNG HCT & TIỂU CẦU (DENGUE TRENDLINE) -->
-                <div class="dengue-trend-modal-trigger-wrap" id="detailDengueTrendTriggerWrap">
-                    <button type="button" class="btn-dengue-trend-launch" onclick="window.patientController.openDengueTrendModalFromDetail()">
-                        <span class="trend-icon">📈</span>
-                        <div class="trend-launch-info">
-                            <span class="trend-launch-title">Theo Dõi Xu Hướng Hct &amp; Tiểu Cầu (Dengue Trendline)</span>
-                            <span class="trend-launch-sub" id="detailTrendSummaryText">Chạm để xem biểu đồ diễn tiến &amp; nhập điểm đo theo giờ</span>
+                <!-- (A) CHẨN ĐOÁN & VẤN ĐỀ -->
+                <div class="form-group">
+                    <div class="form-label-with-tools">
+                        <label style="color: var(--primary-accent); font-weight: 700;">🩺 (A) - Chẩn đoán &amp; Vấn đề người bệnh:</label>
+                        <div class="modal-label-actions">
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editDiagnosis')" title="Đánh số thứ tự (Alt+N)">🔢</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editDiagnosis')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editDiagnosis', 'Chẩn đoán (A)')" title="Chép sang Bệnh án">📋</button>
                         </div>
-                        <span class="trend-launch-arrow">➔</span>
-                    </button>
+                    </div>
+                    <textarea id="editDiagnosis" class="form-control" rows="2"
+                        placeholder="Chẩn đoán xác định / kèm theo / các vấn đề lâm sàng..."></textarea>
+                </div>
+
+                <!-- NÚT MỞ THEO DÕI XU HƯỚNG HCT & TIỂU CẦU ĐÃ BỎ (ẨN HOÀN TOÀN) -->
+                <div class="dengue-trend-modal-trigger-wrap" id="detailDengueTrendTriggerWrap" style="display: none !important;">
                 </div>
 
                 <div class="form-group">
                     <div class="form-label-with-tools">
                         <label>Y lệnh điều trị &amp; Thuốc chính (YL):</label>
                         <div class="modal-label-actions">
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editOrders')" title="Đánh số thứ tự (1, 2, 3...) giống Word">🔢 Đánh số</button>
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editOrders')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b> In đậm</button>
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editOrders', 'Y lệnh')" title="Chép sang Bệnh án điện tử (giữ nguyên số thứ tự)">📋 Chép Bệnh án</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editOrders')" title="Đánh số thứ tự (Alt+N)">🔢</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.boldSelectionInTextarea('editOrders')" title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editOrders', 'Y lệnh')" title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
                     <textarea id="editOrders" class="form-control" rows="3"
@@ -1054,8 +1079,11 @@
                             <span>💊 THÊM THUỐC (Bổ sung thuốc mới cho Điều dưỡng):</span>
                         </label>
                         <div class="modal-label-actions">
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editThemThuoc')" title="Đánh số thứ tự (1, 2, 3...)">🔢 Đánh số</button>
-                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editThemThuoc', 'Thêm thuốc')" title="Chép sang Bệnh án">📋 Chép</button>
+                            <button type="button" class="btn-modal-tool btn-transfer-action" onclick="window.patientController.transferExtraRxToOrdersInModal()" title="Duyệt thuốc: Tự động chuyển vào Y lệnh chính">
+                                📥
+                            </button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.toggleTextareaNumbering('editThemThuoc')" title="Đánh số thứ tự (Alt+N)">🔢</button>
+                            <button type="button" class="btn-modal-tool" onclick="window.patientController.copyTextareaContent('editThemThuoc', 'Thêm thuốc')" title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
                     <textarea id="editThemThuoc" class="form-control" rows="2"
@@ -1070,7 +1098,7 @@
                     <select id="editHandoverStatus" class="form-control" style="font-weight: 600;"
                         onchange="window.patientController.onDetailStatusChange(this.value)">
                         <option value="none">🟢 Ổn định</option>
-                        <option value="waiting_cls">🧪 Chờ CLS</option>
+                        <option value="waiting_cls">⏳ Chờ thực hiện</option>
                         <option value="note">📝 Lưu ý</option>
                         <option value="resolved">✅ Đã xong</option>
                         <option value="pending">⏳ Cần bàn giao</option>
@@ -1091,46 +1119,51 @@
                 </div>
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
-                <div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" type="button"
+                        onclick="window.patientController.copyDailySoapProgress(document.getElementById('editPatientId').value)"
+                        title="Sao chép toàn bộ Diễn tiến bệnh (S-O-A-P) vào Bệnh án">
+                        📄 Copy SOAP
+                    </button>
                     <button class="btn btn-success" type="button"
                         onclick="window.patientController.copyCurrentPatientZalo()" title="Sao chép gửi Zalo">
-                        📋 Copy Zalo
+                        💬 Copy Zalo
                     </button>
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-secondary"
                         onclick="window.patientController.closePatientDetailModal()">Đóng</button>
-                    <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()">Lưu
-                        Thông Tin</button>
+                    <button class="btn btn-primary" onclick="window.patientController.savePatientFromDetailModal()" title="Lưu thông tin bệnh nhân (Ctrl+Enter)">Lưu (Ctrl+Enter)</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: THEO DÕI XU HƯỚNG HCT & TIỂU CẦU (DENGUE TRENDLINE) -->
-    <div class="modal-overlay" id="dengueTrendModal">
-        <div class="modal-card modal-lg">
+    <!-- MODAL SMART SOAP PASTE: TỰ ĐỘNG PHÂN TÁCH NỘI DUNG S-O-A-P -->
+    <div class="modal-overlay" id="smartSoapModal">
+        <div class="modal-card">
             <div class="modal-header">
-                <div class="modal-title">
-                    <span style="font-size: 20px;">📈</span>
-                    <span>Theo Dõi Diễn Tiến Hct &amp; Tiểu Cầu (Dengue Trendline)</span>
-                </div>
-                <button class="btn-close-modal" onclick="window.patientController.closeDengueTrendModal()">&times;</button>
+                <div class="modal-title">✨ Dán Thông Minh SOAP (S-O-A-P)</div>
+                <button class="btn-close-modal" onclick="window.patientController.closeSmartSoapPasteModal()">&times;</button>
             </div>
-            <div class="modal-body" id="dengueTrendModalBody">
-                <!-- Nội dung sinh động render bởi JavaScript -->
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+                    Dán nội dung có chứa các mục <strong>(S), (O), CLS, (A), (P)</strong>. Hệ thống sẽ tự động bóc tách vào các ô tương ứng:
+                </p>
+                <textarea id="smartSoapInput" class="form-control" rows="10"
+                    placeholder="Ví dụ:&#10;(S)&#10;Sốt ớn lạnh N3, mệt mỏi&#10;(O)&#10;Bệnh nhân tỉnh, da niêm hồng, M: 88, HA: 120/80&#10;CLS:&#10;- BC: 12.5k, TC: 180k&#10;(A)&#10;1/ Nhiễm trùng huyết&#10;(P)&#10;1/ Ceftriaxone 2g IV..."></textarea>
             </div>
-            <div class="modal-footer" style="justify-content: space-between;">
-                <button type="button" class="btn btn-secondary" onclick="window.patientController.syncTrendsToCls()" title="Ghi tóm tắt chuỗi Hct &amp; TC vào ô CLS hiện có">
-                    📋 Đồng bộ vào CLS Hiện Có
+            <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
+                <button class="btn btn-secondary" onclick="window.patientController.closeSmartSoapPasteModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="window.patientController.applySmartSoapPaste()">
+                    ⚡ Bóc Tách &amp; Điền Vào Form
                 </button>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn btn-primary" onclick="window.patientController.closeDengueTrendModal()">
-                        Đóng
-                    </button>
-                </div>
             </div>
         </div>
+    </div>
+
+    <!-- MODAL: THEO DÕI XU HƯỚNG HCT & TIỂU CẦU ĐÃ BỎ (ẨN HOÀN TOÀN) -->
+    <div class="modal-overlay" id="dengueTrendModal" style="display: none !important;">
     </div>
 
     <!-- MODAL: LỌC TRÙNG BỆNH NHÂN (TRÙNG HỌ TÊN & NĂM SINH) -->
@@ -1323,7 +1356,7 @@
                         </label>
                         <label class="status-radio-item">
                             <input type="radio" name="hoStatusRadio" value="waiting_cls" onchange="window.handoverController.onStatusRadioChange(this.value)">
-                            <span>🧪 Chờ CLS</span>
+                            <span>⏳ Chờ thực hiện</span>
                         </label>
                         <label class="status-radio-item">
                             <input type="radio" name="hoStatusRadio" value="note" onchange="window.handoverController.onStatusRadioChange(this.value)">
@@ -1855,34 +1888,40 @@
 
     <!-- MODAL 7: BẢNG PHÍM TẮT LÂM SÀNG TOÀN CỤC (GLOBAL SHORTCUTS) -->
     <div class="modal-overlay" id="shortcutsModal">
-        <div class="modal-card" style="max-width: 620px;">
+        <div class="modal-card" style="max-width: 680px; max-height: 88vh; display: flex; flex-direction: column;">
             <div class="modal-header">
-                <div class="modal-title">⌨️ Phím Tắt Thao Tác Nhanh Lâm Sàng</div>
+                <div class="modal-title">⌨️ Bộ Phím Tắt Thao Tác Nhanh Lâm Sàng</div>
                 <button class="btn-close-modal" onclick="window.medWardApp.closeShortcutsModal()">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="overflow-y: auto; padding: 12px 16px;">
                 <table class="shortcuts-table">
                     <thead>
                         <tr>
-                            <th style="width: 170px;">Phím tắt</th>
+                            <th style="width: 190px;">Phím tắt</th>
                             <th>Hành động lâm sàng</th>
-                            <th style="width: 110px; text-align: center;">Phạm vi</th>
+                            <th style="width: 100px; text-align: center;">Phạm vi</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- NHÓM 1: QUẢN LÝ CA TRỰC & NGƯỜI BỆNH -->
+                        <tr class="shortcut-group-header">
+                            <td colspan="3" style="background: rgba(2, 132, 199, 0.12); color: var(--primary-accent, #0284c7); font-weight: 700; font-size: 11.5px; padding: 6px 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                📋 1. Quản Lý Ca Trực &amp; Người Bệnh
+                            </td>
+                        </tr>
                         <tr>
                             <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
                             <td><strong>Thêm người bệnh mới</strong> &amp; Mở ngay cửa sổ nhập liệu</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
-                            <td><strong>In bảng theo dõi A4</strong> (hoặc in phiếu nếu đang ở tab Điều dưỡng)</td>
-                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                            <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
+                            <td><strong>Lưu tức thì &amp; Đóng</strong> Modal Chi tiết / Modal Bàn giao</td>
+                            <td style="text-align: center;"><span class="badge-scope">Trong Modal</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
-                            <td><strong>Mở giao diện In cho Điều dưỡng</strong> (phiếu Y lệnh &amp; CLS)</td>
+                            <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+                            <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
@@ -1901,28 +1940,97 @@
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>I</kbd></td>
+                            <td><strong>Nạp nhanh file Excel</strong> bệnh viện (HIS / eHospital)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
                             <td><kbd>Ctrl</kbd> + <kbd>E</kbd></td>
                             <td><strong>Xuất File Excel (.xlsx) / CSV</strong> sao lưu dự phòng</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
-                            <td><strong>Lưu tức thì &amp; Đồng bộ dữ liệu</strong> lên Cloud</td>
+                            <td><kbd>Ctrl</kbd> + <kbd>P</kbd></td>
+                            <td><strong>In bảng theo dõi A4</strong> (hoặc in phiếu nếu đang ở tab Điều dưỡng)</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Ctrl</kbd> + <kbd>M</kbd></td>
-                            <td><strong>Đổi chế độ xem</strong> (Bảng lâm sàng 💻 ↔ Thẻ người bệnh 📱)</td>
+                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></td>
+                            <td><strong>Mở giao diện In cho Điều dưỡng</strong> (phiếu Y lệnh &amp; CLS)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+
+                        <!-- NHÓM 2: LỌC LÂM SÀNG 1 CHẠM & ĐIỀU HƯỚNG BẢNG -->
+                        <tr class="shortcut-group-header">
+                            <td colspan="3" style="background: rgba(16, 185, 129, 0.12); color: #059669; font-weight: 700; font-size: 11.5px; padding: 6px 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                ⚡ 2. Bộ Lọc Lâm Sàng 1 Chạm &amp; Điều Hướng Bảng
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>1</kbd></td>
+                            <td><strong>Lọc tất cả</strong> người bệnh trong ca trực</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></td>
-                            <td><strong>Đổi giao diện Sáng / Tối</strong> (Dark mode trực đêm dịu mắt 🌙)</td>
+                            <td><kbd>Alt</kbd> + <kbd>2</kbd></td>
+                            <td><strong>Lọc Báo Động Đỏ</strong> (🚨 Ca nặng / Nguy kịch)</td>
                             <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>3</kbd></td>
+                            <td><strong>Lọc Cần Bàn Giao</strong> (⏳ Tồn đọng tua trực)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>4</kbd></td>
+                            <td><strong>Lọc Chờ Kết Quả CLS</strong> (🔬 Cận lâm sàng chưa về)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>5</kbd></td>
+                            <td><strong>Lọc Diễn Tiến Ổn Định</strong> (🟢 Ca bình thường)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>G</kbd></td>
+                            <td><strong>Bật / Tắt Gom buồng</strong> (Group by room)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>↓</kbd> hoặc <kbd>J</kbd></td>
+                            <td><strong>Chọn người bệnh tiếp theo</strong> trên bảng Desktop</td>
+                            <td style="text-align: center;"><span class="badge-scope">Bảng ĐK</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>↑</kbd> hoặc <kbd>K</kbd></td>
+                            <td><strong>Chọn người bệnh phía trước</strong> trên bảng Desktop</td>
+                            <td style="text-align: center;"><span class="badge-scope">Bảng ĐK</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Enter</kbd> (trên hàng)</td>
+                            <td><strong>Mở xem/sửa chi tiết</strong> người bệnh đang được chọn</td>
+                            <td style="text-align: center;"><span class="badge-scope">Bảng ĐK</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>H</kbd> (trên hàng)</td>
+                            <td><strong>Mở Bàn giao ca trực</strong> cho người bệnh đang chọn</td>
+                            <td style="text-align: center;"><span class="badge-scope">Bảng ĐK</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Z</kbd> (trên hàng)</td>
+                            <td><strong>Sao chép nội dung gửi Zalo</strong> người bệnh đang chọn</td>
+                            <td style="text-align: center;"><span class="badge-scope">Bảng ĐK</span></td>
+                        </tr>
+
+                        <!-- NHÓM 3: SOẠN THẢO & NHẬP LIỆU LÂM SÀNG -->
+                        <tr class="shortcut-group-header">
+                            <td colspan="3" style="background: rgba(168, 85, 247, 0.12); color: #7e22ce; font-weight: 700; font-size: 11.5px; padding: 6px 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                ✍️ 3. Soạn Thảo &amp; Nhập Liệu Lâm Sàng
+                            </td>
                         </tr>
                         <tr>
                             <td><kbd>Alt</kbd> + <kbd>N</kbd></td>
-                            <td><strong>Tự động đánh số (Numbering 1. 2. 3...)</strong> cho Chẩn đoán &amp; Y lệnh giống Word</td>
+                            <td><strong>Tự động đánh số (1. 2. 3...)</strong> cho Chẩn đoán, Y lệnh, CLS giống Word</td>
                             <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
                         </tr>
                         <tr>
@@ -1931,9 +2039,46 @@
                             <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
                         </tr>
                         <tr>
-                            <td><kbd>Enter</kbd> (trong danh sách số)</td>
-                            <td><strong>Tự động nhảy số kế tiếp</strong> (1. ➔ 2. ➔ 3.) hoặc thoát đánh số nếu dòng trống</td>
+                            <td><kbd>Alt</kbd> + <kbd>M</kbd></td>
+                            <td><strong>Chèn nhanh tiền tố [Máu]</strong> vào ô Cận lâm sàng</td>
                             <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Enter</kbd> (trong danh sách số)</td>
+                            <td><strong>Tự động nhảy số kế tiếp</strong> (1. ➔ 2. ➔ 3.) hoặc thoát nếu dòng trống</td>
+                            <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td>
+                            <td><strong>Mở Từ điển viết tắt Y khoa</strong> tra cứu nhanh</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+
+                        <!-- NHÓM 4: HỆ THỐNG & BẢO MẬT -->
+                        <tr class="shortcut-group-header">
+                            <td colspan="3" style="background: rgba(239, 68, 68, 0.12); color: #dc2626; font-weight: 700; font-size: 11.5px; padding: 6px 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                🛡️ 4. Hệ Thống &amp; Bảo Mật Buồng Trực
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd></td>
+                            <td><strong>Khóa nhanh màn hình</strong> ca trực (Bảo mật PIN/Pattern khi rời máy)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></td>
+                            <td><strong>Đổi giao diện Sáng / Tối</strong> (Dark mode trực đêm dịu mắt 🌙)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>M</kbd></td>
+                            <td><strong>Đổi chế độ xem</strong> (Bảng lâm sàng 💻 ↔ Thẻ người bệnh 📱)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></td>
+                            <td><strong>Kiểm tra lọc trùng người bệnh</strong> (Trùng Họ tên &amp; Năm sinh)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
                             <td><kbd>Esc</kbd></td>
@@ -1950,6 +2095,9 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="window.medWardApp.closeShortcutsModal()">Đã Hiểu</button>
+            </div>
+        </div>
+    </div>
             </div>
         </div>
     </div>

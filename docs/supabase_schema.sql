@@ -65,10 +65,12 @@ create table if not exists public.patients (
   chan_doan text default '',
   
   -- LÂM SÀNG, CLS VÀ Y LỆNH
+  trieu_chung text default '',          -- (S) Triệu chứng cơ năng
+  kham_lam_sang text default '',        -- (O) Triệu chứng thực thể / Khám lâm sàng
   cls text default '',                  -- Chuỗi tương thích ngược
   cls_hien_co text default '',          -- CLS hiện có
   cls_can_lam text default '',          -- CLS cần làm thêm
-  y_lenh text default '',               -- Y lệnh điều trị chính
+  y_lenh text default '',               -- (P) Y lệnh điều trị chính
   them_thuoc text default '',           -- Thuốc bổ sung trong ngày
   
   -- BÁC SĨ PHỤ TRÁCH

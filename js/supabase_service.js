@@ -718,6 +718,7 @@ class SupabaseService {
     const allowedCols = [
       'id', 'report_date', 'user_id', 'department', 'phong_giuong', 'ten', 'nam_sinh_tuoi',
       'chan_doan', 'cls', 'cls_hien_co', 'cls_can_lam', 'y_lenh', 'them_thuoc',
+      'trieu_chung', 'kham_lam_sang',
       'doctor_id', 'doctor_name', 'sort_order',
       'is_discharged', 'is_deleted',
       'handover_status', 'handover_issues', 'handover_actions', 'handover_by', 'handover_by_id',
@@ -730,6 +731,14 @@ class SupabaseService {
       if (p[col] !== undefined && p[col] !== null) {
         out[col] = p[col];
       }
+    }
+
+    // 0. Chuẩn hóa trường SOAP: trieu_chung (S) & kham_lam_sang (O)
+    if (p.trieu_chung !== undefined && p.trieu_chung !== null) {
+      out.trieu_chung = String(p.trieu_chung).trim();
+    }
+    if (p.kham_lam_sang !== undefined && p.kham_lam_sang !== null) {
+      out.kham_lam_sang = String(p.kham_lam_sang).trim();
     }
 
     // 1. BẮT BUỘC CÓ report_date HỢP LỆ THEO CHUẨN ISO YYYY-MM-DD

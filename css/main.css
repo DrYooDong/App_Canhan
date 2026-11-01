@@ -977,83 +977,113 @@ table.med-table tbody tr:hover td {
   background-color: #f8fafc;
 }
 
-/* COLUMN SIZING & STYLES */
+/* COLUMN SIZING & STYLES - SOAP MEDTABLE 2026 */
 table.med-table th.col-stt, table.med-table td.col-stt {
-  width: 44px;
-  min-width: 40px;
+  width: 34px;
+  min-width: 30px;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: var(--text-muted);
 }
 
-table.med-table th.col-room, table.med-table td.col-room {
-  width: 86px;
-  min-width: 80px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  color: var(--primary-accent);
-  font-size: 13px;
+table.med-table th.col-admin, table.med-table td.col-admin {
+  width: 105px;
+  min-width: 90px;
+  max-width: 115px;
+  vertical-align: top;
+  padding: 4px 6px !important;
 }
 
-table.med-table th.col-name, table.med-table td.col-name {
-  width: 175px;
-  min-width: 155px;
+.med-admin-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.med-admin-room {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 11.5px;
+  color: var(--primary-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.med-admin-name {
   font-weight: 800;
   text-transform: uppercase;
   color: var(--text-main);
-  font-size: 13px;
+  font-size: 11.5px;
+  line-height: 1.25;
   letter-spacing: -0.1px;
-}
-
-table.med-table th.col-birth, table.med-table td.col-birth {
-  width: 80px;
-  min-width: 74px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-table.med-table th.col-cd { width: 22%; min-width: 150px; }
-table.med-table td.col-cd {
-  width: 22%;
-  min-width: 150px;
-  white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.45;
-  color: var(--text-main);
+}
+
+.med-admin-age {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* (S) Triệu chứng cơ năng - 10% */
+table.med-table th.col-s { width: 10%; min-width: 95px; }
+table.med-table td.col-s {
+  width: 10%;
+  min-width: 95px;
   vertical-align: top;
+  padding: 5px 6px !important;
 }
 
-table.med-table td.col-cd:empty:before {
-  content: attr(data-placeholder);
-  color: var(--text-dim);
-  font-style: italic;
-  pointer-events: none;
+/* (O) Thực thể & Cận lâm sàng (rộng nhất, gồm 2 cột LS/CLS và hàng CLS cần làm) - 37% */
+table.med-table th.col-o { width: 37%; min-width: 300px; }
+table.med-table td.col-o {
+  width: 37%;
+  min-width: 300px;
+  vertical-align: top;
+  padding: 4px 6px !important;
 }
 
-table.med-table th.col-cls { width: 28%; min-width: 200px; }
-table.med-table td.col-cls { width: 28%; min-width: 200px; }
+/* (A) Chẩn đoán & Vấn đề (thu nhỏ lại) - 13% */
+table.med-table th.col-a { width: 13%; min-width: 110px; }
+table.med-table td.col-a {
+  width: 13%;
+  min-width: 110px;
+  vertical-align: top;
+  padding: 5px 6px !important;
+}
 
-table.med-table th.col-yl { width: 30%; min-width: 210px; }
-table.med-table td.col-yl { width: 30%; min-width: 210px; }
+/* (P) Y lệnh điều trị & Thuốc (thu nhỏ lại) - 16% */
+table.med-table th.col-p { width: 16%; min-width: 140px; }
+table.med-table td.col-p {
+  width: 16%;
+  min-width: 140px;
+  vertical-align: top;
+  padding: 5px 6px !important;
+}
 
+/* Cột Trạng thái */
 table.med-table th.col-handover, table.med-table td.col-handover {
-  width: 76px;
-  min-width: 72px;
+  width: 72px;
+  min-width: 66px;
   text-align: center;
   vertical-align: middle;
 }
 
-table.med-table th.col-actions, table.med-table td.col-actions {
-  width: 96px;
-  min-width: 92px;
-  text-align: center;
-  vertical-align: middle;
-}
+/* Legacy support */
+table.med-table th.col-room, table.med-table td.col-room { width: 86px; min-width: 80px; }
+table.med-table th.col-name, table.med-table td.col-name { width: 175px; min-width: 155px; }
+table.med-table th.col-birth, table.med-table td.col-birth { width: 80px; min-width: 74px; }
+table.med-table th.col-cd, table.med-table td.col-cd { width: 14%; }
+table.med-table th.col-cls, table.med-table td.col-cls { width: 24%; }
+table.med-table th.col-yl, table.med-table td.col-yl { width: 20%; }
+table.med-table th.col-actions, table.med-table td.col-actions { display: none; }
 
 /* EDITABLE CELLS */
 table.med-table td.col-editable {
@@ -1111,10 +1141,10 @@ tr.row-pending td:first-child {
 }
 
 /* ==============================================================================
-   5.1 DUAL-TIER CELLS (CLS HIỆN CÓ/CẦN LÀM & Y LỆNH/THÊM THUỐC)
+   5.1 DUAL-TIER CELLS & O-CELL (SOAP 2026 - LS & CLS TRÊN, CLS CẦN LÀM DƯỚI)
    ============================================================================== */
 .col-cls-dual, .col-yl-dual {
-  padding: 6px 8px !important;
+  padding: 4px 6px !important;
   vertical-align: top !important;
 }
 
@@ -1123,6 +1153,59 @@ tr.row-pending td:first-child {
   flex-direction: column;
   min-height: 48px;
   width: 100%;
+}
+
+/* CỘT O: CẤU TRÚC CHUẨN THEO THIẾT KẾ LÂM SÀNG */
+.med-o-cell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--border-dark, #cbd5e1);
+  border-radius: var(--radius-xs);
+  background: var(--bg-card, #ffffff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.med-o-top-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  border-bottom: 1px solid var(--border-dark, #cbd5e1);
+}
+
+.med-o-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  padding: 3px 5px;
+  display: flex;
+  flex-direction: column;
+  cursor: text;
+  transition: background-color 0.12s ease;
+}
+
+.med-o-pane:hover {
+  background-color: rgba(241, 245, 249, 0.6);
+}
+
+.med-o-pane.med-o-ls {
+  border-right: 1px solid var(--border-dark, #cbd5e1);
+}
+
+.med-o-bottom-row {
+  padding: 3px 5px;
+  width: 100%;
+  cursor: text;
+  transition: background-color 0.12s ease;
+}
+
+.med-o-bottom-row:hover {
+  background-color: rgba(241, 245, 249, 0.6);
+}
+
+.med-o-bottom-row.has-content {
+  background-color: #fffdf5;
 }
 
 .med-tier {
@@ -1161,6 +1244,187 @@ tr.row-pending td:first-child {
   color: #0369a1;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
+}
+
+.med-micro-badge.badge-s {
+  color: #6b21a8;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+
+.med-micro-badge.badge-o {
+  color: #0e7490;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+}
+
+.med-micro-badge.badge-ls {
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  font-weight: 800;
+}
+
+.med-micro-badge.badge-cls {
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  font-weight: 800;
+}
+
+/* Row Context Menu */
+.patient-row {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.patient-row:hover td {
+  background-color: rgba(241, 245, 249, 0.6);
+}
+
+/* Hàng được chọn bằng phím tắt bàn phím (Keyboard Row Navigation) */
+.patient-row.keyboard-focused-row td {
+  background-color: rgba(2, 132, 199, 0.12) !important;
+  box-shadow: inset 0 2px 0 var(--primary-accent, #0284c7), inset 0 -2px 0 var(--primary-accent, #0284c7);
+}
+
+.patient-row.keyboard-focused-row td:first-child {
+  box-shadow: inset 0 2px 0 var(--primary-accent, #0284c7), inset 0 -2px 0 var(--primary-accent, #0284c7), inset 4px 0 0 var(--primary-accent, #0284c7);
+}
+
+.patient-row.keyboard-focused-row td:last-child {
+  box-shadow: inset 0 2px 0 var(--primary-accent, #0284c7), inset 0 -2px 0 var(--primary-accent, #0284c7), inset -4px 0 0 var(--primary-accent, #0284c7);
+}
+
+body.dark-theme .patient-row.keyboard-focused-row td {
+  background-color: rgba(56, 189, 248, 0.18) !important;
+  box-shadow: inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8;
+}
+
+body.dark-theme .patient-row.keyboard-focused-row td:first-child {
+  box-shadow: inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8, inset 4px 0 0 #38bdf8;
+}
+
+body.dark-theme .patient-row.keyboard-focused-row td:last-child {
+  box-shadow: inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8, inset -4px 0 0 #38bdf8;
+}
+
+.med-context-menu {
+  position: fixed;
+  z-index: 99999;
+  background: #ffffff;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1);
+  padding: 6px;
+  min-width: 210px;
+  font-family: var(--font-sans);
+  animation: contextMenuPop 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes contextMenuPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.med-context-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.med-context-item:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-accent);
+}
+
+.med-context-item.danger {
+  color: #dc2626;
+}
+
+.med-context-item.danger:hover {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.med-context-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 4px 0;
+}
+
+body.dark-theme .med-context-menu {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+}
+
+body.dark-theme .med-context-item {
+  color: #f1f5f9;
+}
+
+body.dark-theme .med-context-item:hover {
+  background-color: #0f172a;
+  color: #38bdf8;
+}
+
+body.dark-theme .med-context-item.danger:hover {
+  background-color: #450a0a;
+  color: #fca5a5;
+}
+
+body.dark-theme .med-micro-badge.badge-s {
+  background: #2e1065;
+  border-color: #581c87;
+  color: #d8b4fe;
+}
+
+body.dark-theme .med-micro-badge.badge-o {
+  background: #083344;
+  border-color: #155e75;
+  color: #67e8f9;
+}
+
+body.dark-theme .med-micro-badge.badge-ls {
+  background: #042f2e;
+  border-color: #115e59;
+  color: #5eead4;
+}
+
+body.dark-theme .med-micro-badge.badge-cls {
+  background: #082f49;
+  border-color: #075985;
+  color: #7dd3fc;
+}
+
+body.dark-theme .med-o-cell {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .med-o-top-row {
+  border-bottom-color: #334155;
+}
+
+body.dark-theme .med-o-pane.med-o-ls {
+  border-right-color: #334155;
+}
+
+body.dark-theme .med-o-pane:hover,
+body.dark-theme .med-o-bottom-row:hover {
+  background-color: rgba(51, 65, 85, 0.4);
+}
+
+body.dark-theme .med-o-bottom-row.has-content {
+  background-color: #291e0a;
 }
 
 .med-micro-badge.badge-pending {
