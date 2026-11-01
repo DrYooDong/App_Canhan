@@ -4503,10 +4503,6 @@ class PatientController {
 
   parseSoapText(text) {
     if (!text || typeof text !== 'string') return {};
-    let raw = text.replace(/\r\n/g, '\n');
-
-    // Tự động loại bỏ các dòng chữ mặc định "DIỄN TIẾN BỆNH", "DIỄN BIẾN BỆNH", "DIỄN TIẾN:" ở đầu hoặc các dòng riêng
-    raw = raw.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN|DIEN TIEN BENH|DIEN BIEN BENH)\s*[:\-]?\s*$/gim, '').trim();
 
     const result = {
       trieu_chung: '',
@@ -4518,56 +4514,159 @@ class PatientController {
       them_thuoc: ''
     };
 
-    // Tìm các mốc phân tách chính: (S), (O), (A), (P)
-    const markerRegex = /(?:^|\n)\s*(?:\(?([SOAPsoap])\)?|CLS:|CẬN LÂM SÀNG:|Y LỆNH:)\s*[:\-]?\s*/gi;
-    
-    // Thu thập các mốc phân đoạn
-    const matches = [];
-    let match;
-    while ((match = markerRegex.exec(raw)) !== null) {
-      matches.push({
-        index: match.index + (match[0].startsWith('\n') ? 1 : 0),
-        tagLength: match[0].length,
-        matchedStr: match[0].trim().toUpperCase()
-      });
-    }
+    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    if (matches.length === 0) {
-      // Nếu không có marker chuẩn, loại bỏ dòng tiêu đề mặc định nếu có rồi đưa vào khám thực thể
-      const cleaned = raw.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN|DIEN TIEN BENH|DIEN BIEN BENH)\s*[:\-]?\s*/i, '').trim();
-      result.kham_lam_sang = cleaned;
-      return result;
-    }
+    // Loại bỏ các dòng tiêu đề tổng quát ở đầu văn bản (như "DIỄN TIẾN BỆNH", "SOAP LÂM SÀNG", "PHIẾU ĐIỀU TRỊ"...)
+    normalized = normalized.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN LÂM SÀNG|DIỄN BIẾN LÂM SÀNG|DIỄN TIẾN|DIỄN BIẾN|DIEN TIEN BENH|DIEN BIEN BENH|SOAP LÂM SÀNG|BỆNH ÁN HẰNG NGÀY)\s*[:\-]?\s*$/gim, '').trim();
 
-    for (let i = 0; i < matches.length; i++) {
-      const current = matches[i];
-      const startContent = current.index + current.tagLength;
-      const endContent = (i + 1 < matches.length) ? matches[i + 1].index : raw.length;
-      let blockContent = raw.slice(startContent, endContent).trim();
+    // Hỗ trợ trường hợp người dùng dán SOAP trên một dòng hoặc không ngắt dòng trước (S), (O), (A), (P)
+    normalized = normalized.replace(/([^\n\d\.\-\*\+\/])\s+((?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?[\(\[\{【]\s*[SOAPsoap]\s*[\)\]\}】])/g, '$1\n$2');
 
-      // Dọn sạch nếu còn sót dòng tiêu đề mặc định trong block
-      blockContent = blockContent.replace(/^\s*(?:DIỄN TIẾN BỆNH|DIỄN BIẾN BỆNH|DIỄN TIẾN|DIỄN BIẾN)\s*[:\-]?\s*/i, '').trim();
+    const lines = normalized.split('\n');
+    const isPrefixMatch = (line, regex) => regex.test(line.trim());
 
-      const tag = current.matchedStr;
+    // (S) - Triệu chứng cơ năng / Subjective
+    const sRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*S\s*[\)\]\}】]|S\s*[:\.\-\/]|S\s*\)|S(?=\s*$)|triệu chứng(?: cơ năng)?\s*[:\-]|bệnh sử\s*[:\-]|tiền sử\s*[:\-]|\(S\)\s*triệu chứng)/i;
 
-      if (tag.includes('(S)') || tag === 'S' || tag.startsWith('S:')) {
-        result.trieu_chung = blockContent;
-      } else if (tag.includes('(O)') || tag === 'O' || tag.startsWith('O:')) {
-        // Tách riêng nếu trong (O) có phần CLS:
-        if (/CLS:|Cận lâm sàng:/i.test(blockContent)) {
-          const clsSplit = blockContent.split(/CLS:|Cận lâm sàng:/i);
-          result.kham_lam_sang = clsSplit[0].trim();
-          result.cls_hien_co = clsSplit[1] ? clsSplit[1].trim() : '';
-        } else {
-          result.kham_lam_sang = blockContent;
+    // (O) - Khám thực thể / Objective
+    const oRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*O\s*[\)\]\}】]|O\s*[:\.\-\/]|O\s*\)|O(?=\s*$)|khám thực thể(?:\s*&.*)?\s*[:\-]|khám lâm sàng\s*[:\-]|khám toàn thân\s*[:\-]|khám\s*[:\-]|thực thể\s*[:\-]|\(O\)\s*khám)/i;
+
+    // (A) - Chẩn đoán / Assessment
+    const aRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*A\s*[\)\]\}】]|A\s*[:\.\-\/]|A\s*\)|A(?=\s*$)|chẩn đoán(?:\s*xác định|\s*sơ bộ|\s*&.*)?\s*[:\-]|đánh giá(?:\s*&.*)?\s*[:\-]|vấn đề(?:\s*lâm sàng)?\s*[:\-]|\(A\)\s*chẩn đoán)/i;
+
+    // (P) - Kế hoạch & Y lệnh / Plan
+    const pRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*P\s*[\)\]\}】]|P\s*[:\.\-\/]|P\s*\)|P(?=\s*$)|kế hoạch(?:\s*điều trị|\s*&.*)?\s*[:\-]|y lệnh(?:\s*điều trị|\s*thuốc|\s*&.*)?\s*[:\-]|điều trị\s*[:\-]|hướng xử trí\s*[:\-]|xử trí\s*[:\-]|\(P\)\s*y lệnh)/i;
+
+    // Thêm thuốc
+    const rxExtraRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:\[\s*thêm thuốc\s*\]\s*[:\-]?|thêm thuốc\s*[:\-]|thuốc bổ sung\s*[:\-]|thuốc thêm\s*[:\-])/i;
+
+    // CLS Cần làm (chỉ định CLS)
+    const clsPendingRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:chỉ định (?:cận lâm sàng|cls)|cls cần làm|cận lâm sàng cần làm|đề nghị (?:cls|cận lâm sàng)|làm cls|làm xét nghiệm|làm xn)/i;
+
+    // CLS Hiện có (kết quả CLS) - kiểm tra sau khi loại trừ CLS Cần làm
+    const clsHcRegex = /^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*CLS\s*[\)\]\}】]|CLS\b|cận lâm sàng|kết quả (?:cls|xét nghiệm|xn)|xét nghiệm\s*[:\-]|xn\s*[:\-])/i;
+
+    function stripHeaderFromLine(line, matchedType) {
+      let cleaned = line.trim();
+      if (matchedType === 'S') {
+        cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*S\s*[\)\]\}】]|S\s*[:\.\-\/]|S\s*\)|S(?=\s*$)|triệu chứng(?: cơ năng)?\s*[:\-]|bệnh sử\s*[:\-]|tiền sử\s*[:\-]|\(S\)\s*triệu chứng)\s*/i, '');
+      } else if (matchedType === 'O') {
+        cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*O\s*[\)\]\}】]|O\s*[:\.\-\/]|O\s*\)|O(?=\s*$)|khám thực thể(?:\s*&.*)?\s*[:\-]|khám lâm sàng\s*[:\-]|khám toàn thân\s*[:\-]|khám\s*[:\-]|thực thể\s*[:\-]|\(O\)\s*khám)\s*/i, '');
+      } else if (matchedType === 'CLS_HC') {
+        if (/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:CLS|cận lâm sàng|kết quả (?:cls|xét nghiệm)|xét nghiệm)\s*[:\.\-\/]?\s*$/i.test(cleaned)) {
+          return '';
         }
-      } else if (tag.includes('CLS') || tag.includes('CẬN LÂM SÀNG')) {
-        result.cls_hien_co = blockContent;
-      } else if (tag.includes('(A)') || tag === 'A' || tag.startsWith('A:')) {
-        result.chan_doan = blockContent;
-      } else if (tag.includes('(P)') || tag === 'P' || tag.startsWith('P:') || tag.includes('Y LỆNH')) {
-        result.y_lenh = blockContent;
+        if (/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:CLS|cận lâm sàng|kết quả (?:cls|xét nghiệm)|xét nghiệm)\s*[:\.\-]\s+/i.test(cleaned)) {
+          cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:CLS|cận lâm sàng|kết quả (?:cls|xét nghiệm)|xét nghiệm)\s*[:\.\-]\s*/i, '');
+        }
+      } else if (matchedType === 'A') {
+        cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*A\s*[\)\]\}】]|A\s*[:\.\-\/]|A\s*\)|A(?=\s*$)|chẩn đoán(?:\s*xác định|\s*sơ bộ|\s*&.*)?\s*[:\-]|đánh giá(?:\s*&.*)?\s*[:\-]|vấn đề(?:\s*lâm sàng)?\s*[:\-]|\(A\)\s*chẩn đoán)\s*/i, '');
+      } else if (matchedType === 'P') {
+        cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:[\(\[\{【]\s*P\s*[\)\]\}】]|P\s*[:\.\-\/]|P\s*\)|P(?=\s*$)|kế hoạch(?:\s*điều trị|\s*&.*)?\s*[:\-]|y lệnh(?:\s*điều trị|\s*thuốc|\s*&.*)?\s*[:\-]|điều trị\s*[:\-]|hướng xử trí\s*[:\-]|xử trí\s*[:\-]|\(P\)\s*y lệnh)\s*/i, '');
+      } else if (matchedType === 'CLS_CL') {
+        if (/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:chỉ định (?:cận lâm sàng|cls)|cls cần làm|cận lâm sàng cần làm|đề nghị (?:cls|cận lâm sàng))\s*[:\-]?\s*$/i.test(cleaned)) {
+          return '';
+        }
+        if (/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:chỉ định (?:cận lâm sàng|cls)|cls cần làm|cận lâm sàng cần làm|đề nghị (?:cls|cận lâm sàng))\s*[:\-]\s*/i.test(cleaned)) {
+          cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:chỉ định (?:cận lâm sàng|cls)|cls cần làm|cận lâm sàng cần làm|đề nghị (?:cls|cận lâm sàng))\s*[:\-]\s*/i, '');
+        }
+      } else if (matchedType === 'RX_EXTRA') {
+        cleaned = cleaned.replace(/^(?:(?:\d+[\.\/\)-]|\*|-|•)\s*)?(?:\[\s*thêm thuốc\s*\]\s*[:\-]?|thêm thuốc\s*[:\-]|thuốc bổ sung\s*[:\-]|thuốc thêm\s*[:\-])\s*/i, '');
       }
+      return cleaned;
+    }
+
+    const sections = {
+      trieu_chung: [],
+      kham_lam_sang: [],
+      cls_hien_co: [],
+      cls_can_lam: [],
+      chan_doan: [],
+      y_lenh: [],
+      them_thuoc: []
+    };
+
+    let currentSection = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const rawLine = lines[i];
+      const trimmed = rawLine.trim();
+
+      // Bỏ qua dòng trống nếu chưa vào section nào
+      if (!trimmed && !currentSection) continue;
+
+      // 1. Kiểm tra S
+      if (isPrefixMatch(trimmed, sRegex)) {
+        currentSection = 'trieu_chung';
+        const rem = stripHeaderFromLine(trimmed, 'S');
+        if (rem) sections.trieu_chung.push(rem);
+        continue;
+      }
+
+      // 2. Kiểm tra O
+      if (isPrefixMatch(trimmed, oRegex)) {
+        currentSection = 'kham_lam_sang';
+        const rem = stripHeaderFromLine(trimmed, 'O');
+        if (rem) sections.kham_lam_sang.push(rem);
+        continue;
+      }
+
+      // 3. Kiểm tra A
+      if (isPrefixMatch(trimmed, aRegex)) {
+        currentSection = 'chan_doan';
+        const rem = stripHeaderFromLine(trimmed, 'A');
+        if (rem) sections.chan_doan.push(rem);
+        continue;
+      }
+
+      // 4. Kiểm tra các nhánh phụ (Thêm thuốc, CLS cần làm)
+      if (isPrefixMatch(trimmed, rxExtraRegex)) {
+        currentSection = 'them_thuoc';
+        const rem = stripHeaderFromLine(trimmed, 'RX_EXTRA');
+        if (rem) sections.them_thuoc.push(rem);
+        continue;
+      }
+
+      if (isPrefixMatch(trimmed, clsPendingRegex)) {
+        currentSection = 'cls_can_lam';
+        const rem = stripHeaderFromLine(trimmed, 'CLS_CL');
+        if (rem) sections.cls_can_lam.push(rem);
+        continue;
+      }
+
+      // 5. Kiểm tra CLS hiện có (sau khi đã loại trừ CLS Cần làm)
+      if (isPrefixMatch(trimmed, clsHcRegex)) {
+        currentSection = 'cls_hien_co';
+        const rem = stripHeaderFromLine(trimmed, 'CLS_HC');
+        if (rem) sections.cls_hien_co.push(rem);
+        continue;
+      }
+
+      // 6. Kiểm tra P
+      if (isPrefixMatch(trimmed, pRegex)) {
+        currentSection = 'y_lenh';
+        const rem = stripHeaderFromLine(trimmed, 'P');
+        if (rem) sections.y_lenh.push(rem);
+        continue;
+      }
+
+      // Nếu không khớp header nào: gán dòng này vào section hiện tại
+      if (currentSection) {
+        sections[currentSection].push(rawLine);
+      } else {
+        // Nếu chưa có section nào mà đã có chữ, mặc định đưa vào khám lâm sàng
+        sections.kham_lam_sang.push(rawLine);
+      }
+    }
+
+    let hasAnyKey = false;
+    for (const key of Object.keys(sections)) {
+      result[key] = sections[key].join('\n').trim();
+      if (result[key]) hasAnyKey = true;
+    }
+
+    if (!hasAnyKey && normalized.trim()) {
+      result.kham_lam_sang = normalized.trim();
     }
 
     return result;
@@ -4592,11 +4691,17 @@ class PatientController {
     if (parsed.cls_hien_co && document.getElementById('editClsHienCo')) {
       document.getElementById('editClsHienCo').value = parsed.cls_hien_co;
     }
+    if (parsed.cls_can_lam && document.getElementById('editClsCanLam')) {
+      document.getElementById('editClsCanLam').value = parsed.cls_can_lam;
+    }
     if (parsed.chan_doan && document.getElementById('editDiagnosis')) {
       document.getElementById('editDiagnosis').value = parsed.chan_doan;
     }
     if (parsed.y_lenh && document.getElementById('editOrders')) {
       document.getElementById('editOrders').value = parsed.y_lenh;
+    }
+    if (parsed.them_thuoc && document.getElementById('editThemThuoc')) {
+      document.getElementById('editThemThuoc').value = parsed.them_thuoc;
     }
 
     this.closeSmartSoapPasteModal();
