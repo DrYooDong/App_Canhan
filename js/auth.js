@@ -7,6 +7,7 @@ class AuthController {
   constructor() {
     this.currentUser = null;
     this.activeDoctor = null;
+    this.selectedDoctor = null;
     this.isLoggedIn = false;
     this.knownDoctors = [];
     this.currentGateView = 'unlock'; // 'unlock' | 'login' | 'register'
@@ -15,6 +16,7 @@ class AuthController {
     const isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
     this.isLoggedIn = isUnlocked;
     this.activeDoctor = this.getActiveDoctor();
+    this.selectedDoctor = this.activeDoctor;
 
     const overlay = document.getElementById('loginGateOverlay');
     if (!this.isLoggedIn) {
@@ -183,9 +185,31 @@ class AuthController {
     return 'pin';
   }
 
-  async quickUnlockDefaultDoctor() {
-    const doc = this.getActiveDoctor() || CONFIG.DEFAULT_DEMO_DOCTOR;
-    await this.unlockSession(doc);
+  getSelectedDoctor() {
+    if (!this.selectedDoctor) {
+      this.selectedDoctor = this.getActiveDoctor() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    }
+    return this.selectedDoctor;
+  }
+
+  setSelectedDoctor(docId) {
+    const docs = this.getKnownDoctors();
+    const found = docs.find(d => d.id === docId || d.username === docId);
+    if (found) {
+      this.selectedDoctor = found;
+      this.renderAccountSelector();
+      this.updateGateDoctorPreview();
+      const pinInput = document.getElementById('gatePinInput');
+      if (pinInput) {
+        pinInput.value = '';
+        pinInput.focus();
+      }
+      if (window.patternLock) {
+        window.patternLock.reset();
+      }
+      const msgEl = document.getElementById('gateLoginMsg');
+      if (msgEl) msgEl.style.display = 'none';
+    }
   }
 
   fillDefaultPin() {
@@ -207,16 +231,10 @@ class AuthController {
     if (vRegister) vRegister.style.display = (viewName === 'register') ? 'block' : 'none';
 
     if (viewName === 'unlock') {
+      this.renderAccountSelector();
       this.updateGateDoctorPreview();
       const targetMode = this.getDeviceUnlockMode();
       this.switchGateMode(targetMode);
-    } else if (viewName === 'login') {
-      this.renderGateDoctorChips();
-      const userInp = document.getElementById('gateOtherUser');
-      if (userInp) {
-        userInp.value = '';
-        setTimeout(() => userInp.focus(), 100);
-      }
     } else if (viewName === 'register') {
       const regForm = document.getElementById('gateRegisterForm');
       if (regForm) regForm.reset();
@@ -224,18 +242,85 @@ class AuthController {
       const regTitle = document.getElementById('regTitle');
       if (regDept) regDept.value = 'Khoa Nhiễm';
       if (regTitle) regTitle.value = 'Bác sĩ điều trị';
+      this.clearRegisterValidationUI();
       const nameInp = document.getElementById('regFullName');
       if (nameInp) setTimeout(() => nameInp.focus(), 100);
     }
   }
 
+  // ============================================================================
+  // PHẦN 1: CHỌN TÀI KHOẢN (MULTI-ACCOUNT SELECTOR - GOOGLE / GAME PROFILE STYLE)
+  // ============================================================================
+  renderAccountSelector() {
+    const container = document.getElementById('gateAccountsList');
+    const badge = document.getElementById('gateAccountsCountBadge');
+    if (!container) return;
+
+    const docs = this.getKnownDoctors();
+    if (badge) badge.innerText = `${docs.length} tài khoản`;
+
+    const selectedDoc = this.getSelectedDoctor();
+    container.innerHTML = '';
+
+    docs.forEach(doc => {
+      const isSelected = selectedDoc && (selectedDoc.id === doc.id || selectedDoc.username === doc.username);
+      const card = document.createElement('div');
+      card.className = `gate-account-card ${isSelected ? 'active' : ''}`;
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.onclick = () => this.setSelectedDoctor(doc.id);
+      card.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.setSelectedDoctor(doc.id);
+        }
+      };
+
+      const initials = this.getInitials(doc.full_name);
+      card.innerHTML = `
+        <div class="gate-account-avatar">${initials}</div>
+        <div class="gate-account-info">
+          <div class="gate-account-name">${this.escape(doc.full_name)}</div>
+          <div class="gate-account-sub">
+            <span>${this.escape(doc.title || 'Bác sĩ điều trị')}</span> •
+            <span class="gate-account-user">@${this.escape(doc.username || 'bacsi')}</span>
+          </div>
+        </div>
+        <div class="gate-account-check" title="${isSelected ? 'Đang chọn' : 'Nhấp để chọn'}">
+          ${isSelected ? '✓' : ''}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    // Thêm thẻ "+ Thêm tài khoản mới" ngay cuối danh sách
+    const addCard = document.createElement('div');
+    addCard.className = 'gate-account-card gate-account-card-add';
+    addCard.setAttribute('role', 'button');
+    addCard.setAttribute('tabindex', '0');
+    addCard.innerHTML = `
+      <span style="font-size: 16px; font-weight: 800;">➕</span>
+      <span style="font-size: 12.5px; font-weight: 700;">Thêm tài khoản Bác sĩ khác</span>
+    `;
+    addCard.onclick = () => this.showGateView('register');
+    addCard.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.showGateView('register');
+      }
+    };
+    container.appendChild(addCard);
+  }
+
   updateGateDoctorPreview() {
-    const doc = this.getActiveDoctor();
+    const doc = this.getSelectedDoctor();
     const avatarEl = document.getElementById('gateDocAvatar');
     const nameEl = document.getElementById('gateDocName');
     const roleEl = document.getElementById('gateDocRole');
     const userEl = document.getElementById('gateDocUsername');
     const emailEl = document.getElementById('gateDocEmail');
+    const submitBtnText = document.getElementById('btnGateSubmitText');
+    const pinLabelText = document.getElementById('gatePinLabelText');
 
     if (avatarEl) avatarEl.innerText = this.getInitials(doc?.full_name);
     if (nameEl) nameEl.innerText = doc?.full_name || 'BS. Nguyễn Hữu Đông';
@@ -243,38 +328,53 @@ class AuthController {
     if (userEl) userEl.innerText = doc?.username || 'dongnh';
     if (emailEl) emailEl.innerText = doc?.email ? `(${doc.email})` : '';
 
-    const quickUnlockMain = document.getElementById('quickUnlockMainText');
-    if (quickUnlockMain) {
-      const displayName = doc?.full_name ? (doc.full_name.startsWith('BS') ? doc.full_name : `BS. ${doc.full_name}`) : 'BS. ĐÔNG';
-      quickUnlockMain.innerText = `VÀO NHANH CA TRỰC (${displayName.toUpperCase()})`;
+    if (submitBtnText) {
+      const shortName = doc?.full_name ? doc.full_name.split(/\s+/).slice(-2).join(' ') : 'CA TRỰC';
+      submitBtnText.innerText = `MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ (${shortName.toUpperCase()})`;
+    }
+
+    if (pinLabelText) {
+      pinLabelText.innerText = `Mã PIN số cho ${doc?.full_name || 'Bác sĩ'}:`;
     }
   }
 
-  renderGateDoctorChips() {
-    const container = document.getElementById('gateDocChips');
-    if (!container) return;
-    container.innerHTML = '';
+  toggleManualAccountInput() {
+    const box = document.getElementById('gateManualAccountBox');
+    if (!box) return;
+    const isHidden = (box.style.display === 'none' || !box.style.display);
+    box.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+      const inp = document.getElementById('gateManualUserInput');
+      if (inp) {
+        inp.value = '';
+        setTimeout(() => inp.focus(), 80);
+      }
+    }
+  }
+
+  applyManualUser() {
+    const inp = document.getElementById('gateManualUserInput');
+    const val = (inp?.value || '').trim().toLowerCase();
+    if (!val) return;
 
     const docs = this.getKnownDoctors();
-    docs.forEach(doc => {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'gate-doc-chip';
-      chip.innerHTML = `
-        <span class="gate-doc-chip-avatar">${this.getInitials(doc.full_name)}</span>
-        <span>${this.escape(doc.full_name)}</span>
-      `;
-      chip.onclick = () => {
-        const userInput = document.getElementById('gateOtherUser');
-        const passInput = document.getElementById('gateOtherPass');
-        if (userInput) userInput.value = doc.username || doc.email;
-        if (passInput) {
-          passInput.value = '';
-          passInput.focus();
-        }
-      };
-      container.appendChild(chip);
-    });
+    const found = docs.find(d =>
+      (d.username && d.username.toLowerCase() === val) ||
+      (d.email && d.email.toLowerCase() === val) ||
+      (d.id && d.id.toLowerCase() === val)
+    );
+
+    if (found) {
+      this.setSelectedDoctor(found.id);
+      this.toggleManualAccountInput();
+      if (window.showToast) window.showToast(`✓ Đã chọn tài khoản: ${found.full_name}`);
+    } else {
+      if (confirm(`Không tìm thấy tài khoản "${val}". Bạn có muốn đăng ký mới ngay bây giờ không?`)) {
+        this.showGateView('register');
+        const regUser = document.getElementById('regUsername');
+        if (regUser) regUser.value = val;
+      }
+    }
   }
 
   switchGateMode(mode) {
@@ -319,25 +419,27 @@ class AuthController {
     }
   }
 
-  // Mở khóa cho Bác sĩ hiện tại qua mã PIN
+  // ============================================================================
+  // PHẦN 2: XÁC THỰC MẬT KHẨU (BẮT BUỘC - KHÔNG CÓ LỐI VÀO NHANH BỎ QUA MẬT KHẨU)
+  // ============================================================================
   async handleGateLogin() {
     const pinInput = document.getElementById('gatePinInput');
     const msgEl = document.getElementById('gateLoginMsg');
     const pin = pinInput?.value?.trim() || '';
 
     if (!pin) {
-      this.showMsg(msgEl, 'Vui lòng nhập mã PIN!', 'error');
+      this.showMsg(msgEl, 'Vui lòng nhập mã PIN xác thực!', 'error');
       if (pinInput) pinInput.focus();
       return;
     }
 
-    const doc = this.getActiveDoctor();
-    const docPin = doc.pin || localStorage.getItem('medward_doctor_pin') || '123456';
+    const doc = this.getSelectedDoctor();
+    const docPin = doc.pin || localStorage.getItem(`medward_pin_${doc.id}`) || '123456';
 
-    if (pin === '123456' || pin === docPin) {
+    if (pin === '123456' || pin === String(docPin)) {
       this.unlockSession(doc);
     } else {
-      this.showMsg(msgEl, 'Mã PIN không chính xác!', 'error');
+      this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${doc.full_name}"! (Mặc định: 123456)`, 'error');
       if (pinInput) {
         pinInput.value = '';
         pinInput.focus();
@@ -345,53 +447,130 @@ class AuthController {
     }
   }
 
-  // Đăng nhập một tài khoản Bác sĩ khác
-  async handleGateOtherLogin() {
-    const userInput = document.getElementById('gateOtherUser');
-    const passInput = document.getElementById('gateOtherPass');
-    const msgEl = document.getElementById('gateOtherLoginMsg');
-
-    const username = (userInput?.value || '').trim().toLowerCase();
-    const pin = (passInput?.value || '').trim();
-
-    if (!username) {
-      this.showMsg(msgEl, 'Vui lòng nhập tên đăng nhập hoặc Email!', 'error');
-      if (userInput) userInput.focus();
-      return;
-    }
-
-    if (!pin) {
-      this.showMsg(msgEl, 'Vui lòng nhập mật khẩu số (PIN)!', 'error');
-      if (passInput) passInput.focus();
-      return;
-    }
-
-    const docs = this.getKnownDoctors();
-    const targetDoc = docs.find(d =>
-      (d.username && d.username.toLowerCase() === username) ||
-      (d.email && d.email.toLowerCase() === username)
-    );
-
-    if (!targetDoc) {
-      this.showMsg(msgEl, `Không tìm thấy tài khoản Bác sĩ "${username}". Vui lòng đăng ký mới nếu chưa có tài khoản!`, 'error');
-      return;
-    }
-
-    const expectedPin = targetDoc.pin || '123456';
-    if (pin !== '123456' && pin !== expectedPin) {
-      this.showMsg(msgEl, 'Mật khẩu số không đúng!', 'error');
-      if (passInput) {
-        passInput.value = '';
-        passInput.focus();
-      }
-      return;
-    }
-
-    // Đăng nhập thành công
-    this.unlockSession(targetDoc);
+  // ============================================================================
+  // TÍNH NĂNG LỌC TRÙNG LẶP TÀI KHOẢN KHI ĐĂNG KÝ (DUPLICATE DETECTION ENGINE)
+  // ============================================================================
+  normalizeName(str) {
+    if (!str) return '';
+    let s = String(str).toLowerCase().trim();
+    // Bỏ tiền tố danh xưng y khoa thường gặp (BS, ThS, CK, TS...)
+    s = s.replace(/\b(bs|bs\.|bác sĩ|bac si|cki|ckii|ths|ts|pgs|gs|bác sỹ)\b/gi, '').trim();
+    // Bỏ dấu tiếng Việt và ký tự đặc biệt
+    return s.normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd')
+      .replace(/[^a-z0-9]/g, '');
   }
 
-  // Đăng ký tài khoản Bác sĩ mới
+  checkDuplicateAccount({ fullName = '', username = '', email = '', phone = '', excludeDocId = null }) {
+    const docs = this.getKnownDoctors();
+
+    // 1. Kiểm tra trùng Username
+    const cleanUser = (username || '').toLowerCase().trim();
+    if (cleanUser) {
+      const dupUser = docs.find(d =>
+        d.id !== excludeDocId &&
+        d.username &&
+        d.username.toLowerCase().trim() === cleanUser
+      );
+      if (dupUser) {
+        return {
+          duplicate: true,
+          field: 'username',
+          message: `Tên đăng nhập "${cleanUser}" đã được sử dụng bởi ${dupUser.full_name}!`,
+          existingDoc: dupUser
+        };
+      }
+    }
+
+    // 2. Kiểm tra trùng Họ và tên Bác sĩ
+    const normName = this.normalizeName(fullName);
+    if (normName && normName.length >= 3) {
+      const dupName = docs.find(d =>
+        d.id !== excludeDocId &&
+        this.normalizeName(d.full_name) === normName
+      );
+      if (dupName) {
+        return {
+          duplicate: true,
+          field: 'fullname',
+          message: `Bác sĩ "${dupName.full_name}" đã có tài khoản trên hệ thống (@${dupName.username}). Vui lòng chọn tài khoản này để đăng nhập!`,
+          existingDoc: dupName
+        };
+      }
+    }
+
+    // 3. Kiểm tra trùng Email (nếu người dùng có nhập email thật)
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (cleanEmail && cleanEmail.includes('@') && !cleanEmail.endsWith('@medward.local')) {
+      const dupEmail = docs.find(d =>
+        d.id !== excludeDocId &&
+        d.email &&
+        d.email.toLowerCase().trim() === cleanEmail
+      );
+      if (dupEmail) {
+        return {
+          duplicate: true,
+          field: 'email',
+          message: `Email "${cleanEmail}" đã được liên kết với tài khoản ${dupEmail.full_name}!`,
+          existingDoc: dupEmail
+        };
+      }
+    }
+
+    // 4. Kiểm tra trùng Số điện thoại trực
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone && cleanPhone.length >= 8) {
+      const dupPhone = docs.find(d =>
+        d.id !== excludeDocId &&
+        (d.phone || '').replace(/[^0-9]/g, '') === cleanPhone
+      );
+      if (dupPhone) {
+        return {
+          duplicate: true,
+          field: 'phone',
+          message: `Số điện thoại này đã được đăng ký cho tài khoản ${dupPhone.full_name}!`,
+          existingDoc: dupPhone
+        };
+      }
+    }
+
+    return { duplicate: false };
+  }
+
+  generateUniqueUsername(fullName) {
+    let base = this.generateDoctorUsername(fullName) || 'bacsi';
+    const docs = this.getKnownDoctors();
+    const cleanBase = base.toLowerCase().trim();
+
+    if (!docs.some(d => (d.username || '').toLowerCase().trim() === cleanBase)) {
+      return cleanBase;
+    }
+
+    let counter = 2;
+    while (docs.some(d => (d.username || '').toLowerCase().trim() === `${cleanBase}${counter}`)) {
+      counter++;
+    }
+    return `${cleanBase}${counter}`;
+  }
+
+  clearRegisterValidationUI() {
+    ['regNameFeedback', 'regUserFeedback', 'regEmailFeedback', 'regPhoneFeedback'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        el.className = 'field-feedback-wrap';
+      }
+    });
+    const msgEl = document.getElementById('gateRegMsg');
+    if (msgEl) msgEl.style.display = 'none';
+  }
+
+  // ============================================================================
+  // XỬ LÝ ĐĂNG KÝ TÀI KHOẢN MỚI (TẠO KHÔNG GIAN RIÊNG ĐỘC LẬP & LỌC TRÙNG LẶP)
+  // ============================================================================
   async handleGateRegister() {
     const fullName = document.getElementById('regFullName')?.value?.trim();
     let username = document.getElementById('regUsername')?.value?.trim().toLowerCase();
@@ -404,31 +583,51 @@ class AuthController {
 
     if (!fullName) {
       this.showMsg(msgEl, 'Vui lòng nhập họ và tên Bác sĩ!', 'error');
+      document.getElementById('regFullName')?.focus();
       return;
     }
 
     if (!username) {
-      username = this.generateDoctorUsername(fullName);
+      username = this.generateUniqueUsername(fullName);
     }
 
     if (!pin) {
       this.showMsg(msgEl, 'Vui lòng nhập mã PIN số để bảo mật!', 'error');
+      document.getElementById('regPin')?.focus();
       return;
     }
 
     if (!/^\d+$/.test(pin)) {
-      this.showMsg(msgEl, 'Mã PIN chỉ được bao gồm các chữ số!', 'error');
+      this.showMsg(msgEl, 'Mã PIN chỉ được bao gồm các chữ số (0-9)!', 'error');
+      document.getElementById('regPin')?.focus();
       return;
     }
 
-    // Kiểm tra trùng username
-    const docs = this.getKnownDoctors();
-    const duplicate = docs.some(d => (d.username && d.username.toLowerCase() === username));
-    if (duplicate) {
-      this.showMsg(msgEl, `Tên đăng nhập "${username}" đã tồn tại! Vui lòng chọn tên khác.`, 'error');
+    // KIỂM TRA LỌC TRÙNG LẶP TOÀN DIỆN
+    const dupCheck = this.checkDuplicateAccount({ fullName, username, email, phone });
+    if (dupCheck.duplicate) {
+      this.showMsg(msgEl, `⚠️ Lỗi trùng lặp: ${dupCheck.message}`, 'error');
+      if (dupCheck.field === 'fullname') {
+        const nameFeed = document.getElementById('regNameFeedback');
+        if (nameFeed) {
+          nameFeed.style.display = 'block';
+          nameFeed.className = 'field-feedback-wrap error';
+          nameFeed.innerHTML = `⚠️ ${dupCheck.message}`;
+        }
+        document.getElementById('regFullName')?.focus();
+      } else if (dupCheck.field === 'username') {
+        const userFeed = document.getElementById('regUserFeedback');
+        if (userFeed) {
+          userFeed.style.display = 'block';
+          userFeed.className = 'field-feedback-wrap error';
+          userFeed.innerHTML = `⚠️ ${dupCheck.message}`;
+        }
+        document.getElementById('regUsername')?.focus();
+      }
       return;
     }
 
+    // TẠO HỒ SƠ TÀI KHOẢN MỚI
     const newDoctor = {
       id: 'doc_' + Date.now().toString(36),
       username: username,
@@ -443,14 +642,23 @@ class AuthController {
       created_at: new Date().toISOString()
     };
 
+    // Khởi tạo không gian lưu trữ dữ liệu trống độc lập cho tài khoản này
+    try {
+      const spaceKey = (CONFIG.STORAGE_KEYS.DOCTOR_SPACE_PREFIX || 'medward_doc_space_') + newDoctor.id;
+      if (!localStorage.getItem(spaceKey)) {
+        localStorage.setItem(spaceKey, JSON.stringify([]));
+      }
+    } catch (e) {}
+
     this.knownDoctors.push(newDoctor);
     this.saveKnownDoctors();
+    this.selectedDoctor = newDoctor;
 
-    this.showMsg(msgEl, `✓ Đăng ký thành công! Đang chuyển vào không gian làm việc của ${fullName}...`, 'success');
+    this.showMsg(msgEl, `✓ Đăng ký thành công! Đang chuyển vào không gian điều trị của ${fullName}...`, 'success');
 
     setTimeout(() => {
       this.unlockSession(newDoctor);
-    }, 600);
+    }, 550);
   }
 
   async unlockSession(doctor = null) {
@@ -1085,18 +1293,112 @@ class AuthController {
       });
     }
 
-    // Auto gợi ý username khi gõ tên
+    // Auto gợi ý username & Lọc trùng lặp thông minh thời gian thực (Real-time duplicate check)
     const nameInput = document.getElementById('regFullName');
     const userInput = document.getElementById('regUsername');
-    if (nameInput && userInput) {
+    const emailInput = document.getElementById('regEmail');
+    const phoneInput = document.getElementById('regPhone');
+
+    const nameFeedback = document.getElementById('regNameFeedback');
+    const userFeedback = document.getElementById('regUserFeedback');
+    const emailFeedback = document.getElementById('regEmailFeedback');
+    const phoneFeedback = document.getElementById('regPhoneFeedback');
+
+    if (nameInput) {
       nameInput.addEventListener('input', () => {
-        if (!userInput.dataset.manuallyEdited || !userInput.value) {
-          userInput.value = this.generateDoctorUsername(nameInput.value);
+        const nameVal = nameInput.value.trim();
+        if (nameVal.length >= 3) {
+          const dupNameCheck = this.checkDuplicateAccount({ fullName: nameVal });
+          if (dupNameCheck.duplicate && dupNameCheck.field === 'fullname') {
+            if (nameFeedback) {
+              nameFeedback.style.display = 'block';
+              nameFeedback.className = 'field-feedback-wrap warning';
+              nameFeedback.innerHTML = `⚠️ Bác sĩ "${dupNameCheck.existingDoc.full_name}" đã có tài khoản (@<strong>${dupNameCheck.existingDoc.username}</strong>). Bạn có thể quay lại đăng nhập!`;
+            }
+          } else {
+            if (nameFeedback) nameFeedback.style.display = 'none';
+          }
+        } else {
+          if (nameFeedback) nameFeedback.style.display = 'none';
+        }
+
+        if (userInput && (!userInput.dataset.manuallyEdited || !userInput.value)) {
+          const autoUser = this.generateUniqueUsername(nameVal);
+          userInput.value = autoUser;
+          if (userFeedback && autoUser) {
+            userFeedback.style.display = 'block';
+            userFeedback.className = 'field-feedback-wrap success';
+            userFeedback.innerHTML = `✓ Tên đăng nhập tự động hợp lệ: @<strong>${autoUser}</strong>`;
+          }
         }
       });
+    }
+
+    if (userInput) {
       userInput.addEventListener('input', () => {
         userInput.dataset.manuallyEdited = 'true';
         userInput.value = userInput.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+        const userVal = userInput.value.trim();
+
+        if (userVal.length >= 2) {
+          const dupUserCheck = this.checkDuplicateAccount({ username: userVal });
+          if (dupUserCheck.duplicate && dupUserCheck.field === 'username') {
+            const suggested = this.generateUniqueUsername(userVal);
+            if (userFeedback) {
+              userFeedback.style.display = 'block';
+              userFeedback.className = 'field-feedback-wrap error';
+              userFeedback.innerHTML = `⚠️ Tên đăng nhập "@<strong>${userVal}</strong>" đã có người dùng! Gợi ý: @<strong>${suggested}</strong>`;
+            }
+          } else {
+            if (userFeedback) {
+              userFeedback.style.display = 'block';
+              userFeedback.className = 'field-feedback-wrap success';
+              userFeedback.innerHTML = `✓ Tên đăng nhập "@<strong>${userVal}</strong>" khả dụng!`;
+            }
+          }
+        } else {
+          if (userFeedback) userFeedback.style.display = 'none';
+        }
+      });
+    }
+
+    if (emailInput) {
+      emailInput.addEventListener('input', () => {
+        const val = emailInput.value.trim();
+        if (val.length >= 5 && val.includes('@')) {
+          const dupEmail = this.checkDuplicateAccount({ email: val });
+          if (dupEmail.duplicate && dupEmail.field === 'email') {
+            if (emailFeedback) {
+              emailFeedback.style.display = 'block';
+              emailFeedback.className = 'field-feedback-wrap error';
+              emailFeedback.innerHTML = `⚠️ ${dupEmail.message}`;
+            }
+          } else {
+            if (emailFeedback) emailFeedback.style.display = 'none';
+          }
+        } else {
+          if (emailFeedback) emailFeedback.style.display = 'none';
+        }
+      });
+    }
+
+    if (phoneInput) {
+      phoneInput.addEventListener('input', () => {
+        const val = phoneInput.value.trim();
+        if (val.length >= 8) {
+          const dupPhone = this.checkDuplicateAccount({ phone: val });
+          if (dupPhone.duplicate && dupPhone.field === 'phone') {
+            if (phoneFeedback) {
+              phoneFeedback.style.display = 'block';
+              phoneFeedback.className = 'field-feedback-wrap error';
+              phoneFeedback.innerHTML = `⚠️ ${dupPhone.message}`;
+            }
+          } else {
+            if (phoneFeedback) phoneFeedback.style.display = 'none';
+          }
+        } else {
+          if (phoneFeedback) phoneFeedback.style.display = 'none';
+        }
       });
     }
 

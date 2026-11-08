@@ -77,143 +77,174 @@
                 </div>
             </div>
 
-            <!-- VIEW 1: MỞ KHÓA TIẾP TỤC TÀI KHOẢN BÁC SĨ (MẶC ĐỊNH) -->
+            <!-- VIEW 1: MỞ KHÓA & CHỌN TÀI KHOẢN BÁC SĨ (MULTI-ACCOUNT AUTH) -->
             <div id="gateViewUnlock" class="gate-sub-view">
                 <div class="login-gate-banner">
-                    <div class="login-gate-lock-icon">🔒</div>
+                    <div class="login-gate-lock-icon">🩺</div>
                     <div>
-                        <div class="login-gate-banner-title">Mở khóa tiếp tục phiên làm việc</div>
-                        <div class="login-gate-banner-sub">Xác thực để truy cập bảng theo dõi người bệnh</div>
+                        <div class="login-gate-banner-title">Hệ thống Đăng nhập Ca trực &amp; Hồ sơ Bác sĩ</div>
+                        <div class="login-gate-banner-sub">Mỗi tài khoản là một không gian điều trị độc lập riêng biệt</div>
                     </div>
                 </div>
 
-                <!-- THẺ THÔNG TIN BÁC SĨ HIỆN TẠI -->
-                <div class="login-doctor-preview">
-                    <div class="login-doc-avatar" id="gateDocAvatar">HĐ</div>
-                    <div class="login-doc-info">
-                        <div class="login-doc-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
-                        <div class="login-doc-role" id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</div>
-                        <div class="login-doc-user">Tài khoản: <strong id="gateDocUsername">dongnh</strong> <span
-                                id="gateDocEmail">(nguyenhuudongy18@gmail.com)</span></div>
-                    </div>
-                </div>
-
-                <!-- NÚT 1 CHẠM: VÀO NHANH CA TRỰC (TIỆN LỢI & KHÔNG BỊ KHÓA) -->
-                <div class="login-quick-unlock-wrap">
-                    <button type="button" class="btn-quick-unlock-primary"
-                        onclick="window.authController.quickUnlockDefaultDoctor()">
-                        <span class="quick-unlock-icon">⚡</span>
-                        <div class="quick-unlock-text">
-                            <span class="quick-unlock-main" id="quickUnlockMainText">VÀO NHANH CA TRỰC (BS. ĐÔNG)</span>
-                            <span class="quick-unlock-sub">1 chạm truy cập ngay ca trực</span>
+                <!-- PHẦN 1: CHỌN TÀI KHOẢN BÁC SĨ (MULTI-ACCOUNT SELECTOR) -->
+                <div class="gate-section-block">
+                    <div class="gate-section-header">
+                        <div class="gate-section-title-wrap">
+                            <span class="gate-section-num">1</span>
+                            <span class="gate-section-title">CHỌN TÀI KHOẢN BÁC SĨ</span>
                         </div>
-                        <span class="quick-unlock-arrow">➔</span>
-                    </button>
+                        <span class="gate-section-badge" id="gateAccountsCountBadge">1 tài khoản</span>
+                    </div>
+
+                    <!-- Danh sách thẻ tài khoản đa người dùng (render bởi JS) -->
+                    <div class="gate-accounts-list" id="gateAccountsList">
+                        <!-- Danh sách tài khoản hiển thị ở đây -->
+                    </div>
+
+                    <!-- Ô nhập tài khoản thủ công (ẩn/hiện linh hoạt) -->
+                    <div id="gateManualAccountBox" class="gate-manual-account-box" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted);">Nhập Tên đăng nhập hoặc Email:</label>
+                            <div class="input-with-button-wrap">
+                                <input type="text" id="gateManualUserInput" class="form-control"
+                                    placeholder="VD: dongnh hoặc email..." autocapitalize="none">
+                                <button type="button" class="btn btn-secondary btn-sm"
+                                    onclick="window.authController.applyManualUser()">Chọn</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (MẶC ĐỊNH) HOẶC VẼ HÌNH 9 NÚT -->
-                <div class="gate-mode-selector">
-                    <button type="button" class="gate-mode-btn active" id="btnGateModePin"
-                        onclick="window.authController.switchGateMode('pin')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>Mã PIN</span>
-                    </button>
-                    <button type="button" class="gate-mode-btn" id="btnGateModePattern"
-                        onclick="window.authController.switchGateMode('pattern')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.2">
-                            <circle cx="5" cy="5" r="2.5" />
-                            <circle cx="12" cy="5" r="2.5" />
-                            <circle cx="19" cy="5" r="2.5" />
-                            <circle cx="5" cy="12" r="2.5" />
-                            <circle cx="12" cy="12" r="2.5" />
-                            <circle cx="19" cy="12" r="2.5" />
-                            <circle cx="5" cy="19" r="2.5" />
-                            <circle cx="12" cy="19" r="2.5" />
-                            <circle cx="19" cy="19" r="2.5" />
-                        </svg>
-                        <span>9 Nút (Cảm ứng)</span>
-                    </button>
-                </div>
-
-                <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN/PASSWORD (MẶC ĐỊNH) -->
-                <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();"
-                    class="gate-unlock-panel" style="display: block; padding: 0 16px 14px;">
-                    <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
-
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="gatePinInput" class="gate-pin-label">
-                            <span>Mã PIN / Mật khẩu số:</span>
-                        </label>
-                        <div class="pin-input-wrapper">
-                            <input type="password" id="gatePinInput" class="form-control gate-pin-input"
-                                placeholder="Nhập mã PIN" pattern="[0-9]*" inputmode="numeric"
-                                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                            <button type="button" class="btn-toggle-pin"
-                                onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1"
-                                title="Hiện/ẩn mã PIN">👁️</button>
+                <!-- PHẦN 2: XÁC THỰC MẬT KHẨU (SỐ HOẶC HÌNH VẼ) -->
+                <div class="gate-section-block" style="margin-top: 14px;">
+                    <div class="gate-section-header">
+                        <div class="gate-section-title-wrap">
+                            <span class="gate-section-num">2</span>
+                            <span class="gate-section-title">MẬT KHẨU XÁC THỰC</span>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-gate-submit">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
-                    </button>
-
-                    <div style="text-align: center; margin-top: 10px;">
-                        <button type="button" class="btn btn-subtle btn-sm"
-                            onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
-                            🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
-                        </button>
-                    </div>
-                </form>
-
-                <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
-                <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 14px;">
-                    <div id="gatePatternStatus" class="gate-pattern-status">
-                        Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá
+                    <!-- THẺ THÔNG TIN BÁC SĨ ĐANG ĐƯỢC CHỌN -->
+                    <div class="gate-active-target-badge" id="gateActiveTargetBadge">
+                        <div class="gate-target-avatar" id="gateDocAvatar">HĐ</div>
+                        <div class="gate-target-info">
+                            <div class="gate-target-name" id="gateDocName">BS. Nguyễn Hữu Đông</div>
+                            <div class="gate-target-sub" id="gateDocRoleSub">
+                                <span id="gateDocRole">Bác sĩ điều trị • Khoa Nhiễm</span>
+                                <span class="gate-target-user-sep">•</span>
+                                <span>Tài khoản: <strong id="gateDocUsername">dongnh</strong></span>
+                                <span id="gateDocEmail" style="display: none;"></span>
+                            </div>
+                        </div>
+                        <div class="gate-target-tag">Đang chọn</div>
                     </div>
 
-                    <div class="pattern-lock-wrap" id="patternLockWrap">
-                        <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300"
-                            touch-action="none"></svg>
+                    <!-- CHỌN PHƯƠNG THỨC MỞ KHÓA: MÃ PIN (MẶC ĐỊNH) HOẶC VẼ HÌNH 9 NÚT -->
+                    <div class="gate-mode-selector">
+                        <button type="button" class="gate-mode-btn active" id="btnGateModePin"
+                            onclick="window.authController.switchGateMode('pin')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span>Mã PIN (Mật khẩu số)</span>
+                        </button>
+                        <button type="button" class="gate-mode-btn" id="btnGateModePattern"
+                            onclick="window.authController.switchGateMode('pattern')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2">
+                                <circle cx="5" cy="5" r="2.5" />
+                                <circle cx="12" cy="5" r="2.5" />
+                                <circle cx="19" cy="5" r="2.5" />
+                                <circle cx="5" cy="12" r="2.5" />
+                                <circle cx="12" cy="12" r="2.5" />
+                                <circle cx="19" cy="12" r="2.5" />
+                                <circle cx="5" cy="19" r="2.5" />
+                                <circle cx="12" cy="19" r="2.5" />
+                                <circle cx="19" cy="19" r="2.5" />
+                            </svg>
+                            <span>9 Nút (Hình vẽ Cảm ứng)</span>
+                        </button>
                     </div>
 
-                    <div class="pattern-action-row">
-                        <button type="button" class="btn btn-primary btn-sm btn-pattern-confirm" id="btnPatternConfirm"
-                            onclick="window.patternLock?.confirmCurrentPattern()" style="display: none;">
-                            ✓ MỞ KHÓA NGAY
-                        </button>
-                        <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.reset()">
-                            🔄 Vẽ lại
-                        </button>
-                    </div>
+                    <!-- KHU VỰC 1: FORM MỞ KHÓA BẰNG PIN / PASSWORD (MẶC ĐỊNH) -->
+                    <form id="gateLoginForm" onsubmit="event.preventDefault(); window.authController.handleGateLogin();"
+                        class="gate-unlock-panel" style="display: block; padding: 0 16px 12px;">
+                        <div id="gateLoginMsg" class="form-message" style="display: none; margin-bottom: 12px;"></div>
 
-                    <div style="text-align: center; margin-top: 10px;">
-                        <button type="button" class="btn btn-subtle btn-sm"
-                            onclick="window.authController.switchGateMode('pin')" style="font-size: 11.5px;">
-                            🔑 Chuyển sang nhập Mã PIN
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label for="gatePinInput" class="gate-pin-label">
+                                <span id="gatePinLabelText">Mã PIN / Mật khẩu số:</span>
+                            </label>
+                            <div class="pin-input-wrapper">
+                                <input type="password" id="gatePinInput" class="form-control gate-pin-input"
+                                    placeholder="Nhập mã PIN" pattern="[0-9]*" inputmode="numeric"
+                                    oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                                <button type="button" class="btn-toggle-pin"
+                                    onclick="window.authController.togglePinVisibility('gatePinInput', this)" tabindex="-1"
+                                    title="Hiện/ẩn mã PIN">👁️</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-gate-submit" id="btnGateSubmit">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span id="btnGateSubmitText">MỞ KHÓA VÀO BẢNG ĐIỀU TRỊ</span>
                         </button>
+
+                        <div style="text-align: center; margin-top: 10px;">
+                            <button type="button" class="btn btn-subtle btn-sm"
+                                onclick="window.authController.switchGateMode('pattern')" style="font-size: 11.5px;">
+                                🔲 Chuyển sang vẽ hình 9 nút (Cảm ứng)
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- KHU VỰC 2: MỞ KHÓA BẰNG VẼ HÌNH 9 NÚT (PATTERN LOCK) -->
+                    <div id="gatePatternContainer" class="gate-unlock-panel" style="display: none; padding: 0 16px 12px;">
+                        <div id="gatePatternStatus" class="gate-pattern-status">
+                            Vẽ vuốt hoặc chạm lần lượt các nút để mở khoá
+                        </div>
+
+                        <div class="pattern-lock-wrap" id="patternLockWrap">
+                            <svg id="patternLockSvg" class="pattern-lock-svg" viewBox="0 0 300 300"
+                                touch-action="none"></svg>
+                        </div>
+
+                        <div class="pattern-action-row">
+                            <button type="button" class="btn btn-primary btn-sm btn-pattern-confirm" id="btnPatternConfirm"
+                                onclick="window.patternLock?.confirmCurrentPattern()" style="display: none;">
+                                ✓ MỞ KHÓA NGAY
+                            </button>
+                            <button type="button" class="btn btn-subtle btn-sm" onclick="window.patternLock?.reset()">
+                                🔄 Vẽ lại
+                            </button>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 10px;">
+                            <button type="button" class="btn btn-subtle btn-sm"
+                                onclick="window.authController.switchGateMode('pin')" style="font-size: 11.5px;">
+                                🔑 Chuyển sang nhập Mã PIN
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- DÒNG HÀNH ĐỘNG CHUYỂN TÀI KHOẢN HOẶC ĐĂNG KÝ -->
                 <div class="gate-switch-actions">
-                    <button type="button" class="btn-gate-link" onclick="window.authController.showGateView('login')">
-                        🔄 Đăng nhập tài khoản Bác sĩ khác
-                    </button>
-                    <span class="gate-link-sep">•</span>
                     <button type="button" class="btn-gate-link primary-link"
                         onclick="window.authController.showGateView('register')">
-                        ➕ Đăng ký tài khoản mới
+                        ➕ Đăng ký tài khoản Bác sĩ mới
+                    </button>
+                    <span class="gate-link-sep">•</span>
+                    <button type="button" class="btn-gate-link"
+                        onclick="window.authController.toggleManualAccountInput()">
+                        ⌨️ Nhập tài khoản bằng tay
                     </button>
                 </div>
             </div>
@@ -281,15 +312,19 @@
                 </form>
             </div>
 
-            <!-- VIEW 3: ĐĂNG KÝ TÀI KHOẢN BÁC SĨ MỚI -->
+            <!-- VIEW 3: ĐĂNG KÝ TÀI KHOẢN BÁC SĨ MỚI (CÓ LỌC TRÙNG LẶP THÔNG MINH) -->
             <div id="gateViewRegister" class="gate-sub-view" style="display: none;">
                 <div class="login-gate-banner">
                     <div class="login-gate-lock-icon">📝</div>
                     <div>
                         <div class="login-gate-banner-title">Đăng ký tài khoản Bác sĩ mới</div>
-                        <div class="login-gate-banner-sub">Tạo hồ sơ điều trị & không gian cá nhân trên MedWard Pro
-                        </div>
+                        <div class="login-gate-banner-sub">Tạo không gian điều trị &amp; sổ giao ban độc lập trên MedWard Pro</div>
                     </div>
+                </div>
+
+                <div class="gate-register-notice">
+                    <span class="gate-register-notice-icon">💡</span>
+                    <span>Hệ thống tự động phân tách dữ liệu người bệnh riêng biệt cho từng tài khoản và tự động kiểm tra trùng lặp thông tin.</span>
                 </div>
 
                 <form id="gateRegisterForm"
@@ -297,42 +332,49 @@
                     style="padding: 0 16px 14px;">
                     <div id="gateRegMsg" class="form-message" style="display: none; margin-bottom: 10px;"></div>
 
-                    <div class="form-group" style="margin-bottom: 8px;">
+                    <div class="form-group" style="margin-bottom: 10px;">
                         <label style="font-size: 12px; font-weight: 700;">Họ và tên Bác sĩ <span
                                 style="color: var(--danger);">*</span>:</label>
                         <input type="text" id="regFullName" class="form-control" placeholder="VD: ThS.BS. Lê Văn Bình"
-                            required>
+                            required autocomplete="off">
+                        <div id="regNameFeedback" class="field-feedback-wrap" style="display: none;"></div>
                     </div>
 
-                    <div class="form-row" style="margin-bottom: 8px;">
+                    <div class="form-row" style="margin-bottom: 10px;">
                         <div class="form-group">
                             <label style="font-size: 12px; font-weight: 700;">Tên đăng nhập <span
                                     style="color: var(--danger);">*</span>:</label>
                             <input type="text" id="regUsername" class="form-control" placeholder="VD: binhlv"
-                                autocapitalize="none" required>
-                            <small
+                                autocapitalize="none" required autocomplete="off">
+                            <div id="regUserFeedback" class="field-feedback-wrap" style="display: none;"></div>
+                            <small id="regUserHint"
                                 style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Tự
-                                gợi ý
-                                khi
-                                gõ tên</small>
+                                gợi ý khi gõ tên</small>
                         </div>
                         <div class="form-group">
                             <label style="font-size: 12px; font-weight: 700;">Mã PIN số <span
                                     style="color: var(--danger);">*</span>:</label>
-                            <input type="password" id="regPin" class="form-control" placeholder="Nhập PIN"
-                                pattern="[0-9]*" inputmode="numeric"
-                                oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+                            <div class="pin-input-wrapper">
+                                <input type="password" id="regPin" class="form-control" placeholder="Nhập PIN (VD: 123456)"
+                                    pattern="[0-9]*" inputmode="numeric"
+                                    oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+                                <button type="button" class="btn-toggle-pin"
+                                    onclick="window.authController.togglePinVisibility('regPin', this)" tabindex="-1"
+                                    title="Hiện/ẩn mã PIN">👁️</button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-row" style="margin-bottom: 8px;">
+                    <div class="form-row" style="margin-bottom: 10px;">
                         <div class="form-group">
                             <label style="font-size: 12px; font-weight: 700;">Email:</label>
-                            <input type="email" id="regEmail" class="form-control" placeholder="bacsi@gmail.com">
+                            <input type="email" id="regEmail" class="form-control" placeholder="bacsi@gmail.com" autocomplete="off">
+                            <div id="regEmailFeedback" class="field-feedback-wrap" style="display: none;"></div>
                         </div>
                         <div class="form-group">
                             <label style="font-size: 12px; font-weight: 700;">Số ĐT trực:</label>
-                            <input type="tel" id="regPhone" class="form-control" placeholder="0909...">
+                            <input type="tel" id="regPhone" class="form-control" placeholder="0909..." autocomplete="off">
+                            <div id="regPhoneFeedback" class="field-feedback-wrap" style="display: none;"></div>
                         </div>
                     </div>
 
@@ -347,19 +389,14 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-gate-submit">
-                        ✨ HOÀN TẤT ĐĂNG KÝ &amp; VÀO LÀM VIỆC
+                    <button type="submit" class="btn btn-primary btn-gate-submit" id="btnSubmitRegister">
+                        ✨ HOÀN TẤT ĐĂNG KÝ &amp; VÀO KHÔNG GIAN LÀM VIỆC
                     </button>
 
                     <div class="gate-switch-actions">
-                        <button type="button" class="btn-gate-link"
-                            onclick="window.authController.showGateView('login')">
-                            Đã có tài khoản? <strong>Đăng nhập</strong>
-                        </button>
-                        <span class="gate-link-sep">•</span>
-                        <button type="button" class="btn-gate-link"
+                        <button type="button" class="btn-gate-link primary-link"
                             onclick="window.authController.showGateView('unlock')">
-                            ⬅️ Quay lại mở khóa
+                            ⬅️ Đã có tài khoản? <strong>Chọn tài khoản &amp; Đăng nhập</strong>
                         </button>
                     </div>
                 </form>

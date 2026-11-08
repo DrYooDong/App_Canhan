@@ -353,20 +353,24 @@ class PatternLockController {
     }
 
     const patternCode = this.selectedDots.join('-');
-    const savedPattern = localStorage.getItem('medward_pattern_lock');
+    const selectedDoc = window.authController?.getSelectedDoctor?.() || window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
+    const docSavedPattern = selectedDoc.pattern ||
+                            localStorage.getItem(`medward_pattern_${selectedDoc.id}`) ||
+                            localStorage.getItem(`medward_pattern_${selectedDoc.username}`) ||
+                            localStorage.getItem('medward_pattern_lock');
 
     let isValid = false;
-    if (savedPattern) {
-      isValid = (patternCode === savedPattern);
+    if (docSavedPattern) {
+      isValid = (patternCode === docSavedPattern);
     } else {
       isValid = this.defaultPatterns.includes(patternCode);
     }
 
     if (isValid) {
-      // Mở khóa thành công!
+      // Mở khóa thành công cho đúng tài khoản đang chọn!
       if (statusEl) {
         statusEl.className = 'gate-pattern-status success';
-        statusEl.innerText = '✓ Hình vẽ chính xác! Đang mở khoá vào ca trực...';
+        statusEl.innerText = `✓ Hình vẽ chính xác! Đang mở không gian của ${selectedDoc.full_name}...`;
       }
       if (svg) svg.classList.add('pattern-success');
       if (confirmBtn) confirmBtn.style.display = 'none';
@@ -375,14 +379,14 @@ class PatternLockController {
       }
 
       setTimeout(() => {
-        window.authController?.unlockSession?.();
+        window.authController?.unlockSession?.(selectedDoc);
         this.reset();
       }, 350);
     } else {
       // Hình vẽ sai
       if (statusEl) {
         statusEl.className = 'gate-pattern-status error';
-        statusEl.innerText = '❌ Hình vẽ mở khoá chưa chính xác!';
+        statusEl.innerText = `❌ Hình vẽ mở khoá chưa đúng cho tài khoản "${selectedDoc.full_name}"!`;
       }
       this.triggerErrorFeedback(svg, wrap);
       setTimeout(() => {

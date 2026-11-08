@@ -1857,133 +1857,312 @@ body.dark-theme .btn-modal-tool:hover {
 }
 
 /* DOCTOR PREVIEW CARD */
-.login-doctor-preview {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 16px 20px 12px;
-  padding: 14px 16px;
-  background: #f0f7ff;
-  border-radius: var(--radius-md);
-  border: 1.5px solid #bae6fd;
+/* ==============================================================================
+   SECTION BLOCKS & MULTI-ACCOUNT SELECTOR (CHỌN TÀI KHOẢN & XÁC THỰC MẬT KHẨU)
+   ============================================================================== */
+.gate-section-block {
+  padding: 12px 18px 4px;
 }
 
-.login-doc-avatar {
-  width: 48px;
-  height: 48px;
+.gate-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.gate-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gate-section-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+.gate-section-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-main);
+}
+
+.gate-section-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-accent);
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* DANH SÁCH THẺ TÀI KHOẢN (MULTI-ACCOUNT LIST) */
+.gate-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 2px;
+  margin-bottom: 8px;
+}
+
+.gate-accounts-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.gate-accounts-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.gate-account-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.16s ease;
+  position: relative;
+  text-align: left;
+  user-select: none;
+}
+
+.gate-account-card:hover {
+  border-color: #38bdf8;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.gate-account-card.active {
+  border-color: #0284c7;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18), 0 4px 12px rgba(2, 132, 199, 0.15);
+}
+
+.gate-account-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: linear-gradient(135deg, #0284c7 0%, #0f365d 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  font-weight: 800;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
-}
-
-.login-doc-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.login-doc-name {
   font-size: 15px;
   font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+.gate-account-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gate-account-name {
+  font-size: 13.5px;
+  font-weight: 800;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.login-doc-role {
-  font-size: 12px;
-  color: var(--primary-accent);
-  font-weight: 700;
-  margin-top: 1px;
-}
-
-.login-doc-user {
+.gate-account-sub {
   font-size: 11.5px;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.login-doc-user strong {
+.gate-account-user {
   font-family: var(--font-mono);
-  color: var(--text-main);
+  font-weight: 700;
+  color: var(--primary-accent);
 }
 
-/* QUICK 1-TOUCH UNLOCK PRIMARY BUTTON */
-.login-quick-unlock-wrap {
-  padding: 0 20px 12px;
-}
-
-.btn-quick-unlock-primary {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0f365d 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
-  cursor: pointer;
-  transition: all 0.18s ease;
-  text-align: left;
-}
-
-.btn-quick-unlock-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
-}
-
-.btn-quick-unlock-primary:active {
-  transform: translateY(0);
-}
-
-.quick-unlock-icon {
-  font-size: 20px;
+.gate-account-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  font-size: 12px;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.gate-account-card.active .gate-account-check {
+  border-color: #0284c7;
+  background: #0284c7;
+  color: #ffffff;
+}
+
+/* NÚT THÊM TÀI KHOẢN MỚI TRONG DANH SÁCH */
+.gate-account-card-add {
+  border-style: dashed;
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: var(--primary-accent);
+  justify-content: center;
+  padding: 9px 14px;
+}
+
+.gate-account-card-add:hover {
+  border-color: var(--primary);
+  background: #f0f9ff;
+}
+
+/* THẺ BÁC SĨ ĐANG ĐƯỢC CHỌN TRONG PHẦN 2 */
+.gate-active-target-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f0f7ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: var(--radius-md);
+  margin: 0 0 12px;
+}
+
+.gate-target-avatar {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #0284c7 0%, #0f365d 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
   flex-shrink: 0;
 }
 
-.quick-unlock-text {
+.gate-target-info {
   flex: 1;
   min-width: 0;
 }
 
-.quick-unlock-main {
-  display: block;
-  font-size: 13px;
+.gate-target-name {
+  font-size: 14px;
   font-weight: 800;
-  letter-spacing: 0.2px;
+  color: var(--text-main);
 }
 
-.quick-unlock-sub {
-  display: block;
-  font-size: 11px;
-  opacity: 0.88;
+.gate-target-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
   margin-top: 1px;
 }
 
-.quick-unlock-arrow {
-  font-size: 14px;
-  opacity: 0.8;
-  transition: transform 0.15s ease;
+.gate-target-user-sep {
+  margin: 0 4px;
+  color: var(--border-dark);
 }
 
-.btn-quick-unlock-primary:hover .quick-unlock-arrow {
-  transform: translateX(3px);
+.gate-target-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* Ô NHẬP TÀI KHOẢN BẰNG TAY (MANUAL USER INPUT) */
+.gate-manual-account-box {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.input-with-button-wrap {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.input-with-button-wrap input {
+  flex: 1;
+}
+
+/* HỘP LƯU Ý ĐĂNG KÝ KHÔNG GIAN RIÊNG */
+.gate-register-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 16px 8px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  color: #166534;
+  line-height: 1.35;
+}
+
+.gate-register-notice-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* THÔNG BÁO KIỂM TRA TRÙNG LẶP REAL-TIME */
+.field-feedback-wrap {
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.field-feedback-wrap.error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.field-feedback-wrap.success {
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.field-feedback-wrap.warning {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 /* MODE SELECTOR (SEGMENTED CONTROL) */
