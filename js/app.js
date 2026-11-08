@@ -391,6 +391,7 @@ class MedWardApp {
     window.handoverController?.closeHandoverDashboard?.();
     window.authController?.closeAuthModal?.();
     window.authController?.closeCloudSettingsModal?.();
+    window.clinicalHub?.closeModal?.();
     this.closeAbbreviationModal?.();
     this.closeShortcutsModal?.();
     window.patternLock?.closePatternChangeModal?.();
@@ -1058,6 +1059,10 @@ class MedWardApp {
           existing.phong_giuong = item.phong_giuong;
           updated = true;
         }
+        if (!existing.trieu_chung && item.trieu_chung) { existing.trieu_chung = item.trieu_chung; updated = true; }
+        if (!existing.kham_lam_sang && item.kham_lam_sang) { existing.kham_lam_sang = item.kham_lam_sang; updated = true; }
+        if (!existing.cls_hien_co && item.cls_hien_co) { existing.cls_hien_co = item.cls_hien_co; updated = true; }
+        if (!existing.cls_can_lam && item.cls_can_lam) { existing.cls_can_lam = item.cls_can_lam; updated = true; }
         if (!existing.cls && item.cls) {
           existing.cls = item.cls;
           existing.cls_hien_co = item.cls_hien_co || existing.cls_hien_co;
@@ -1066,9 +1071,16 @@ class MedWardApp {
         }
         if (!existing.y_lenh && item.y_lenh) { existing.y_lenh = item.y_lenh; updated = true; }
         if (!existing.them_thuoc && item.them_thuoc) { existing.them_thuoc = item.them_thuoc; updated = true; }
+        if ((!existing.handover_status || existing.handover_status === (CONFIG?.HANDOVER_STATUS?.NONE || 'none')) && item.handover_status && item.handover_status !== (CONFIG?.HANDOVER_STATUS?.NONE || 'none')) {
+          existing.handover_status = item.handover_status;
+          updated = true;
+        }
+        if (!existing.handover_issues && item.handover_issues) { existing.handover_issues = item.handover_issues; updated = true; }
+        if (!existing.handover_actions && item.handover_actions) { existing.handover_actions = item.handover_actions; updated = true; }
         if (!existing.doctor_name && item.doctor_name) { existing.doctor_name = item.doctor_name; updated = true; }
 
         if (updated) {
+          pCtrl.normalizePatientClsAndOrders(existing);
           existing.updated_at = new Date().toISOString();
         }
         mergedCount++;
@@ -1089,7 +1101,8 @@ class MedWardApp {
     }
 
     try {
-      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, null, { isFullReplace: false });
+      const targetDate = pCtrl.currentDate || null;
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: false });
       const toastMsg = newAddedCount > 0
         ? `✓ Đã thêm ${newAddedCount} người bệnh mới` + (mergedCount > 0 ? ` (hợp nhất ${mergedCount} ca đã có, không trùng lặp)` : '') + '!'
         : `✓ Đã rà soát & cập nhật ${mergedCount} người bệnh đã có (không có ca mới phát sinh)!`;
@@ -1126,7 +1139,8 @@ class MedWardApp {
     }
 
     try {
-      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, null, { isFullReplace: true });
+      const targetDate = pCtrl.currentDate || null;
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: true });
       if (syncRes && syncRes.offlineSaved) {
         window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ ${sourceName}! (Lưu an toàn offline)`);
       } else if (syncRes && syncRes.error) {

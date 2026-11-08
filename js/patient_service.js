@@ -713,16 +713,20 @@ class PatientController {
       }
     }
 
-    // Nếu có [Thêm thuốc] trong y_lenh nhưng cột them_thuoc đang rỗng
-    if (!p.them_thuoc && p.y_lenh) {
+    // Tách và dọn sạch [Thêm thuốc] ra khỏi y_lenh
+    if (p.y_lenh) {
       if (p.y_lenh.includes('[Thêm thuốc]:')) {
         const parts = p.y_lenh.split(/\[Thêm thuốc\]:/i);
         p.y_lenh = parts[0].trim();
-        p.them_thuoc = parts[1] ? parts[1].trim() : '';
+        if (!p.them_thuoc && parts[1]) {
+          p.them_thuoc = parts[1].trim();
+        }
       } else if (p.y_lenh.includes('💊 Thêm thuốc:')) {
         const parts = p.y_lenh.split(/💊 Thêm thuốc:/i);
         p.y_lenh = parts[0].trim();
-        p.them_thuoc = parts[1] ? parts[1].trim() : '';
+        if (!p.them_thuoc && parts[1]) {
+          p.them_thuoc = parts[1].trim();
+        }
       }
     }
 
@@ -2866,10 +2870,13 @@ class PatientController {
       bac_si: headerRow.findIndex(c => c === 'bs' || c === 'bác sĩ' || c === 'bác sỹ' || c.includes('bác sĩ') || c.includes('bác sỹ') || c.includes('bs điều trị')),
       ma_nb: headerRow.findIndex(c => c.includes('mã người bệnh') || c.includes('mã nb') || c.includes('mã bn') || c.includes('mã ba') || c.includes('mã hồ sơ')),
       cls_hien_co: headerRow.findIndex(c => c.includes('hiện có') || c === 'cls_hien_co'),
-      cls_can_lam: headerRow.findIndex(c => c.includes('cần làm') || c === 'cls_can_lam'),
+      // Fix: loại trừ cột "Xử trí / Cần làm tiếp" để không bị bắt nhầm thành CLS Cần làm
+      cls_can_lam: headerRow.findIndex(c => (c.includes('cần làm') || c === 'cls_can_lam') && !c.includes('xử trí') && !c.includes('làm tiếp')),
       cls: headerRow.findIndex(c => c === 'cls' || c === 'xn' || c === 'lab' || c.includes('cận lâm sàng') || c.includes('xét nghiệm')),
-      trieu_chung: headerRow.findIndex(c => c === 'trieu_chung' || c === 'triệu chứng' || c === 'cơ năng' || c.includes('triệu chứng') || c === 's'),
-      kham_lam_sang: headerRow.findIndex(c => c === 'kham_lam_sang' || c === 'khám lâm sàng' || c === 'thực thể' || c === 'khám' || c.includes('khám lâm sàng') || c.includes('thực thể') || c === 'o'),
+      // Fix: thêm nhận diện cột 'Triệu chứng' (đã được export từ phiên bản mới)
+      trieu_chung: headerRow.findIndex(c => c === 'trieu_chung' || c === 'triệu chứng' || c === 'triệu chứng (s)' || c === 'cơ năng' || c.includes('triệu chứng') || c === 's'),
+      // Fix: thêm nhận diện cột 'Khám lâm sàng' (đã được export từ phiên bản mới)
+      kham_lam_sang: headerRow.findIndex(c => c === 'kham_lam_sang' || c === 'khám lâm sàng' || c === 'khám lâm sàng (o)' || c === 'thực thể' || c === 'khám' || c.includes('khám lâm sàng') || c.includes('thực thể') || c === 'o'),
       trang_thai_bg: headerRow.findIndex(c => c.includes('trạng thái bàn giao') || c === 'bàn giao'),
       van_de_td: headerRow.findIndex(c => c.includes('vấn đề tồn đọng') || c.includes('tồn đọng')),
       xu_tri_tiep: headerRow.findIndex(c => c.includes('xử trí / cần làm tiếp') || c.includes('cần làm tiếp') || c.includes('xử trí tiếp'))
@@ -2960,10 +2967,10 @@ class PatientController {
       // 6. Y lệnh & Thêm thuốc
       let ylVal = mapping.y_lenh !== -1 ? String(row[mapping.y_lenh] || '').trim() : '';
       let themThuocVal = mapping.them_thuoc !== -1 ? String(row[mapping.them_thuoc] || '').trim() : '';
-      if (!themThuocVal && ylVal && ylVal.includes('[Thêm thuốc]:')) {
+      if (ylVal && ylVal.includes('[Thêm thuốc]:')) {
         const parts = ylVal.split(/\[Thêm thuốc\]:/i);
         ylVal = parts[0].trim();
-        themThuocVal = parts[1] ? parts[1].trim() : '';
+        if (!themThuocVal && parts[1]) themThuocVal = parts[1].trim();
       }
 
       // Không để tên Bác sĩ bị nạp nhầm vào Y lệnh
@@ -2983,7 +2990,7 @@ class PatientController {
         docVal = `BS. ${docVal}`;
       }
 
-      // 8. Trạng thái bàn giao (Nhận diện đủ 5 trạng thái)
+      // 8. Trạng thái bàn giao (Nhận diện đủ 7 trạng thái, khớp với text export)
       let hoStatus = CONFIG.HANDOVER_STATUS.NONE;
       if (mapping.trang_thai_bg !== -1 && row[mapping.trang_thai_bg]) {
         const stStr = String(row[mapping.trang_thai_bg]).toLowerCase().trim();
@@ -5098,17 +5105,27 @@ class PatientController {
 
   getExportDataRows() {
     this.patientList.forEach(p => this.normalizePatientClsAndOrders(p));
-    
+
+    // Bảng ánh xạ đầy đủ 7 trạng thái bàn giao → text xuất file
+    const HANDOVER_STATUS_LABEL = {
+      [CONFIG.HANDOVER_STATUS.CRITICAL]:    '🚨 Nguy kịch (Báo động đỏ)',
+      [CONFIG.HANDOVER_STATUS.PENDING]:     '⏳ Cần bàn giao / Theo dõi sát',
+      [CONFIG.HANDOVER_STATUS.NOTE]:        '📝 Lưu ý / Ghi chú',
+      [CONFIG.HANDOVER_STATUS.WAITING_CLS]: '🔬 Chờ kết quả CLS',
+      [CONFIG.HANDOVER_STATUS.RESOLVED]:    '✅ Đã xử trí / Ổn định',
+      [CONFIG.HANDOVER_STATUS.DISCHARGED]:  '🏠 Xuất viện / Ra viện',
+    };
+
     return this.patientList.map((p, idx) => {
-      let trangThaiGiao = 'Bình thường';
-      if (p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) trangThaiGiao = '🚨 Nguy kịch (Báo động đỏ)';
-      else if (p.handover_status === CONFIG.HANDOVER_STATUS.PENDING) trangThaiGiao = '⏳ Cần bàn giao / Theo dõi sát';
+      const trangThaiGiao = HANDOVER_STATUS_LABEL[p.handover_status] || 'Bình thường';
 
       return {
         'STT': idx + 1,
         'Buồng - Giường': p.phong_giuong || '',
         'Họ và tên': p.ten || '',
         'Năm sinh / Tuổi': p.nam_sinh_tuoi || '',
+        'Triệu chứng': p.trieu_chung || '',
+        'Khám lâm sàng': p.kham_lam_sang || '',
         'Chẩn đoán': this.stripHtmlPreserveNumbers(p.chan_doan || ''),
         'CLS Hiện có': this.stripHtmlPreserveNumbers(p.cls_hien_co || p.cls || ''),
         'CLS Cần làm': this.stripHtmlPreserveNumbers(p.cls_can_lam || ''),
@@ -5141,6 +5158,8 @@ class PatientController {
           { wch: 16 }, // Buồng - Giường
           { wch: 25 }, // Họ và tên
           { wch: 16 }, // Năm sinh / Tuổi
+          { wch: 28 }, // Triệu chứng
+          { wch: 28 }, // Khám lâm sàng
           { wch: 38 }, // Chẩn đoán
           { wch: 32 }, // CLS Hiện có
           { wch: 24 }, // CLS Cần làm

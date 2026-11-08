@@ -32,6 +32,16 @@ Tài liệu này tra cứu nhanh các ID giao diện trong `index.html` và các
 | `dengueTrendModal` | Container | Modal pop-up biểu đồ | `openDengueTrendModal(id)` | `closeDengueTrendModal()` |
 | `dengueTrendModalBody` | `<div>` | Biểu đồ SVG & bảng mốc đo | `renderDengueTrendModalBody(p)` | `addDengueTrendPoint()`, `syncTrendsToCls()` |
 
+### Phân Hệ Trung Tâm Thang Điểm & Công Cụ Lâm Sàng (`#clinicalHubModal`)
+| DOM ID | Loại phần tử | Mục đích | File phụ trách | Thao tác |
+|---|---|---|---|---|
+| `clinicalHubModal` | Container | Phân hệ độc lập thang điểm & máy tính | `js/clinical_hub.js` | `window.clinicalHub.openModal()` (Phím tắt `Alt + C`) |
+| `btnOpenClinicalHub` | `<button>` | Nút mở trên Desktop Top Nav | `index.html` | Mở hub |
+| `btnMobileClinicalHub`| `<button>` | Nút mở trên Mobile Action Bar | `index.html` | Mở hub |
+| `hubSearchInput` | `<input>` | Tìm kiếm nhanh thang điểm/công cụ | `js/clinical_hub.js` | `window.clinicalHub.handleSearch()` |
+| `hubToolList` | `<div>` | Cột danh sách 10 công cụ | `js/clinical_hub.js` | `window.clinicalHub.renderToolList()` |
+| `hubToolDetail` | `<div>` | Vùng tính toán & tương tác chi tiết | `js/clinical_hub.js` | `window.clinicalHub.renderActiveTool()` |
+
 ---
 
 ## 2. Bảng Danh Sách & Chế Độ Xem (Desktop & Mobile)

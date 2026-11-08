@@ -386,6 +386,12 @@
                 </div>
 
                 <div class="mobile-brand-actions">
+                    <!-- Nút Thang Điểm & Công Cụ Lâm Sàng trên Mobile -->
+                    <button class="mobile-btn-action" id="btnMobileClinicalHub"
+                        onclick="window.clinicalHub?.openModal()" title="Thang Điểm &amp; Công Cụ Lâm Sàng (Alt+C)">
+                        <span>🧮</span>
+                    </button>
+
                     <!-- Nút chuyển đổi Dark Mode (Trực đêm) trên Mobile -->
                     <button class="mobile-btn-action" id="btnMobileThemeToggle"
                         onclick="window.medWardApp.toggleTheme()" title="Đổi chế độ Sáng / Tối (Trực đêm)">
@@ -492,6 +498,14 @@
             </div>
 
             <div class="user-quick-bar">
+                <!-- Nút Thang Điểm & Công Cụ Lâm Sàng (Alt+C) -->
+                <button class="btn-clinical-hub-nav" id="btnOpenClinicalHub"
+                    onclick="window.clinicalHub?.openModal()"
+                    data-tooltip="Thang Điểm &amp; Công Cụ Lâm Sàng Bỏ Túi (Alt + C)">
+                    <span class="hub-btn-icon">🧮</span>
+                    <span class="hub-btn-text">Thang Điểm &amp; Tính Toán</span>
+                </button>
+
                 <!-- Nút Trạng thái Cloud Sync tinh gọn -->
                 <button class="btn-cloud-sync" id="cloudSyncIndicator"
                     onclick="window.authController.openCloudSettingsModal()"
@@ -2015,6 +2029,66 @@
         </div>
     </div>
 
+    <!-- MODAL 6.5: TRUNG TÂM THANG ĐIỂM & CÔNG CỤ LÂM SÀNG BỎ TÚI (CLINICAL HUB) -->
+    <div class="modal-overlay" id="clinicalHubModal" style="display: none;">
+        <div class="modal-card hub-modal-card">
+            <!-- Header -->
+            <div class="hub-modal-header">
+                <div class="hub-title-wrap">
+                    <span class="hub-title-icon">🧮</span>
+                    <div>
+                        <div class="hub-title-main">Trung Tâm Thang Điểm &amp; Công Cụ Lâm Sàng</div>
+                        <div class="hub-title-sub">10 thang điểm kinh điển &amp; máy tính bỏ túi phục vụ đi buồng thăm bệnh hằng ngày</div>
+                    </div>
+                </div>
+                <button class="btn-close-modal" onclick="window.clinicalHub.closeModal()">&times;</button>
+            </div>
+
+            <!-- Thanh tìm kiếm & bộ lọc danh mục -->
+            <div class="hub-search-filter-bar">
+                <div class="hub-search-box">
+                    <span class="hub-search-icon">🔍</span>
+                    <input type="text" id="hubSearchInput" class="hub-search-input"
+                        placeholder="Tìm thang điểm, máy tính (CURB-65, qSOFA, Dịch truyền, CrCl, Dengue, Gan...)"
+                        oninput="window.clinicalHub.handleSearch(this.value)">
+                </div>
+                <div class="hub-filter-chips">
+                    <button type="button" class="hub-filter-chip active" data-cat="all"
+                        onclick="window.clinicalHub.setCategory('all')">Tất cả (10)</button>
+                    <button type="button" class="hub-filter-chip" data-cat="scores"
+                        onclick="window.clinicalHub.setCategory('scores')">📋 Thang điểm (5)</button>
+                    <button type="button" class="hub-filter-chip" data-cat="calculators"
+                        onclick="window.clinicalHub.setCategory('calculators')">💧 Máy tính (5)</button>
+                    <button type="button" class="hub-filter-chip" data-cat="infectious"
+                        onclick="window.clinicalHub.setCategory('infectious')">🦟 Khoa Nhiễm</button>
+                </div>
+            </div>
+
+            <!-- Thân Modal: Cột trái (danh sách) & Cột phải (nội dung tính toán) -->
+            <div class="hub-body-split">
+                <!-- Danh sách công cụ (Sidebar) -->
+                <div class="hub-sidebar" id="hubToolList">
+                    <!-- Sinh động bởi JavaScript (window.clinicalHub.renderToolList()) -->
+                </div>
+
+                <!-- Vùng hiển thị & tính toán công cụ (Detail) -->
+                <div class="hub-content" id="hubToolDetail">
+                    <!-- Sinh động bởi JavaScript (window.clinicalHub.renderActiveTool()) -->
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="hub-modal-footer">
+                <div class="hub-footer-tip">
+                    💡 Mẹo lâm sàng: Bấm <kbd>Alt</kbd> + <kbd>C</kbd> ở bất kỳ đâu để mở nhanh trung tâm thang điểm này.
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="window.clinicalHub.closeModal()">
+                    ✕ Đóng lại
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 7: BẢNG PHÍM TẮT LÂM SÀNG TOÀN CỤC (GLOBAL SHORTCUTS) -->
     <div class="modal-overlay" id="shortcutsModal">
         <div class="modal-card" style="max-width: 680px; max-height: 88vh; display: flex; flex-direction: column;">
@@ -2179,6 +2253,11 @@
                             <td><kbd>Enter</kbd> (trong danh sách số)</td>
                             <td><strong>Tự động nhảy số kế tiếp</strong> (1. ➔ 2. ➔ 3.) hoặc thoát nếu dòng trống</td>
                             <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>C</kbd></td>
+                            <td><strong>Mở Thang Điểm &amp; Công Cụ Lâm Sàng</strong> (CURB-65, qSOFA, Dịch truyền, CrCl...)</td>
+                            <td style="text-align: center;"><span class="badge-scope">Toàn cục</span></td>
                         </tr>
                         <tr>
                             <td><kbd>Alt</kbd> + <kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td>
@@ -2347,6 +2426,7 @@
     <script src="js/auth.js?v=2.5"></script>
     <script src="js/patient_service.js?v=2.5"></script>
     <script src="js/handover_service.js?v=2.5"></script>
+    <script src="js/clinical_hub.js?v=2.5"></script>
     <script src="js/app.js?v=2.5"></script>
 
 </body>
