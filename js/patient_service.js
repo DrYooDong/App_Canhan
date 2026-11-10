@@ -15,6 +15,8 @@ class PatientController {
     this.autoSaveTimers = {};
     this.currentDate = this.getCurrentDateString();
     this.pendingRealtimePatches = [];
+    this.lastClinicalSelection = null;
+    this._formatToolbarTimer = null;
 
     this.init();
   }
@@ -50,6 +52,8 @@ class PatientController {
   async init() {
     this.loadSettings();
     this.applyMobileViewMode();
+    this.initModalRichEditors();
+    this.initClinicalFormatToolbar();
     this.currentDate = this.getTodayDMY();
 
     // Luôn hiển thị ngày hôm nay trên giao diện
@@ -1551,6 +1555,7 @@ class PatientController {
     const editClsHc = document.getElementById('editClsHienCo');
     if (editClsHc && document.getElementById('editPatientId')?.value === p.id) {
       editClsHc.value = curClsHc;
+      this.syncModalRichEditorsFromTextareas();
     }
 
     alert('✓ Đã đồng bộ chuỗi xu hướng Hct & Tiểu cầu vào ô CLS Hiện Có thành công!');
@@ -1674,10 +1679,10 @@ class PatientController {
     } else if (CONFIG.expandMedicalText && (field === 'trieu_chung' || field === 'kham_lam_sang' || field === 'chan_doan' || field === 'y_lenh' || field === 'them_thuoc')) {
       cleanVal = CONFIG.expandMedicalText(cleanVal);
       if (el) {
-        el.innerHTML = this.formatClinicalDisplay(cleanVal);
+        el.innerHTML = cleanVal ? this.formatClinicalDisplay(cleanVal) : '';
       }
     } else if (el && (field === 'cls_hien_co' || field === 'cls_can_lam')) {
-      el.innerHTML = this.formatClsDisplay(cleanVal);
+      el.innerHTML = cleanVal ? this.formatClsDisplay(cleanVal) : '';
     }
 
     const idx = this.patientList.findIndex(p => p.id === patientId);
@@ -1721,18 +1726,28 @@ class PatientController {
   }
 
   // ==============================================================================
-  // CLINICAL FORMATTING, AUTO-NUMBERING & BOLD STYLING (WORD-LIKE & EMR PRESERVATION)
+  // CLINICAL FORMATTING, HIGHLIGHTING, AUTO-NUMBERING & BOLD STYLING
   // ==============================================================================
 
   /**
-   * Định dạng hiển thị Chẩn đoán & Y lệnh:
+   * Chuẩn hóa class cho thẻ <mark> highlight lâm sàng
+   */
+  normalizeMarkClass(attrStr = '') {
+    const m = String(attrStr).match(/\bhl-(yellow|red|green|blue)\b/i);
+    const color = m ? m[1].toLowerCase() : 'yellow';
+    return `clinical-hl hl-${color}`;
+  }
+
+  /**
+   * Định dạng hiển thị các trường lâm sàng (Triệu chứng, Khám LS, Chẩn đoán, Y lệnh, Thêm thuốc):
+   * - Hỗ trợ highlight tùy ý (<mark class="clinical-hl hl-...">)
    * - Hỗ trợ in đậm (thẻ <b>, <strong> từ Ctrl+B)
    * - Tự động in đậm số thứ tự đầu dòng (1. 2. 3... hoặc 1/ 2/ hoặc 1) 2))
    */
   formatClinicalDisplay(text) {
     if (!text) return '';
     let str = String(text);
-    const hasHtml = /<\/?(?:b|strong|i|em|u|span|br|div|p)\b/i.test(str);
+    const hasHtml = /<\/?(?:b|strong|i|em|u|mark|span|br|div|p)\b/i.test(str);
     let formatted = hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
 
     // Tự động in đậm số thứ tự ở đầu dòng nếu chưa có thẻ b/strong bao quanh
@@ -1745,33 +1760,53 @@ class PatientController {
 
   /**
    * Định dạng Cột Cận Lâm Sàng (CLS):
-   * Tự động in đậm các cấu trúc [nội dung] (vd: [Máu], [Sinh hóa], [Hiện có], [Cần làm])
+   * - Giữ nguyên dấu ngoặc vuông [...] ở dạng chữ bình thường (không tự động in đậm)
+   * - Hỗ trợ highlight (<mark>) và in đậm thủ công (<b>, <strong>)
    */
   formatClsDisplay(text) {
     if (!text) return '';
     let str = String(text);
-    const hasHtml = /<\/?(?:b|strong|i|em|u|span|br|div|p)\b/i.test(str);
-    let formatted = hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
-
-    // In đậm tất cả các cấu trúc [...] trong văn bản (giữ nguyên khoảng trắng trước/sau)
-    formatted = formatted.replace(/(?:<b[^>]*>|<strong[^>]*>)?(\[[^\]\r\n]+\])(?:<\/b>|<\/strong>)?/gi, (m, p1) => {
-      return `<b class="cls-bracket-tag" style="font-weight: 700;">${p1}</b>`;
-    });
-
-    return formatted;
+    const hasHtml = /<\/?(?:b|strong|i|em|u|mark|span|br|div|p)\b/i.test(str);
+    return hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
   }
 
   /**
-   * Sanitize an toàn mã HTML lâm sàng
+   * Sanitize an toàn mã HTML lâm sàng (giữ thẻ định dạng & <mark> highlight, thoát ký tự < lạc)
    */
   sanitizeClinicalHtml(html) {
     if (!html) return '';
     let clean = String(html);
     clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     clean = clean.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
-    clean = clean.replace(/\son\w+="[^"]*"/gi, '');
-    clean = clean.replace(/\son\w+='[^']*'/gi, '');
-    return clean;
+    clean = clean.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
+    clean = clean.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
+    clean = clean.replace(/\son\w+\s*=\s*[^\s>]+/gi, '');
+    // Gỡ bỏ thẻ in đậm tự động cũ cho [...] nếu còn sót trong dữ liệu cũ
+    clean = clean.replace(/<b\s+class="cls-bracket-tag"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
+
+    // Chỉ giữ các thẻ lâm sàng cho phép; thoát ký tự '<' không phải thẻ hợp lệ (vd: SpO2 <93%)
+    const allowedTagRegex = /<\/?(?:b|strong|i|em|u|mark|span|br|div|p)(?:\s[^<>]*)?\/?>/gi;
+    let out = '';
+    let lastIndex = 0;
+    let match;
+    while ((match = allowedTagRegex.exec(clean)) !== null) {
+      if (match.index > lastIndex) {
+        out += clean.slice(lastIndex, match.index).replace(/</g, '&lt;');
+      }
+      const rawTag = match[0];
+      if (/^<mark\b/i.test(rawTag)) {
+        out += `<mark class="${this.normalizeMarkClass(rawTag)}">`;
+      } else if (/^<\/mark\b/i.test(rawTag)) {
+        out += '</mark>';
+      } else {
+        out += rawTag.replace(/javascript\s*:/gi, '');
+      }
+      lastIndex = allowedTagRegex.lastIndex;
+    }
+    if (lastIndex < clean.length) {
+      out += clean.slice(lastIndex).replace(/</g, '&lt;');
+    }
+    return out;
   }
 
   /**
@@ -1794,8 +1829,9 @@ class PatientController {
   }
 
   /**
-   * Lấy nội dung có thể lưu trữ từ contenteditable cell:
-   * Giữ lại thẻ <b> / <strong> do người dùng in đậm (Ctrl+B), chuyển <br>/<div> thành \n
+   * Lấy nội dung có thể lưu trữ từ contenteditable cell / modal rich editor:
+   * Giữ lại thẻ <b> / <strong> (Ctrl+B) và <mark class="clinical-hl hl-..."> (Highlight),
+   * chuyển <br>/<div> thành \n
    */
   getClinicalCellContent(el) {
     if (!el) return '';
@@ -1806,13 +1842,524 @@ class PatientController {
     html = html.replace(/<p>/gi, '\n').replace(/<\/p>/gi, '');
     html = html.replace(/<b\s+class="med-num-prefix"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
     html = html.replace(/<b\s+class="cls-bracket-tag"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
-    html = html.replace(/<(?!\/?(?:b|strong|i|em|u)\b)[^>]+>/gi, '');
+    html = html.replace(/<mark\b([^>]*)>/gi, (m, attrs) => `<mark class="${this.normalizeMarkClass(attrs)}">`);
+    html = html.replace(/<(?!\/?(?:b|strong|i|em|u|mark)\b)[^>]+>/gi, '');
+    html = html.replace(/<mark\b[^>]*>\s*<\/mark>/gi, '');
     html = html.replace(/&nbsp;/gi, ' ');
     html = html.replace(/&amp;/gi, '&');
     html = html.replace(/&lt;/gi, '<');
     html = html.replace(/&gt;/gi, '>');
     html = html.replace(/&quot;/gi, '"');
     return html.trim();
+  }
+
+  // ==============================================================================
+  // MODAL RICH EDITORS (ĐỒNG BỘ WYSIWYG GIỮA POPUP MODAL VÀ BACKING TEXTAREA)
+  // ==============================================================================
+
+  initModalRichEditors() {
+    const richEditors = document.querySelectorAll('.modal-rich-editor[data-textarea-id]');
+    richEditors.forEach(richEl => {
+      if (richEl.dataset.richBound === '1') return;
+      richEl.dataset.richBound = '1';
+
+      richEl.addEventListener('input', () => {
+        this.syncTextareaFromRichEditor(richEl);
+      });
+
+      richEl.addEventListener('blur', () => {
+        const taId = richEl.dataset.textareaId;
+        const field = richEl.dataset.field;
+        const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
+        let cleanVal = this.getClinicalCellContent(richEl);
+        if (!isCls && CONFIG.expandMedicalText && cleanVal) {
+          cleanVal = CONFIG.expandMedicalText(cleanVal);
+        }
+        const ta = taId ? document.getElementById(taId) : null;
+        if (ta) ta.value = cleanVal;
+        richEl.innerHTML = cleanVal
+          ? (isCls ? this.formatClsDisplay(cleanVal) : this.formatClinicalDisplay(cleanVal))
+          : '';
+      });
+
+      richEl.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const plain = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+        if (plain) {
+          document.execCommand('insertText', false, plain);
+        }
+        this.syncTextareaFromRichEditor(richEl);
+      });
+
+      richEl.addEventListener('keydown', (e) => {
+        this.handleClinicalKeyDown(e, null, richEl.dataset.field || '', richEl);
+      });
+    });
+  }
+
+  syncTextareaFromRichEditor(richEl) {
+    if (!richEl) return;
+    const taId = richEl.dataset.textareaId;
+    const ta = taId ? document.getElementById(taId) : null;
+    if (ta) {
+      ta.value = this.getClinicalCellContent(richEl);
+    }
+  }
+
+  syncAllTextareasFromModalRichEditors() {
+    document.querySelectorAll('.modal-rich-editor[data-textarea-id]').forEach(richEl => {
+      this.syncTextareaFromRichEditor(richEl);
+    });
+  }
+
+  syncModalRichEditorsFromTextareas() {
+    document.querySelectorAll('.modal-rich-editor[data-textarea-id]').forEach(richEl => {
+      const taId = richEl.dataset.textareaId;
+      const ta = taId ? document.getElementById(taId) : null;
+      if (!ta) return;
+      const val = (ta.value || '').trim();
+      const field = richEl.dataset.field;
+      const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
+      richEl.innerHTML = val
+        ? (isCls ? this.formatClsDisplay(val) : this.formatClinicalDisplay(val))
+        : '';
+    });
+  }
+
+  // ==============================================================================
+  // FLOATING HIGHLIGHT & FORMAT TOOLBAR + RANGE HIGHLIGHT ENGINE
+  // ==============================================================================
+
+  initClinicalFormatToolbar() {
+    if (this._formatToolbarBound) return;
+    this._formatToolbarBound = true;
+
+    const getEditorFromNode = (node) => {
+      if (!node) return null;
+      const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      return el?.closest?.('.med-cell-editor, .modal-rich-editor') || null;
+    };
+
+    const handleSelectionUpdate = () => {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) {
+        this.hideFloatingFormatToolbar();
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const editorEl = getEditorFromNode(range.commonAncestorContainer);
+      if (!editorEl) {
+        this.hideFloatingFormatToolbar();
+        return;
+      }
+
+      if (!sel.isCollapsed && sel.toString().trim().length > 0) {
+        this.lastClinicalSelection = { el: editorEl, range: range.cloneRange() };
+        this.scheduleFloatingFormatToolbar(range);
+      } else {
+        const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+          ? range.startContainer.parentElement
+          : range.startContainer;
+        const markEl = startEl?.closest?.('mark');
+        if (markEl && editorEl.contains(markEl)) {
+          this.lastClinicalSelection = { el: editorEl, range: range.cloneRange() };
+        }
+        this.hideFloatingFormatToolbar();
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionUpdate);
+    document.addEventListener('mouseup', (e) => {
+      if (e.target.closest('#clinicalFormatToolbar')) return;
+      setTimeout(handleSelectionUpdate, 15);
+    });
+    document.addEventListener('touchend', (e) => {
+      if (e.target.closest('#clinicalFormatToolbar')) return;
+      setTimeout(handleSelectionUpdate, 40);
+    });
+    document.addEventListener('mousedown', (e) => {
+      if (!e.target.closest('#clinicalFormatToolbar') && !e.target.closest('.btn-modal-hl') && !e.target.closest('.btn-micro-hl')) {
+        this.hideFloatingFormatToolbar();
+      }
+    });
+    window.addEventListener('scroll', () => this.hideFloatingFormatToolbar(), true);
+  }
+
+  scheduleFloatingFormatToolbar(range) {
+    if (this._formatToolbarTimer) clearTimeout(this._formatToolbarTimer);
+    this._formatToolbarTimer = setTimeout(() => {
+      this.showFloatingFormatToolbarForRange(range);
+    }, 60);
+  }
+
+  showFloatingFormatToolbarForRect(rect, preferBelow = false) {
+    const toolbar = document.getElementById('clinicalFormatToolbar');
+    if (!toolbar || !rect) return;
+
+    toolbar.classList.add('visible');
+    const tbW = toolbar.offsetWidth || 210;
+    const tbH = toolbar.offsetHeight || 38;
+    const pad = 8;
+
+    let left = rect.left + rect.width / 2 - tbW / 2;
+    left = Math.max(pad, Math.min(window.innerWidth - tbW - pad, left));
+
+    let top = preferBelow ? rect.bottom + 8 : rect.top - tbH - 8;
+    if (!preferBelow && top < pad) {
+      top = rect.bottom + 8;
+    } else if (preferBelow && top + tbH > window.innerHeight - pad) {
+      top = Math.max(pad, rect.top - tbH - 8);
+    }
+
+    toolbar.style.left = `${Math.round(left)}px`;
+    toolbar.style.top = `${Math.round(top)}px`;
+  }
+
+  showFloatingFormatToolbarForRange(range) {
+    if (!range) return;
+    const rect = range.getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) return;
+    // Trên thiết bị cảm ứng / màn hình nhỏ, đặt dưới vùng chọn để không đụng menu Copy/Paste mặc định
+    const isTouchViewport = window.matchMedia?.('(pointer: coarse)')?.matches || window.innerWidth < 768;
+    this.showFloatingFormatToolbarForRect(rect, isTouchViewport);
+  }
+
+  hideFloatingFormatToolbar() {
+    if (this._formatToolbarTimer) {
+      clearTimeout(this._formatToolbarTimer);
+      this._formatToolbarTimer = null;
+    }
+    const toolbar = document.getElementById('clinicalFormatToolbar');
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+
+  resolveEditorAndRange(preferredEditor = null) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0);
+      const containerEl = r.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? r.commonAncestorContainer.parentElement
+        : r.commonAncestorContainer;
+      const activeEditor = containerEl?.closest?.('.med-cell-editor, .modal-rich-editor');
+      if (activeEditor && (!preferredEditor || activeEditor === preferredEditor)) {
+        return { editorEl: activeEditor, range: r };
+      }
+    }
+    if (this.lastClinicalSelection && this.lastClinicalSelection.el?.isConnected) {
+      const saved = this.lastClinicalSelection;
+      if (!preferredEditor || saved.el === preferredEditor) {
+        return { editorEl: saved.el, range: saved.range.cloneRange() };
+      }
+    }
+    return null;
+  }
+
+  notifyEditorMutated(editorEl) {
+    if (!editorEl) return;
+    if (editorEl.classList.contains('modal-rich-editor')) {
+      this.syncTextareaFromRichEditor(editorEl);
+      return;
+    }
+    if (editorEl.classList.contains('med-cell-editor')) {
+      const row = editorEl.closest('tr[data-id]');
+      const patientId = editorEl.dataset.patientId || row?.dataset?.id;
+      const field = editorEl.dataset.field;
+      if (patientId && field) {
+        this.handleCellInput(patientId, field, this.getClinicalCellContent(editorEl), editorEl);
+      }
+    }
+  }
+
+  openCellHighlightPicker(btnEl, patientId, field) {
+    const cell = btnEl?.closest('.med-tier, .med-o-pane, .med-o-bottom-row, .med-cd-cell, td');
+    const editorEl = cell?.querySelector('.med-cell-editor');
+    this.openHighlightPickerForEditor(btnEl, editorEl);
+  }
+
+  openModalHighlightPicker(btnEl, textareaId) {
+    const richEl = document.getElementById(`${textareaId}Rich`);
+    this.openHighlightPickerForEditor(btnEl, richEl);
+  }
+
+  openHighlightPickerForEditor(btnEl, editorEl) {
+    if (!editorEl) return;
+    const resolved = this.resolveEditorAndRange(editorEl);
+    if (!resolved) {
+      if (window.showToast) {
+        window.showToast('💡 Bôi đen đoạn nội dung muốn làm nổi bật rồi bấm 🖍️ (hoặc Alt+H)', 'info');
+      }
+      editorEl.focus();
+      return;
+    }
+
+    const { range } = resolved;
+    const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer.parentElement
+      : range.startContainer;
+    const insideMark = startEl?.closest?.('mark');
+
+    if (range.collapsed && !(insideMark && editorEl.contains(insideMark))) {
+      if (window.showToast) {
+        window.showToast('💡 Bôi đen đoạn nội dung muốn làm nổi bật rồi bấm 🖍️ (hoặc Alt+H)', 'info');
+      }
+      editorEl.focus();
+      return;
+    }
+
+    // Khôi phục vùng chọn để người dùng thấy rõ đoạn sắp tô màu
+    editorEl.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    this.lastClinicalSelection = { el: editorEl, range: range.cloneRange() };
+
+    const anchorRect = btnEl ? btnEl.getBoundingClientRect() : range.getBoundingClientRect();
+    this.showFloatingFormatToolbarForRect(anchorRect, true);
+  }
+
+  applyHighlightFromToolbar(color) {
+    const resolved = this.resolveEditorAndRange();
+    if (!resolved) {
+      this.hideFloatingFormatToolbar();
+      return;
+    }
+    const { editorEl, range } = resolved;
+    editorEl.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    this.applyHighlightToRange(editorEl, range, color);
+    this.notifyEditorMutated(editorEl);
+    if (color === 'none') {
+      this.hideFloatingFormatToolbar();
+    }
+  }
+
+  toggleHighlightFromShortcut(preferredEditor = null) {
+    const resolved = this.resolveEditorAndRange(preferredEditor);
+    if (!resolved) return;
+    const { editorEl, range } = resolved;
+
+    const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer.parentElement
+      : range.startContainer;
+    const insideMark = startEl?.closest?.('mark');
+
+    let targetColor = 'yellow';
+    if (range.collapsed) {
+      if (insideMark && editorEl.contains(insideMark)) {
+        targetColor = 'none';
+      } else {
+        if (window.showToast) {
+          window.showToast('💡 Bôi đen đoạn chữ trước khi bấm Alt+H để highlight!', 'info');
+        }
+        return;
+      }
+    } else {
+      const slices = this.getSelectedTextSlices(editorEl, range);
+      const allHighlighted = slices.length > 0 && slices.every(s => {
+        const p = s.node.parentElement;
+        return Boolean(p?.closest?.('mark'));
+      });
+      if (allHighlighted) targetColor = 'none';
+    }
+
+    this.applyHighlightToRange(editorEl, range, targetColor);
+    this.notifyEditorMutated(editorEl);
+    this.hideFloatingFormatToolbar();
+  }
+
+  boldFromToolbar() {
+    const resolved = this.resolveEditorAndRange();
+    if (!resolved) return;
+    const { editorEl, range } = resolved;
+    editorEl.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    document.execCommand('bold', false, null);
+    const updatedSel = window.getSelection();
+    if (updatedSel && updatedSel.rangeCount > 0) {
+      this.lastClinicalSelection = { el: editorEl, range: updatedSel.getRangeAt(0).cloneRange() };
+    }
+    this.notifyEditorMutated(editorEl);
+  }
+
+  getSelectedTextSlices(editorEl, range) {
+    const slices = [];
+    const walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) {
+      const len = node.nodeValue.length;
+      if (len === 0) continue;
+
+      let start = 0;
+      let end = len;
+      try {
+        if (node === range.startContainer) {
+          start = range.startOffset;
+        } else if (range.comparePoint(node, 0) < 0) {
+          continue;
+        }
+        if (node === range.endContainer) {
+          end = range.endOffset;
+        } else if (range.comparePoint(node, len) > 0) {
+          continue;
+        }
+      } catch (e) {
+        continue;
+      }
+
+      if (end > start) {
+        slices.push({ node, start, end });
+      }
+    }
+    return slices;
+  }
+
+  unwrapElementKeepChildren(el) {
+    const parent = el.parentNode;
+    if (!parent) return;
+    while (el.firstChild) {
+      parent.insertBefore(el.firstChild, el);
+    }
+    parent.removeChild(el);
+  }
+
+  applyHighlightToRange(editorEl, range, color = 'yellow') {
+    if (!editorEl || !range) return;
+
+    // Trường hợp con trỏ nằm trong thẻ <mark> sẵn có (không bôi đen)
+    if (range.collapsed) {
+      const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+        ? range.startContainer.parentElement
+        : range.startContainer;
+      const existingMark = startEl?.closest?.('mark');
+      if (existingMark && editorEl.contains(existingMark)) {
+        if (color === 'none') {
+          this.unwrapElementKeepChildren(existingMark);
+        } else {
+          existingMark.className = `clinical-hl hl-${color}`;
+        }
+        editorEl.normalize();
+      }
+      return;
+    }
+
+    const slices = this.getSelectedTextSlices(editorEl, range);
+    if (slices.length === 0) return;
+
+    const touchedNodes = [];
+
+    slices.forEach(({ node, start, end }) => {
+      if (!node.isConnected) return;
+      let midNode = node;
+      if (end < midNode.nodeValue.length) {
+        midNode.splitText(end);
+      }
+      if (start > 0) {
+        midNode = midNode.splitText(start);
+      }
+
+      const existingMark = midNode.parentElement?.closest?.('mark');
+      if (!existingMark || !editorEl.contains(existingMark)) {
+        if (color !== 'none') {
+          const mark = document.createElement('mark');
+          mark.className = `clinical-hl hl-${color}`;
+          midNode.parentNode.insertBefore(mark, midNode);
+          mark.appendChild(midNode);
+        }
+        touchedNodes.push(midNode);
+        return;
+      }
+
+      // Đã nằm trong một thẻ <mark>
+      if (color !== 'none' && existingMark.classList.contains(`hl-${color}`)) {
+        touchedNodes.push(midNode);
+        return;
+      }
+
+      // Tách thẻ <mark> hiện có thành trái / giữa / phải để không làm mất thẻ <b> lồng bên trong
+      const leftRange = document.createRange();
+      leftRange.setStart(existingMark, 0);
+      leftRange.setEnd(midNode, 0);
+      const leftFrag = leftRange.extractContents();
+
+      const rightRange = document.createRange();
+      rightRange.setStart(midNode, midNode.nodeValue.length);
+      rightRange.setEnd(existingMark, existingMark.childNodes.length);
+      const rightFrag = rightRange.extractContents();
+
+      const oldClass = existingMark.className || 'clinical-hl hl-yellow';
+      const parent = existingMark.parentNode;
+
+      if (leftFrag.textContent.length > 0) {
+        const leftMark = document.createElement('mark');
+        leftMark.className = oldClass;
+        leftMark.appendChild(leftFrag);
+        parent.insertBefore(leftMark, existingMark);
+      }
+
+      if (rightFrag.textContent.length > 0) {
+        const rightMark = document.createElement('mark');
+        rightMark.className = oldClass;
+        rightMark.appendChild(rightFrag);
+        parent.insertBefore(rightMark, existingMark.nextSibling);
+      }
+
+      if (color === 'none') {
+        this.unwrapElementKeepChildren(existingMark);
+      } else {
+        existingMark.className = `clinical-hl hl-${color}`;
+      }
+
+      touchedNodes.push(midNode);
+    });
+
+    // Dọn dẹp & gộp các thẻ <mark> cùng màu nằm liền kề
+    const marks = Array.from(editorEl.querySelectorAll('mark'));
+    marks.forEach(m => {
+      if (!m.isConnected) return;
+      if (!m.textContent) {
+        this.unwrapElementKeepChildren(m);
+        return;
+      }
+      let prev = m.previousSibling;
+      while (prev && prev.nodeType === Node.TEXT_NODE && prev.nodeValue === '') {
+        prev.remove();
+        prev = m.previousSibling;
+      }
+      if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.tagName === 'MARK' && prev.className === m.className) {
+        while (m.firstChild) {
+          prev.appendChild(m.firstChild);
+        }
+        m.remove();
+      }
+    });
+
+    editorEl.normalize();
+
+    // Khôi phục vùng bôi đen trên đoạn vừa thao tác
+    const validNodes = touchedNodes.filter(n => n.isConnected);
+    if (validNodes.length > 0) {
+      const firstNode = validNodes[0];
+      const lastNode = validNodes[validNodes.length - 1];
+      const newRange = document.createRange();
+      newRange.setStart(firstNode, 0);
+      newRange.setEnd(lastNode, lastNode.nodeValue.length);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+      this.lastClinicalSelection = { el: editorEl, range: newRange.cloneRange() };
+    }
   }
 
   /**
@@ -1852,9 +2399,8 @@ class PatientController {
     const p = this.patientList.find(x => x.id === patientId);
     if (!p) return;
 
-    const currentVal = p[field] || el.innerText || '';
-    const cleanCurrent = this.stripHtmlPreserveNumbers(currentVal);
-    const newVal = this.toggleNumbering(cleanCurrent);
+    const currentVal = this.getClinicalCellContent(el) || p[field] || '';
+    const newVal = this.toggleNumbering(currentVal);
 
     p[field] = newVal;
     p.updated_at = new Date().toISOString();
@@ -1864,11 +2410,12 @@ class PatientController {
       window.supabaseService.savePatient(p, this.currentDate);
     }
 
-    el.innerHTML = this.formatClinicalDisplay(newVal);
+    const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
+    el.innerHTML = isCls ? this.formatClsDisplay(newVal) : this.formatClinicalDisplay(newVal);
     el.classList.add('saved-pulse');
     setTimeout(() => el.classList.remove('saved-pulse'), 700);
 
-    const label = field === 'chan_doan' ? 'Chẩn đoán' : 'Y lệnh';
+    const label = field === 'chan_doan' ? 'Chẩn đoán' : (field === 'y_lenh' ? 'Y lệnh' : 'nội dung');
     if (window.showToast) {
       window.showToast(`🔢 Đã cập nhật đánh số (1. 2. 3...) cho ${label}!`, 'info');
     }
@@ -1925,11 +2472,27 @@ class PatientController {
   }
 
   /**
-   * Đánh số thứ tự trong Modal chi tiết (Textarea)
+   * Đánh số thứ tự trong Modal chi tiết (Rich Editor + Backing Textarea)
    */
   toggleTextareaNumbering(textareaId) {
     const ta = document.getElementById(textareaId);
+    const richEl = document.getElementById(`${textareaId}Rich`);
     if (!ta) return;
+
+    if (richEl) {
+      const currentVal = this.getClinicalCellContent(richEl);
+      const toggled = this.toggleNumbering(currentVal);
+      ta.value = toggled;
+      const field = richEl.dataset.field;
+      const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
+      richEl.innerHTML = toggled
+        ? (isCls ? this.formatClsDisplay(toggled) : this.formatClinicalDisplay(toggled))
+        : '';
+      richEl.focus();
+      if (window.showToast) window.showToast('🔢 Đã cập nhật đánh số (1, 2, 3...) giống Word!', 'info');
+      return;
+    }
+
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
     const val = ta.value;
@@ -1951,9 +2514,29 @@ class PatientController {
   }
 
   /**
-   * In đậm đoạn bôi đen trong Textarea Modal
+   * In đậm đoạn bôi đen trong Modal Rich Editor / Textarea
    */
   boldSelectionInTextarea(textareaId) {
+    const richEl = document.getElementById(`${textareaId}Rich`);
+    if (richEl) {
+      const resolved = this.resolveEditorAndRange(richEl);
+      if (resolved) {
+        richEl.focus();
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(resolved.range);
+        }
+        document.execCommand('bold', false, null);
+        this.syncTextareaFromRichEditor(richEl);
+        return;
+      }
+      richEl.focus();
+      document.execCommand('bold', false, null);
+      this.syncTextareaFromRichEditor(richEl);
+      return;
+    }
+
     const ta = document.getElementById(textareaId);
     if (!ta) return;
     const start = ta.selectionStart;
@@ -1981,9 +2564,11 @@ class PatientController {
   }
 
   /**
-   * Chép nội dung từ Textarea Modal sang Clipboard
+   * Chép nội dung từ Modal sang Clipboard (thuần chữ giữ số thứ tự)
    */
   copyTextareaContent(textareaId, label) {
+    const richEl = document.getElementById(`${textareaId}Rich`);
+    if (richEl) this.syncTextareaFromRichEditor(richEl);
     const ta = document.getElementById(textareaId);
     if (!ta) return;
     const plainText = this.stripHtmlPreserveNumbers(ta.value);
@@ -1991,10 +2576,26 @@ class PatientController {
   }
 
   /**
-   * Chèn nhanh nhãn CLS như [Máu], [Sinh hóa] vào Textarea Modal
+   * Chèn nhanh nhãn CLS như [Máu], [Sinh hóa] vào Modal
    */
   insertClsTag(textareaId, tag) {
     const ta = document.getElementById(textareaId);
+    const richEl = document.getElementById(`${textareaId}Rich`);
+    if (richEl) {
+      richEl.focus();
+      const sel = window.getSelection();
+      const inEditor = sel && sel.rangeCount > 0 && richEl.contains(sel.getRangeAt(0).commonAncestorContainer);
+      if (inEditor) {
+        document.execCommand('insertText', false, `${tag} `);
+      } else {
+        const cur = this.getClinicalCellContent(richEl);
+        const updated = cur ? `${cur} ${tag} ` : `${tag} `;
+        richEl.innerHTML = this.formatClsDisplay(updated);
+      }
+      this.syncTextareaFromRichEditor(richEl);
+      return;
+    }
+
     if (!ta) return;
     const pos = ta.selectionStart;
     const val = ta.value;
@@ -2013,7 +2614,7 @@ class PatientController {
     if (!el) return;
     const p = this.patientList.find(x => x.id === patientId);
     if (!p) return;
-    const current = (p[field] || '').trim();
+    const current = (this.getClinicalCellContent(el) || p[field] || '').trim();
     const updated = current ? `${current} ${tag}` : `${tag}`;
     p[field] = updated;
     if (field === 'cls_hien_co' || field === 'cls_can_lam') {
@@ -2031,29 +2632,45 @@ class PatientController {
   }
 
   /**
-   * Xử lý phím Enter & phím tắt giống Word trên ô chỉnh sửa trực tiếp (Desktop Table)
+   * Xử lý phím Enter & phím tắt giống Word trên ô chỉnh sửa trực tiếp (Desktop Table & Modal Rich Editor)
    */
   handleClinicalKeyDown(e, patientId, field, el) {
-    // 1. Phím Escape hoặc Ctrl+Enter: Thoát ô chỉnh sửa
+    const isModalRich = el?.classList?.contains('modal-rich-editor');
+
+    // 1. Phím Escape hoặc Ctrl+Enter: Trên bảng thì thoát ô; trong Modal thì nhường app.js xử lý đóng/lưu modal
     if (e.key === 'Escape' || (e.key === 'Enter' && e.ctrlKey)) {
-      e.preventDefault();
-      el.blur();
+      if (!isModalRich) {
+        e.preventDefault();
+        el.blur();
+      }
       return;
     }
 
     // 2. Phím Alt+N hoặc Ctrl+Shift+7: Đánh số thứ tự
     if ((e.altKey && (e.key === 'n' || e.key === 'N')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '7' || e.key === '&'))) {
       e.preventDefault();
-      this.toggleCellNumbering(el, patientId, field);
+      if (isModalRich && el.dataset.textareaId) {
+        this.toggleTextareaNumbering(el.dataset.textareaId);
+      } else {
+        this.toggleCellNumbering(el, patientId, field);
+      }
       return;
     }
 
-    // 3. Phím Ctrl+B / Cmd+B: In đậm (Native execCommand hoạt động hoàn hảo trong contenteditable)
+    // 3. Phím Alt+H hoặc Ctrl+Shift+H: Highlight đoạn bôi đen (hoặc bỏ highlight)
+    if ((e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'h' || e.key === 'H'))) {
+      e.preventDefault();
+      this.toggleHighlightFromShortcut(el);
+      return;
+    }
+
+    // 4. Phím Ctrl+B / Cmd+B: In đậm
     if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+      setTimeout(() => this.notifyEditorMutated(el), 0);
       return;
     }
 
-    // 4. Xử lý Enter giống Word (Auto-numbering)
+    // 5. Xử lý Enter giống Word (Auto-numbering)
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
@@ -2082,8 +2699,15 @@ class PatientController {
             const lastIdx = allLines.length - 1;
             allLines[lastIdx] = allLines[lastIdx].replace(/^\s*(?:<b[^>]*>)?\s*\d+[\.\/\)]\s*(?:<\/b>)?\s*/, '');
             const cleanNew = allLines.join('\n');
-            el.innerHTML = this.formatClinicalDisplay(cleanNew);
-            this.handleCellInput(patientId, field, cleanNew, el);
+            const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
+            el.innerHTML = cleanNew
+              ? (isCls ? this.formatClsDisplay(cleanNew) : this.formatClinicalDisplay(cleanNew))
+              : '';
+            if (isModalRich) {
+              this.syncTextareaFromRichEditor(el);
+            } else {
+              this.handleCellInput(patientId, field, cleanNew, el);
+            }
             const newRange = document.createRange();
             newRange.selectNodeContents(el);
             newRange.collapse(false);
@@ -2095,7 +2719,11 @@ class PatientController {
           const nextNum = num + 1;
           const htmlToInsert = `<br><b class="med-num-prefix" style="font-weight: 700;">${nextNum}${sep} </b>`;
           document.execCommand('insertHTML', false, htmlToInsert);
-          this.handleCellInput(patientId, field, this.getClinicalCellContent(el), el);
+          if (isModalRich) {
+            this.syncTextareaFromRichEditor(el);
+          } else {
+            this.handleCellInput(patientId, field, this.getClinicalCellContent(el), el);
+          }
         }
       }
     }
@@ -2570,6 +3198,7 @@ class PatientController {
     document.getElementById('editHandoverStatus').value = CONFIG.HANDOVER_STATUS.NONE;
     document.getElementById('editHandoverIssues').value = '';
     document.getElementById('editHandoverActions').value = '';
+    this.syncModalRichEditorsFromTextareas();
 
     modal.classList.add('active');
     setTimeout(() => {
@@ -3080,16 +3709,20 @@ class PatientController {
     const q = this.currentFilterQuery.toLowerCase().trim();
     if (!q) return list;
 
+    const toSearchText = (val) => this.stripHtmlPreserveNumbers(val || '').toLowerCase();
+
     return list.filter(p => {
       return (p.phong_giuong || '').toLowerCase().includes(q) ||
              (p.ten || '').toLowerCase().includes(q) ||
              (p.doctor_name || '').toLowerCase().includes(q) ||
-             (p.chan_doan || '').toLowerCase().includes(q) ||
-             (p.cls_hien_co || '').toLowerCase().includes(q) ||
-             (p.cls_can_lam || '').toLowerCase().includes(q) ||
-             (p.cls || '').toLowerCase().includes(q) ||
-             (p.y_lenh || '').toLowerCase().includes(q) ||
-             (p.them_thuoc || '').toLowerCase().includes(q) ||
+             toSearchText(p.trieu_chung).includes(q) ||
+             toSearchText(p.kham_lam_sang).includes(q) ||
+             toSearchText(p.chan_doan).includes(q) ||
+             toSearchText(p.cls_hien_co).includes(q) ||
+             toSearchText(p.cls_can_lam).includes(q) ||
+             toSearchText(p.cls).includes(q) ||
+             toSearchText(p.y_lenh).includes(q) ||
+             toSearchText(p.them_thuoc).includes(q) ||
              (p.handover_issues || '').toLowerCase().includes(q) ||
              (p.handover_actions || '').toLowerCase().includes(q);
     });
@@ -3470,12 +4103,15 @@ class PatientController {
           <div class="med-tier-header no-print">
             <span class="med-micro-badge badge-s" title="Triệu chứng cơ năng">🗣️ Cơ năng</span>
             <div class="med-cell-tools">
+              <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'trieu_chung')">🖍️</button>
               <button type="button" class="btn-micro-tool" title="Chép Triệu chứng sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'trieu_chung')">📋</button>
             </div>
           </div>
           <div class="med-cell-editor col-editable" contenteditable="true"
+               data-patient-id="${p.id}" data-field="trieu_chung"
                data-placeholder="Triệu chứng cơ năng, bệnh sử..."
                oninput="window.patientController.handleCellInput('${p.id}', 'trieu_chung', window.patientController.getClinicalCellContent(this), this)"
+               onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'trieu_chung', this)"
                onblur="window.patientController.handleCellBlur('${p.id}', 'trieu_chung', window.patientController.getClinicalCellContent(this), this)">${this.formatClinicalDisplay(p.trieu_chung || '')}</div>
         </td>
 
@@ -3487,10 +4123,12 @@ class PatientController {
                 <div class="med-tier-header">
                   <span class="med-micro-badge badge-ls">LS:</span>
                   <div class="med-cell-tools no-print">
+                    <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'kham_lam_sang')">🖍️</button>
                     <button type="button" class="btn-micro-tool" title="Chép Khám LS sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'kham_lam_sang')">📋</button>
                   </div>
                 </div>
                 <div class="med-cell-editor col-editable" contenteditable="true"
+                     data-patient-id="${p.id}" data-field="kham_lam_sang"
                      data-placeholder="Khám LS, sinh hiệu..."
                      oninput="window.patientController.handleCellInput('${p.id}', 'kham_lam_sang', window.patientController.getClinicalCellContent(this), this)"
                      onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'kham_lam_sang', this)"
@@ -3501,14 +4139,16 @@ class PatientController {
                   <span class="med-micro-badge badge-cls">CLS:</span>
                   <div class="med-cell-tools no-print">
                     <button type="button" class="btn-micro-tool" title="Chèn nhanh [Máu] (Alt+M)" onclick="event.stopPropagation(); window.patientController.insertClsTagToCell(this.closest('.med-o-pane').querySelector('.med-cell-editor'), '${p.id}', 'cls_hien_co', '[Máu] ')">💉</button>
+                    <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'cls_hien_co')">🖍️</button>
                     <button type="button" class="btn-micro-tool" title="Chép CLS Hiện có" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_hien_co')">📋</button>
                   </div>
                 </div>
                 <div class="med-cell-editor col-editable" contenteditable="true"
+                     data-patient-id="${p.id}" data-field="cls_hien_co"
                      data-placeholder="Kết quả CLS..."
-                     oninput="window.patientController.handleCellInput('${p.id}', 'cls_hien_co', this.innerText, this)"
+                     oninput="window.patientController.handleCellInput('${p.id}', 'cls_hien_co', window.patientController.getClinicalCellContent(this), this)"
                      onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'cls_hien_co', this)"
-                     onblur="window.patientController.handleCellBlur('${p.id}', 'cls_hien_co', this.innerText, this)">${this.formatClsDisplay(p.cls_hien_co || '')}</div>
+                     onblur="window.patientController.handleCellBlur('${p.id}', 'cls_hien_co', window.patientController.getClinicalCellContent(this), this)">${this.formatClsDisplay(p.cls_hien_co || '')}</div>
               </div>
             </div>
             <div class="med-o-bottom-row ${p.cls_can_lam ? 'has-content' : ''}" onclick="this.querySelector('.med-cell-editor')?.focus()">
@@ -3518,14 +4158,16 @@ class PatientController {
                   ${p.cls_can_lam ? `
                     <button type="button" class="btn-micro-tool" title="Đã có kết quả: Tự động chuyển nội dung vào CLS Hiện Có" onclick="event.stopPropagation(); window.patientController.transferPendingClsToPresent('${p.id}')">📥</button>
                   ` : ''}
+                  <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'cls_can_lam')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép CLS Cần làm sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_can_lam')">📋</button>
                 </div>
               </div>
               <div class="med-cell-editor col-editable ${p.cls_can_lam ? 'text-pending-highlight' : ''}" contenteditable="true"
+                   data-patient-id="${p.id}" data-field="cls_can_lam"
                    data-placeholder="+ Chỉ định CLS mới cần làm..."
-                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_can_lam', this.innerText, this)"
+                   oninput="window.patientController.handleCellInput('${p.id}', 'cls_can_lam', window.patientController.getClinicalCellContent(this), this)"
                    onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'cls_can_lam', this)"
-                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_can_lam', this.innerText, this)">${this.formatClsDisplay(p.cls_can_lam || '')}</div>
+                   onblur="window.patientController.handleCellBlur('${p.id}', 'cls_can_lam', window.patientController.getClinicalCellContent(this), this)">${this.formatClsDisplay(p.cls_can_lam || '')}</div>
             </div>
           </div>
         </td>
@@ -3537,10 +4179,12 @@ class PatientController {
               <span class="med-micro-badge badge-cd">🩺 CĐ</span>
               <div class="med-cell-tools">
                 <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... giống Word (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-cd-cell').querySelector('.med-cell-editor'), '${p.id}', 'chan_doan')">🔢</button>
+                <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'chan_doan')">🖍️</button>
                 <button type="button" class="btn-micro-tool" title="Chép Chẩn đoán sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'chan_doan')">📋</button>
               </div>
             </div>
             <div class="med-cell-editor col-editable cd-editor" contenteditable="true"
+                 data-patient-id="${p.id}" data-field="chan_doan"
                  data-placeholder="Chẩn đoán xác định / kèm theo..."
                  oninput="window.patientController.handleCellInput('${p.id}', 'chan_doan', window.patientController.getClinicalCellContent(this), this)"
                  onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'chan_doan', this)"
@@ -3556,10 +4200,12 @@ class PatientController {
                 <span class="med-micro-badge badge-orders">📋 Y lệnh</span>
                 <div class="med-cell-tools no-print">
                   <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'y_lenh')">🔢</button>
+                  <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'y_lenh')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép Y lệnh" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'y_lenh')">📋</button>
                 </div>
               </div>
               <div class="med-cell-editor col-editable" contenteditable="true"
+                   data-patient-id="${p.id}" data-field="y_lenh"
                    data-placeholder="Y lệnh điều trị, thuốc, dịch truyền..."
                    oninput="window.patientController.handleCellInput('${p.id}', 'y_lenh', window.patientController.getClinicalCellContent(this), this)"
                    onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'y_lenh', this)"
@@ -3574,10 +4220,12 @@ class PatientController {
                     <button type="button" class="btn-micro-tool" title="Đã duyệt: Tự động chuyển thuốc bổ sung vào Y Lệnh Điều Trị" onclick="event.stopPropagation(); window.patientController.transferExtraRxToOrders('${p.id}')">📥</button>
                   ` : ''}
                   <button type="button" class="btn-micro-tool" title="Đánh số thuốc" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'them_thuoc')">🔢</button>
+                  <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'them_thuoc')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép thuốc bổ sung" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'them_thuoc')">📋</button>
                 </div>
               </div>
               <div class="med-cell-editor col-editable ${p.them_thuoc ? 'text-rx-highlight' : ''}" contenteditable="true"
+                   data-patient-id="${p.id}" data-field="them_thuoc"
                    data-placeholder="+ Bổ sung thuốc mới..."
                    oninput="window.patientController.handleCellInput('${p.id}', 'them_thuoc', window.patientController.getClinicalCellContent(this), this)"
                    onkeydown="window.patientController.handleClinicalKeyDown(event, '${p.id}', 'them_thuoc', this)"
@@ -4007,6 +4655,7 @@ class PatientController {
     if (issInput) issInput.value = p.handover_issues || '';
     const actInput = document.getElementById('editHandoverActions');
     if (actInput) actInput.value = p.handover_actions || '';
+    this.syncModalRichEditorsFromTextareas();
   }
 
   showModalRemoteUpdateNotice(record) {
@@ -4114,6 +4763,7 @@ class PatientController {
   }
 
   savePatientFromDetailModal() {
+    this.syncAllTextareasFromModalRichEditors();
     const id = document.getElementById('editPatientId').value;
 
     let cdVal = document.getElementById('editDiagnosis').value.trim();
@@ -4262,26 +4912,30 @@ class PatientController {
     this.normalizePatientClsAndOrders(p);
 
     let lines = [];
+    const plain = (v) => this.stripHtmlPreserveNumbers(v || '').trim();
 
     // (S) Triệu chứng cơ năng
     lines.push('(S)');
-    if (p.trieu_chung && p.trieu_chung.trim()) {
-      lines.push(p.trieu_chung.trim());
+    const tcPlain = plain(p.trieu_chung);
+    if (tcPlain) {
+      lines.push(tcPlain);
     } else {
       lines.push('Tỉnh táo, không sốt, ăn uống được');
     }
 
     // (O) Khám thực thể & Cận lâm sàng
     lines.push('(O)');
-    if (p.kham_lam_sang && p.kham_lam_sang.trim()) {
-      lines.push(p.kham_lam_sang.trim());
+    const klsPlain = plain(p.kham_lam_sang);
+    if (klsPlain) {
+      lines.push(klsPlain);
     } else {
       lines.push('Bệnh nhân tỉnh, tiếp xúc tốt\nDa niêm hồng, chi ấm, mạch rõ\nTim đều, phổi trong, bụng mềm');
     }
 
-    if (p.cls_hien_co && p.cls_hien_co.trim()) {
+    const clsHcPlain = plain(p.cls_hien_co);
+    if (clsHcPlain) {
       lines.push('CLS:');
-      const clsLines = p.cls_hien_co.trim().split('\n');
+      const clsLines = clsHcPlain.split('\n');
       clsLines.forEach(l => {
         const trL = l.trim();
         if (trL) {
@@ -4292,22 +4946,26 @@ class PatientController {
 
     // (A) Chẩn đoán & Vấn đề
     lines.push('(A)');
-    if (p.chan_doan && p.chan_doan.trim()) {
-      lines.push(p.chan_doan.trim());
+    const cdPlain = plain(p.chan_doan);
+    if (cdPlain) {
+      lines.push(cdPlain);
     } else {
       lines.push('Theo dõi diễn tiến ổn định');
     }
 
     // (P) Y lệnh & Điều trị
     lines.push('(P)');
-    if (p.y_lenh && p.y_lenh.trim()) {
-      lines.push(p.y_lenh.trim());
+    const ylPlain = plain(p.y_lenh);
+    if (ylPlain) {
+      lines.push(ylPlain);
     }
-    if (p.them_thuoc && p.them_thuoc.trim()) {
-      lines.push(`[Thêm thuốc]: ${p.them_thuoc.trim()}`);
+    const rxPlain = plain(p.them_thuoc);
+    if (rxPlain) {
+      lines.push(`[Thêm thuốc]: ${rxPlain}`);
     }
-    if (p.cls_can_lam && p.cls_can_lam.trim()) {
-      lines.push(`Chỉ định cận lâm sàng:\n${p.cls_can_lam.trim()}`);
+    const clsClPlain = plain(p.cls_can_lam);
+    if (clsClPlain) {
+      lines.push(`Chỉ định cận lâm sàng:\n${clsClPlain}`);
     }
 
     return lines.join('\n');
@@ -4326,6 +4984,7 @@ class PatientController {
     // Nếu đang mở trong modal, ưu tiên lấy trực tiếp giá trị đang hiển thị trên các ô nhập
     const modalId = document.getElementById('editPatientId')?.value;
     if (modalId && modalId === p.id) {
+      this.syncAllTextareasFromModalRichEditors();
       p = {
         ...p,
         trieu_chung: document.getElementById('editTrieuChung')?.value.trim() || p.trieu_chung,
@@ -4435,6 +5094,7 @@ class PatientController {
   }
 
   transferPendingClsToPresentInModal() {
+    this.syncAllTextareasFromModalRichEditors();
     const pendingEl = document.getElementById('editClsCanLam');
     const presentEl = document.getElementById('editClsHienCo');
     if (!pendingEl || !presentEl) return;
@@ -4448,6 +5108,7 @@ class PatientController {
     const present = presentEl.value.trim();
     presentEl.value = present ? `${present}\n${pending}` : pending;
     pendingEl.value = '';
+    this.syncModalRichEditorsFromTextareas();
 
     // Kiểm tra trạng thái nếu không còn thêm thuốc thì chuyển select về Ổn định
     const extraRx = document.getElementById('editThemThuoc')?.value.trim();
@@ -4463,6 +5124,7 @@ class PatientController {
   }
 
   transferExtraRxToOrdersInModal() {
+    this.syncAllTextareasFromModalRichEditors();
     const extraEl = document.getElementById('editThemThuoc');
     const ordersEl = document.getElementById('editOrders');
     if (!extraEl || !ordersEl) return;
@@ -4476,6 +5138,7 @@ class PatientController {
     const orders = ordersEl.value.trim();
     ordersEl.value = orders ? `${orders}\n${extra}` : extra;
     extraEl.value = '';
+    this.syncModalRichEditorsFromTextareas();
 
     // Kiểm tra trạng thái nếu không còn CLS cần làm thì chuyển select về Ổn định
     const pendingCls = document.getElementById('editClsCanLam')?.value.trim();
@@ -4710,6 +5373,7 @@ class PatientController {
     if (parsed.them_thuoc && document.getElementById('editThemThuoc')) {
       document.getElementById('editThemThuoc').value = parsed.them_thuoc;
     }
+    this.syncModalRichEditorsFromTextareas();
 
     this.closeSmartSoapPasteModal();
 
@@ -4803,6 +5467,7 @@ class PatientController {
     const p = this.patientList.find(item => item.id === this.currentEditingPatientId);
     if (!p) return;
 
+    this.syncAllTextareasFromModalRichEditors();
     const chanDoan = document.getElementById('editDiagnosis')?.value.trim();
     const clsHcVal = document.getElementById('editClsHienCo') ? document.getElementById('editClsHienCo').value.trim() : '';
     const clsClVal = document.getElementById('editClsCanLam') ? document.getElementById('editClsCanLam').value.trim() : '';
@@ -4901,11 +5566,11 @@ class PatientController {
     let rowsHtml = '';
     targetList.forEach((p, idx) => {
       const clsCanLamHtml = p.cls_can_lam && p.cls_can_lam.trim()
-        ? `<div class="nurse-item-cls"><span class="nurse-bullet">🔬</span> ${this.escape(p.cls_can_lam)}</div>`
+        ? `<div class="nurse-item-cls"><span class="nurse-bullet">🔬</span> ${this.formatClsDisplay(p.cls_can_lam)}</div>`
         : `<span class="nurse-item-empty">—</span>`;
 
       const themThuocHtml = p.them_thuoc && p.them_thuoc.trim()
-        ? `<div class="nurse-item-rx"><span class="nurse-bullet">💊</span> <strong>${this.escape(p.them_thuoc)}</strong></div>`
+        ? `<div class="nurse-item-rx"><span class="nurse-bullet">💊</span> <strong>${this.formatClinicalDisplay(p.them_thuoc)}</strong></div>`
         : `<span class="nurse-item-empty">—</span>`;
 
       rowsHtml += `
@@ -5042,17 +5707,20 @@ class PatientController {
       const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
       const ns = p.nam_sinh_tuoi || '—';
       const phong = p.phong_giuong || 'Chưa xếp phòng';
-      const cd = p.chan_doan || 'Chưa ghi';
+      const cd = this.stripHtmlPreserveNumbers(p.chan_doan || '') || 'Chưa ghi';
 
       let issues = [];
-      if (p.cls_can_lam && p.cls_can_lam.trim()) {
-        issues.push('CLS: ' + p.cls_can_lam.trim());
+      const clsClPlain = this.stripHtmlPreserveNumbers(p.cls_can_lam || '');
+      const themThuocPlain = this.stripHtmlPreserveNumbers(p.them_thuoc || '');
+      const ylPlain = this.stripHtmlPreserveNumbers(p.y_lenh || '');
+      if (clsClPlain) {
+        issues.push('CLS: ' + clsClPlain);
       }
-      if (p.them_thuoc && p.them_thuoc.trim()) {
-        issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
+      if (themThuocPlain) {
+        issues.push('Thuốc thêm: ' + themThuocPlain);
       }
-      if (issues.length === 0 && p.y_lenh && p.y_lenh.trim()) {
-        issues.push('Y lệnh: ' + p.y_lenh.trim());
+      if (issues.length === 0 && ylPlain) {
+        issues.push('Y lệnh: ' + ylPlain);
       }
       const vanDe = issues.length > 0 ? issues.join('; ') : 'Thực hiện y lệnh thường quy';
 
@@ -5124,8 +5792,8 @@ class PatientController {
         'Buồng - Giường': p.phong_giuong || '',
         'Họ và tên': p.ten || '',
         'Năm sinh / Tuổi': p.nam_sinh_tuoi || '',
-        'Triệu chứng': p.trieu_chung || '',
-        'Khám lâm sàng': p.kham_lam_sang || '',
+        'Triệu chứng': this.stripHtmlPreserveNumbers(p.trieu_chung || ''),
+        'Khám lâm sàng': this.stripHtmlPreserveNumbers(p.kham_lam_sang || ''),
         'Chẩn đoán': this.stripHtmlPreserveNumbers(p.chan_doan || ''),
         'CLS Hiện có': this.stripHtmlPreserveNumbers(p.cls_hien_co || p.cls || ''),
         'CLS Cần làm': this.stripHtmlPreserveNumbers(p.cls_can_lam || ''),
@@ -5843,7 +6511,7 @@ class PatientController {
         </div>
         <div class="row-info">
           <span class="row-label">Chẩn đoán:</span>
-          <span class="row-val" style="font-size: 12.5px;">${this.escape(existingDup.chan_doan || 'Chưa ghi')}</span>
+          <span class="row-val" style="font-size: 12.5px;">${this.formatClinicalDisplay(existingDup.chan_doan || 'Chưa ghi')}</span>
         </div>
       </div>
 

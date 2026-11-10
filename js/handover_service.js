@@ -52,11 +52,14 @@ class HandoverController {
     if (!modal) return;
 
     // Hiển thị thông tin tóm tắt người bệnh
+    const diagHtml = window.patientController?.formatClinicalDisplay
+      ? window.patientController.formatClinicalDisplay(p.chan_doan || 'Chưa ghi chẩn đoán')
+      : this.escape(p.chan_doan || 'Chưa ghi chẩn đoán');
     document.getElementById('hoPatientHeader').innerHTML = `
       <div class="ho-badge-room">🛏️ ${this.escape(p.phong_giuong || 'Chưa xếp giường')}</div>
       <div class="ho-patient-info">
         <strong>${this.escape(p.ten)}</strong> • ${this.escape(p.nam_sinh_tuoi || '')}
-        <div class="ho-diagnosis">${this.escape(p.chan_doan || 'Chưa ghi chẩn đoán')}</div>
+        <div class="ho-diagnosis">${diagHtml}</div>
       </div>
     `;
 
@@ -226,7 +229,7 @@ class HandoverController {
           </div>
 
           <div class="ho-card-diag">
-            <strong>Chẩn đoán:</strong> ${this.escape(p.chan_doan || '—')}
+            <strong>Chẩn đoán:</strong> ${window.patientController?.formatClinicalDisplay ? window.patientController.formatClinicalDisplay(p.chan_doan || '—') : this.escape(p.chan_doan || '—')}
           </div>
 
           <div class="ho-card-issues-box">
@@ -265,6 +268,9 @@ class HandoverController {
   // ==============================================================================
   extractPatientProblem(p) {
     if (!p) return 'Theo dõi thường quy';
+    const plain = (v) => window.patientController?.stripHtmlPreserveNumbers
+      ? window.patientController.stripHtmlPreserveNumbers(v || '')
+      : String(v || '').replace(/<[^>]+>/g, '').trim();
     let issues = [];
     if (p.handover_issues && p.handover_issues.trim()) {
       issues.push(p.handover_issues.trim());
@@ -273,9 +279,12 @@ class HandoverController {
       issues.push('Xử trí: ' + p.handover_actions.trim());
     }
     if (issues.length === 0) {
-      if (p.cls_can_lam && p.cls_can_lam.trim()) issues.push('CLS: ' + p.cls_can_lam.trim());
-      if (p.them_thuoc && p.them_thuoc.trim()) issues.push('Thuốc thêm: ' + p.them_thuoc.trim());
-      if (p.y_lenh && p.y_lenh.trim()) issues.push('Y lệnh: ' + p.y_lenh.trim());
+      const clsCl = plain(p.cls_can_lam);
+      const themThuoc = plain(p.them_thuoc);
+      const yLenh = plain(p.y_lenh);
+      if (clsCl) issues.push('CLS: ' + clsCl);
+      if (themThuoc) issues.push('Thuốc thêm: ' + themThuoc);
+      if (yLenh) issues.push('Y lệnh: ' + yLenh);
     }
     let res = issues.length > 0 ? issues.join('; ') : 'Theo dõi thường quy';
     if (p.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) {
@@ -295,7 +304,10 @@ class HandoverController {
     const ten = (p.ten || 'BỆNH NHÂN').toUpperCase();
     const ns = p.nam_sinh_tuoi || '—';
     const phong = p.phong_giuong || 'Chưa xếp phòng';
-    const cd = p.chan_doan || 'Chưa ghi';
+    const cdPlain = window.patientController?.stripHtmlPreserveNumbers
+      ? window.patientController.stripHtmlPreserveNumbers(p.chan_doan || '')
+      : String(p.chan_doan || '').replace(/<[^>]+>/g, '').trim();
+    const cd = cdPlain || 'Chưa ghi';
     const vanDe = this.extractPatientProblem(p);
 
     if (isSingle) {

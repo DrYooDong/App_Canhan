@@ -152,10 +152,15 @@ class MedWardApp {
           return;
         }
 
+        // Ctrl + Shift + H: Highlight đoạn văn bản bôi đen trong ô lâm sàng
         // Ctrl + H: Mở Bảng bàn giao ca trực
         if (lowerKey === 'h') {
           e.preventDefault();
-          window.handoverController?.openHandoverDashboard?.();
+          if (e.shiftKey && isInput) {
+            window.patientController?.toggleHighlightFromShortcut?.();
+          } else if (!e.shiftKey) {
+            window.handoverController?.openHandoverDashboard?.();
+          }
           return;
         }
 
@@ -287,7 +292,10 @@ class MedWardApp {
         if (lowerKey === 'm' && isInput) {
           e.preventDefault();
           const targetId = activeEl.id;
-          if (targetId) {
+          const modalTaId = activeEl.dataset?.textareaId;
+          if (modalTaId) {
+            window.patientController?.insertClsTag?.(modalTaId, '[Máu]');
+          } else if (targetId) {
             window.patientController?.insertClsTag?.(targetId, '[Máu]');
           } else if (activeEl.classList.contains('col-editable')) {
             const row = activeEl.closest('tr');
@@ -296,6 +304,12 @@ class MedWardApp {
               window.patientController?.insertClsTagToCell?.(activeEl, pId, 'cls_hien_co', '[Máu] ');
             }
           }
+          return;
+        }
+        // Alt + H: Highlight nhanh đoạn bôi đen trong ô nhập lâm sàng / Modal
+        if (lowerKey === 'h' && isInput) {
+          e.preventDefault();
+          window.patientController?.toggleHighlightFromShortcut?.(activeEl);
           return;
         }
       }

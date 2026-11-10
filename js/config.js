@@ -257,7 +257,7 @@ const CONFIG = {
     ]
   },
 
-  // HÀM TỰ ĐỘNG MỞ RỘNG TỪ VIẾT TẮT Y KHOA THÔNG MINH (SINGLE-PASS, IDEMPOTENT & ANTI-DUPLICATION)
+  // HÀM TỰ ĐỘNG MỞ RỘNG TỪ VIẾT TẮT Y KHOA THÔNG MINH (SINGLE-PASS, IDEMPOTENT & HTML-SAFE)
   expandMedicalText(text) {
     if (!text || typeof text !== 'string') return text;
 
@@ -265,41 +265,53 @@ const CONFIG = {
     const lookup = CONFIG.ABBREVIATIONS;
     if (!lookup || Object.keys(lookup).length === 0) return text;
 
-    return text.replace(/([a-zA-Z0-9_À-ỹ]+(?:[\/\-_][a-zA-Z0-9_À-ỹ]+)*)/gu, (match, p1, offset, fullStr) => {
-      const lower = match.toLowerCase();
-      const replacement = lookup[lower];
-      if (!replacement) return match;
+    const expandSegment = (segment) => {
+      return segment.replace(/([a-zA-Z0-9_À-ỹ]+(?:[\/\-_][a-zA-Z0-9_À-ỹ]+)*)/gu, (match, p1, offset, fullStr) => {
+        const lower = match.toLowerCase();
+        const replacement = lookup[lower];
+        if (!replacement) return match;
 
-      // Nếu từ gốc và từ thay thế tương đồng (ví dụ: 'ttm' -> 'TTM')
-      if (replacement.toLowerCase() === lower) {
-        return replacement;
-      }
+        // Nếu từ gốc và từ thay thế tương đồng (ví dụ: 'ttm' -> 'TTM')
+        if (replacement.toLowerCase() === lower) {
+          return replacement;
+        }
 
-      // 1. Kiểm tra chống lặp vô hạn nếu từ này đã nằm trong cụm từ mở rộng
-      const startWindow = Math.max(0, offset - replacement.length);
-      const endWindow = Math.min(fullStr.length, offset + match.length + replacement.length);
-      const windowText = fullStr.slice(startWindow, endWindow).toLowerCase();
+        // 1. Kiểm tra chống lặp vô hạn nếu từ này đã nằm trong cụm từ mở rộng
+        const startWindow = Math.max(0, offset - replacement.length);
+        const endWindow = Math.min(fullStr.length, offset + match.length + replacement.length);
+        const windowText = fullStr.slice(startWindow, endWindow).toLowerCase();
 
-      if (windowText.includes(replacement.toLowerCase())) {
-        return match; // Đã nằm trong cụm đã mở rộng
-      }
+        if (windowText.includes(replacement.toLowerCase())) {
+          return match; // Đã nằm trong cụm đã mở rộng
+        }
 
-      // 2. Kiểm tra trùng lặp hậu tố (ví dụ: gõ 'dtđ type 2' -> không bị lặp thành 'ĐTĐ type 2 type 2')
-      const rest = fullStr.slice(offset + match.length);
-      const repWords = replacement.trim().split(/\s+/);
-      if (repWords.length > 1) {
-        for (let i = 1; i < repWords.length; i++) {
-          const suffix = repWords.slice(i).join(' ');
-          const regex = new RegExp(`^\\s*${suffix.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}`, 'i');
-          if (regex.test(rest)) {
-            // Phần sau đã có sẵn hậu tố, chỉ lấy phần trước của replacement
-            return repWords.slice(0, i).join(' ');
+        // 2. Kiểm tra trùng lặp hậu tố (ví dụ: gõ 'dtđ type 2' -> không bị lặp thành 'ĐTĐ type 2 type 2')
+        const rest = fullStr.slice(offset + match.length);
+        const repWords = replacement.trim().split(/\s+/);
+        if (repWords.length > 1) {
+          for (let i = 1; i < repWords.length; i++) {
+            const suffix = repWords.slice(i).join(' ');
+            const regex = new RegExp(`^\\s*${suffix.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}`, 'i');
+            if (regex.test(rest)) {
+              // Phần sau đã có sẵn hậu tố, chỉ lấy phần trước của replacement
+              return repWords.slice(0, i).join(' ');
+            }
           }
         }
-      }
 
-      return replacement;
-    });
+        return replacement;
+      });
+    };
+
+    // Nếu có thẻ HTML (vd: <mark class="...">, <b>), chỉ mở rộng phần chữ ngoài thẻ
+    if (/<[a-zA-Z\/][^>]*>/.test(text)) {
+      return text.split(/(<[^>]+>)/g).map(part => {
+        if (part.startsWith('<') && part.endsWith('>')) return part;
+        return expandSegment(part);
+      }).join('');
+    }
+
+    return expandSegment(text);
   },
 
   // HÀM TẠO UUID CHUẨN POSTGRESQL (RFC4122 v4)

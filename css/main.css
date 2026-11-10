@@ -1544,22 +1544,6 @@ body.dark-theme .th-num-hint {
   border-color: rgba(56, 189, 248, 0.25);
 }
 
-/* ĐỊNH DẠNG CỘT CLS: IN ĐẬM CẤU TRÚC [MÁU], [SINH HÓA]... */
-.cls-bracket-tag {
-  font-weight: 700 !important;
-  color: #0369a1;
-  background: rgba(3, 105, 161, 0.08);
-  padding: 0 3px;
-  border-radius: 3px;
-  display: inline-block;
-  line-height: 1.35;
-}
-
-body.dark-theme .cls-bracket-tag {
-  color: #38bdf8 !important;
-  background: rgba(56, 189, 248, 0.15);
-}
-
 /* ĐỊNH DẠNG SỐ THỨ TỰ (NUMBERING 1. 2. 3...) IN ĐẬM */
 .med-num-prefix {
   font-weight: 700 !important;
@@ -1568,6 +1552,230 @@ body.dark-theme .cls-bracket-tag {
 
 body.dark-theme .med-num-prefix {
   color: #f8fafc !important;
+}
+
+/* ==============================================================================
+   5.1C HIGHLIGHT LÂM SÀNG TÙY CHỌN & MODAL RICH EDITOR
+   ============================================================================== */
+mark.clinical-hl,
+.med-cell-editor mark,
+.modal-rich-editor mark,
+.mobile-patient-card mark,
+.nurse-table mark,
+.ho-card-diag mark,
+.ho-diagnosis mark {
+  background: #fef08a;
+  color: #713f12;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: 600;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+mark.clinical-hl.hl-yellow {
+  background: #fef08a;
+  color: #713f12;
+}
+
+mark.clinical-hl.hl-red {
+  background: #fecdd3;
+  color: #9f1239;
+}
+
+mark.clinical-hl.hl-green {
+  background: #bbf7d0;
+  color: #14532d;
+}
+
+mark.clinical-hl.hl-blue {
+  background: #bae6fd;
+  color: #0c4a6e;
+}
+
+body.dark-theme mark.clinical-hl,
+body.dark-theme .med-cell-editor mark,
+body.dark-theme .modal-rich-editor mark,
+body.dark-theme .mobile-patient-card mark,
+body.dark-theme .nurse-table mark,
+body.dark-theme .ho-card-diag mark,
+body.dark-theme .ho-diagnosis mark {
+  background: rgba(250, 204, 21, 0.28);
+  color: #fef08a;
+  box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.45);
+}
+
+body.dark-theme mark.clinical-hl.hl-yellow {
+  background: rgba(250, 204, 21, 0.28);
+  color: #fef08a;
+  box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.45);
+}
+
+body.dark-theme mark.clinical-hl.hl-red {
+  background: rgba(244, 63, 94, 0.28);
+  color: #fda4af;
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.45);
+}
+
+body.dark-theme mark.clinical-hl.hl-green {
+  background: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.42);
+}
+
+body.dark-theme mark.clinical-hl.hl-blue {
+  background: rgba(56, 189, 248, 0.26);
+  color: #7dd3fc;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.45);
+}
+
+/* Modal Backing Textarea & Synced Rich Editor */
+.modal-backing-textarea {
+  display: none !important;
+}
+
+.modal-rich-editor {
+  min-height: 68px;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.48;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.modal-rich-editor.modal-rich-rows-2 {
+  min-height: 62px;
+}
+
+.modal-rich-editor.modal-rich-rows-3 {
+  min-height: 84px;
+}
+
+.modal-rich-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-dim, #94a3b8);
+  font-style: italic;
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+/* Floating Rich Format & Highlight Toolbar */
+.clinical-format-toolbar {
+  position: fixed;
+  z-index: 2500;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.22), 0 4px 10px -2px rgba(15, 23, 42, 0.12);
+  user-select: none;
+  -webkit-user-select: none;
+  animation: cftPopIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clinical-format-toolbar.visible {
+  display: inline-flex;
+}
+
+@keyframes cftPopIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.cft-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.cft-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.cft-btn-clear {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cft-btn-clear:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.cft-divider {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+  margin: 0 1px;
+}
+
+.cft-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  padding: 0;
+}
+
+.cft-swatch:hover {
+  transform: scale(1.16);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35);
+}
+
+.cft-swatch.hl-yellow { background: #fde047; }
+.cft-swatch.hl-red    { background: #fda4af; }
+.cft-swatch.hl-green  { background: #86efac; }
+.cft-swatch.hl-blue   { background: #7dd3fc; }
+
+body.dark-theme .clinical-format-toolbar {
+  background: #132038;
+  border-color: #334155;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-theme .cft-btn {
+  color: #e2e8f0;
+}
+
+body.dark-theme .cft-btn:hover {
+  background: #1e293b;
+  border-color: #475569;
+  color: #ffffff;
+}
+
+body.dark-theme .cft-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
+}
+
+body.dark-theme .cft-divider {
+  background: #334155;
+}
+
+body.dark-theme .cft-swatch {
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* THANH CÔNG CỤ NHỎ TRÊN CELL */

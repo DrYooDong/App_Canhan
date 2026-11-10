@@ -421,21 +421,45 @@
     line-height: 1.2 !important;
   }
 
-  .cls-bracket-tag {
-    font-weight: 700 !important;
-    color: #000000 !important;
-    background: transparent !important;
-    padding: 0 !important;
-  }
-
   .med-num-prefix {
     font-weight: 700 !important;
     color: #000000 !important;
   }
 
+  mark.clinical-hl,
+  .med-cell-editor mark {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: #fef08a !important;
+    color: #000000 !important;
+    padding: 0 2px !important;
+    border-radius: 2px !important;
+    font-weight: 700 !important;
+    border-bottom: 1.5px solid #ca8a04 !important;
+  }
+
+  mark.clinical-hl.hl-red {
+    background: #fecdd3 !important;
+    color: #7f1d1d !important;
+    border-bottom-color: #e11d48 !important;
+  }
+
+  mark.clinical-hl.hl-green {
+    background: #bbf7d0 !important;
+    color: #14532d !important;
+    border-bottom-color: #16a34a !important;
+  }
+
+  mark.clinical-hl.hl-blue {
+    background: #bae6fd !important;
+    color: #0c4a6e !important;
+    border-bottom-color: #0284c7 !important;
+  }
+
   .th-num-hint,
   .med-cell-tools,
-  .modal-label-actions {
+  .modal-label-actions,
+  .clinical-format-toolbar {
     display: none !important;
   }
 

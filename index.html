@@ -1082,12 +1082,23 @@
                                 onclick="window.patientController.toggleTextareaNumbering('editTrieuChung')"
                                 title="Đánh số thứ tự (Alt+N)">🔢</button>
                             <button type="button" class="btn-modal-tool"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.boldSelectionInTextarea('editTrieuChung')"
+                                title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool btn-modal-hl"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.openModalHighlightPicker(this, 'editTrieuChung')"
+                                title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
+                            <button type="button" class="btn-modal-tool"
                                 onclick="window.patientController.copyTextareaContent('editTrieuChung', 'Triệu chứng (S)')"
                                 title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editTrieuChung" class="form-control" rows="2"
+                    <textarea id="editTrieuChung" class="form-control modal-backing-textarea" rows="2"
                         placeholder="Triệu chứng cơ năng: Sốt, đau đầu, mệt mỏi, ho, đau bụng, buồn nôn..."></textarea>
+                    <div id="editTrieuChungRich" class="form-control modal-rich-editor modal-rich-rows-2"
+                        contenteditable="true" data-textarea-id="editTrieuChung" data-field="trieu_chung"
+                        data-placeholder="Triệu chứng cơ năng: Sốt, đau đầu, mệt mỏi, ho, đau bụng, buồn nôn..."></div>
                 </div>
 
                 <!-- (O) PHẦN 1: KHÁM LÂM SÀNG & KHÁM THỰC THỂ -->
@@ -1101,12 +1112,23 @@
                                 onclick="window.patientController.toggleTextareaNumbering('editKhamLamSang')"
                                 title="Đánh số thứ tự (Alt+N)">🔢</button>
                             <button type="button" class="btn-modal-tool"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.boldSelectionInTextarea('editKhamLamSang')"
+                                title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool btn-modal-hl"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.openModalHighlightPicker(this, 'editKhamLamSang')"
+                                title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
+                            <button type="button" class="btn-modal-tool"
                                 onclick="window.patientController.copyTextareaContent('editKhamLamSang', 'Khám thực thể (O)')"
                                 title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editKhamLamSang" class="form-control" rows="3"
+                    <textarea id="editKhamLamSang" class="form-control modal-backing-textarea" rows="3"
                         placeholder="Mạch, HA, Nhiệt, SpO2; Tri giác, Da niêm, Tim, Phổi, Bụng mềm..."></textarea>
+                    <div id="editKhamLamSangRich" class="form-control modal-rich-editor modal-rich-rows-3"
+                        contenteditable="true" data-textarea-id="editKhamLamSang" data-field="kham_lam_sang"
+                        data-placeholder="Mạch, HA, Nhiệt, SpO2; Tri giác, Da niêm, Tim, Phổi, Bụng mềm..."></div>
                 </div>
 
                 <!-- (O) PHẦN 2: CẬN LÂM SÀNG (HIỆN CÓ & CẦN LÀM) -->
@@ -1118,15 +1140,27 @@
                             </label>
                             <div class="modal-label-actions">
                                 <button type="button" class="btn-modal-tool"
+                                    onmousedown="event.preventDefault()"
                                     onclick="window.patientController.insertClsTag('editClsHienCo', '[Máu]')"
                                     title="Chèn nhanh [Máu] (Alt+M)">💉</button>
+                                <button type="button" class="btn-modal-tool"
+                                    onmousedown="event.preventDefault()"
+                                    onclick="window.patientController.boldSelectionInTextarea('editClsHienCo')"
+                                    title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                                <button type="button" class="btn-modal-tool btn-modal-hl"
+                                    onmousedown="event.preventDefault()"
+                                    onclick="window.patientController.openModalHighlightPicker(this, 'editClsHienCo')"
+                                    title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
                                 <button type="button" class="btn-modal-tool"
                                     onclick="window.patientController.copyTextareaContent('editClsHienCo', 'CLS Hiện có')"
                                     title="Chép sang Bệnh án">📋</button>
                             </div>
                         </div>
-                        <textarea id="editClsHienCo" class="form-control" rows="2"
+                        <textarea id="editClsHienCo" class="form-control modal-backing-textarea" rows="2"
                             placeholder="Kết quả CLS hiện có..."></textarea>
+                        <div id="editClsHienCoRich" class="form-control modal-rich-editor modal-rich-rows-2"
+                            contenteditable="true" data-textarea-id="editClsHienCo" data-field="cls_hien_co"
+                            data-placeholder="Kết quả CLS hiện có..."></div>
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <div class="form-label-with-tools">
@@ -1140,12 +1174,23 @@
                                     📥
                                 </button>
                                 <button type="button" class="btn-modal-tool"
+                                    onmousedown="event.preventDefault()"
+                                    onclick="window.patientController.boldSelectionInTextarea('editClsCanLam')"
+                                    title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                                <button type="button" class="btn-modal-tool btn-modal-hl"
+                                    onmousedown="event.preventDefault()"
+                                    onclick="window.patientController.openModalHighlightPicker(this, 'editClsCanLam')"
+                                    title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
+                                <button type="button" class="btn-modal-tool"
                                     onclick="window.patientController.copyTextareaContent('editClsCanLam', 'CLS Cần làm')"
                                     title="Chép sang Bệnh án">📋</button>
                             </div>
                         </div>
-                        <textarea id="editClsCanLam" class="form-control" rows="2"
+                        <textarea id="editClsCanLam" class="form-control modal-backing-textarea" rows="2"
                             placeholder="Chỉ định CLS cần thực hiện..."></textarea>
+                        <div id="editClsCanLamRich" class="form-control modal-rich-editor modal-rich-rows-2"
+                            contenteditable="true" data-textarea-id="editClsCanLam" data-field="cls_can_lam"
+                            data-placeholder="Chỉ định CLS cần thực hiện..."></div>
                     </div>
                 </div>
 
@@ -1159,15 +1204,23 @@
                                 onclick="window.patientController.toggleTextareaNumbering('editDiagnosis')"
                                 title="Đánh số thứ tự (Alt+N)">🔢</button>
                             <button type="button" class="btn-modal-tool"
+                                onmousedown="event.preventDefault()"
                                 onclick="window.patientController.boldSelectionInTextarea('editDiagnosis')"
                                 title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool btn-modal-hl"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.openModalHighlightPicker(this, 'editDiagnosis')"
+                                title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
                             <button type="button" class="btn-modal-tool"
                                 onclick="window.patientController.copyTextareaContent('editDiagnosis', 'Chẩn đoán (A)')"
                                 title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editDiagnosis" class="form-control" rows="2"
+                    <textarea id="editDiagnosis" class="form-control modal-backing-textarea" rows="2"
                         placeholder="Chẩn đoán xác định / kèm theo / các vấn đề lâm sàng..."></textarea>
+                    <div id="editDiagnosisRich" class="form-control modal-rich-editor modal-rich-rows-2"
+                        contenteditable="true" data-textarea-id="editDiagnosis" data-field="chan_doan"
+                        data-placeholder="Chẩn đoán xác định / kèm theo / các vấn đề lâm sàng..."></div>
                 </div>
 
                 <!-- NÚT MỞ THEO DÕI XU HƯỚNG HCT & TIỂU CẦU ĐÃ BỎ (ẨN HOÀN TOÀN) -->
@@ -1183,15 +1236,23 @@
                                 onclick="window.patientController.toggleTextareaNumbering('editOrders')"
                                 title="Đánh số thứ tự (Alt+N)">🔢</button>
                             <button type="button" class="btn-modal-tool"
+                                onmousedown="event.preventDefault()"
                                 onclick="window.patientController.boldSelectionInTextarea('editOrders')"
                                 title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool btn-modal-hl"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.openModalHighlightPicker(this, 'editOrders')"
+                                title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
                             <button type="button" class="btn-modal-tool"
                                 onclick="window.patientController.copyTextareaContent('editOrders', 'Y lệnh')"
                                 title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editOrders" class="form-control" rows="3"
+                    <textarea id="editOrders" class="form-control modal-backing-textarea" rows="3"
                         placeholder="Thuốc, dịch truyền, chăm sóc theo dõi..."></textarea>
+                    <div id="editOrdersRich" class="form-control modal-rich-editor modal-rich-rows-3"
+                        contenteditable="true" data-textarea-id="editOrders" data-field="y_lenh"
+                        data-placeholder="Thuốc, dịch truyền, chăm sóc theo dõi..."></div>
                 </div>
 
                 <!-- PHẦN THÊM THUỐC CHO ĐIỀU DƯỠNG -->
@@ -1210,12 +1271,23 @@
                                 onclick="window.patientController.toggleTextareaNumbering('editThemThuoc')"
                                 title="Đánh số thứ tự (Alt+N)">🔢</button>
                             <button type="button" class="btn-modal-tool"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.boldSelectionInTextarea('editThemThuoc')"
+                                title="In đậm đoạn bôi đen (Ctrl+B)"><b>B</b></button>
+                            <button type="button" class="btn-modal-tool btn-modal-hl"
+                                onmousedown="event.preventDefault()"
+                                onclick="window.patientController.openModalHighlightPicker(this, 'editThemThuoc')"
+                                title="Highlight đoạn bôi đen (Alt+H)">🖍️</button>
+                            <button type="button" class="btn-modal-tool"
                                 onclick="window.patientController.copyTextareaContent('editThemThuoc', 'Thêm thuốc')"
                                 title="Chép sang Bệnh án">📋</button>
                         </div>
                     </div>
-                    <textarea id="editThemThuoc" class="form-control" rows="2"
+                    <textarea id="editThemThuoc" class="form-control modal-backing-textarea" rows="2"
                         placeholder="Thuốc bổ sung mới trong ngày..."></textarea>
+                    <div id="editThemThuocRich" class="form-control modal-rich-editor modal-rich-rows-2"
+                        contenteditable="true" data-textarea-id="editThemThuoc" data-field="them_thuoc"
+                        data-placeholder="Thuốc bổ sung mới trong ngày..."></div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px dashed var(--border); margin: 14px 0;">
@@ -2278,7 +2350,12 @@
                         </tr>
                         <tr>
                             <td><kbd>Ctrl</kbd> + <kbd>B</kbd></td>
-                            <td><strong>In đậm (Bold)</strong> đoạn văn bản bôi đen trong Chẩn đoán &amp; Y lệnh</td>
+                            <td><strong>In đậm (Bold)</strong> đoạn văn bản bôi đen trong các ô lâm sàng &amp; Modal</td>
+                            <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td>
+                            <td><strong>Highlight (Tô màu nổi bật)</strong> đoạn văn bản bôi đen (hoặc chọn màu trên thanh nổi)</td>
                             <td style="text-align: center;"><span class="badge-scope">Ô nhập / Modal</span></td>
                         </tr>
                         <tr>
@@ -2451,6 +2528,30 @@
                     onclick="window.patientController.closeExportBackupModal()">Đóng</button>
             </div>
         </div>
+    </div>
+
+    <!-- Floating Rich Format & Highlight Toolbar -->
+    <div id="clinicalFormatToolbar" class="clinical-format-toolbar" role="toolbar" aria-label="Định dạng & Highlight"
+        onmousedown="event.preventDefault()">
+        <button type="button" class="cft-btn cft-btn-bold" data-action="bold"
+            onclick="window.patientController.boldFromToolbar()" title="In đậm (Ctrl+B)"><b>B</b></button>
+        <span class="cft-divider"></span>
+        <button type="button" class="cft-swatch hl-yellow" data-hl="yellow"
+            onclick="window.patientController.applyHighlightFromToolbar('yellow')"
+            title="Highlight Vàng (Quan trọng - Alt+H)" aria-label="Highlight màu vàng"></button>
+        <button type="button" class="cft-swatch hl-red" data-hl="red"
+            onclick="window.patientController.applyHighlightFromToolbar('red')"
+            title="Highlight Đỏ (Cảnh báo / Nguy hiểm)" aria-label="Highlight màu đỏ"></button>
+        <button type="button" class="cft-swatch hl-green" data-hl="green"
+            onclick="window.patientController.applyHighlightFromToolbar('green')"
+            title="Highlight Xanh lá (Đã ổn / Cải thiện)" aria-label="Highlight màu xanh lá"></button>
+        <button type="button" class="cft-swatch hl-blue" data-hl="blue"
+            onclick="window.patientController.applyHighlightFromToolbar('blue')"
+            title="Highlight Xanh dương (Theo dõi / Mốc giờ)" aria-label="Highlight màu xanh dương"></button>
+        <span class="cft-divider"></span>
+        <button type="button" class="cft-btn cft-btn-clear" data-action="clear"
+            onclick="window.patientController.applyHighlightFromToolbar('none')"
+            title="Bỏ Highlight" aria-label="Bỏ Highlight">✕</button>
     </div>
 
     <!-- Global Toast Notification Container -->
