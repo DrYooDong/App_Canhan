@@ -52,7 +52,10 @@ class MedWardApp {
           icon: '🟢'
         });
       }
-      setTimeout(() => {
+      setTimeout(async () => {
+        if (window.supabaseService && !window.supabaseService.client && window.supabase) {
+          await window.supabaseService.init().catch(() => {});
+        }
         window.patientController?.syncWithCloudOnResume?.(true);
       }, 300);
     });
@@ -111,7 +114,11 @@ class MedWardApp {
           const handoverModal = document.getElementById('handoverModal');
           if (handoverModal && handoverModal.classList.contains('active')) {
             e.preventDefault();
-            window.handoverController?.saveHandoverFromModal?.();
+            if (typeof window.handoverController?.saveHandover === 'function') {
+              window.handoverController.saveHandover();
+            } else {
+              window.handoverController?.saveHandoverFromModal?.();
+            }
             return;
           }
         }
@@ -192,8 +199,16 @@ class MedWardApp {
         // Ctrl + S: Lưu tức thì và đồng bộ Cloud
         if (lowerKey === 's') {
           e.preventDefault();
-          window.patientController?.saveLocalCache?.();
-          window.supabaseService?.syncBatchPatients?.(window.patientController?.patientList || []);
+          const pCtrl = window.patientController;
+          pCtrl?.saveLocalCache?.();
+          if (pCtrl && window.supabaseService?.syncBatchPatients) {
+            const { doctor, isAll } = pCtrl.getEffectiveDoctor();
+            window.supabaseService.syncBatchPatients(pCtrl.patientList || [], pCtrl.currentDate, {
+              isFullReplace: false,
+              doctor,
+              isAll
+            });
+          }
           if (window.showToast) {
             window.showToast('💾 Đã lưu dữ liệu vào máy & gửi đồng bộ Cloud!');
           }
@@ -590,31 +605,61 @@ class MedWardApp {
     }
   }
 
+  applyMetaToDom(meta) {
+    if (!meta || typeof meta !== 'object') return;
+    if (document.getElementById('reportDate')) {
+      document.getElementById('reportDate').value = this.formatToDMY(new Date());
+    }
+    if (meta.unit && document.querySelector('.unit-name')) {
+      document.querySelector('.unit-name').innerText = meta.unit;
+    }
+    if (meta.hospital && document.querySelector('.hospital-title')) {
+      document.querySelector('.hospital-title').innerText = meta.hospital;
+    }
+    const deptVal = meta.dept || meta.department;
+    if (deptVal && document.querySelector('.dept-name')) {
+      document.querySelector('.dept-name').innerText = deptVal;
+    }
+    const titleVal = meta.title || meta.main_title;
+    if (titleVal && document.querySelector('.main-title')) {
+      document.querySelector('.main-title').innerText = titleVal;
+    }
+    const subTitleVal = meta.subTitle || meta.sub_title;
+    if (subTitleVal && document.querySelector('.sub-title')) {
+      document.querySelector('.sub-title').innerText = subTitleVal;
+    }
+  }
+
   setupMetaHandlers() {
-    // Tải meta đã lưu
+    // Tải meta đã lưu từ localStorage
     const savedMetaStr = localStorage.getItem(CONFIG.STORAGE_KEYS.META_DATA);
     if (savedMetaStr) {
       try {
-        // Ngày luôn là ngày hôm nay (không lấy ngày cũ từ meta)
-        if (document.getElementById('reportDate')) {
-          document.getElementById('reportDate').value = this.formatToDMY(new Date());
-        }
-        if (meta.unit && document.querySelector('.unit-name')) {
-          document.querySelector('.unit-name').innerText = meta.unit;
-        }
-        if (meta.hospital && document.querySelector('.hospital-title')) {
-          document.querySelector('.hospital-title').innerText = meta.hospital;
-        }
-        if (meta.dept && document.querySelector('.dept-name')) {
-          document.querySelector('.dept-name').innerText = meta.dept;
-        }
-        if (meta.title && document.querySelector('.main-title')) {
-          document.querySelector('.main-title').innerText = meta.title;
-        }
-        if (meta.subTitle && document.querySelector('.sub-title')) {
-          document.querySelector('.sub-title').innerText = meta.subTitle;
-        }
+        const meta = JSON.parse(savedMetaStr);
+        this.applyMetaToDom(meta);
       } catch (e) {}
+    }
+
+    // Đăng ký hàm đồng bộ tiêu đề bệnh viện / khoa từ Cloud (department_settings)
+    window.loadHospitalMetadata = async (cloudRow = null) => {
+      try {
+        const row = cloudRow || await window.supabaseService?.fetchDepartmentSettings?.();
+        if (!row) return;
+        const normalized = {
+          unit: row.unit || '',
+          hospital: row.hospital || '',
+          dept: row.department || '',
+          title: row.main_title || '',
+          subTitle: row.sub_title || ''
+        };
+        this.applyMetaToDom(normalized);
+        const curSaved = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.META_DATA) || '{}');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.META_DATA, JSON.stringify({ ...curSaved, ...normalized }));
+      } catch (e) {}
+    };
+
+    if (window.supabaseService?.isCloudEnabled) {
+      setTimeout(() => window.loadHospitalMetadata(), 400);
     }
 
     // Lắng nghe thay đổi
@@ -638,6 +683,13 @@ class MedWardApp {
       subTitle: document.querySelector('.sub-title')?.innerText || ''
     };
     localStorage.setItem(CONFIG.STORAGE_KEYS.META_DATA, JSON.stringify(meta));
+
+    if (window.supabaseService?.saveDepartmentSettings) {
+      clearTimeout(this._metaSyncTimer);
+      this._metaSyncTimer = setTimeout(() => {
+        window.supabaseService.saveDepartmentSettings(meta).catch(() => {});
+      }, 1000);
+    }
   }
 
   bindGlobalEvents() {
@@ -1058,11 +1110,15 @@ class MedWardApp {
       return;
     }
 
+    const { doctor, isAll } = pCtrl.getEffectiveDoctor();
     const curList = [...(pCtrl.patientList || [])];
     let newAddedCount = 0;
     let mergedCount = 0;
 
     for (const item of imported) {
+      if (!isAll && !item.doctor_id && (!item.doctor_name || window.supabaseService?.matchesDoctorWorkspace?.(item, doctor))) {
+        item.doctor_id = doctor.id;
+      }
       const existing = this.findMatchingPatient(item, curList);
       if (existing) {
         // Hợp nhất thông tin nếu ca hiện tại bị thiếu
@@ -1116,7 +1172,7 @@ class MedWardApp {
 
     try {
       const targetDate = pCtrl.currentDate || null;
-      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: false });
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: false, doctor, isAll });
       const toastMsg = newAddedCount > 0
         ? `✓ Đã thêm ${newAddedCount} người bệnh mới` + (mergedCount > 0 ? ` (hợp nhất ${mergedCount} ca đã có, không trùng lặp)` : '') + '!'
         : `✓ Đã rà soát & cập nhật ${mergedCount} người bệnh đã có (không có ca mới phát sinh)!`;
@@ -1143,6 +1199,13 @@ class MedWardApp {
       return;
     }
 
+    const { doctor, isAll } = pCtrl.getEffectiveDoctor();
+    imported.forEach(item => {
+      if (!isAll && !item.doctor_id && (!item.doctor_name || window.supabaseService?.matchesDoctorWorkspace?.(item, doctor))) {
+        item.doctor_id = doctor.id;
+      }
+    });
+
     pCtrl.patientList = imported;
     pCtrl.sortPatientsByRoomAndBed(false, false);
     pCtrl.saveLocalCache();
@@ -1154,7 +1217,7 @@ class MedWardApp {
 
     try {
       const targetDate = pCtrl.currentDate || null;
-      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: true });
+      const syncRes = await window.supabaseService.syncBatchPatients(pCtrl.patientList, targetDate, { isFullReplace: true, doctor, isAll });
       if (syncRes && syncRes.offlineSaved) {
         window.showToast(`✓ Đã nạp thành công ${imported.length} người bệnh từ ${sourceName}! (Lưu an toàn offline)`);
       } else if (syncRes && syncRes.error) {

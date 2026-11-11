@@ -114,29 +114,54 @@ class HandoverController {
     this.currentPatientId = null;
   }
 
+  async saveHandoverFromModal() {
+    return this.saveHandover();
+  }
+
   async saveHandover() {
     if (!this.currentPatientId) return;
 
+    const p = window.patientController.patientList.find(item => item.id === this.currentPatientId);
     const selectedRadio = document.querySelector('input[name="hoStatusRadio"]:checked');
     const status = selectedRadio ? selectedRadio.value : CONFIG.HANDOVER_STATUS.NONE;
     const issues = document.getElementById('hoIssues').value.trim();
     const actions = document.getElementById('hoActions').value.trim();
     const docFrom = document.getElementById('hoDoctorFrom').value.trim();
+    const activeDocName = window.authController?.getActiveDoctor?.()?.full_name || window.authController?.currentUser?.full_name || 'Bác sĩ trực';
 
     const updateFields = {
       handover_status: status,
       handover_issues: issues,
       handover_actions: actions,
-      handover_by: docFrom,
+      handover_by: docFrom || activeDocName,
+      is_discharged: status === CONFIG.HANDOVER_STATUS.DISCHARGED,
       handover_at: (status !== CONFIG.HANDOVER_STATUS.NONE && status !== CONFIG.HANDOVER_STATUS.RESOLVED) ? new Date().toISOString() : null
     };
 
     if (status === CONFIG.HANDOVER_STATUS.RESOLVED) {
       updateFields.handover_resolved_at = new Date().toISOString();
-      updateFields.handover_resolved_by = window.authController?.currentUser?.full_name || 'Bác sĩ trực';
+      updateFields.handover_resolved_by = activeDocName;
     }
 
     await window.patientController.updatePatient(this.currentPatientId, updateFields);
+
+    if (p && status !== CONFIG.HANDOVER_STATUS.NONE && window.supabaseService?.saveHandoverLog) {
+      window.supabaseService.saveHandoverLog({
+        patient_id: p.id,
+        report_date: p.report_date || window.patientController.getTodayIso(),
+        patient_name: p.ten || '',
+        phong_giuong: p.phong_giuong || '',
+        status,
+        issues,
+        actions,
+        doctor_from: docFrom || activeDocName,
+        doctor_id: p.doctor_id,
+        doctor_name: p.doctor_name,
+        resolved_by: updateFields.handover_resolved_by || '',
+        resolved_at: updateFields.handover_resolved_at || null
+      }).catch(() => {});
+    }
+
     this.closeHandoverModal();
 
     if (window.showToast) {
@@ -149,13 +174,31 @@ class HandoverController {
     const p = window.patientController.patientList.find(item => item.id === patientId);
     if (!p) return;
 
-    const currentDoc = window.authController?.currentUser?.full_name || 'Bác sĩ trực';
+    const currentDoc = window.authController?.getActiveDoctor?.()?.full_name || window.authController?.currentUser?.full_name || 'Bác sĩ trực';
     if (confirm(`Xác nhận ca bệnh "${p.ten}" (${p.phong_giuong}) đã được giải quyết / xử trí xong trong tua trực?`)) {
+      const resolvedAt = new Date().toISOString();
       await window.patientController.updatePatient(patientId, {
         handover_status: CONFIG.HANDOVER_STATUS.RESOLVED,
-        handover_resolved_at: new Date().toISOString(),
+        handover_resolved_at: resolvedAt,
         handover_resolved_by: currentDoc
       });
+
+      if (window.supabaseService?.saveHandoverLog) {
+        window.supabaseService.saveHandoverLog({
+          patient_id: p.id,
+          report_date: p.report_date || window.patientController.getTodayIso(),
+          patient_name: p.ten || '',
+          phong_giuong: p.phong_giuong || '',
+          status: CONFIG.HANDOVER_STATUS.RESOLVED,
+          issues: p.handover_issues || '',
+          actions: p.handover_actions || '',
+          doctor_from: p.handover_by || currentDoc,
+          doctor_id: p.doctor_id,
+          doctor_name: p.doctor_name,
+          resolved_by: currentDoc,
+          resolved_at: resolvedAt
+        }).catch(() => {});
+      }
 
       this.renderHandoverDashboard();
       if (window.showToast) {

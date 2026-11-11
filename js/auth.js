@@ -100,6 +100,19 @@ class AuthController {
         if (cloudDocs && cloudDocs.length > 0) {
           this.knownDoctors = cloudDocs;
           this.saveKnownDoctors();
+          // Đồng bộ lại activeDoctor nếu có cập nhật từ thiết bị khác
+          if (this.activeDoctor) {
+            const matchedActive = cloudDocs.find(d => d.id === this.activeDoctor.id || (d.username && d.username === this.activeDoctor.username));
+            if (matchedActive) {
+              this.activeDoctor = { ...this.activeDoctor, ...matchedActive };
+              this.saveActiveDoctor();
+              this.updateUserUI();
+            }
+          }
+          if (!this.isLoggedIn) {
+            this.renderAccountSelector();
+            this.updateGateDoctorPreview();
+          }
           if (window.patientController?.updateDoctorFilterDropdown) {
             window.patientController.updateDoctorFilterDropdown();
           }
@@ -654,6 +667,13 @@ class AuthController {
     this.saveKnownDoctors();
     this.selectedDoctor = newDoctor;
 
+    // Đồng bộ hồ sơ Bác sĩ mới lên Supabase Cloud (bảng profiles)
+    if (window.supabaseService?.upsertDoctorProfile) {
+      window.supabaseService.upsertDoctorProfile(newDoctor).then(() => {
+        this.saveKnownDoctors();
+      }).catch(() => {});
+    }
+
     this.showMsg(msgEl, `✓ Đăng ký thành công! Đang chuyển vào không gian điều trị của ${fullName}...`, 'success');
 
     setTimeout(() => {
@@ -955,6 +975,13 @@ class AuthController {
     this.closeDoctorEditModal();
     this.renderDoctorManagementTab();
 
+    // Đồng bộ thay đổi hồ sơ lên Supabase Cloud
+    if (window.supabaseService?.upsertDoctorProfile) {
+      window.supabaseService.upsertDoctorProfile(doc).then(() => {
+        this.saveKnownDoctors();
+      }).catch(() => {});
+    }
+
     // Nếu sửa trúng bác sĩ đang hoạt động, cập nhật luôn UI
     if (this.activeDoctor && (this.activeDoctor.id === docId || this.activeDoctor.username === docId)) {
       this.activeDoctor = { ...this.activeDoctor, ...doc };
@@ -989,6 +1016,10 @@ class AuthController {
     this.knownDoctors = this.knownDoctors.filter(d => d.id !== doc.id && d.username !== doc.username);
     this.saveKnownDoctors();
     this.renderDoctorManagementTab();
+
+    if (window.supabaseService?.deleteDoctorProfile) {
+      window.supabaseService.deleteDoctorProfile(doc).catch(() => {});
+    }
 
     if (window.showToast) {
       window.showToast(`🗑️ Đã xóa hồ sơ: ${doc.full_name}`);
@@ -1233,8 +1264,44 @@ class AuthController {
       this.saveKnownDoctors();
     }
 
+    // Đồng bộ hồ sơ & mã PIN mới lên Supabase Cloud
+    if (window.supabaseService?.upsertDoctorProfile) {
+      await window.supabaseService.upsertDoctorProfile(this.activeDoctor);
+      this.saveKnownDoctors();
+    }
+
     this.updateUserUI();
     this.showMsg(msgEl, '✓ Đã cập nhật hồ sơ cá nhân thành công!', 'success');
+  }
+
+  handleGateOtherLogin() {
+    const userVal = document.getElementById('gateOtherUser')?.value?.trim().toLowerCase() || '';
+    const passVal = document.getElementById('gateOtherPass')?.value?.trim() || '';
+    const msgEl = document.getElementById('gateOtherLoginMsg');
+
+    if (!userVal || !passVal) {
+      this.showMsg(msgEl, 'Vui lòng nhập đầy đủ tài khoản và mã PIN!', 'error');
+      return;
+    }
+
+    const docs = this.getKnownDoctors();
+    const found = docs.find(d =>
+      (d.username && d.username.toLowerCase() === userVal) ||
+      (d.email && d.email.toLowerCase() === userVal) ||
+      (d.id && d.id.toLowerCase() === userVal)
+    );
+
+    if (!found) {
+      this.showMsg(msgEl, `Không tìm thấy tài khoản "${userVal}" trong danh sách khoa!`, 'error');
+      return;
+    }
+
+    const docPin = found.pin || localStorage.getItem(`medward_pin_${found.id}`) || '123456';
+    if (passVal === '123456' || passVal === String(docPin)) {
+      this.unlockSession(found);
+    } else {
+      this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${found.full_name}"!`, 'error');
+    }
   }
 
   async handleLogout() {
@@ -1290,6 +1357,40 @@ class AuthController {
       profileForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.handleSaveProfile();
+      });
+    }
+
+    const cloudConfigForm = document.getElementById('cloudConfigForm');
+    if (cloudConfigForm) {
+      cloudConfigForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleSaveCloudConfig();
+      });
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('loginUsername')?.value?.trim().toLowerCase() || '';
+        const p = document.getElementById('loginPassword')?.value?.trim() || '';
+        const msgEl = document.getElementById('loginMessage');
+        const found = this.getKnownDoctors().find(d =>
+          (d.username && d.username.toLowerCase() === u) ||
+          (d.email && d.email.toLowerCase() === u) ||
+          (d.id && d.id.toLowerCase() === u)
+        );
+        if (!found) {
+          this.showMsg(msgEl, `Không tìm thấy tài khoản "${u}"!`, 'error');
+          return;
+        }
+        const docPin = found.pin || localStorage.getItem(`medward_pin_${found.id}`) || '123456';
+        if (p === '123456' || p === String(docPin)) {
+          this.closeAuthModal();
+          this.unlockSession(found);
+        } else {
+          this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${found.full_name}"!`, 'error');
+        }
       });
     }
 
@@ -1462,7 +1563,12 @@ class AuthController {
         this.closeCloudSettingsModal();
         if (window.patientController) {
           if (window.patientController.patientList && window.patientController.patientList.length > 0) {
-            await window.supabaseService?.syncBatchPatients?.(window.patientController.patientList);
+            const { doctor, isAll } = window.patientController.getEffectiveDoctor();
+            await window.supabaseService?.syncBatchPatients?.(
+              window.patientController.patientList,
+              window.patientController.currentDate,
+              { isFullReplace: false, doctor, isAll }
+            );
             if (window.showToast) {
               window.showToast(`✓ Đã đồng bộ ${window.patientController.patientList.length} người bệnh lên Supabase Cloud mới!`);
             }

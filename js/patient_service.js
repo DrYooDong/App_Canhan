@@ -109,8 +109,11 @@ class PatientController {
       window.supabaseService.onRealtimeUpdate((payload) => {
         if (!payload) return;
 
-        // 1. Kiểm tra ngày: Nếu payload thuộc ngày khác với ngày đang xem thì bỏ qua
-        const record = payload.new || payload.old;
+        // 1. Trích xuất bản ghi an toàn cho cả INSERT, UPDATE và DELETE (Supabase v2 trả payload.new = {} khi DELETE)
+        const record = window.supabaseService.extractPayloadRecord
+          ? window.supabaseService.extractPayloadRecord(payload)
+          : ((payload.new && Object.keys(payload.new).length > 0) ? payload.new : payload.old);
+
         if (record && record.report_date) {
           const curIso = window.supabaseService.formatDateToISO(this.getCurrentDateString());
           const recIso = window.supabaseService.formatDateToISO(record.report_date);
@@ -120,17 +123,33 @@ class PatientController {
         }
 
         const targetId = record?.id;
+        const { doctor, isAll } = this.getEffectiveDoctor();
+        const isDeleteEvent = payload.eventType === 'DELETE' || !!payload.new?.is_deleted;
+        const alreadyInList = targetId ? this.patientList.some(p => p.id === targetId) : false;
 
-        // 2. Xác định ca bệnh người dùng đang trực tiếp thao tác (nếu có)
+        // Cách ly workspace: Bỏ qua bản ghi realtime của bác sĩ khác khi không ở chế độ Toàn Khoa
+        if (!isAll && record && !isDeleteEvent) {
+          const belongsHere = window.supabaseService.matchesDoctorWorkspace
+            ? window.supabaseService.matchesDoctorWorkspace(record, doctor)
+            : true;
+          if (!belongsHere && !alreadyInList) {
+            return;
+          }
+        } else if (isDeleteEvent && targetId && !alreadyInList) {
+          return;
+        }
+
+        // 2. Xác định xem người dùng có đang nhập liệu trực tiếp trên bảng/thẻ hoặc mở modal ca này không
         const activeEl = document.activeElement;
         const isUserTyping = activeEl && (
           activeEl.isContentEditable ||
           activeEl.tagName === 'INPUT' ||
           activeEl.tagName === 'TEXTAREA'
         );
+        const isInlineTableOrCardTyping = isUserTyping && !!activeEl.closest('#patientTableBody, #mobileCardContainer');
 
         let activePatientId = null;
-        if (isUserTyping) {
+        if (isInlineTableOrCardTyping) {
           const rowEl = activeEl.closest('tr[data-id]');
           const cardEl = activeEl.closest('.mobile-patient-card[data-id]');
           if (rowEl) activePatientId = rowEl.dataset.id;
@@ -142,14 +161,14 @@ class PatientController {
         const isDetailModalOpen = detailModal && detailModal.classList.contains('active');
         const modalPatientId = isDetailModalOpen ? (document.getElementById('editPatientId')?.value || this.currentEditingPatientId) : null;
 
-        // Nếu bản ghi đến thuộc ca bệnh ĐANG ĐƯỢC CHỈNH SỬA trên màn hình này:
-        if ((activePatientId && targetId === activePatientId) || (isDetailModalOpen && targetId === modalPatientId)) {
-          if (isDetailModalOpen && targetId === modalPatientId && payload.new) {
-            // Cập nhật ngầm trong patientList nhưng báo người dùng để họ chủ động nạp mà không mất chữ đang gõ
+        // Nếu người dùng đang gõ trong bảng/thẻ (bất kỳ dòng nào) hoặc đang mở Modal của đúng ca này -> hoãn render để không mất focus/mất chữ
+        if (isInlineTableOrCardTyping || (activePatientId && targetId === activePatientId) || (isDetailModalOpen && targetId === modalPatientId)) {
+          if (isDetailModalOpen && targetId === modalPatientId && payload.new && !payload.new.is_deleted) {
             const idx = this.patientList.findIndex(p => p.id === targetId);
             if (idx >= 0) {
               this.normalizePatientClsAndOrders(payload.new);
               this.patientList[idx] = { ...this.patientList[idx], ...payload.new };
+              this.saveLocalCache();
             }
             this.showModalRemoteUpdateNotice(payload.new);
           }
@@ -157,7 +176,7 @@ class PatientController {
           return;
         }
 
-        // 3. Nếu là ca bệnh khác hoặc người dùng không gõ phím: Áp dụng trực tiếp ngay lập tức
+        // 3. Áp dụng trực tiếp ngay lập tức
         this.applyRealtimePayload(payload);
       });
 
@@ -165,12 +184,16 @@ class PatientController {
       document.addEventListener('focusout', () => {
         if (this.pendingRealtimePatches && this.pendingRealtimePatches.length > 0) {
           setTimeout(() => {
-            const isStillTyping = document.activeElement && (
-              document.activeElement.isContentEditable ||
-              document.activeElement.tagName === 'INPUT' ||
-              document.activeElement.tagName === 'TEXTAREA'
-            );
-            if (!isStillTyping && this.pendingRealtimePatches.length > 0) {
+            const activeEl = document.activeElement;
+            const isStillInlineTyping = activeEl && (
+              activeEl.isContentEditable ||
+              activeEl.tagName === 'INPUT' ||
+              activeEl.tagName === 'TEXTAREA'
+            ) && !!activeEl.closest('#patientTableBody, #mobileCardContainer');
+            const detailModal = document.getElementById('patientDetailModal');
+            const isDetailModalOpen = detailModal && detailModal.classList.contains('active');
+
+            if (!isStillInlineTyping && !isDetailModalOpen && this.pendingRealtimePatches.length > 0) {
               const patches = [...this.pendingRealtimePatches];
               this.pendingRealtimePatches = [];
               patches.forEach(p => this.applyRealtimePayload(p));
@@ -178,6 +201,18 @@ class PatientController {
           }, 350);
         }
       });
+    }
+  }
+
+  onWorkDayRealtimeUpdate(payload) {
+    const record = payload?.new;
+    if (!record || !record.report_date) return;
+    const curIso = window.supabaseService ? window.supabaseService.formatDateToISO(this.getCurrentDateString()) : this.getTodayIso();
+    if (record.report_date === curIso) {
+      if (this._workDaySyncTimer) clearTimeout(this._workDaySyncTimer);
+      this._workDaySyncTimer = setTimeout(() => {
+        this.syncWithCloudOnResume(false);
+      }, 400);
     }
   }
 
@@ -190,10 +225,18 @@ class PatientController {
     // 1. Kiểm tra & đảm bảo kênh Realtime hoạt động
     window.supabaseService.checkRealtimeHealth();
 
-    // 2. Kéo toàn bộ danh sách ngày hôm nay từ Cloud để đối soát
+    // Đẩy trước các lệnh xóa đang chờ khi offline (nếu có)
+    await window.supabaseService.flushPendingDeletes();
+
+    // 2. Kéo toàn bộ danh sách ngày hôm nay từ Cloud để đối soát theo phạm vi Workspace hiện tại
     const isoDate = window.supabaseService.formatDateToISO(this.getCurrentDateString());
     const cloudPatients = await window.supabaseService.pullLatestChanges(isoDate);
     if (!cloudPatients) return;
+
+    const { doctor, isAll } = this.getEffectiveDoctor();
+    const pendingSyncIds = window.supabaseService.getPendingSyncIds();
+    const pendingDeleteIds = window.supabaseService.getPendingDeleteIds();
+    const deletedTombstones = window.supabaseService.getDeletedTombstoneIds();
 
     let changeCount = 0;
     const localMap = new Map();
@@ -201,43 +244,86 @@ class PatientController {
 
     const mergedList = [];
     cloudPatients.forEach(cloudP => {
+      const inLocal = localMap.has(cloudP.id);
+      const belongsToScope = isAll || (window.supabaseService.matchesDoctorWorkspace
+        ? window.supabaseService.matchesDoctorWorkspace(cloudP, doctor)
+        : true);
+
+      if (!belongsToScope && !inLocal) {
+        return; // Ca bệnh thuộc bác sĩ khác -> tuyệt đối không trộn vào workspace hiện tại
+      }
+
       this.normalizePatientClsAndOrders(cloudP);
+
+      // Nếu ca bệnh bị đánh dấu xóa trên Cloud hoặc nằm trong hàng đợi xóa cục bộ
       if (cloudP.is_deleted) {
-        if (localMap.has(cloudP.id)) {
+        window.supabaseService.markDeletedTombstone(cloudP.id);
+        window.supabaseService.clearPendingSync(cloudP.id);
+        if (inLocal) {
+          localMap.delete(cloudP.id);
           changeCount++;
         }
         return;
       }
 
-      if (localMap.has(cloudP.id)) {
+      if (pendingDeleteIds.has(cloudP.id) || deletedTombstones.has(cloudP.id)) {
+        if (inLocal) {
+          localMap.delete(cloudP.id);
+          changeCount++;
+        }
+        return;
+      }
+
+      // Nếu ca bệnh trước đây thuộc bác sĩ này nhưng đã được chuyển sang bác sĩ khác trên Cloud
+      if (!isAll && !belongsToScope && inLocal) {
+        localMap.delete(cloudP.id);
+        changeCount++;
+        return;
+      }
+
+      if (inLocal) {
         const localP = localMap.get(cloudP.id);
+        const isLocallyDirty = pendingSyncIds.has(cloudP.id);
+        const cloudVer = Number(cloudP.version || 0);
+        const localVer = Number(localP.version || 0);
         const cloudTime = new Date(cloudP.updated_at || cloudP.client_updated_at || 0).getTime();
         const localTime = new Date(localP.updated_at || localP.client_updated_at || 0).getTime();
 
-        // So sánh mốc cập nhật: Cloud mới hơn thì nhận Cloud
-        if (cloudTime > localTime) {
-          mergedList.push({ ...localP, ...cloudP });
-          changeCount++;
-        } else if (localTime > cloudTime) {
-          // Local mới hơn (vừa chỉnh offline): giữ local và đồng bộ lên cloud
-          mergedList.push(localP);
-          window.supabaseService.savePatient(localP, isoDate).catch(() => {});
+        if (!isLocallyDirty) {
+          // Không có thay đổi offline chưa lưu trên máy này -> ưu tiên bản mới nhất từ Cloud (ưu tiên version DB)
+          if (cloudVer > localVer || cloudTime > localTime) {
+            mergedList.push({ ...localP, ...cloudP });
+            changeCount++;
+          } else {
+            mergedList.push(localP);
+          }
         } else {
-          mergedList.push(localP);
+          // Có chỉnh sửa offline trên máy này
+          if (cloudVer > localVer && cloudTime > localTime) {
+            mergedList.push({ ...localP, ...cloudP });
+            window.supabaseService.clearPendingSync(cloudP.id);
+            changeCount++;
+          } else {
+            mergedList.push(localP);
+            window.supabaseService.savePatient(localP, isoDate).catch(() => {});
+          }
         }
         localMap.delete(cloudP.id);
       } else {
-        // Ca mới được thêm từ thiết bị khác
+        // Ca mới được thêm từ thiết bị khác trong cùng workspace
         mergedList.push(cloudP);
         changeCount++;
       }
     });
 
-    // Các ca bệnh còn sót trong localMap (ca tạo offline trên máy chưa kịp đẩy lên cloud)
+    // Các ca còn lại trong localMap (không có trên Cloud):
+    // CHỈ đẩy lên Cloud nếu thực sự là ca tạo/sửa offline (nằm trong pendingSyncIds); nếu không -> đã bị xóa trên Cloud, loại bỏ để chống Zombie!
     for (const [id, localP] of localMap.entries()) {
-      if (!localP.is_deleted) {
+      if (!localP.is_deleted && pendingSyncIds.has(id) && !deletedTombstones.has(id)) {
         mergedList.push(localP);
         window.supabaseService.savePatient(localP, isoDate).catch(() => {});
+      } else {
+        changeCount++;
       }
     }
 
@@ -246,6 +332,7 @@ class PatientController {
     if (changeCount > 0) {
       this.patientList = mergedList;
       this.saveLocalCache();
+      this.updateDoctorFilterDropdown();
       this.render();
       if (showToast && window.showToast) {
         window.showToast({
@@ -289,19 +376,26 @@ class PatientController {
 
   applyRealtimePayload(payload) {
     const eventType = payload.eventType || (payload.new?.is_deleted ? 'DELETE' : 'UPDATE');
-    const newRecord = payload.new;
-    const oldRecord = payload.old;
+    const newRecord = (payload.new && Object.keys(payload.new).length > 0) ? payload.new : null;
+    const oldRecord = (payload.old && Object.keys(payload.old).length > 0) ? payload.old : null;
+    const { doctor, isAll } = this.getEffectiveDoctor();
 
     if (eventType === 'DELETE' || newRecord?.is_deleted) {
       const targetId = oldRecord?.id || newRecord?.id;
       if (targetId) {
+        if (window.supabaseService) {
+          window.supabaseService.markDeletedTombstone(targetId);
+          window.supabaseService.clearPendingSync(targetId);
+        }
         const deletedPatient = this.patientList.find(p => p.id === targetId);
+        if (!deletedPatient) return;
         const pName = deletedPatient?.ten || oldRecord?.ten || newRecord?.ten || 'Một người bệnh';
         const pRoom = deletedPatient?.phong_giuong || oldRecord?.phong_giuong || '';
         const prevLen = this.patientList.length;
         this.patientList = this.patientList.filter(p => p.id !== targetId);
         if (this.patientList.length !== prevLen) {
           this.saveLocalCache();
+          this.updateDoctorFilterDropdown();
           this.render();
           if (window.showToast) {
             window.showToast({
@@ -318,12 +412,19 @@ class PatientController {
 
     if (eventType === 'INSERT') {
       if (newRecord && newRecord.id) {
+        const belongsToScope = isAll || (window.supabaseService?.matchesDoctorWorkspace
+          ? window.supabaseService.matchesDoctorWorkspace(newRecord, doctor)
+          : true);
+        if (!belongsToScope) return;
+        if (window.supabaseService?.getDeletedTombstoneIds?.().has(newRecord.id)) return;
+
         const exists = this.patientList.some(p => p.id === newRecord.id);
         if (!exists) {
           this.normalizePatientClsAndOrders(newRecord);
           this.patientList.push(newRecord);
           this.patientList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           this.saveLocalCache();
+          this.updateDoctorFilterDropdown();
           this.render();
           const pName = newRecord.ten || 'Người bệnh mới';
           const pRoom = newRecord.phong_giuong ? ` (${newRecord.phong_giuong})` : '';
@@ -346,7 +447,32 @@ class PatientController {
 
     if (eventType === 'UPDATE') {
       if (newRecord && newRecord.id) {
+        const belongsToScope = isAll || (window.supabaseService?.matchesDoctorWorkspace
+          ? window.supabaseService.matchesDoctorWorkspace(newRecord, doctor)
+          : true);
         const idx = this.patientList.findIndex(p => p.id === newRecord.id);
+
+        // Nếu ca này trước đó có trong workspace nhưng vừa được chuyển sang bác sĩ khác
+        if (idx >= 0 && !belongsToScope) {
+          this.patientList.splice(idx, 1);
+          this.saveLocalCache();
+          this.updateDoctorFilterDropdown();
+          this.render();
+          return;
+        }
+
+        // Nếu ca này mới được chuyển từ bác sĩ khác sang workspace hiện tại (hoặc vừa rollover sang hôm nay)
+        if (idx === -1 && belongsToScope && !window.supabaseService?.getDeletedTombstoneIds?.().has(newRecord.id)) {
+          this.normalizePatientClsAndOrders(newRecord);
+          this.patientList.push(newRecord);
+          this.patientList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          this.saveLocalCache();
+          this.updateDoctorFilterDropdown();
+          this.render();
+          this.flashPatientRow(newRecord.id);
+          return;
+        }
+
         if (idx >= 0) {
           const oldP = this.patientList[idx];
           this.normalizePatientClsAndOrders(newRecord);
@@ -522,63 +648,84 @@ class PatientController {
     let data = null;
 
     if (isAll) {
-      // Chế độ Quản trị viên xem toàn bộ khoa: Tổng hợp người bệnh từ tất cả các bác sĩ
-      const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
-      const aggregated = [];
-      const seenIds = new Set();
-      allDocs.forEach(d => {
-        const docPts = this.loadDoctorPatients(d.id, reqDate);
-        docPts.forEach(p => {
-          if (!seenIds.has(p.id)) {
-            seenIds.add(p.id);
-            aggregated.push({
-              ...p,
-              doctor_name: p.doctor_name || d.full_name,
-              doctor_id: p.doctor_id || d.id
-            });
+      // Chế độ Quản trị viên xem toàn bộ khoa: Ưu tiên đồng bộ trực tiếp từ Cloud nếu online
+      if (window.supabaseService && window.supabaseService.isCloudEnabled) {
+        try {
+          const cloudAll = await window.supabaseService.fetchPatients(null, reqDate);
+          if (cloudAll && Array.isArray(cloudAll)) {
+            const deletedTombstones = window.supabaseService.getDeletedTombstoneIds();
+            data = cloudAll.filter(p => !p.is_deleted && !deletedTombstones.has(p.id));
           }
+        } catch (err) {
+          console.warn('Lưu ý kết nối Cloud (Toàn Khoa):', err);
+        }
+      }
+
+      if (data === null) {
+        const allDocs = window.authController?.getKnownDoctors?.() || [CONFIG.DEFAULT_DEMO_DOCTOR];
+        const aggregated = [];
+        const seenIds = new Set();
+        allDocs.forEach(d => {
+          const docPts = this.loadDoctorPatients(d.id, reqDate);
+          docPts.forEach(p => {
+            if (!seenIds.has(p.id)) {
+              seenIds.add(p.id);
+              aggregated.push({
+                ...p,
+                doctor_name: p.doctor_name || d.full_name,
+                doctor_id: p.doctor_id || d.id
+              });
+            }
+          });
         });
-      });
-      data = aggregated;
+        data = aggregated;
+      }
     } else {
       // Chế độ Không gian riêng của từng Bác sĩ
       if (window.supabaseService && window.supabaseService.isCloudEnabled) {
         try {
           const cloudData = await window.supabaseService.fetchPatients(doctor, reqDate);
           if (cloudData && Array.isArray(cloudData)) {
-            const docId = String(doctor.id || '').toLowerCase().trim();
-            const docUsername = String(doctor.username || '').toLowerCase().trim();
-            const docEmail = String(doctor.email || '').toLowerCase().trim();
-            const docNameLower = (doctor.full_name || '').toLowerCase().trim();
+            const pendingSyncIds = window.supabaseService.getPendingSyncIds();
+            const deletedTombstones = window.supabaseService.getDeletedTombstoneIds();
 
-            const isDongTarget = docId === 'doc_dongnh' || 
-                                 docUsername === 'dongnh' || 
-                                 docEmail.includes('dong') || 
-                                 docNameLower.includes('đông') || 
-                                 docNameLower.includes('dong');
-
-            const matched = cloudData.filter(p => {
-              if (p.is_deleted) return false;
-              const pDocId = String(p.doctor_id || '').toLowerCase().trim();
-              const pUserId = String(p.user_id || '').toLowerCase().trim();
-              const pHandoverId = String(p.handover_by_id || '').toLowerCase().trim();
-              const pDocName = (p.doctor_name || p.handover_by || '').toLowerCase().trim();
-
-              if (isDongTarget) {
-                return pDocId === 'doc_dongnh' || 
-                       pDocId === docId ||
-                       pUserId === docId ||
-                       pDocName.includes('đông') || 
-                       pDocName.includes('dong') ||
-                       (!pDocName && !pDocId);
-              }
-
-              return pDocId === docId || 
-                     pUserId === docId || 
-                     pHandoverId === docId ||
-                     (docUsername && (pDocId === docUsername || pDocName.includes(docUsername))) ||
-                     (docNameLower && (pDocName === docNameLower || pDocName.includes(docNameLower)));
+            let matched = cloudData.filter(p => {
+              if (p.is_deleted || deletedTombstones.has(p.id)) return false;
+              return window.supabaseService.matchesDoctorWorkspace
+                ? window.supabaseService.matchesDoctorWorkspace(p, doctor)
+                : true;
             });
+
+            // Bảo toàn các thay đổi / ca bệnh tạo offline chưa đẩy được lên Cloud
+            if (pendingSyncIds.size > 0) {
+              let localRaw = [];
+              try {
+                const rawStr = localStorage.getItem(this.getDoctorSpaceKey(doctor.id));
+                if (rawStr) localRaw = JSON.parse(rawStr) || [];
+              } catch (e) { }
+
+              const matchedMap = new Map(matched.map(p => [p.id, p]));
+              localRaw.forEach(localP => {
+                if (!localP?.id || localP.is_deleted || deletedTombstones.has(localP.id)) return;
+                if (!pendingSyncIds.has(localP.id)) return;
+
+                const cloudP = matchedMap.get(localP.id);
+                if (!cloudP) {
+                  matched.push(localP);
+                  window.supabaseService.savePatient(localP, reqDate).catch(() => { });
+                } else {
+                  const localTime = new Date(localP.updated_at || localP.client_updated_at || 0).getTime();
+                  const cloudTime = new Date(cloudP.updated_at || cloudP.client_updated_at || 0).getTime();
+                  if (localTime >= cloudTime) {
+                    const idx = matched.findIndex(x => x.id === localP.id);
+                    if (idx >= 0) matched[idx] = localP;
+                    window.supabaseService.savePatient(localP, reqDate).catch(() => { });
+                  } else {
+                    window.supabaseService.clearPendingSync(localP.id);
+                  }
+                }
+              });
+            }
 
             data = matched;
             localStorage.setItem(this.getDoctorSpaceKey(doctor.id), JSON.stringify(matched));
@@ -618,7 +765,6 @@ class PatientController {
       }
       if (!p.handover_by) {
         p.handover_by = p.doctor_name;
-        cleaned = true;
       }
 
       // Dọn sạch cột Y lệnh nếu bị dính tên Bác sĩ điều trị
@@ -643,11 +789,9 @@ class PatientController {
       }
       if (!p.created_at || p.created_at === 'null') {
         p.created_at = nowIso;
-        cleaned = true;
       }
       if (!p.updated_at || p.updated_at === 'null') {
         p.updated_at = nowIso;
-        cleaned = true;
       }
       this.normalizePatientClsAndOrders(p);
     });
@@ -655,10 +799,12 @@ class PatientController {
     if (cleaned) {
       this.saveLocalCache();
       if (window.supabaseService) {
-        window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+        window.supabaseService.syncBatchPatients(this.patientList, reqDate, { isFullReplace: false, doctor, isAll }).catch(err => {
           console.warn('Lỗi đồng bộ chuẩn hóa dữ liệu lên Cloud:', err);
         });
       }
+    } else if (isAll && this.patientList.length > 0) {
+      this.saveLocalCache();
     }
 
     this.updateDoctorFilterDropdown();
@@ -758,6 +904,10 @@ class PatientController {
     const { doctor, isAll } = this.getEffectiveDoctor();
     if (isAll) {
       const partitionMap = {};
+      const allDocs = window.authController?.getKnownDoctors?.() || [];
+      allDocs.forEach(d => {
+        if (d?.id) partitionMap[d.id] = [];
+      });
       this.patientList.forEach(p => {
         const dId = p.doctor_id || p.handover_by_id || 'doc_dongnh';
         if (!partitionMap[dId]) partitionMap[dId] = [];
@@ -900,7 +1050,32 @@ class PatientController {
     }
   }
 
+  async flushPendingAutoSaves() {
+    this.flushActiveInput();
+    const entries = Object.entries(this.autoSaveTimers || {});
+    if (entries.length === 0) return;
+
+    const { doctor, isAll } = this.getEffectiveDoctor();
+    const dirtyIds = new Set();
+    entries.forEach(([timerKey, timerId]) => {
+      clearTimeout(timerId);
+      delete this.autoSaveTimers[timerKey];
+      const pid = timerKey.split('_')[0];
+      if (pid) dirtyIds.add(pid);
+    });
+
+    if (dirtyIds.size > 0 && window.supabaseService) {
+      const dirtyPatients = this.patientList.filter(p => dirtyIds.has(p.id));
+      for (const p of dirtyPatients) {
+        await window.supabaseService.savePatient(p, this.currentDate).catch(() => { });
+      }
+      void doctor;
+      void isAll;
+    }
+  }
+
   async switchWorkspaceDoctor(docId) {
+    await this.flushPendingAutoSaves();
     const activeDoc = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
     const isAdmin = window.authController?.isDongAdmin?.(activeDoc);
 
@@ -1503,7 +1678,11 @@ class PatientController {
     };
 
     p.dengue_trends.push(newPt);
+    p.updated_at = new Date().toISOString();
     this.saveLocalCache();
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(p, this.currentDate).catch(() => {});
+    }
     this.renderDengueTrendModalBody(p);
     this.render();
 
@@ -1517,7 +1696,11 @@ class PatientController {
     if (!p || !Array.isArray(p.dengue_trends)) return;
 
     p.dengue_trends = p.dengue_trends.filter(pt => pt.id !== pointId);
+    p.updated_at = new Date().toISOString();
     this.saveLocalCache();
+    if (window.supabaseService) {
+      window.supabaseService.savePatient(p, this.currentDate).catch(() => {});
+    }
     this.renderDengueTrendModalBody(p);
     this.render();
   }
@@ -1546,9 +1729,10 @@ class PatientController {
     }
 
     p.cls_hien_co = curClsHc;
+    p.updated_at = new Date().toISOString();
     this.saveLocalCache();
     if (window.supabaseService) {
-      window.supabaseService.savePatient(p).catch(() => {});
+      window.supabaseService.savePatient(p, this.currentDate).catch(() => {});
     }
     this.render();
 
@@ -1575,7 +1759,8 @@ class PatientController {
     this.patientList.forEach((p, i) => p.sort_order = i);
     this.saveLocalCache();
     if (syncCloud && window.supabaseService) {
-      window.supabaseService.syncBatchPatients(this.patientList).catch(err => {
+      const { doctor, isAll } = this.getEffectiveDoctor();
+      window.supabaseService.syncBatchPatients(this.patientList, this.currentDate, { isFullReplace: false, doctor, isAll }).catch(err => {
         console.warn('Lỗi đồng bộ sắp xếp lên cloud:', err);
       });
     }
@@ -1642,12 +1827,20 @@ class PatientController {
 
     this.autoSaveTimers[timerKey] = setTimeout(async () => {
       delete this.autoSaveTimers[timerKey];
+      const targetPatient = this.patientList.find(p => p.id === patientId);
+      if (!targetPatient) return;
+
+      let res = null;
       if (window.supabaseService) {
-        await window.supabaseService.savePatient(this.patientList[idx], this.currentDate);
+        res = await window.supabaseService.savePatient(targetPatient, this.currentDate);
       }
       if (window.updateSaveStatus) {
         const timeStr = new Date().toLocaleTimeString('vi-VN');
-        window.updateSaveStatus(`🟢 Đã tự động lưu (${timeStr})`, 'saved');
+        if (res && (res.error || res.offlineSaved)) {
+          window.updateSaveStatus(`⚠️ Đã lưu offline (${timeStr})`, 'warning');
+        } else {
+          window.updateSaveStatus(`🟢 Đã tự động lưu (${timeStr})`, 'saved');
+        }
       }
       if (el) {
         el.classList.add('saved-pulse');
@@ -1711,7 +1904,7 @@ class PatientController {
       if (window.supabaseService) {
         const res = await window.supabaseService.savePatient(this.patientList[idx], this.currentDate);
         const timeStr = new Date().toLocaleTimeString('vi-VN');
-        if (res && res.error) {
+        if (res && (res.error || res.offlineSaved)) {
           if (window.updateSaveStatus) window.updateSaveStatus(`⚠️ Đã lưu offline (${timeStr})`, 'warning');
         } else {
           if (window.updateSaveStatus) window.updateSaveStatus(`🟢 Đã lưu Cloud (${timeStr})`, 'saved');
@@ -2883,11 +3076,12 @@ class PatientController {
     const nextDoc = allDocs[(currentIdx + 1) % allDocs.length];
     const newDocName = nextDoc.full_name;
 
+    this.patientList[idx].doctor_id = nextDoc.id || 'doc_dongnh';
     this.patientList[idx].doctor_name = newDocName;
     this.patientList[idx].handover_by = newDocName;
     this.patientList[idx].updated_at = new Date().toISOString();
     this.saveLocalCache();
-    window.supabaseService.savePatient(this.patientList[idx]).catch(err => {
+    window.supabaseService.savePatient(this.patientList[idx], this.currentDate).catch(err => {
       console.warn('Lỗi đồng bộ chuyển bác sĩ lên cloud:', err);
     });
     this.updateDoctorFilterDropdown();
@@ -2957,7 +3151,11 @@ class PatientController {
 
     // Nếu có selectedIds (chuyển ngày từ modal), chỉ giữ lại các bệnh nhân được chọn
     let sourceList = this.patientList;
+    const removedIds = [];
     if (selectedIds && selectedIds instanceof Set) {
+      sourceList.forEach(p => {
+        if (!selectedIds.has(p.id)) removedIds.push(p.id);
+      });
       sourceList = sourceList.filter(p => selectedIds.has(p.id));
     }
 
@@ -2986,8 +3184,16 @@ class PatientController {
 
     // Đồng bộ lên Supabase Cloud
     if (window.supabaseService) {
+      const { doctor, isAll } = this.getEffectiveDoctor();
+      for (const pid of removedIds) {
+        window.supabaseService.deletePatient(pid).catch(() => {});
+      }
       // Đồng bộ danh sách ngày hôm nay
-      window.supabaseService.syncBatchPatients(this.patientList, todayIso).catch(err => {
+      window.supabaseService.syncBatchPatients(this.patientList, todayIso, {
+        isFullReplace: Boolean(manualTrigger && selectedIds),
+        doctor,
+        isAll
+      }).catch(err => {
         console.warn('Lỗi đồng bộ ngày hôm nay lên Cloud:', err);
       });
       window.supabaseService.setWorkDayStatus(todayIso, 'active', this.patientList.length);
@@ -3306,7 +3512,12 @@ class PatientController {
     }
 
     this.saveLocalCache();
-    window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(err => {
+    const { doctor: insertDoc, isAll: insertIsAll } = this.getEffectiveDoctor();
+    window.supabaseService.syncBatchPatients(this.patientList, this.currentDate, {
+      isFullReplace: false,
+      doctor: insertDoc,
+      isAll: insertIsAll
+    }).catch(err => {
       console.warn('Lỗi đồng bộ thêm dòng lên cloud:', err);
     });
     this.updateDoctorFilterDropdown();
@@ -3363,13 +3574,19 @@ class PatientController {
     }
 
     if (confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách bệnh nhân hiện tại không? Thao tác này không thể hoàn tác.')) {
+      const { doctor, isAll } = this.getEffectiveDoctor();
+      const idsToDelete = this.patientList.map(p => p.id).filter(Boolean);
       this.patientList = [];
       this.saveLocalCache();
       this.updateDoctorFilterDropdown();
       this.render();
 
       if (window.supabaseService) {
-        await window.supabaseService.clearAllPatients(this.getCurrentDateString()).catch(() => {});
+        idsToDelete.forEach(pid => {
+          window.supabaseService.clearPendingSync(pid);
+          window.supabaseService.markDeletedTombstone(pid);
+        });
+        await window.supabaseService.clearAllPatients(this.getCurrentDateString(), doctor, isAll).catch(() => {});
         if (typeof window.supabaseService.setWorkDayStatus === 'function') {
           window.supabaseService.setWorkDayStatus(this.getTodayIso(), 'active', 0).catch(() => {});
         }
@@ -4836,13 +5053,13 @@ class PatientController {
     }
 
     if (updateData.handover_status === CONFIG.HANDOVER_STATUS.PENDING || updateData.handover_status === CONFIG.HANDOVER_STATUS.WAITING_CLS || updateData.handover_status === CONFIG.HANDOVER_STATUS.NOTE || updateData.handover_status === CONFIG.HANDOVER_STATUS.CRITICAL) {
-      if (window.authController && window.authController.currentUser) {
-        updateData.handover_by = window.authController.currentUser.full_name || docVal || 'Bác sĩ điều trị';
-        updateData.handover_at = new Date().toISOString();
-      }
+      const activeDoc = window.authController?.getActiveDoctor?.() || window.authController?.currentUser;
+      updateData.handover_by = activeDoc?.full_name || docVal || 'Bác sĩ điều trị';
+      updateData.handover_at = new Date().toISOString();
     } else if (updateData.handover_status === CONFIG.HANDOVER_STATUS.RESOLVED) {
+      const activeDoc = window.authController?.getActiveDoctor?.() || window.authController?.currentUser;
       updateData.handover_resolved_at = new Date().toISOString();
-      updateData.handover_resolved_by = window.authController?.currentUser?.full_name || docVal || 'Bác sĩ trực';
+      updateData.handover_resolved_by = activeDoc?.full_name || docVal || 'Bác sĩ trực';
     }
 
     updateData.is_discharged = (updateData.handover_status === CONFIG.HANDOVER_STATUS.DISCHARGED);
@@ -6391,10 +6608,15 @@ class PatientController {
     this.render();
 
     // Đồng bộ lên Supabase Cloud
+    const { doctor: dedupDoc1, isAll: dedupIsAll1 } = this.getEffectiveDoctor();
     for (const pid of idsToRemove) {
       await window.supabaseService.deletePatient(pid).catch(() => {});
     }
-    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(() => {});
+    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate, {
+      isFullReplace: false,
+      doctor: dedupDoc1,
+      isAll: dedupIsAll1
+    }).catch(() => {});
 
     if (window.showToast) {
       window.showToast(`✓ Đã lọc trùng thành công! Đã xóa ${idsToRemove.length} bản ghi trùng thừa.`);
@@ -6446,10 +6668,15 @@ class PatientController {
     this.updateDoctorFilterDropdown();
     this.render();
 
+    const { doctor: dedupDoc2, isAll: dedupIsAll2 } = this.getEffectiveDoctor();
     for (const pid of idsToRemove) {
       await window.supabaseService.deletePatient(pid).catch(() => {});
     }
-    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate).catch(() => {});
+    await window.supabaseService.syncBatchPatients(this.patientList, this.currentDate, {
+      isFullReplace: false,
+      doctor: dedupDoc2,
+      isAll: dedupIsAll2
+    }).catch(() => {});
 
     if (window.showToast) {
       window.showToast(`✓ Đã hoàn tất lọc trùng theo lựa chọn (${idsToRemove.length} bản ghi thừa đã xóa).`);

@@ -72,6 +72,7 @@ create table if not exists public.patients (
   cls_can_lam text default '',          -- CLS cần làm thêm
   y_lenh text default '',               -- (P) Y lệnh điều trị chính
   them_thuoc text default '',           -- Thuốc bổ sung trong ngày
+  dengue_trends jsonb default '[]'::jsonb, -- Theo dõi diễn tiến Hct & Tiểu cầu (SXH)
   
   -- BÁC SĨ PHỤ TRÁCH
   doctor_id text default 'doc_dongnh',
@@ -100,6 +101,9 @@ create table if not exists public.patients (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Bổ sung cột mới cho bảng đã tồn tại từ phiên bản trước
+alter table public.patients add column if not exists dengue_trends jsonb default '[]'::jsonb;
 
 -- INDEXES TỐI ƯU TRUY VẤN THEO NGÀY VÀ BÁC SĨ
 create index if not exists idx_patients_report_date on public.patients(report_date);
