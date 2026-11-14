@@ -444,6 +444,8 @@ class MedWardApp {
     if (dateInput) {
       dateInput.value = todayDMY;
       dateInput.setAttribute('readonly', 'true');
+      dateInput.style.cursor = 'pointer';
+      dateInput.onclick = () => this.openCalendarPicker();
     }
 
     if (nativePicker) {
@@ -452,15 +454,41 @@ class MedWardApp {
       const m = String(now.getMonth() + 1).padStart(2, '0');
       const d = String(now.getDate()).padStart(2, '0');
       nativePicker.value = `${y}-${m}-${d}`;
+
+      nativePicker.addEventListener('change', (e) => {
+        const val = e.target.value; // YYYY-MM-DD
+        if (!val) return;
+        const [year, month, day] = val.split('-');
+        const targetDMY = `${day}/${month}/${year}`;
+        if (window.patientController && typeof window.patientController.changeReportDate === 'function') {
+          window.patientController.changeReportDate(targetDMY);
+        }
+      });
     }
 
     this.updatePrintDateNote();
   }
 
   openCalendarPicker() {
-    const todayDMY = this.formatToDMY(new Date());
-    if (window.showToast) {
-      window.showToast(`📅 Hệ thống luôn làm việc trên danh sách hôm nay (${todayDMY}) và tự động chuyển đổi thông minh sau 0h.`);
+    const todayBadge = document.querySelector('.badge-today-pill');
+    // Nếu đang xem lịch sử ngày cũ và bấm vào badge, quay về Hôm nay
+    if (todayBadge && todayBadge.classList.contains('badge-history-date')) {
+      if (window.patientController && typeof window.patientController.goToToday === 'function') {
+        window.patientController.goToToday();
+        return;
+      }
+    }
+
+    const picker = document.getElementById('nativeDatePicker');
+    if (picker) {
+      if (typeof picker.showPicker === 'function') {
+        try {
+          picker.showPicker();
+          return;
+        } catch (e) { }
+      }
+      picker.focus();
+      picker.click();
     }
   }
 

@@ -466,7 +466,109 @@ async function createSettledAppEnv(dbRows, doctor, clientOpts = {}) {
     console.log('✓ Test 6: An toàn debounce theo patientId & quickAssignDoctor cập nhật doctor_id: PASS');
   }
 
-  console.log('\n🎉 TẤT CẢ 6 BỘ KIỂM THỬ ĐỒNG BỘ ĐỀU ĐẠT 100%!');
+  // TEST 7: Bảo toàn 100% dữ liệu khi qua ngày mới (không xóa gì, không thay đổi gì)
+  {
+    const twoDaysAgoIso = (() => {
+      const n = new Date();
+      n.setDate(n.getDate() - 2);
+      return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+    })();
+
+    const db = [
+      // Ca 1 từ hôm qua có thông tin bàn giao pending
+      {
+        id: idA1,
+        report_date: yesterdayIso,
+        ten: 'BN HOM QUA',
+        doctor_id: 'doc_dongnh',
+        doctor_name: docA.full_name,
+        chan_doan: 'Sốt xuất huyết Dengue ngày 4',
+        y_lenh: 'Ringer lactat 500ml',
+        them_thuoc: 'Paracetamol 500mg 1v khi sốt >= 38.5',
+        handover_status: 'pending',
+        handover_issues: 'Theo dõi dấu hiệu cảnh báo, tiểu cầu giảm',
+        handover_actions: 'Làm lại CTM lúc 14h',
+        is_deleted: false,
+        version: 1
+      },
+      // Ca 2 từ 2 ngày trước (không bị bỏ sót chỉ vì khác newestDate)
+      {
+        id: idA2,
+        report_date: twoDaysAgoIso,
+        ten: 'BN HAI NGAY TRUOC',
+        doctor_id: 'doc_dongnh',
+        doctor_name: docA.full_name,
+        chan_doan: 'Viêm phổi cộng đồng',
+        y_lenh: 'Ceftriaxone 2g/ngày',
+        them_thuoc: '',
+        handover_status: 'none',
+        handover_issues: '',
+        handover_actions: '',
+        is_deleted: false,
+        version: 1
+      }
+    ];
+
+    const env = await createSettledAppEnv(db, docA);
+    // Sáng sớm mở app vào ngày mới (chưa có ca nào trên Cloud hôm nay)
+    await env.sandbox.patientController.reloadFromSource(false);
+
+    // Cả 2 ca đều phải được giữ lại và chuyển sang ngày hôm nay
+    assert.strictEqual(env.sandbox.patientController.patientList.length, 2, 'Không được bỏ sót ca 2 ngày trước');
+    
+    const p1 = env.sandbox.patientController.patientList.find(p => p.id === idA1);
+    const p2 = env.sandbox.patientController.patientList.find(p => p.id === idA2);
+
+    // Kiểm tra không xóa gì, không thay đổi gì:
+    assert.strictEqual(p1.handover_status, 'pending', 'handover_status phải được giữ nguyên');
+    assert.strictEqual(p1.handover_issues, 'Theo dõi dấu hiệu cảnh báo, tiểu cầu giảm', 'handover_issues phải được giữ nguyên');
+    assert.strictEqual(p1.handover_actions, 'Làm lại CTM lúc 14h', 'handover_actions phải được giữ nguyên');
+    assert.strictEqual(p1.chan_doan, 'Sốt xuất huyết Dengue ngày 4');
+    assert.strictEqual(p1.report_date, todayIso);
+
+    assert.strictEqual(p2.chan_doan, 'Viêm phổi cộng đồng');
+    assert.strictEqual(p2.report_date, todayIso);
+
+    console.log('✓ Test 7: Bảo toàn 100% dữ liệu khi qua ngày mới (không xóa gì, không thay đổi gì): PASS');
+  }
+
+  // TEST 8: purgeOldData() không xóa dữ liệu cũ trên database Supabase
+  {
+    const oldDateIso = '2026-01-01';
+    const db = [
+      { id: idA1, report_date: oldDateIso, ten: 'BN CU NAM NGOAI', doctor_id: 'doc_dongnh', is_deleted: false }
+    ];
+    const env = await createSettledAppEnv(db, docA);
+    const purgeRes = await env.sandbox.supabaseService.purgeOldData();
+    assert.strictEqual(purgeRes.success, true);
+    // Ca cũ trên db vẫn phải còn nguyên vẹn, không bị xóa
+    assert.strictEqual(db.length, 1);
+    assert.strictEqual(db[0].id, idA1);
+    console.log('✓ Test 8: purgeOldData() không xóa dữ liệu cũ trên database: PASS');
+  }
+
+  // TEST 9: Bảo toàn dữ liệu Local khi Cloud ngày mới rỗng (không ghi đè rỗng vào local)
+  {
+    const db = []; // Cloud hoàn toàn rỗng
+    const env = await createSettledAppEnv(db, docA);
+
+    // Giả lập trên local đã có sẵn 2 bệnh nhân từ ngày hôm trước
+    const localPatients = [
+      { id: idA1, ten: 'BN LOCAL 1', doctor_id: 'doc_dongnh', report_date: yesterdayIso },
+      { id: idA2, ten: 'BN LOCAL 2', doctor_id: 'doc_dongnh', report_date: yesterdayIso }
+    ];
+    env.localStorage.setItem(env.sandbox.patientController.getDoctorSpaceKey('doc_dongnh'), JSON.stringify(localPatients));
+
+    // Reload từ nguồn vào ngày mới hôm nay
+    await env.sandbox.patientController.reloadFromSource(false);
+
+    // Dữ liệu local không được phép bị xóa sạch
+    assert.strictEqual(env.sandbox.patientController.patientList.length, 2, 'Local không bị xóa sạch khi Cloud rỗng');
+    assert.strictEqual(env.sandbox.patientController.patientList[0].id, idA1);
+    console.log('✓ Test 9: Bảo toàn dữ liệu Local khi Cloud ngày mới rỗng: PASS');
+  }
+
+  console.log('\n🎉 TẤT CẢ 9 BỘ KIỂM THỬ ĐỒNG BỘ ĐỀU ĐẠT 100%!');
 })().catch((err) => {
   console.error('❌ Test sync thất bại:', err);
   process.exit(1);

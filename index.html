@@ -603,10 +603,10 @@
                     <label>Ngày: </label>
                     <div class="date-wrapper">
                         <input type="text" id="reportDate" placeholder="dd/mm/yyyy" maxlength="10" readonly
-                            title="Danh sách người bệnh hôm nay (Tự động chuyển đổi sau 0h)">
-                        <input type="hidden" id="nativeDatePicker">
+                            title="Bấm để chọn ngày làm việc hoặc xem lịch sử">
+                        <input type="date" id="nativeDatePicker" style="position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;">
                         <span class="badge-today-pill" onclick="window.medWardApp?.openCalendarPicker?.()"
-                            data-tooltip="Danh sách ngày hôm nay (Tự động chuyển đổi sau 0h)" title="Hôm nay">🟢 Hôm
+                            data-tooltip="Bấm để chọn ngày hoặc quay về Hôm nay" title="Hôm nay">🟢 Hôm
                             nay</span>
                     </div>
                 </div>
@@ -2423,9 +2423,6 @@
                 <button class="btn btn-primary" onclick="window.medWardApp.closeShortcutsModal()">Đã Hiểu</button>
             </div>
         </div>
-    </div>
-    </div>
-    </div>
     </div>
 
     <!-- MODAL 8: CÀI ĐẶT / ĐỔI HÌNH VẼ MỞ KHÓA 9 NÚT (PATTERN RECORDER) -->

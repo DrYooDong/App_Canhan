@@ -482,13 +482,31 @@ body.dark-theme .btn-cloud-sync:hover .cloud-text {
   border-radius: 999px;
   white-space: nowrap;
   user-select: none;
-  cursor: default;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-wrapper .badge-today-pill:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.date-wrapper .badge-today-pill.badge-history-date {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 body.dark-theme .date-wrapper .badge-today-pill {
   color: #34d399;
   background: rgba(16, 185, 129, 0.18);
   border-color: rgba(52, 211, 153, 0.35);
+}
+
+body.dark-theme .date-wrapper .badge-today-pill.badge-history-date {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
 .date-wrapper input[type="date"] {

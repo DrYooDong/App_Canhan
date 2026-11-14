@@ -263,11 +263,6 @@ class SupabaseService {
         await this.ensureSession();
         this.setupRealtimeSubscription();
 
-        // Tự động xóa dữ liệu cũ (chỉ giữ hôm qua & hôm nay)
-        setTimeout(() => {
-          this.purgeOldData().catch(() => { });
-        }, 2000);
-
         this.client.auth.onAuthStateChange(async (event, session) => {
           this.notifyStateChange();
           if (window.authController) {
@@ -289,8 +284,9 @@ class SupabaseService {
       const { data: { session } } = await this.client.auth.getSession();
       if (session) return session;
 
-      if (this._sessionAttempted) return null;
+      if (this._sessionAttempted && (Date.now() - (this._lastSessionAttempt || 0) < 15000)) return null;
       this._sessionAttempted = true;
+      this._lastSessionAttempt = Date.now();
 
       const savedDoctor = window.authController?.getActiveDoctor?.() || CONFIG.DEFAULT_DEMO_DOCTOR;
       const email = String(savedDoctor?.email || '').trim();
@@ -1103,8 +1099,14 @@ class SupabaseService {
               : latestActive.filter(p => !deletedTombstones.has(p.id));
 
             if (matchedRecent.length > 0) {
-              const newestDate = matchedRecent[0].report_date;
-              const activeRecent = matchedRecent.filter(p => p.report_date === newestDate);
+              // Bảo toàn 100% người bệnh: Lấy bản ghi gần nhất của TỪNG người bệnh đang điều trị (không sót/mất ca của các ngày khác)
+              const patientMap = new Map();
+              for (const p of matchedRecent) {
+                if (p && p.id && !patientMap.has(p.id)) {
+                  patientMap.set(p.id, p);
+                }
+              }
+              const activeRecent = Array.from(patientMap.values());
               const nowIso = new Date().toISOString();
 
               activeRecent.forEach(p => {
@@ -1573,8 +1575,8 @@ class SupabaseService {
           }
         }
 
-        // 3. Tự động xóa dữ liệu cũ trước hôm qua (chỉ giữ hôm qua & hôm nay)
-        this.purgeOldData().catch(() => { });
+        // 3. Bảo toàn 100% dữ liệu lịch sử - Không xóa dữ liệu cũ
+        // Dữ liệu ngày cũ được giữ nguyên vẹn trên Cloud
       } catch (reconcileErr) {
         console.warn('Lỗi reconcile danh sách trên Cloud:', reconcileErr);
       }
@@ -1773,54 +1775,16 @@ class SupabaseService {
     }
   }
 
-  // ================= DATA RETENTION (CHỈ LƯU HÔM QUA & HÔM NAY) =================
+  // ================= BẢO TOÀN DỮ LIỆU LÂM SÀNG & LỊCH SỬ GIAO BAN =================
 
   /**
-   * Tự động xóa dữ liệu cũ trên Supabase:
-   * CHỈ LƯU DANH SÁCH: HÔM QUA, HÔM NAY.
-   * Tất cả dữ liệu trước ngày hôm qua (report_date < yesterday) sẽ bị xóa hoàn toàn.
+   * Bảo toàn 100% dữ liệu trên Supabase:
+   * Giữ nguyên vẹn toàn bộ hồ sơ bệnh nhân, ca trực và nhật ký giao ban của mọi ngày.
+   * Tuyệt đối KHÔNG xóa các ca cũ khi qua ngày mới.
    */
   async purgeOldData() {
-    if (!this.isCloudEnabled || !this.client) return { success: true };
-
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayIso = this.formatDateToISO(yesterday);
-
-    try {
-      await this.ensureSession();
-
-      // 1. Xóa dữ liệu bệnh nhân cũ hơn ngày hôm qua (report_date < yesterdayIso)
-      const { error: errPatients, count: countPatients } = await this.client
-        .from('patients')
-        .delete({ count: 'exact' })
-        .lt('report_date', yesterdayIso);
-
-      if (errPatients) {
-        console.warn('Lưu ý xóa bệnh nhân cũ trên Supabase:', errPatients.message || errPatients);
-      } else if (countPatients && countPatients > 0) {
-        console.log(`🧹 [Supabase Purge] Đã dọn dẹp ${countPatients} bản ghi bệnh nhân cũ hơn ngày ${yesterdayIso}.`);
-      }
-
-      // 2. Xóa các ca trực cũ hơn ngày hôm qua
-      await this.client
-        .from('work_days')
-        .delete()
-        .lt('report_date', yesterdayIso)
-        .catch(() => { });
-
-      // 3. Xóa các nhật ký giao ban cũ hơn ngày hôm qua
-      await this.client
-        .from('handover_logs')
-        .delete()
-        .lt('report_date', yesterdayIso)
-        .catch(() => { });
-
-      return { success: true, yesterdayIso };
-    } catch (e) {
-      console.warn('Lỗi dọn dẹp dữ liệu cũ trên Supabase:', e);
-      return { success: false, error: e };
-    }
+    // Không xóa bất kỳ dữ liệu nào - Bảo toàn toàn vẹn lịch sử điều trị
+    return { success: true, message: 'Dữ liệu được bảo toàn nguyên vẹn.' };
   }
 }
 

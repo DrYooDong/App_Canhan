@@ -256,35 +256,23 @@ create trigger set_department_settings_updated_at
   for each row execute function public.handle_general_updated_at();
 
 -- ==============================================================================
--- 11. HÀM DỌN DẸP DỮ LIỆU CŨ TRÊN SUPABASE (CHỈ LƯU HÔM QUA & HÔM NAY)
--- Chạy theo yêu cầu / RPC hoặc cron job, KHÔNG gắn trigger trực tiếp vào INSERT/UPDATE
--- để tránh deadlock, tranh chấp khóa và lỗi rollback transaction khi đồng bộ
+-- 11. BẢO TOÀN DỮ LIỆU LÂM SÀNG & LỊCH SỬ GIAO BAN TRÊN SUPABASE
+-- Tuyệt đối KHÔNG xóa các ca cũ khi qua ngày mới. Toàn bộ hồ sơ bệnh nhân,
+-- ca trực và nhật ký giao ban được bảo toàn nguyên vẹn phục vụ tra cứu lâm sàng.
 -- ==============================================================================
 
 -- Gỡ bỏ trigger tự động cũ nếu trước đây đã lỡ tạo (để khôi phục hoạt động đồng bộ)
 drop trigger if exists trg_auto_purge_patients on public.patients;
 drop function if exists public.trigger_auto_purge_old_data();
 
--- Hàm dọn dẹp dữ liệu chuẩn hóa theo múi giờ Việt Nam (UTC+7)
+-- Hàm bảo toàn dữ liệu (No-op: không xóa dữ liệu)
 create or replace function public.purge_old_medical_data()
 returns void
 language plpgsql
 security definer
 as $$
-declare
-  -- Chuẩn hóa múi giờ Việt Nam: ngày hôm qua
-  yesterday_cutoff date := (timezone('Asia/Ho_Chi_Minh', now()))::date - interval '1 day';
 begin
-  -- 1. Xóa người bệnh cũ hơn ngày hôm qua
-  delete from public.patients 
-  where report_date < yesterday_cutoff;
-
-  -- 2. Xóa các ca trực cũ hơn ngày hôm qua
-  delete from public.work_days 
-  where report_date < yesterday_cutoff;
-
-  -- 3. Xóa các nhật ký giao ban cũ hơn ngày hôm qua
-  delete from public.handover_logs 
-  where report_date < yesterday_cutoff;
+  -- Dữ liệu được bảo toàn vĩnh viễn - Không thực hiện xóa
+  null;
 end;
 $$;
