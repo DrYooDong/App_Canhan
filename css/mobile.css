@@ -67,18 +67,23 @@ body.view-table .mobile-cards-view {
    0.1. SHARED CLINICAL PATIENT CARDS ARCHITECTURE (DESKTOP, TABLET & MOBILE)
    ============================================================================== */
 .mobile-patient-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 15px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
   touch-action: manipulation;
   width: 100%;
+}
+
+.mobile-patient-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-dark);
 }
 
 .mobile-patient-card.card-critical {
@@ -492,7 +497,7 @@ body.view-table .mobile-cards-view {
 @media screen and (min-width: 768px) and (max-width: 1024px) {
   body {
     padding: 10px;
-    background-color: #f1f5f9;
+    background-color: var(--bg-app);
     font-size: 13.5px;
   }
 
@@ -512,10 +517,10 @@ body.view-table .mobile-cards-view {
     max-width: 100%;
     margin: 0;
     padding: 14px 16px;
-    border-radius: 12px;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
   }
 
   /* 1. Header Tablet thích ứng */
@@ -575,11 +580,22 @@ body.view-table .mobile-cards-view {
     grid-template-columns: 1fr auto;
     gap: 12px;
     align-items: center;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 10px 14px;
     margin-bottom: 12px;
+  }
+
+  /* KPI Strip Tablet: 2x2 gọn gàng trên dọc, 4 cột gọn trên ngang */
+  .kpi-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .kpi-card {
+    padding: 10px 12px;
   }
 
   .hospital-info {
@@ -612,10 +628,10 @@ body.view-table .mobile-cards-view {
 
   .meta-item {
     font-size: 12px;
-    background: #ffffff;
+    background: var(--bg-card);
     padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    border: 1px solid var(--border);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -632,10 +648,11 @@ body.view-table .mobile-cards-view {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: #ffffff;
-    padding: 8px 0 12px;
+    background: var(--bg-card);
+    padding: 10px 12px;
     margin-bottom: 10px;
-    border-bottom: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
   }
 
   .toolbar-actions {
@@ -736,10 +753,10 @@ body.view-table .mobile-cards-view {
     display: block !important;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: 10px;
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
   }
 
   table.med-table th, table.med-table td {
@@ -749,14 +766,14 @@ body.view-table .mobile-cards-view {
 
   /* 5. Thẻ bệnh nhân Tablet phong cách Touch-Friendly */
   .mobile-patient-card {
-    background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
     padding: 14px 15px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    box-shadow: var(--shadow-sm);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
 
@@ -766,12 +783,10 @@ body.view-table .mobile-cards-view {
 
   .mobile-patient-card.card-critical {
     border-left: 5px solid #dc2626;
-    background: #fffcfc;
   }
 
   .mobile-patient-card.card-pending {
     border-left: 5px solid #d97706;
-    background: #fffdf7;
   }
 
   .card-header {
@@ -817,7 +832,7 @@ body.view-table .mobile-cards-view {
     gap: 8px;
     padding-top: 10px;
     margin-top: 4px;
-    border-top: 1px dashed #e2e8f0;
+    border-top: 1px dashed var(--border);
   }
 
   .card-btn-action {
@@ -856,6 +871,16 @@ body.view-table .mobile-cards-view {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
+
+  .login-gate-card {
+    max-width: 440px;
+  }
+}
+
+@media screen and (min-width: 901px) and (max-width: 1024px) {
+  .kpi-summary-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 /* ==============================================================================
@@ -872,9 +897,9 @@ body.view-table .mobile-cards-view {
   body {
     padding: 0;
     margin: 0;
-    background-color: #f1f5f9;
+    background-color: var(--bg-app);
     /* Dành khoảng trống chính xác cho Fixed Bottom Nav Bar + Safe Area */
-    padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
     font-size: 13.5px;
   }
 
@@ -898,7 +923,13 @@ body.view-table .mobile-cards-view {
   .hospital-header {
     display: none !important;
   }
+  .kpi-summary-strip {
+    display: none !important;
+  }
   .toolbar {
+    display: none !important;
+  }
+  .clinical-filter-bar {
     display: none !important;
   }
   .status-bar {
@@ -913,13 +944,13 @@ body.view-table .mobile-cards-view {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.97);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
-    padding: 8px 10px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 9px 10px 10px;
     margin: -6px -8px 10px -8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
     width: calc(100% + 16px);
   }
 
@@ -939,15 +970,16 @@ body.view-table .mobile-cards-view {
   }
 
   .mobile-logo {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--gradient-brand);
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(15, 54, 93, 0.25);
   }
 
   .mobile-brand-text {
@@ -1597,15 +1629,17 @@ body.view-table .mobile-cards-view {
     bottom: 0;
     left: 0;
     width: 100vw;
-    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: #ffffff;
-    border-top: 1px solid #e2e8f0;
+    background: var(--bg-glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border);
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 999;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.07);
   }
 
   .bottom-nav-item {
@@ -1650,16 +1684,16 @@ body.view-table .mobile-cards-view {
   }
 
   .nav-item-add .nav-add-badge {
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    background: var(--gradient-brand);
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    border: 3px solid #ffffff;
+    box-shadow: 0 5px 14px rgba(2, 132, 199, 0.42);
+    border: 3px solid var(--bg-card);
     transition: transform 0.15s ease;
   }
 
@@ -1683,12 +1717,16 @@ body.view-table .mobile-cards-view {
 
   .login-gate-card {
     max-width: 100%;
-    width: min(390px, 94vw);
-    max-height: 94vh;
+    width: min(400px, 95vw);
+    max-height: 92vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 0;
-    border-radius: 14px;
+    border-radius: 18px;
+  }
+
+  .gate-accounts-list {
+    max-height: 165px;
   }
 
   .login-gate-brand {

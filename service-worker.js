@@ -2,7 +2,7 @@
 // SERVICE WORKER - MEDWARD PRO (OFFLINE ASSETS CACHING)
 // ==============================================================================
 
-const CACHE_NAME = 'medward-pro-cache-v42';
+const CACHE_NAME = 'medward-pro-cache-v43';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
