@@ -768,15 +768,22 @@ class MedWardApp {
       this.updatePrintDateNote();
     });
 
-    // Hỗ trợ đánh số giống Word & phím tắt Ctrl+B / Alt+N trên các ô Textarea
-    ['editDiagnosis', 'editOrders', 'editThemThuoc'].forEach(id => {
+    // Hỗ trợ đánh số / gạch đầu dòng giống Word & phím tắt Ctrl+B / Alt+N / Alt+B trên các ô Textarea
+    ['editTrieuChung', 'editKhamLamSang', 'editClsHienCo', 'editClsCanLam', 'editDiagnosis', 'editOrders', 'editThemThuoc'].forEach(id => {
       const ta = document.getElementById(id);
       if (ta) {
         ta.addEventListener('keydown', (e) => {
-          // Alt + N: Bật / tắt đánh số
-          if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+          // Alt + N hoặc Ctrl + Shift + 7: Bật / tắt đánh số
+          if ((e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'n' || e.key === 'N')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '7' || e.key === '&'))) {
             e.preventDefault();
             window.patientController?.toggleTextareaNumbering?.(id);
+            return;
+          }
+
+          // Alt + B hoặc Ctrl + Shift + 8: Bật / tắt gạch đầu dòng
+          if ((e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'b' || e.key === 'B')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '8' || e.key === '*'))) {
+            e.preventDefault();
+            window.patientController?.toggleTextareaBullets?.(id);
             return;
           }
 
@@ -787,7 +794,7 @@ class MedWardApp {
             return;
           }
 
-          // Enter: Tự động nhảy số thứ tự giống Word
+          // Enter: Tự động nhảy số thứ tự hoặc gạch đầu dòng giống Word
           if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
             const pos = ta.selectionStart;
             const val = ta.value;
@@ -795,22 +802,21 @@ class MedWardApp {
             const lines = textBefore.split(/\r?\n/);
             const curLine = lines[lines.length - 1] || '';
 
-            const m = curLine.match(/^(\s*)(\d+)([\.\/\)])(\s*)(.*)$/);
-            if (m) {
+            const numMatch = curLine.match(/^(\s*)(\d+)([\.\/\)])(\s*)(.*)$/);
+            const bulletMatch = !numMatch ? curLine.match(/^(\s*)([-–•])(\s+)(.*)$/) : null;
+            if (numMatch || bulletMatch) {
               e.preventDefault();
-              const num = parseInt(m[2], 10);
-              const sep = m[3];
-              const rest = m[5];
+              const rest = numMatch ? numMatch[5] : bulletMatch[4];
 
               if (!rest.trim()) {
-                // Dòng trống có số -> Thoát đánh số
+                // Dòng trống có số / gạch đầu dòng -> Thoát danh sách
                 const lineStart = pos - curLine.length;
                 ta.value = val.slice(0, lineStart) + val.slice(pos);
                 ta.selectionStart = ta.selectionEnd = lineStart;
               } else {
-                // Nhảy số kế tiếp
-                const nextNum = num + 1;
-                const insertText = `\n${nextNum}${sep} `;
+                const insertText = numMatch
+                  ? `\n${parseInt(numMatch[2], 10) + 1}${numMatch[3]} `
+                  : `\n${bulletMatch[1] || ''}${bulletMatch[2]} `;
                 const textAfter = val.slice(pos);
                 ta.value = textBefore + insertText + textAfter;
                 ta.selectionStart = ta.selectionEnd = pos + insertText.length;

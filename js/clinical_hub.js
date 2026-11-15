@@ -1510,7 +1510,7 @@ class ClinicalHub {
     let advice = '';
 
     if (isSevere) {
-      stage = '☠️ SXH DENGUE NẶNG (SEVENRE DENGUE)';
+      stage = '☠️ SXH DENGUE NẶNG (SEVERE DENGUE)';
       stageClass = 'res-critical';
       advice = 'Báo động đỏ! Cần chuyển ngay phòng Cấp cứu / Hồi sức, thiết lập 2 đường truyền tĩnh mạch lớn, chống sốc bằng Ringer Lactate / Cao phân tử theo phác đồ sốc Dengue, theo dõi sinh hiệu mỗi 15 - 30 phút.';
     } else if (warningCount > 0) {

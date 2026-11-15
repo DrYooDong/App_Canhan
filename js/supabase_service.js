@@ -14,6 +14,8 @@ class SupabaseService {
     this.lastSyncedAt = null;
     this.batchSyncLock = false;
     this.pendingBatch = null;
+    this.pendingBatchQueue = new Map();
+    this._cloudDeletedScopeState = new Map();
 
     // Định danh phiên làm việc hiện tại (Device/Tab ID) để triệt tiêu triệt để echo loop
     const devType = (typeof window !== 'undefined' && window.innerWidth < 768) ? 'mob' : ((typeof window !== 'undefined' && window.innerWidth < 1025) ? 'tab' : 'desk');
@@ -133,9 +135,16 @@ class SupabaseService {
     const docNameLower = String(doctor.full_name || '').toLowerCase().trim();
     return docId === 'doc_dongnh' ||
            docUsername === 'dongnh' ||
-           docEmail.includes('dong') ||
-           docNameLower.includes('đông') ||
-           docNameLower.includes('dong');
+           docEmail === 'nguyenhuudongy18@gmail.com' ||
+           /\bnguyễn hữu đông\b|\bnguyen huu dong\b|\bbs\.?\s*đông\b/i.test(docNameLower);
+  }
+
+  _normalizeWorkspaceToken(val) {
+    return String(val || '')
+      .toLowerCase()
+      .replace(/^(?:bs\.?|bác sĩ|bac si|ths\.?|ts\.?|cki+\.?)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   matchesDoctorWorkspace(patient, doctor) {
@@ -143,25 +152,37 @@ class SupabaseService {
     if (!doctor) return true;
     const docId = String(doctor.id || '').toLowerCase().trim();
     const docUsername = String(doctor.username || '').toLowerCase().trim();
-    const docNameLower = String(doctor.full_name || '').toLowerCase().trim();
+    const docNameRaw = String(doctor.full_name || '').toLowerCase().trim();
+    const docNameNorm = this._normalizeWorkspaceToken(docNameRaw);
     const isDongTarget = this.isDongDoctor(doctor);
 
     const pDocId = String(patient.doctor_id || '').toLowerCase().trim();
     const pUserId = String(patient.user_id || '').toLowerCase().trim();
     const pHandoverId = String(patient.handover_by_id || '').toLowerCase().trim();
-    const pDocName = String(patient.doctor_name || patient.handover_by || '').toLowerCase().trim();
+    const pDocNameRaw = String(patient.doctor_name || patient.handover_by || '').toLowerCase().trim();
+    const pDocNameNorm = this._normalizeWorkspaceToken(pDocNameRaw);
 
     if (isDongTarget) {
       return pDocId === 'doc_dongnh' ||
              (docId && (pDocId === docId || pUserId === docId)) ||
-             pDocName.includes('đông') ||
-             pDocName.includes('dong') ||
-             (!pDocName && !pDocId);
+             /\bnguyễn hữu đông\b|\bnguyen huu dong\b|\bbs\.?\s*đông\b/i.test(pDocNameRaw) ||
+             (!pDocNameRaw && !pDocId);
     }
 
+    const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameMatch = docNameNorm && pDocNameNorm && (
+      pDocNameNorm === docNameNorm ||
+      pDocNameRaw === docNameRaw
+    );
+    const userMatch = docUsername && (
+      pDocId === docUsername ||
+      pDocNameRaw === docUsername ||
+      (docUsername.length >= 3 && new RegExp(`(?:^|[^a-z0-9])${escapeRx(docUsername)}(?:$|[^a-z0-9])`, 'i').test(pDocNameRaw))
+    );
+
     return (docId && (pDocId === docId || pUserId === docId || pHandoverId === docId)) ||
-           (docUsername && (pDocId === docUsername || pDocName.includes(docUsername))) ||
-           (docNameLower && (pDocName === docNameLower || pDocName.includes(docNameLower)));
+           !!userMatch ||
+           !!nameMatch;
   }
 
   extractPayloadRecord(payload) {
@@ -783,7 +804,7 @@ class SupabaseService {
           .order('full_name', { ascending: true });
         if (!error && data && data.length > 0) {
           data.forEach(p => {
-            const isDong = (p.username === 'dongnh' || (p.email && p.email.includes('dong')) || (p.full_name && p.full_name.toLowerCase().includes('đông')));
+            const isDong = this.isDongDoctor(p);
             const existingIdx = docs.findIndex(d =>
               d.id === p.id ||
               d.profile_uuid === p.id ||
@@ -924,11 +945,17 @@ class SupabaseService {
       if (existing?.id) {
         payload.id = existing.id;
       }
-      const { data, error } = await this.client
-        .from('department_settings')
-        .upsert(payload)
-        .select()
-        .single();
+      const { data, error } = existing?.id
+        ? await this.client
+          .from('department_settings')
+          .upsert(payload, { onConflict: 'id' })
+          .select()
+          .single()
+        : await this.client
+          .from('department_settings')
+          .insert(payload)
+          .select()
+          .single();
       if (error) throw error;
       return { data, error: null };
     } catch (err) {
@@ -975,6 +1002,17 @@ class SupabaseService {
   }
 
   // ================= PATIENT DATA OPERATIONS =================
+
+  _getFetchScopeKey(isoDate, targetDoctor = null) {
+    const dKey = targetDoctor ? (targetDoctor.id || targetDoctor.username || 'doc') : 'all';
+    return `${isoDate}::${dKey}`;
+  }
+
+  getLastFetchDeletedState(targetDate = null, targetDoctor = null) {
+    const isoDate = this.formatDateToISO(targetDate || this.getCurrentWorkDate());
+    const key = this._getFetchScopeKey(isoDate, targetDoctor);
+    return this._cloudDeletedScopeState?.get(key) || { hasDeleted: false, deletedIds: new Set() };
+  }
 
   _getClearedDateKey(targetDoctor = null, isAll = false) {
     if (isAll || !targetDoctor) return 'medward_cleared_date_all';
@@ -1062,6 +1100,14 @@ class SupabaseService {
       const matchedTodayAll = targetDoctor
         ? allToday.filter(p => this.matchesDoctorWorkspace(p, targetDoctor))
         : allToday;
+      const cloudDeletedIdsToday = new Set(
+        matchedTodayAll.filter(p => p.is_deleted && p.id).map(p => p.id)
+      );
+      const hasDeletedToday = cloudDeletedIdsToday.size > 0;
+      this._cloudDeletedScopeState.set(
+        this._getFetchScopeKey(isoDate, targetDoctor),
+        { hasDeleted: hasDeletedToday, deletedIds: cloudDeletedIdsToday }
+      );
       const activeToday = matchedTodayAll.filter(p => !p.is_deleted && !deletedTombstones.has(p.id));
 
       if (activeToday.length > 0) {
@@ -1080,7 +1126,6 @@ class SupabaseService {
       const isToday = (isoDate === this.formatDateToISO(new Date()));
       const clearedFlag = localStorage.getItem(this._getClearedDateKey(targetDoctor, !targetDoctor)) === isoDate ||
                           localStorage.getItem('medward_cleared_date_all') === isoDate;
-      const hasDeletedToday = matchedTodayAll.some(p => p.is_deleted);
 
       if (isToday && !clearedFlag && !hasDeletedToday) {
         try {
@@ -1122,10 +1167,24 @@ class SupabaseService {
                 this.sanitizePatientForSupabase({ ...p, sort_order: idx }, isoDate)
               );
               if (rolloverPayloads.length > 0) {
-                await this.client
-                  .from('patients')
-                  .upsert(rolloverPayloads, { onConflict: 'id', ignoreDuplicates: false })
-                  .catch(() => { });
+                try {
+                  let { error: rolloverErr } = await this.client
+                    .from('patients')
+                    .upsert(rolloverPayloads, { onConflict: 'id', ignoreDuplicates: false });
+                  if (rolloverErr && this.isMissingColumnError(rolloverErr, 'dengue_trends')) {
+                    this.supportsDengueTrendsCol = false;
+                    rolloverPayloads.forEach(r => { delete r.dengue_trends; });
+                    const retryRollover = await this.client
+                      .from('patients')
+                      .upsert(rolloverPayloads, { onConflict: 'id', ignoreDuplicates: false });
+                    rolloverErr = retryRollover.error;
+                  }
+                  if (rolloverErr) {
+                    console.warn('Lưu ý lưu rollover lên Cloud:', rolloverErr?.message || rolloverErr);
+                  }
+                } catch (rolloverEx) {
+                  console.warn('Lưu ý lưu rollover lên Cloud:', rolloverEx?.message || rolloverEx);
+                }
               }
 
               this.isSyncing = false;
@@ -1371,7 +1430,8 @@ class SupabaseService {
     }
 
     if (this.batchSyncLock) {
-      this.pendingBatch = { array: patientsArray, date: isoDate, options };
+      const scopeKey = `${isoDate}::${isAllScope ? 'all' : (targetDoctor?.id || targetDoctor?.username || 'doc')}`;
+      this.pendingBatchQueue.set(scopeKey, { array: patientsArray, date: isoDate, options });
       return { data: patientsArray, error: null, queued: true };
     }
 
@@ -1399,26 +1459,27 @@ class SupabaseService {
       const deletedTombstones = this.getDeletedTombstoneIds();
       const pendingDeletes = this.getPendingDeleteIds();
 
-      const rawRecords = patientsArray
-        .filter(p => p && (!p.id || (!deletedTombstones.has(p.id) && !pendingDeletes.has(p.id))))
-        .map((p, idx) => {
-          const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx }, isoDate);
-          if (!item.id || !uuidRegex.test(item.id)) {
-            item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
-            if (p) p.id = item.id;
-          }
-          if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
-            item.user_id = currentUser.id;
-          }
-          if (!item.created_at || item.created_at === 'null') {
-            item.created_at = nowIso;
-          }
-          item.updated_at = nowIso;
-          this.recentlySavedPatientIds.set(item.id, Date.now());
-          return item;
-        });
+      const rawSources = patientsArray
+        .filter(p => p && (!p.id || (!deletedTombstones.has(p.id) && !pendingDeletes.has(p.id))));
 
-      // Khử trùng lặp ID trong cùng 1 request
+      const rawRecords = rawSources.map((p, idx) => {
+        const item = this.sanitizePatientForSupabase({ ...p, sort_order: idx }, isoDate);
+        if (!item.id || !uuidRegex.test(item.id)) {
+          item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
+          if (p) p.id = item.id;
+        }
+        if (currentUser && currentUser.id && uuidRegex.test(currentUser.id)) {
+          item.user_id = currentUser.id;
+        }
+        if (!item.created_at || item.created_at === 'null') {
+          item.created_at = nowIso;
+        }
+        item.updated_at = nowIso;
+        this.recentlySavedPatientIds.set(item.id, Date.now());
+        return item;
+      });
+
+      // Khử trùng lặp ID trong cùng 1 request (khớp đúng index rawSources)
       const seenIds = new Set();
       const deduplicatedRecords = [];
       for (let i = 0; i < rawRecords.length; i++) {
@@ -1426,13 +1487,14 @@ class SupabaseService {
         const lowerId = String(item.id).toLowerCase();
         if (seenIds.has(lowerId)) {
           item.id = (CONFIG.generateUUID ? CONFIG.generateUUID() : crypto.randomUUID());
-          if (patientsArray[i]) patientsArray[i].id = item.id;
+          if (rawSources[i]) rawSources[i].id = item.id;
         }
         seenIds.add(String(item.id).toLowerCase());
         deduplicatedRecords.push(item);
       }
 
       let syncedData = deduplicatedRecords;
+      let batchFailureError = null;
 
       if (deduplicatedRecords.length > 0) {
         let upsertSuccess = false;
@@ -1457,7 +1519,7 @@ class SupabaseService {
             syncedData = data;
             upsertSuccess = true;
             const syncedMap = new Map(data.map(d => [d.id, d]));
-            patientsArray.forEach(p => {
+            rawSources.forEach(p => {
               if (!p?.id) return;
               this.clearPendingSync(p.id);
               const s = syncedMap.get(p.id);
@@ -1467,9 +1529,11 @@ class SupabaseService {
               }
             });
           } else if (upsertError) {
+            batchFailureError = upsertError;
             console.warn('Lưu ý upsert mẻ:', upsertError?.message || upsertError);
           }
         } catch (batchErr) {
+          batchFailureError = batchErr;
           console.warn('Lỗi mạng khi upsert mẻ, chuyển sang lưu từng bản ghi:', batchErr?.message || batchErr);
         }
 
@@ -1477,19 +1541,34 @@ class SupabaseService {
           const individuallySaved = [];
           for (const item of deduplicatedRecords) {
             try {
-              const res = await this.client.from('patients').upsert(item, { onConflict: 'id' }).select().single();
+              let res = await this.client.from('patients').upsert(item, { onConflict: 'id' }).select().single();
+              if (res.error && this.isMissingColumnError(res.error, 'dengue_trends')) {
+                this.supportsDengueTrendsCol = false;
+                delete item.dengue_trends;
+                res = await this.client.from('patients').upsert(item, { onConflict: 'id' }).select().single();
+              }
               if (!res.error) {
-                individuallySaved.push(res.data || item);
+                const savedRow = res.data || item;
+                individuallySaved.push(savedRow);
                 this.clearPendingSync(item.id);
+                const src = rawSources.find(s => s?.id === item.id);
+                if (src && savedRow) {
+                  if (savedRow.version !== undefined) src.version = savedRow.version;
+                  if (savedRow.updated_at) src.updated_at = savedRow.updated_at;
+                }
               } else {
+                batchFailureError = batchFailureError || res.error;
                 this.markPendingSync(item.id);
               }
             } catch (singleErr) {
+              batchFailureError = batchFailureError || singleErr;
               this.markPendingSync(item.id);
             }
           }
           if (individuallySaved.length > 0) {
             syncedData = individuallySaved;
+          } else {
+            throw (batchFailureError || new Error('Đồng bộ danh sách lên Cloud thất bại'));
           }
         }
       }
@@ -1586,9 +1665,10 @@ class SupabaseService {
       this.lastSyncedAt = new Date();
       this.notifyStateChange();
 
-      if (this.pendingBatch) {
-        const nextBatch = this.pendingBatch;
-        this.pendingBatch = null;
+      if (this.pendingBatchQueue && this.pendingBatchQueue.size > 0) {
+        const firstKey = this.pendingBatchQueue.keys().next().value;
+        const nextBatch = this.pendingBatchQueue.get(firstKey);
+        this.pendingBatchQueue.delete(firstKey);
         setTimeout(() => this.syncBatchPatients(nextBatch.array, nextBatch.date, nextBatch.options), 50);
       }
 
@@ -1600,12 +1680,13 @@ class SupabaseService {
       this.isSyncing = false;
       this.notifyStateChange();
 
-      if (this.pendingBatch && (typeof navigator === 'undefined' || navigator.onLine)) {
-        const nextBatch = this.pendingBatch;
-        this.pendingBatch = null;
+      if (this.pendingBatchQueue && this.pendingBatchQueue.size > 0 && (typeof navigator === 'undefined' || navigator.onLine)) {
+        const firstKey = this.pendingBatchQueue.keys().next().value;
+        const nextBatch = this.pendingBatchQueue.get(firstKey);
+        this.pendingBatchQueue.delete(firstKey);
         setTimeout(() => this.syncBatchPatients(nextBatch.array, nextBatch.date, nextBatch.options), 300);
       } else {
-        this.pendingBatch = null;
+        this.pendingBatchQueue?.clear();
       }
 
       return {

@@ -368,11 +368,8 @@ class HandoverController {
     const allHandovers = [...criticalList, ...pendingList];
 
     let dateStr = '';
-    const reportDateInput = document.getElementById('reportDate');
-    if (reportDateInput && reportDateInput.value) {
-      const parts = reportDateInput.value.split('-');
-      if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}`;
-      else dateStr = reportDateInput.value;
+    if (window.patientController?.formatReportDateDisplay) {
+      dateStr = window.patientController.formatReportDateDisplay('dm');
     } else {
       const now = new Date();
       dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;

@@ -13,8 +13,9 @@ class PatientController {
     this.mobileViewMode = localStorage.getItem('medward_mobile_view_mode') || 'cards'; // 'cards' | 'table'
     this.activeWorkspaceDoctorId = 'my_space'; // 'my_space' | 'all' | specific docId
     this.autoSaveTimers = {};
-    this.currentDate = this.getCurrentDateString();
+    this.currentDate = this.getTodayDMY();
     this.pendingRealtimePatches = [];
+    this._pendingModalRender = false;
     this.lastClinicalSelection = null;
     this._formatToolbarTimer = null;
 
@@ -38,7 +39,34 @@ class PatientController {
   }
 
   getCurrentDateString() {
-    return this.getTodayDMY();
+    return this.currentDate || this.getTodayDMY();
+  }
+
+  formatReportDateDisplay(mode = 'dm') {
+    const repDateInput = document.getElementById('reportDate');
+    const rawVal = repDateInput && repDateInput.value ? String(repDateInput.value).trim() : '';
+    let dd = '';
+    let mm = '';
+    let yyyy = '';
+    if (rawVal.includes('/')) {
+      const parts = rawVal.split('/');
+      if (parts.length === 3) [dd, mm, yyyy] = parts;
+    } else if (rawVal.includes('-')) {
+      const parts = rawVal.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) [yyyy, mm, dd] = parts;
+        else[dd, mm, yyyy] = parts;
+      }
+    }
+    if (!dd || !mm || !yyyy) {
+      const now = new Date();
+      dd = String(now.getDate()).padStart(2, '0');
+      mm = String(now.getMonth() + 1).padStart(2, '0');
+      yyyy = String(now.getFullYear());
+    }
+    dd = dd.padStart(2, '0');
+    mm = mm.padStart(2, '0');
+    return mode === 'dmy-dash' ? `${dd}-${mm}-${yyyy}` : `${dd}/${mm}`;
   }
 
   formatDateToCompare(d) {
@@ -163,14 +191,26 @@ class PatientController {
 
         // Nếu người dùng đang gõ trong bảng/thẻ (bất kỳ dòng nào) hoặc đang mở Modal của đúng ca này -> hoãn render để không mất focus/mất chữ
         if (isInlineTableOrCardTyping || (activePatientId && targetId === activePatientId) || (isDetailModalOpen && targetId === modalPatientId)) {
-          if (isDetailModalOpen && targetId === modalPatientId && payload.new && !payload.new.is_deleted) {
+          const isDeleteEvt = (payload.eventType === 'DELETE' || payload.new?.is_deleted);
+          if (isDetailModalOpen && targetId === modalPatientId && payload.new && !isDeleteEvt) {
             const idx = this.patientList.findIndex(p => p.id === targetId);
             if (idx >= 0) {
-              this.normalizePatientClsAndOrders(payload.new);
-              this.patientList[idx] = { ...this.patientList[idx], ...payload.new };
-              this.saveLocalCache();
+              const curP = this.patientList[idx];
+              const incVer = Number(payload.new.version || 0);
+              const curVer = Number(curP.version || 0);
+              const incTime = new Date(payload.new.updated_at || payload.new.client_updated_at || 0).getTime();
+              const curTime = new Date(curP.updated_at || curP.client_updated_at || 0).getTime();
+              if (incVer >= curVer || incTime > curTime) {
+                this.normalizePatientClsAndOrders(payload.new);
+                this.patientList[idx] = { ...curP, ...payload.new };
+                this.saveLocalCache();
+                this._pendingModalRender = true;
+              }
             }
             this.showModalRemoteUpdateNotice(payload.new);
+            if (!isInlineTableOrCardTyping && !(activePatientId && targetId === activePatientId)) {
+              return;
+            }
           }
           this.pendingRealtimePatches.push(payload);
           return;
@@ -317,12 +357,17 @@ class PatientController {
     });
 
     // Các ca còn lại trong localMap (không có trên Cloud):
-    // Bảo toàn danh sách: Nếu Cloud chưa có bản ghi (ví dụ vừa sang ngày mới) và không có cờ cố ý xóa trắng, giữ nguyên và đẩy lên Cloud
+    // Bảo toàn danh sách: Nếu Cloud của bác sĩ này chưa có bản ghi (ví dụ vừa sang ngày mới) và không có cờ cố ý xóa trắng, giữ nguyên và đẩy lên Cloud
+    const scopedCloudPatients = cloudPatients.filter(cp => isAll || (window.supabaseService.matchesDoctorWorkspace
+      ? window.supabaseService.matchesDoctorWorkspace(cp, doctor)
+      : true));
+    const hasScopedDeleted = scopedCloudPatients.some(cp => cp.is_deleted);
     const isClearedIntentional = !!(window.supabaseService && (
       localStorage.getItem(window.supabaseService._getClearedDateKey(doctor, isAll)) === isoDate ||
-      localStorage.getItem('medward_cleared_date_all') === isoDate
+      localStorage.getItem('medward_cleared_date_all') === isoDate ||
+      hasScopedDeleted
     ));
-    const cloudHasRecords = cloudPatients.length > 0;
+    const cloudHasRecords = scopedCloudPatients.length > 0;
 
     for (const [id, localP] of localMap.entries()) {
       if (localP.is_deleted || deletedTombstones.has(id) || pendingDeleteIds.has(id)) {
@@ -488,6 +533,18 @@ class PatientController {
 
         if (idx >= 0) {
           const oldP = this.patientList[idx];
+          const incVer = Number(newRecord.version || 0);
+          const oldVer = Number(oldP.version || 0);
+          const incTime = new Date(newRecord.updated_at || newRecord.client_updated_at || 0).getTime();
+          const oldTime = new Date(oldP.updated_at || oldP.client_updated_at || 0).getTime();
+          const isLocallyDirty = !!window.supabaseService?.getPendingSyncIds?.().has(newRecord.id);
+
+          if ((isLocallyDirty && !(incVer > oldVer && incTime > oldTime)) ||
+              (incVer < oldVer) ||
+              (incVer === oldVer && incTime > 0 && oldTime > 0 && incTime < oldTime)) {
+            return;
+          }
+
           this.normalizePatientClsAndOrders(newRecord);
           this.patientList[idx] = { ...this.patientList[idx], ...newRecord };
           this.saveLocalCache();
@@ -750,7 +807,12 @@ class PatientController {
             const todayIso = this.getTodayIso();
             const isToday = (reqIso === todayIso);
             const clearedKey = window.supabaseService ? window.supabaseService._getClearedDateKey(doctor, false) : null;
-            const isIntentionalCleared = clearedKey && (localStorage.getItem(clearedKey) === reqIso);
+            const cloudDeletedState = window.supabaseService?.getLastFetchDeletedState?.(reqIso, doctor);
+            if (cloudDeletedState?.deletedIds?.size > 0 && window.supabaseService?.markDeletedTombstone) {
+              cloudDeletedState.deletedIds.forEach(did => window.supabaseService.markDeletedTombstone(did));
+            }
+            const isIntentionalCleared = (clearedKey && (localStorage.getItem(clearedKey) === reqIso)) ||
+                                         (localStorage.getItem('medward_cleared_date_all') === reqIso);
 
             if (matched.length === 0 && isToday && !isIntentionalCleared) {
               let localFallback = [];
@@ -758,6 +820,20 @@ class PatientController {
                 const rawStr = localStorage.getItem(this.getDoctorSpaceKey(doctor.id));
                 if (rawStr) localFallback = JSON.parse(rawStr) || [];
               } catch (e) { }
+
+              const latestTombstones = window.supabaseService ? window.supabaseService.getDeletedTombstoneIds() : deletedTombstones;
+              const pendingDeleteIds = window.supabaseService ? window.supabaseService.getPendingDeleteIds() : new Set();
+              const cloudHasDeletedToday = !!cloudDeletedState?.hasDeleted;
+
+              localFallback = localFallback.filter(localP => {
+                if (!localP || !localP.id || localP.is_deleted) return false;
+                if (latestTombstones.has(localP.id) || pendingDeleteIds.has(localP.id)) return false;
+                if (cloudDeletedState?.deletedIds?.has(localP.id)) return false;
+                // Nếu trên Cloud hôm nay đã từng có dữ liệu và đã bị xóa sạch ở thiết bị khác,
+                // chỉ giữ lại những ca tạo/sửa offline trên máy này (pendingSyncIds)
+                if (cloudHasDeletedToday && !pendingSyncIds.has(localP.id)) return false;
+                return true;
+              });
 
               if (localFallback.length > 0) {
                 console.log(`🛡️ [Bảo toàn dữ liệu] Giữ nguyên ${localFallback.length} ca bệnh từ local cache khi Cloud ngày mới chưa có dữ liệu.`);
@@ -1446,7 +1522,9 @@ class PatientController {
             <span class="trend-badge-pulse">📈</span>
             <strong>XU HƯỚNG SXH (Hct &amp; TC)</strong>
           </div>
-          <button type="button" class="btn-trend-open">Chi tiết ➔</button>
+          <button type="button" class="btn-trend-open" title="Xem &amp; nhập xu hướng SXH" aria-label="Xem chi tiết xu hướng SXH">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
         </div>
         <div class="trend-box-content">
           <div class="trend-sparkline-wrap">
@@ -2016,35 +2094,49 @@ class PatientController {
   }
 
   /**
+   * Tự động in đậm tiền tố danh sách đầu dòng (1. 2. 3... và gạch đầu dòng - ...)
+   */
+  formatListPrefixes(html, includeNumbers = true) {
+    if (!html) return '';
+    let formatted = String(html);
+    if (includeNumbers) {
+      formatted = formatted.replace(/(^|[\r\n]|<br\s*\/?>|<div>)(?:<(b|strong)[^>]*>\s*(\d+[\.\/\)])\s*<\/\2>\s*|(\d+[\.\/\)])\s*)/gi, (m, p1, tag, pBold, pPlain) => {
+        const prefix = pBold || pPlain;
+        return `${p1}<b class="med-num-prefix" style="font-weight: 700;">${prefix} </b>`;
+      });
+    }
+    formatted = formatted.replace(/(^|[\r\n]|<br\s*\/?>|<div>)(?:<(b|strong)[^>]*>\s*([-–•])\s*<\/\2>\s*|([-–•])\s+)/gi, (m, p1, tag, bBold, bPlain) => {
+      const bullet = bBold || bPlain;
+      return `${p1}<b class="med-bullet-prefix" style="font-weight: 700;">${bullet} </b>`;
+    });
+    return formatted;
+  }
+
+  /**
    * Định dạng hiển thị các trường lâm sàng (Triệu chứng, Khám LS, Chẩn đoán, Y lệnh, Thêm thuốc):
    * - Hỗ trợ highlight tùy ý (<mark class="clinical-hl hl-...">)
    * - Hỗ trợ in đậm (thẻ <b>, <strong> từ Ctrl+B)
-   * - Tự động in đậm số thứ tự đầu dòng (1. 2. 3... hoặc 1/ 2/ hoặc 1) 2))
+   * - Tự động in đậm số thứ tự (1. 2. 3...) và gạch đầu dòng (- ...) ở đầu dòng
    */
   formatClinicalDisplay(text) {
     if (!text) return '';
     let str = String(text);
     const hasHtml = /<\/?(?:b|strong|i|em|u|mark|span|br|div|p)\b/i.test(str);
-    let formatted = hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
-
-    // Tự động in đậm số thứ tự ở đầu dòng nếu chưa có thẻ b/strong bao quanh
-    formatted = formatted.replace(/(^|[\r\n]|<br\s*\/?>|<div>)(?:<b[^>]*>|<strong[^>]*>)?\s*(\d+[\.\/\)])\s*(?:<\/b>|<\/strong>)?\s*/gi, (m, p1, p2) => {
-      return `${p1}<b class="med-num-prefix" style="font-weight: 700;">${p2} </b>`;
-    });
-
-    return formatted;
+    const formatted = hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
+    return this.formatListPrefixes(formatted, true);
   }
 
   /**
    * Định dạng Cột Cận Lâm Sàng (CLS):
    * - Giữ nguyên dấu ngoặc vuông [...] ở dạng chữ bình thường (không tự động in đậm)
-   * - Hỗ trợ highlight (<mark>) và in đậm thủ công (<b>, <strong>)
+   * - Hỗ trợ highlight (<mark>), in đậm thủ công (<b>, <strong>) và gạch đầu dòng (- ...)
    */
   formatClsDisplay(text) {
     if (!text) return '';
     let str = String(text);
     const hasHtml = /<\/?(?:b|strong|i|em|u|mark|span|br|div|p)\b/i.test(str);
-    return hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
+    const formatted = hasHtml ? this.sanitizeClinicalHtml(str) : this.escape(str);
+    return this.formatListPrefixes(formatted, false);
   }
 
   /**
@@ -2118,6 +2210,7 @@ class PatientController {
     html = html.replace(/<div>/gi, '\n').replace(/<\/div>/gi, '');
     html = html.replace(/<p>/gi, '\n').replace(/<\/p>/gi, '');
     html = html.replace(/<b\s+class="med-num-prefix"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
+    html = html.replace(/<b\s+class="med-bullet-prefix"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
     html = html.replace(/<b\s+class="cls-bracket-tag"[^>]*>([\s\S]*?)<\/b>/gi, '$1');
     html = html.replace(/<mark\b([^>]*)>/gi, (m, attrs) => `<mark class="${this.normalizeMarkClass(attrs)}">`);
     html = html.replace(/<(?!\/?(?:b|strong|i|em|u|mark)\b)[^>]+>/gi, '');
@@ -2640,46 +2733,74 @@ class PatientController {
   }
 
   /**
-   * Bật / Tắt đánh số tuần tự (Numbering toggle giống Word)
+   * Bật / Tắt định dạng danh sách đầu dòng ('number': 1. 2. 3... | 'bullet': - ...)
    */
-  toggleNumbering(text) {
-    if (!text || !text.trim()) return '1. ';
+  toggleListFormat(text, mode = 'number') {
+    const isBulletMode = mode === 'bullet';
+    const defaultPrefix = isBulletMode ? '- ' : '1. ';
+    if (!text || !text.trim()) return defaultPrefix;
+
     const lines = text.split(/\r?\n/);
     const nonEmptyLines = lines.filter(l => l.trim().length > 0);
-    if (nonEmptyLines.length === 0) return '1. ';
+    if (nonEmptyLines.length === 0) return defaultPrefix;
 
-    const numRegex = /^\s*(?:<b[^>]*>|<strong[^>]*>)?\s*(\d+)[\.\/\)]\s*(?:<\/b>|<\/strong>)?\s*/i;
-    const bulletRegex = /^\s*[-*•+]\s*/;
-    const numberedCount = nonEmptyLines.filter(l => numRegex.test(l)).length;
-    const isNumbered = numberedCount >= Math.ceil(nonEmptyLines.length * 0.5);
+    const numRegex = /^\s*(?:<(b|strong)[^>]*>\s*\d+[\.\/\)]\s*<\/\1>\s*|\d+[\.\/\)]\s*)/i;
+    const bulletRegex = /^\s*(?:<(b|strong)[^>]*>\s*[-–—*•+]\s*<\/\1>\s*|[-–—*•+](?:\s+|$))\s*/i;
+    const targetRegex = isBulletMode ? bulletRegex : numRegex;
+    const activeCount = nonEmptyLines.filter(l => targetRegex.test(l)).length;
+    const isActive = activeCount >= Math.ceil(nonEmptyLines.length * 0.5);
 
-    if (isNumbered) {
-      return lines.map(line => line.replace(numRegex, '').trim()).join('\n');
-    } else {
-      let cur = 1;
-      return lines.map(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return line;
-        const clean = trimmed.replace(bulletRegex, '').replace(numRegex, '');
-        const res = `${cur}. ${clean}`;
-        cur++;
-        return res;
-      }).join('\n');
+    if (isActive) {
+      return lines.map(line => line.replace(targetRegex, '').trim()).join('\n');
     }
+
+    let cur = 1;
+    return lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+      const clean = trimmed.replace(bulletRegex, '').replace(numRegex, '');
+      if (isBulletMode) {
+        return `- ${clean}`;
+      }
+      const res = `${cur}. ${clean}`;
+      cur++;
+      return res;
+    }).join('\n');
   }
 
   /**
-   * Đánh số nhanh cho một ô trên bảng Desktop
+   * Bật / Tắt đánh số tuần tự (Numbering toggle giống Word)
    */
-  toggleCellNumbering(el, patientId, field) {
+  toggleNumbering(text) {
+    return this.toggleListFormat(text, 'number');
+  }
+
+  /**
+   * Bật / Tắt gạch đầu dòng (- ...) giống Word
+   */
+  toggleBullets(text) {
+    return this.toggleListFormat(text, 'bullet');
+  }
+
+  /**
+   * Áp dụng định dạng danh sách (số thứ tự / gạch đầu dòng) cho một ô trên bảng Desktop
+   */
+  toggleCellListFormat(el, patientId, field, mode = 'number') {
     if (!el) return;
     const p = this.patientList.find(x => x.id === patientId);
     if (!p) return;
 
     const currentVal = this.getClinicalCellContent(el) || p[field] || '';
-    const newVal = this.toggleNumbering(currentVal);
+    const newVal = this.toggleListFormat(currentVal, mode);
 
     p[field] = newVal;
+    if (field === 'cls_hien_co' || field === 'cls_can_lam') {
+      const hc = (p.cls_hien_co || '').trim();
+      const cl = (p.cls_can_lam || '').trim();
+      if (hc && cl) p.cls = `[Hiện có]: ${hc}\n[Cần làm]: ${cl}`;
+      else if (cl) p.cls = `[Cần làm]: ${cl}`;
+      else p.cls = hc;
+    }
     p.updated_at = new Date().toISOString();
     this.saveLocalCache();
 
@@ -2688,14 +2809,52 @@ class PatientController {
     }
 
     const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
-    el.innerHTML = isCls ? this.formatClsDisplay(newVal) : this.formatClinicalDisplay(newVal);
+    el.innerHTML = newVal
+      ? (isCls ? this.formatClsDisplay(newVal) : this.formatClinicalDisplay(newVal))
+      : '';
     el.classList.add('saved-pulse');
     setTimeout(() => el.classList.remove('saved-pulse'), 700);
 
-    const label = field === 'chan_doan' ? 'Chẩn đoán' : (field === 'y_lenh' ? 'Y lệnh' : 'nội dung');
-    if (window.showToast) {
-      window.showToast(`🔢 Đã cập nhật đánh số (1. 2. 3...) cho ${label}!`, 'info');
+    el.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
+
+    const fieldLabels = {
+      trieu_chung: 'Triệu chứng',
+      kham_lam_sang: 'Khám LS',
+      cls_hien_co: 'CLS hiện có',
+      cls_can_lam: 'CLS cần làm',
+      chan_doan: 'Chẩn đoán',
+      y_lenh: 'Y lệnh',
+      them_thuoc: 'Thêm thuốc'
+    };
+    const label = fieldLabels[field] || 'nội dung';
+    if (window.showToast) {
+      const msg = mode === 'bullet'
+        ? `• Đã cập nhật gạch đầu dòng (- ) cho ${label}!`
+        : `🔢 Đã cập nhật đánh số (1. 2. 3...) cho ${label}!`;
+      window.showToast(msg, 'info');
+    }
+  }
+
+  /**
+   * Đánh số nhanh cho một ô trên bảng Desktop
+   */
+  toggleCellNumbering(el, patientId, field) {
+    return this.toggleCellListFormat(el, patientId, field, 'number');
+  }
+
+  /**
+   * Gạch đầu dòng nhanh cho một ô trên bảng Desktop
+   */
+  toggleCellBullets(el, patientId, field) {
+    return this.toggleCellListFormat(el, patientId, field, 'bullet');
   }
 
   /**
@@ -2749,16 +2908,20 @@ class PatientController {
   }
 
   /**
-   * Đánh số thứ tự trong Modal chi tiết (Rich Editor + Backing Textarea)
+   * Bật / Tắt đánh số hoặc gạch đầu dòng trong Modal chi tiết (Rich Editor + Backing Textarea)
    */
-  toggleTextareaNumbering(textareaId) {
+  toggleTextareaListFormat(textareaId, mode = 'number') {
     const ta = document.getElementById(textareaId);
     const richEl = document.getElementById(`${textareaId}Rich`);
     if (!ta) return;
 
+    const toastMsg = mode === 'bullet'
+      ? '• Đã cập nhật gạch đầu dòng (- ) giống Word!'
+      : '🔢 Đã cập nhật đánh số (1, 2, 3...) giống Word!';
+
     if (richEl) {
       const currentVal = this.getClinicalCellContent(richEl);
-      const toggled = this.toggleNumbering(currentVal);
+      const toggled = this.toggleListFormat(currentVal, mode);
       ta.value = toggled;
       const field = richEl.dataset.field;
       const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
@@ -2766,7 +2929,15 @@ class PatientController {
         ? (isCls ? this.formatClsDisplay(toggled) : this.formatClinicalDisplay(toggled))
         : '';
       richEl.focus();
-      if (window.showToast) window.showToast('🔢 Đã cập nhật đánh số (1, 2, 3...) giống Word!', 'info');
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.selectNodeContents(richEl);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      if (window.showToast) window.showToast(toastMsg, 'info');
       return;
     }
 
@@ -2776,18 +2947,32 @@ class PatientController {
 
     if (start !== end) {
       const sel = val.slice(start, end);
-      const toggled = this.toggleNumbering(sel);
+      const toggled = this.toggleListFormat(sel, mode);
       ta.value = val.slice(0, start) + toggled + val.slice(end);
       ta.selectionStart = start;
       ta.selectionEnd = start + toggled.length;
     } else {
-      const toggled = this.toggleNumbering(val);
+      const toggled = this.toggleListFormat(val, mode);
       ta.value = toggled;
       ta.selectionStart = ta.selectionEnd = ta.value.length;
     }
     ta.dispatchEvent(new Event('input', { bubbles: true }));
     ta.focus();
-    if (window.showToast) window.showToast('🔢 Đã cập nhật đánh số (1, 2, 3...) giống Word!', 'info');
+    if (window.showToast) window.showToast(toastMsg, 'info');
+  }
+
+  /**
+   * Đánh số thứ tự trong Modal chi tiết (Rich Editor + Backing Textarea)
+   */
+  toggleTextareaNumbering(textareaId) {
+    return this.toggleTextareaListFormat(textareaId, 'number');
+  }
+
+  /**
+   * Gạch đầu dòng trong Modal chi tiết (Rich Editor + Backing Textarea)
+   */
+  toggleTextareaBullets(textareaId) {
+    return this.toggleTextareaListFormat(textareaId, 'bullet');
   }
 
   /**
@@ -2909,6 +3094,29 @@ class PatientController {
   }
 
   /**
+   * Lấy văn bản trước vị trí con trỏ trong contenteditable (giữ nguyên xuống dòng từ <br>/<div>/\n)
+   */
+  getTextBeforeCaret(el, range) {
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(el);
+    preRange.setEnd(range.endContainer, range.endOffset);
+    const tmp = document.createElement('div');
+    tmp.appendChild(preRange.cloneContents());
+    tmp.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    tmp.querySelectorAll('div, p').forEach(block => {
+      block.before('\n');
+    });
+    return tmp.textContent || '';
+  }
+
+  /**
+   * Nút micro Gạch đầu dòng (- ...) cho ô trên bảng Desktop
+   */
+  renderBulletMicroBtn(patientId, field, containerSelector) {
+    return `<button type="button" class="btn-micro-tool" title="Gạch đầu dòng (- ...) giống Word (Alt+B)" onclick="event.stopPropagation(); window.patientController.toggleCellBullets(this.closest('${containerSelector}').querySelector('.med-cell-editor'), '${patientId}', '${field}')"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="3.8" y2="4"/><line x1="6.5" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="3.8" y2="8"/><line x1="6.5" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="3.8" y2="12"/><line x1="6.5" y1="12" x2="14" y2="12"/></svg></button>`;
+  }
+
+  /**
    * Xử lý phím Enter & phím tắt giống Word trên ô chỉnh sửa trực tiếp (Desktop Table & Modal Rich Editor)
    */
   handleClinicalKeyDown(e, patientId, field, el) {
@@ -2924,12 +3132,23 @@ class PatientController {
     }
 
     // 2. Phím Alt+N hoặc Ctrl+Shift+7: Đánh số thứ tự
-    if ((e.altKey && (e.key === 'n' || e.key === 'N')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '7' || e.key === '&'))) {
+    if ((e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'n' || e.key === 'N')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '7' || e.key === '&'))) {
       e.preventDefault();
       if (isModalRich && el.dataset.textareaId) {
         this.toggleTextareaNumbering(el.dataset.textareaId);
       } else {
         this.toggleCellNumbering(el, patientId, field);
+      }
+      return;
+    }
+
+    // 2b. Phím Alt+B hoặc Ctrl+Shift+8: Gạch đầu dòng (- ...)
+    if ((e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'b' || e.key === 'B')) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '8' || e.key === '*'))) {
+      e.preventDefault();
+      if (isModalRich && el.dataset.textareaId) {
+        this.toggleTextareaBullets(el.dataset.textareaId);
+      } else {
+        this.toggleCellBullets(el, patientId, field);
       }
       return;
     }
@@ -2947,34 +3166,33 @@ class PatientController {
       return;
     }
 
-    // 5. Xử lý Enter giống Word (Auto-numbering)
+    // 5. Xử lý Enter giống Word (Auto-numbering & Auto-bullets)
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
 
       const range = sel.getRangeAt(0);
-      const preRange = range.cloneRange();
-      preRange.selectNodeContents(el);
-      preRange.setEnd(range.endContainer, range.endOffset);
-      const textBefore = preRange.toString();
+      const textBefore = this.getTextBeforeCaret(el, range);
 
       const lines = textBefore.split(/\r?\n/);
       const curLine = lines[lines.length - 1] || '';
 
       const numMatch = curLine.match(/^(\s*)(\d+)([\.\/\)])(\s*)(.*)$/);
-      if (numMatch) {
+      const bulletMatch = !numMatch ? curLine.match(/^(\s*)([-–•])(\s+)(.*)$/) : null;
+      if (numMatch || bulletMatch) {
         e.preventDefault();
-        const num = parseInt(numMatch[2], 10);
-        const sep = numMatch[3];
-        const rest = numMatch[5];
+        const rest = numMatch ? numMatch[5] : bulletMatch[4];
 
         if (!rest.trim()) {
-          // Thoát đánh số khi ấn Enter ở dòng trống có số
+          // Thoát đánh số / gạch đầu dòng khi ấn Enter ở dòng trống
           const rawContent = this.getClinicalCellContent(el);
           const allLines = rawContent.split(/\r?\n/);
           if (allLines.length > 0) {
-            const lastIdx = allLines.length - 1;
-            allLines[lastIdx] = allLines[lastIdx].replace(/^\s*(?:<b[^>]*>)?\s*\d+[\.\/\)]\s*(?:<\/b>)?\s*/, '');
+            const targetIdx = Math.min(lines.length - 1, allLines.length - 1);
+            const stripRegex = numMatch
+              ? /^\s*(?:<(b|strong)[^>]*>\s*\d+[\.\/\)]\s*<\/\1>\s*|\d+[\.\/\)]\s*)/i
+              : /^\s*(?:<(b|strong)[^>]*>\s*[-–—*•+]\s*<\/\1>\s*|[-–—*•+](?:\s+|$))\s*/i;
+            allLines[targetIdx] = allLines[targetIdx].replace(stripRegex, '');
             const cleanNew = allLines.join('\n');
             const isCls = field === 'cls_hien_co' || field === 'cls_can_lam';
             el.innerHTML = cleanNew
@@ -2992,9 +3210,16 @@ class PatientController {
             sel.addRange(newRange);
           }
         } else {
-          // Sinh số thứ tự kế tiếp, in đậm số thứ tự
-          const nextNum = num + 1;
-          const htmlToInsert = `<br><b class="med-num-prefix" style="font-weight: 700;">${nextNum}${sep} </b>`;
+          let htmlToInsert;
+          if (numMatch) {
+            const nextNum = parseInt(numMatch[2], 10) + 1;
+            const sep = numMatch[3];
+            htmlToInsert = `<br><b class="med-num-prefix" style="font-weight: 700;">${nextNum}${sep} </b>`;
+          } else {
+            const indent = bulletMatch[1] || '';
+            const bulletChar = bulletMatch[2];
+            htmlToInsert = `<br>${indent}<b class="med-bullet-prefix" style="font-weight: 700;">${bulletChar} </b>`;
+          }
           document.execCommand('insertHTML', false, htmlToInsert);
           if (isModalRich) {
             this.syncTextareaFromRichEditor(el);
@@ -3602,6 +3827,13 @@ class PatientController {
     };
 
     this.patientList[idx] = updated;
+    if (this.pendingRealtimePatches && this.pendingRealtimePatches.length > 0) {
+      this.pendingRealtimePatches = this.pendingRealtimePatches.filter(patch => {
+        const rec = patch?.new || patch?.old;
+        return !rec || rec.id !== patientId;
+      });
+    }
+    this._pendingModalRender = false;
     this.saveLocalCache();
     this.render();
 
@@ -3645,9 +3877,11 @@ class PatientController {
           window.supabaseService.clearPendingSync(pid);
           window.supabaseService.markDeletedTombstone(pid);
         });
-        await window.supabaseService.clearAllPatients(this.getCurrentDateString(), doctor, isAll).catch(() => {});
+        const targetDateStr = this.getCurrentDateString();
+        const targetIso = window.supabaseService.formatDateToISO(targetDateStr);
+        await window.supabaseService.clearAllPatients(targetDateStr, doctor, isAll).catch(() => {});
         if (typeof window.supabaseService.setWorkDayStatus === 'function') {
-          window.supabaseService.setWorkDayStatus(this.getTodayIso(), 'active', 0).catch(() => {});
+          window.supabaseService.setWorkDayStatus(targetIso, 'active', 0).catch(() => {});
         }
       }
       if (window.updateSaveStatus) {
@@ -4074,18 +4308,7 @@ class PatientController {
     if (pendEl) pendEl.innerText = pending;
 
     if (dateEl) {
-      const repDateInput = document.getElementById('reportDate');
-      if (repDateInput && repDateInput.value) {
-        const parts = repDateInput.value.split('-');
-        if (parts.length === 3) {
-          dateEl.innerText = `${parts[2]}/${parts[1]}`;
-        } else {
-          dateEl.innerText = repDateInput.value;
-        }
-      } else {
-        const now = new Date();
-        dateEl.innerText = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-      }
+      dateEl.innerText = this.formatReportDateDisplay('dm');
     }
   }
 
@@ -4379,6 +4602,7 @@ class PatientController {
           <div class="med-tier-header no-print">
             <span class="med-micro-badge badge-s" title="Triệu chứng cơ năng">🗣️ Cơ năng</span>
             <div class="med-cell-tools">
+              ${this.renderBulletMicroBtn(p.id, 'trieu_chung', '.col-s')}
               <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'trieu_chung')">🖍️</button>
               <button type="button" class="btn-micro-tool" title="Chép Triệu chứng sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'trieu_chung')">📋</button>
             </div>
@@ -4399,6 +4623,7 @@ class PatientController {
                 <div class="med-tier-header">
                   <span class="med-micro-badge badge-ls">LS:</span>
                   <div class="med-cell-tools no-print">
+                    ${this.renderBulletMicroBtn(p.id, 'kham_lam_sang', '.med-o-pane')}
                     <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'kham_lam_sang')">🖍️</button>
                     <button type="button" class="btn-micro-tool" title="Chép Khám LS sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'kham_lam_sang')">📋</button>
                   </div>
@@ -4415,6 +4640,7 @@ class PatientController {
                   <span class="med-micro-badge badge-cls">CLS:</span>
                   <div class="med-cell-tools no-print">
                     <button type="button" class="btn-micro-tool" title="Chèn nhanh [Máu] (Alt+M)" onclick="event.stopPropagation(); window.patientController.insertClsTagToCell(this.closest('.med-o-pane').querySelector('.med-cell-editor'), '${p.id}', 'cls_hien_co', '[Máu] ')">💉</button>
+                    ${this.renderBulletMicroBtn(p.id, 'cls_hien_co', '.med-o-pane')}
                     <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'cls_hien_co')">🖍️</button>
                     <button type="button" class="btn-micro-tool" title="Chép CLS Hiện có" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_hien_co')">📋</button>
                   </div>
@@ -4434,6 +4660,7 @@ class PatientController {
                   ${p.cls_can_lam ? `
                     <button type="button" class="btn-micro-tool" title="Đã có kết quả: Tự động chuyển nội dung vào CLS Hiện Có" onclick="event.stopPropagation(); window.patientController.transferPendingClsToPresent('${p.id}')">📥</button>
                   ` : ''}
+                  ${this.renderBulletMicroBtn(p.id, 'cls_can_lam', '.med-o-bottom-row')}
                   <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'cls_can_lam')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép CLS Cần làm sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'cls_can_lam')">📋</button>
                 </div>
@@ -4455,6 +4682,7 @@ class PatientController {
               <span class="med-micro-badge badge-cd">🩺 CĐ</span>
               <div class="med-cell-tools">
                 <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... giống Word (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-cd-cell').querySelector('.med-cell-editor'), '${p.id}', 'chan_doan')">🔢</button>
+                ${this.renderBulletMicroBtn(p.id, 'chan_doan', '.med-cd-cell')}
                 <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'chan_doan')">🖍️</button>
                 <button type="button" class="btn-micro-tool" title="Chép Chẩn đoán sang Bệnh án" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'chan_doan')">📋</button>
               </div>
@@ -4476,6 +4704,7 @@ class PatientController {
                 <span class="med-micro-badge badge-orders">📋 Y lệnh</span>
                 <div class="med-cell-tools no-print">
                   <button type="button" class="btn-micro-tool" title="Đánh số 1, 2, 3... (Alt+N)" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'y_lenh')">🔢</button>
+                  ${this.renderBulletMicroBtn(p.id, 'y_lenh', '.med-tier')}
                   <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'y_lenh')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép Y lệnh" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'y_lenh')">📋</button>
                 </div>
@@ -4496,6 +4725,7 @@ class PatientController {
                     <button type="button" class="btn-micro-tool" title="Đã duyệt: Tự động chuyển thuốc bổ sung vào Y Lệnh Điều Trị" onclick="event.stopPropagation(); window.patientController.transferExtraRxToOrders('${p.id}')">📥</button>
                   ` : ''}
                   <button type="button" class="btn-micro-tool" title="Đánh số thuốc" onclick="event.stopPropagation(); window.patientController.toggleCellNumbering(this.closest('.med-tier').querySelector('.med-cell-editor'), '${p.id}', 'them_thuoc')">🔢</button>
+                  ${this.renderBulletMicroBtn(p.id, 'them_thuoc', '.med-tier')}
                   <button type="button" class="btn-micro-tool btn-micro-hl" title="Highlight đoạn bôi đen (Alt+H)" onmousedown="event.preventDefault()" onclick="event.stopPropagation(); window.patientController.openCellHighlightPicker(this, '${p.id}', 'them_thuoc')">🖍️</button>
                   <button type="button" class="btn-micro-tool" title="Chép thuốc bổ sung" onclick="event.stopPropagation(); window.patientController.copyClinicalField('${p.id}', 'them_thuoc')">📋</button>
                 </div>
@@ -5005,6 +5235,10 @@ class PatientController {
     if (alertBox) {
       alertBox.style.display = 'none';
       alertBox.innerHTML = '';
+    }
+    if (this._pendingModalRender) {
+      this._pendingModalRender = false;
+      this.render();
     }
   }
 
@@ -5966,16 +6200,7 @@ class PatientController {
       return;
     }
 
-    let dateStr = '';
-    const reportDateInput = document.getElementById('reportDate');
-    if (reportDateInput && reportDateInput.value) {
-      const parts = reportDateInput.value.split('-');
-      if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}`;
-      else dateStr = reportDateInput.value;
-    } else {
-      const now = new Date();
-      dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-    }
+    const dateStr = this.formatReportDateDisplay('dm');
 
     let text = `📋 Y LỆNH (${dateStr})\n\n`;
 
@@ -6031,16 +6256,7 @@ class PatientController {
   }
 
   getExportFilename(extension = 'xlsx') {
-    let dateStr = '';
-    const reportDateInput = document.getElementById('reportDate');
-    if (reportDateInput && reportDateInput.value) {
-      const parts = reportDateInput.value.split('-');
-      if (parts.length === 3) dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      else dateStr = reportDateInput.value.replace(/[\/\\]/g, '-');
-    } else {
-      const now = new Date();
-      dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
-    }
+    const dateStr = this.formatReportDateDisplay('dmy-dash');
 
     const { doctor } = this.getEffectiveDoctor();
     const docSlug = (doctor?.username || 'bacsi').replace(/[^a-zA-Z0-9_]/g, '');
@@ -6491,11 +6707,11 @@ class PatientController {
               ${ylShort ? `<div class="dup-item-detail"><strong>Y lệnh:</strong> ${this.escape(ylShort.length > 120 ? ylShort.substring(0, 120) + '...' : ylShort)}</div>` : ''}
 
               <div class="dup-item-actions" onclick="event.stopPropagation()">
-                <button type="button" class="btn-dup-action" onclick="window.patientController.openPatientDetailModal('${p.id}')" title="Xem &amp; sửa hồ sơ này">
-                  👁️ Xem chi tiết
+                <button type="button" class="btn-dup-action" onclick="window.patientController.openPatientDetailModal('${p.id}')" title="Xem &amp; sửa hồ sơ này" aria-label="Xem và sửa hồ sơ">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                 </button>
-                <button type="button" class="btn-dup-action danger" onclick="window.patientController.deleteSingleDuplicatePatient('${p.id}')" title="Xóa ngay bản ghi này">
-                  🗑️ Xóa bản ghi này
+                <button type="button" class="btn-dup-action danger" onclick="window.patientController.deleteSingleDuplicatePatient('${p.id}')" title="Xóa ngay bản ghi này" aria-label="Xóa bản ghi này">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
               </div>
             </div>

@@ -447,17 +447,21 @@ class AuthController {
     }
 
     const doc = this.getSelectedDoctor();
-    const docPin = doc.pin || localStorage.getItem(`medward_pin_${doc.id}`) || '123456';
-
-    if (pin === '123456' || pin === String(docPin)) {
+    if (this.verifyDoctorPin(doc, pin)) {
       this.unlockSession(doc);
     } else {
-      this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${doc.full_name}"! (Mặc định: 123456)`, 'error');
+      this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${doc.full_name}"!`, 'error');
       if (pinInput) {
         pinInput.value = '';
         pinInput.focus();
       }
     }
+  }
+
+  verifyDoctorPin(doc, inputPin) {
+    if (!doc || !inputPin) return false;
+    const expectedPin = String(doc.pin || localStorage.getItem(`medward_pin_${doc.id}`) || '123456');
+    return String(inputPin).trim() === expectedPin;
   }
 
   // ============================================================================
@@ -783,17 +787,17 @@ class AuthController {
 
     if (status.isCloud) {
       if (status.isSyncing) {
-        indicator.className = 'icon-btn btn-cloud syncing';
+        indicator.className = 'btn-cloud-sync cloud-syncing';
         indicator.setAttribute('data-tooltip', 'Cloud: Đang đồng bộ...');
         if (statusText) statusText.innerText = '🟡 Đang đồng bộ với Cloud...';
       } else {
         const timeStr = status.lastSyncedAt ? new Date(status.lastSyncedAt).toLocaleTimeString('vi-VN') : 'vừa xong';
-        indicator.className = 'icon-btn btn-cloud connected';
+        indicator.className = 'btn-cloud-sync cloud-connected';
         indicator.setAttribute('data-tooltip', `Cloud Realtime: Đã đồng bộ (${timeStr})`);
         if (statusText) statusText.innerText = `🟢 Cloud Realtime kết nối tốt (Đồng bộ lúc ${timeStr})`;
       }
     } else {
-      indicator.className = 'icon-btn btn-cloud';
+      indicator.className = 'btn-cloud-sync cloud-offline';
       indicator.setAttribute('data-tooltip', 'Lưu trữ nội bộ (Nhấn để cấu hình Cloud)');
       if (statusText) statusText.innerText = '🟢 Lưu trữ bộ nhớ thiết bị (Tự động lưu)';
     }
@@ -868,15 +872,15 @@ class AuthController {
 
           <div class="doc-item-actions">
             ${isAdmin ? `
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này">
-                👁️ Xem
+              <button type="button" class="btn btn-secondary btn-sm btn-icon-only" onclick="window.patientController.switchWorkspaceDoctor('${doc.id || doc.username}'); window.authController.closeAuthModal();" title="Xem không gian làm việc của bác sĩ này" aria-label="Xem không gian bác sĩ">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.authController.openDoctorEditModal('${doc.id || doc.username}')" title="Sửa thông tin">
-                ✏️ Sửa
+              <button type="button" class="btn btn-secondary btn-sm btn-icon-only" onclick="window.authController.openDoctorEditModal('${doc.id || doc.username}')" title="Sửa thông tin" aria-label="Sửa thông tin bác sĩ">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               </button>
               ${!isDong ? `
-                <button type="button" class="btn btn-danger btn-sm" onclick="window.authController.deleteDoctor('${doc.id || doc.username}')" title="Xóa tài khoản này">
-                  🗑️ Xóa
+                <button type="button" class="btn btn-danger btn-sm btn-icon-only" onclick="window.authController.deleteDoctor('${doc.id || doc.username}')" title="Xóa tài khoản này" aria-label="Xóa tài khoản bác sĩ">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
               ` : ''}
             ` : `
@@ -1180,6 +1184,7 @@ class AuthController {
           </button>
         </div>
 
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
           <button type="button" class="btn btn-primary" onclick="window.authController.enterMyWorkspace()" style="width: 100%; justify-content: center; height: 38px; font-weight: 700;">
             🩺 Vào Bảng Theo Dõi &amp; Y Lệnh
           </button>
@@ -1296,8 +1301,7 @@ class AuthController {
       return;
     }
 
-    const docPin = found.pin || localStorage.getItem(`medward_pin_${found.id}`) || '123456';
-    if (passVal === '123456' || passVal === String(docPin)) {
+    if (this.verifyDoctorPin(found, passVal)) {
       this.unlockSession(found);
     } else {
       this.showMsg(msgEl, `Mã PIN không đúng cho tài khoản "${found.full_name}"!`, 'error');
@@ -1384,8 +1388,7 @@ class AuthController {
           this.showMsg(msgEl, `Không tìm thấy tài khoản "${u}"!`, 'error');
           return;
         }
-        const docPin = found.pin || localStorage.getItem(`medward_pin_${found.id}`) || '123456';
-        if (p === '123456' || p === String(docPin)) {
+        if (this.verifyDoctorPin(found, p)) {
           this.closeAuthModal();
           this.unlockSession(found);
         } else {

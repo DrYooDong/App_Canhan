@@ -421,7 +421,8 @@
     line-height: 1.2 !important;
   }
 
-  .med-num-prefix {
+  .med-num-prefix,
+  .med-bullet-prefix {
     font-weight: 700 !important;
     color: #000000 !important;
   }

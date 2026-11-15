@@ -153,8 +153,7 @@ function createFakeSupabaseClient(dbRows, options = {}) {
         order(col, { ascending = true } = {}) { orderCols.push({ col, asc: ascending }); return builder; },
         limit(n) { limitVal = n; return builder; },
         single() { singleMode = true; return exec(); },
-        then(resolve, reject) { return exec().then(resolve, reject); },
-        catch(reject) { return exec().catch(reject); }
+        then(resolve, reject) { return exec().then(resolve, reject); }
       };
       return builder;
     }
@@ -568,7 +567,105 @@ async function createSettledAppEnv(dbRows, doctor, clientOpts = {}) {
     console.log('✓ Test 9: Bảo toàn dữ liệu Local khi Cloud ngày mới rỗng: PASS');
   }
 
-  console.log('\n🎉 TẤT CẢ 9 BỘ KIỂM THỬ ĐỒNG BỘ ĐỀU ĐẠT 100%!');
+  // TEST 10: Chống hồi sinh Zombie đa thiết bị qua reloadFromSource sau khi máy khác Clear All
+  {
+    const db = [
+      { id: idA1, report_date: todayIso, ten: 'BN A1', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false, version: 1, updated_at: new Date().toISOString() },
+      { id: idA2, report_date: todayIso, ten: 'BN A2', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false, version: 1, updated_at: new Date().toISOString() }
+    ];
+    const devA = await createSettledAppEnv(db, docA);
+    const devB = await createSettledAppEnv(db, docA);
+
+    await devA.sandbox.patientController.reloadFromSource(false);
+    await devB.sandbox.patientController.reloadFromSource(false);
+    assert.strictEqual(devB.sandbox.patientController.patientList.length, 2);
+
+    // Máy A bấm Xóa danh sách hôm nay (chỉ lưu clearedKey ở Máy A + soft-delete trên Cloud)
+    await devA.sandbox.supabaseService.clearAllPatients(todayIso, docA, false);
+    assert(db.every(r => r.is_deleted === true));
+
+    // Máy B F5 / gọi reloadFromSource -> dù local cache Máy B vẫn còn 2 ca cũ, KHÔNG được hồi sinh lên Cloud
+    await devB.sandbox.patientController.reloadFromSource(false);
+    assert.strictEqual(devB.sandbox.patientController.patientList.length, 0, 'Máy B sau reloadFromSource phải trống giống Cloud');
+    assert(db.every(r => r.is_deleted === true), 'Không được hồi sinh ca đã clear lên lại Cloud');
+    console.log('✓ Test 10: Chống hồi sinh Zombie khi reloadFromSource sau Clear All đa thiết bị: PASS');
+  }
+
+  // TEST 11: Đa bác sĩ - cloudHasRecords không làm rớt ca local của BS khác trong syncWithCloudOnResume
+  {
+    // Cloud hôm nay chỉ có ca của BS B, hoàn toàn chưa có ca của BS A
+    const db = [
+      { id: idB1, report_date: todayIso, ten: 'BN CUA BS B', doctor_id: 'doc_b', doctor_name: docB.full_name, is_deleted: false, version: 1, updated_at: new Date().toISOString() }
+    ];
+    const envA = await createSettledAppEnv(db, docA);
+    // BS A có 1 ca local ngày mới (không nằm trong pendingSyncIds)
+    const localPatA = { id: idA1, report_date: todayIso, ten: 'BN LOCAL BS A', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false };
+    envA.sandbox.patientController.patientList = [localPatA];
+    envA.sandbox.patientController.saveLocalCache();
+
+    await envA.sandbox.patientController.syncWithCloudOnResume(false);
+    await new Promise(r => setTimeout(r, 40));
+    assert.strictEqual(envA.sandbox.patientController.patientList.length, 1, 'Ca local của BS A không được rớt chỉ vì BS B đã có ca trên Cloud');
+    assert(db.some(r => r.id === idA1 && !r.is_deleted), 'Ca local của BS A phải được đẩy lên Cloud an toàn');
+    console.log('✓ Test 11: Cô lập cloudHasRecords theo Workspace từng bác sĩ khi syncWithCloudOnResume: PASS');
+  }
+
+  // TEST 12: Xem ngày lịch sử -> getCurrentDateString & syncWithCloudOnResume bám đúng currentDate
+  {
+    const [yy, mm, dd] = yesterdayIso.split('-');
+    const yesterdayDMY = `${dd}/${mm}/${yy}`;
+    const db = [
+      { id: idA1, report_date: todayIso, ten: 'BN HOM NAY', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false, version: 1 },
+      { id: idA2, report_date: yesterdayIso, ten: 'BN HOM QUA', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false, version: 1 }
+    ];
+    const envA = await createSettledAppEnv(db, docA);
+    await envA.sandbox.patientController.changeReportDate(yesterdayDMY);
+    assert.strictEqual(envA.sandbox.patientController.getCurrentDateString(), yesterdayDMY);
+    assert.strictEqual(envA.sandbox.patientController.patientList.length, 1);
+    assert.strictEqual(envA.sandbox.patientController.patientList[0].id, idA2);
+
+    // Resume sync khi đang đứng ở ngày hôm qua -> KHÔNG được kéo BN hôm nay đè vào danh sách ngày hôm qua
+    await envA.sandbox.patientController.syncWithCloudOnResume(false);
+    assert.strictEqual(envA.sandbox.patientController.patientList.length, 1);
+    assert.strictEqual(envA.sandbox.patientController.patientList[0].id, idA2);
+    console.log('✓ Test 12: getCurrentDateString & syncWithCloudOnResume tôn trọng ngày lịch sử đang xem: PASS');
+  }
+
+  // TEST 13: Chặn Realtime cũ ghi đè sau khi lưu từ Modal + chặt chẽ matchesDoctorWorkspace
+  {
+    const db = [
+      { id: idA1, report_date: todayIso, ten: 'BN MODAL', chan_doan: 'Ban đầu', doctor_id: 'doc_dongnh', doctor_name: docA.full_name, is_deleted: false, version: 2, updated_at: '2026-11-15T10:00:00.000Z' }
+    ];
+    const envA = await createSettledAppEnv(db, docA);
+    await envA.sandbox.patientController.reloadFromSource(false);
+
+    // Giả lập patch cũ bị trễ trong hàng đợi Realtime (version 1 < local version 2)
+    envA.sandbox.patientController.pendingRealtimePatches.push({
+      eventType: 'UPDATE',
+      new: { id: idA1, report_date: todayIso, ten: 'BN MODAL', chan_doan: 'Dữ liệu cũ bị trễ', doctor_id: 'doc_dongnh', version: 1, updated_at: '2026-11-15T09:00:00.000Z' }
+    });
+    const stale = envA.sandbox.patientController.pendingRealtimePatches.shift();
+    envA.sandbox.patientController.applyRealtimePayload(stale);
+    assert.strictEqual(envA.sandbox.patientController.patientList[0].chan_doan, 'Ban đầu', 'Patch version cũ không được ghi đè bản mới hơn');
+
+    // BS tên chứa chữ "Đồng" không được nhận nhầm thành BS Đông admin
+    const docOtherDong = { id: 'doc_tran_dong', username: 'dongtv', full_name: 'BS. Trần Văn Đồng', role: 'doctor' };
+    assert.strictEqual(envA.sandbox.supabaseService.isDongDoctor(docOtherDong), false);
+    assert.strictEqual(envA.sandbox.supabaseService.isDongDoctor(docA), true);
+
+    // syncBatchPatients khi hoàn toàn offline phải trả về offlineSaved: true và đánh dấu pendingSync
+    envA.fakeSupabaseClient.setOffline(true);
+    const failBatch = await envA.sandbox.supabaseService.syncBatchPatients(
+      [{ id: idA2, ten: 'BN OFFLINE BATCH', doctor_id: 'doc_dongnh' }],
+      todayIso,
+      { doctor: docA, isAll: false }
+    );
+    assert.strictEqual(failBatch.offlineSaved, true);
+    assert(failBatch.error instanceof Error);
+    console.log('✓ Test 13: Chống Realtime stale overwrite, matchesDoctorWorkspace chặt chẽ & syncBatchPatients báo lỗi khi fail: PASS');
+  }
+
+  console.log('\n🎉 TẤT CẢ 13 BỘ KIỂM THỬ ĐỒNG BỘ ĐỀU ĐẠT 100%!');
 })().catch((err) => {
   console.error('❌ Test sync thất bại:', err);
   process.exit(1);
