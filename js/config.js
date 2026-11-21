@@ -18,8 +18,13 @@ const CONFIG = {
     DOCTOR_WORKSPACES: 'medward_doctor_workspaces_v2',
     ACTIVE_WORKSPACE: 'medward_active_workspace_v2',
     DOCTOR_SPACE_PREFIX: 'medward_doc_space_',
-    CUSTOM_ABBREVIATIONS: 'medward_custom_abbreviations_v2'
+    CUSTOM_ABBREVIATIONS: 'medward_custom_abbreviations_v2',
+    AUTO_LOCK_MINUTES: 'medward_auto_lock_minutes_v2'
   },
+
+  // TỰ ĐỘNG KHÓA MÀN HÌNH KHI KHÔNG TƯƠNG TÁC (MẶC ĐỊNH 5 PHÚT)
+  AUTO_LOCK_DEFAULT_MINUTES: 5,
+  AUTO_LOCK_WARNING_SECONDS: 30,
 
   // DUNG LƯỢNG LƯU TRỮ CHO MỖI TÀI KHOẢN / ID (100MB SAVE SLOT)
   STORAGE_LIMIT_MB: 100,

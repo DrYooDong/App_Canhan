@@ -223,6 +223,15 @@ body.app-locked .app-container {
   user-select: none;
 }
 
+body.app-locked .modal-overlay {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.app-locked .clinical-format-toolbar {
+  display: none !important;
+}
+
 /* ==============================================================================
    1. TOP NAVIGATION APP BAR (ONE-ROW, 3-ZONE CONTRACT)
    ============================================================================== */
@@ -6946,6 +6955,38 @@ body.dark-theme .pattern-record-hint {
   color: #94a3b8;
 }
 
+/* THÔNG BÁO TỰ ĐỘNG KHÓA MÀN HÌNH DO KHÔNG TƯƠNG TÁC */
+.gate-autolock-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 18px 0;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+body.dark-theme .gate-autolock-notice {
+  background: rgba(120, 53, 15, 0.28);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fcd34d;
+}
+
+.pattern-badge-info.is-disabled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+body.dark-theme .pattern-badge-info.is-disabled {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
 /* PRINT PREVIEW NOTES */
 .print-date-note, .print-signature-block, .print-handover-view {
   display: none;
@@ -7835,12 +7876,16 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   box-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);
 }
 
-/* Modal Card của Clinical Hub */
+/* Modal Card của Clinical Hub (z-index cao hơn patientDetailModal để mở chồng mượt mà) */
+.hub-modal-overlay {
+  z-index: 1060 !important;
+}
+
 .hub-modal-card {
-  max-width: 1040px !important;
-  width: 95vw !important;
-  height: 90vh !important;
-  max-height: 850px !important;
+  max-width: 1120px !important;
+  width: 96vw !important;
+  height: 92vh !important;
+  max-height: 880px !important;
   display: flex !important;
   flex-direction: column !important;
   padding: 0 !important;
@@ -7849,29 +7894,45 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 }
 
 .hub-modal-header {
-  padding: 16px 20px 14px;
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--border-color, #e2e8f0);
   background: var(--bg-card, #ffffff);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .hub-title-wrap {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .hub-title-icon {
   font-size: 26px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .hub-title-main {
   font-size: 16px;
   font-weight: 800;
   color: var(--text-color, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hub-version-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
 }
 
 .hub-title-sub {
@@ -7880,13 +7941,127 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   margin-top: 2px;
 }
 
+/* Thanh liên kết Người Bệnh đang đi buồng */
+.hub-patient-bar {
+  padding: 8px 20px;
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.03) 100%);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  transition: background 0.2s;
+}
+
+.hub-patient-bar.has-patient {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(2, 132, 199, 0.08) 100%);
+  border-bottom-color: rgba(16, 185, 129, 0.35);
+}
+
+.hub-patient-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 260px;
+  flex: 1;
+  max-width: 440px;
+}
+
+.hub-patient-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-color, #0f172a);
+  white-space: nowrap;
+}
+
+.hub-patient-select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-color, #0f172a);
+  font-size: 12.5px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.hub-patient-select:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.18);
+}
+
+.hub-patient-clear-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hub-patient-clear-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.hub-patient-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.hub-patient-hint {
+  font-size: 11.5px;
+  color: var(--text-secondary, #64748b);
+  font-style: italic;
+}
+
+.hub-meta-chip {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  color: #0369a1;
+}
+
+.hub-meta-chip.chip-warn {
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.hub-meta-chip.chip-diag {
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Thanh tìm kiếm & filter chips ở đầu Hub */
 .hub-search-filter-bar {
   padding: 10px 20px;
   background: var(--bg-muted, #f8fafc);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -7899,7 +8074,7 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 
 .hub-search-input {
   width: 100%;
-  padding: 8px 14px 8px 34px;
+  padding: 8px 30px 8px 34px;
   border-radius: 9999px;
   border: 1px solid var(--border-color, #cbd5e1);
   background: var(--bg-card, #ffffff);
@@ -7924,15 +8099,43 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   pointer-events: none;
 }
 
+.hub-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  border: none;
+  background: rgba(148, 163, 184, 0.25);
+  color: var(--text-secondary, #475569);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hub-search-clear:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
 .hub-filter-chips {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.hub-filter-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .hub-filter-chip {
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: 9999px;
   border: 1px solid var(--border-color, #cbd5e1);
   background: var(--bg-card, #ffffff);
@@ -7941,6 +8144,9 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   transition: all 0.15s;
 }
 
@@ -7955,37 +8161,54 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   color: #ffffff;
 }
 
+.hub-chip-count {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+}
+
+.hub-filter-chip.active .hub-chip-count {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 /* Thân Hub: Chia cột trái (danh sách công cụ) & cột phải (nội dung tính toán) */
 .hub-body-split {
   flex: 1;
   display: flex;
   overflow: hidden;
   background: var(--bg-surface, #ffffff);
+  min-height: 0;
 }
 
 .hub-sidebar {
-  width: 320px;
+  width: 315px;
   border-right: 1px solid var(--border-color, #e2e8f0);
   overflow-y: auto;
   background: var(--bg-muted, #f8fafc);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .hub-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 20px 24px 26px;
   background: var(--bg-card, #ffffff);
+  min-width: 0;
 }
 
 /* Danh sách công cụ bên cột trái */
 .hub-tool-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--border-light, #f1f5f9);
+  border-left: 3.5px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -7996,13 +8219,14 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 
 .hub-tool-item.active {
   background: rgba(2, 132, 199, 0.12);
-  border-left: 4px solid #0284c7;
+  border-left-color: #0284c7;
 }
 
 .hub-tool-icon {
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.2;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .hub-tool-info {
@@ -8015,20 +8239,54 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-color, #0f172a);
 }
 
+.hub-tool-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-tool-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .hub-tool-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
   background: rgba(2, 132, 199, 0.1);
   color: #0284c7;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.25px;
+}
+
+.hub-fav-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 3px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: transform 0.15s, color 0.15s;
+}
+
+.hub-fav-btn:hover {
+  transform: scale(1.2);
+  color: #f59e0b;
+}
+
+.hub-fav-btn.pinned {
+  color: #f59e0b;
 }
 
 .hub-tool-desc {
@@ -8047,24 +8305,25 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   text-align: center;
   color: var(--text-secondary, #94a3b8);
   font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Giao diện tính toán & form (Calc Panel) */
 .calc-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  max-width: 680px;
+  gap: 16px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
 .calc-panel-header {
   border-bottom: 1px solid var(--border-color, #e2e8f0);
-  padding-bottom: 12px;
+  padding-bottom: 10px;
 }
 
 .calc-title {
-  font-size: 18px;
+  font-size: 17.5px;
   font-weight: 800;
   color: var(--text-color, #0f172a);
 }
@@ -8073,6 +8332,46 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   font-size: 12.5px;
   color: var(--text-secondary, #64748b);
   margin-top: 3px;
+}
+
+.calc-section-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #0284c7;
+}
+
+.calc-section-label.text-warn { color: #d97706; }
+.calc-section-label.text-danger { color: #dc2626; }
+
+/* Segmented Mode Tabs */
+.calc-segmented-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg-muted, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.calc-seg-tab {
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #475569);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.calc-seg-tab.active {
+  background: var(--bg-card, #ffffff);
+  color: #0284c7;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
 }
 
 .calc-grid {
@@ -8085,6 +8384,12 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.calc-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .calc-label {
@@ -8103,7 +8408,8 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   font-size: 14px;
   font-weight: 600;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
 }
 
 .calc-input:focus,
@@ -8114,12 +8420,12 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 
 .calc-quick-chips {
   display: flex;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 .calc-chip {
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: 6px;
   border: 1px solid var(--border-color, #cbd5e1);
   background: var(--bg-muted, #f1f5f9);
@@ -8128,6 +8434,12 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
+}
+
+.calc-chip.calc-chip-lg {
+  flex: 1;
+  padding: 9px 10px;
+  font-size: 13px;
 }
 
 .calc-chip:hover {
@@ -8147,9 +8459,13 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   gap: 10px;
 }
 
+.calc-radio-group.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .calc-radio-card {
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 9px;
   border: 1.5px solid var(--border-color, #cbd5e1);
   background: var(--bg-card, #ffffff);
   cursor: pointer;
@@ -8158,13 +8474,18 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   flex-direction: column;
 }
 
+.calc-radio-card:hover {
+  border-color: #0284c7;
+}
+
 .calc-radio-card.active {
   border-color: #0284c7;
   background: rgba(2, 132, 199, 0.08);
+  box-shadow: 0 0 0 1px rgba(2, 132, 199, 0.25);
 }
 
 .calc-radio-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--text-color, #0f172a);
 }
@@ -8175,11 +8496,131 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   margin-top: 2px;
 }
 
+/* Segmented Pill Selectors (NEWS2, GCS, Child-Pugh) */
+.calc-seg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calc-seg-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calc-seg-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-color, #1e293b);
+}
+
+.calc-seg-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calc-seg-pills.cols-3-equal {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.calc-seg-pills.disabled-group {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.calc-pill-btn {
+  padding: 8px 11px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-color, #334155);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  transition: all 0.14s;
+  text-align: left;
+  min-height: 36px;
+}
+
+.calc-pill-btn small {
+  font-size: 10.5px;
+  font-weight: 800;
+  opacity: 0.7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.calc-pill-btn:hover {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.05);
+}
+
+.calc-pill-btn.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+.calc-pill-btn.active small {
+  background: rgba(255, 255, 255, 0.22);
+  opacity: 1;
+}
+
+.calc-pill-btn.active.pt-2 {
+  background: #d97706;
+  border-color: #d97706;
+}
+
+.calc-pill-btn.active.pt-3 {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.calc-inline-toggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.calc-mini-btn {
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-muted, #f1f5f9);
+  color: var(--text-secondary, #475569);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.calc-mini-btn.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+.calc-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #d97706;
+  cursor: pointer;
+}
+
 /* Thang điểm checklist */
 .calc-checklist {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .calc-check-item {
@@ -8187,7 +8628,7 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: 9px;
   border: 1.5px solid var(--border-color, #e2e8f0);
   background: var(--bg-card, #ffffff);
   cursor: pointer;
@@ -8203,11 +8644,21 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   background: rgba(2, 132, 199, 0.08);
 }
 
+.calc-check-item.check-danger.active {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
 .calc-check-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: #0284c7;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.calc-check-item.check-danger input[type="checkbox"] {
+  accent-color: #dc2626;
 }
 
 .calc-check-content {
@@ -8234,31 +8685,59 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   background: rgba(2, 132, 199, 0.1);
   padding: 2px 8px;
   border-radius: 9999px;
+  white-space: nowrap;
 }
 
-/* Khung hiển thị kết quả (Result Box) */
+/* Khung hiển thị kết quả (Severity-aware Result Card) */
 .calc-result-box {
-  padding: 18px 20px;
+  padding: 16px 18px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.12) 100%);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.1) 100%);
   border: 1.5px solid rgba(2, 132, 199, 0.3);
+  border-left: 5px solid #0284c7;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.calc-result-box.sev-good {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.11) 100%);
+  border-color: rgba(16, 185, 129, 0.35);
+  border-left-color: #059669;
+}
+
+.calc-result-box.sev-moderate {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.07) 0%, rgba(217, 119, 6, 0.12) 100%);
+  border-color: rgba(217, 119, 6, 0.38);
+  border-left-color: #d97706;
+}
+
+.calc-result-box.sev-severe {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.07) 0%, rgba(234, 88, 12, 0.14) 100%);
+  border-color: rgba(234, 88, 12, 0.42);
+  border-left-color: #ea580c;
+}
+
+.calc-result-box.sev-critical {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(239, 68, 68, 0.15) 100%);
+  border-color: rgba(220, 38, 38, 0.45);
+  border-left-color: #dc2626;
 }
 
 .calc-result-main {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .calc-result-val {
-  font-size: 36px;
+  font-size: 34px;
   font-weight: 800;
   font-family: var(--font-mono, monospace);
   color: #0284c7;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .calc-result-unit {
@@ -8269,7 +8748,7 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 
 .calc-result-details {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 
@@ -8283,6 +8762,85 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   color: #0369a1;
 }
 
+/* Grid các chỉ số phụ (BMI/IBW/AdjBW/BSA, MAP/PP/PF) */
+.calc-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 10px;
+}
+
+.calc-metric-card {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  text-align: center;
+}
+
+.calc-metric-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.calc-metric-val {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-color, #0f172a);
+  margin: 4px 0 2px;
+  line-height: 1.1;
+}
+
+.calc-metric-val small {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.calc-metric-sub {
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.3;
+}
+
+/* Bảng lộ trình truyền dịch nhỏ gọn */
+.calc-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card, #ffffff);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #e2e8f0);
+  font-size: 12.5px;
+}
+
+.calc-mini-table th,
+.calc-mini-table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+
+.calc-mini-table th {
+  background: var(--bg-muted, #f8fafc);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-secondary, #475569);
+}
+
+.calc-mini-table tr:last-child td {
+  border-bottom: none;
+}
+
+.calc-mini-sub {
+  font-size: 10.5px;
+  color: var(--text-secondary, #64748b);
+}
+
 .calc-stage-title {
   font-size: 14.5px;
   font-weight: 800;
@@ -8290,26 +8848,31 @@ body.dark-theme .btn-clinical-hub-nav:hover {
 }
 
 .calc-stage-title.res-good,
+.calc-metric-val.res-good,
 .calc-result-main.res-good .calc-result-val {
   color: #059669;
 }
 
 .calc-stage-title.res-mild,
+.calc-metric-val.res-mild,
 .calc-result-main.res-mild .calc-result-val {
   color: #0284c7;
 }
 
 .calc-stage-title.res-moderate,
+.calc-metric-val.res-moderate,
 .calc-result-main.res-moderate .calc-result-val {
   color: #d97706;
 }
 
 .calc-stage-title.res-severe,
+.calc-metric-val.res-severe,
 .calc-result-main.res-severe .calc-result-val {
   color: #ea580c;
 }
 
 .calc-stage-title.res-critical,
+.calc-metric-val.res-critical,
 .calc-result-main.res-critical .calc-result-val {
   color: #dc2626;
 }
@@ -8324,15 +8887,94 @@ body.dark-theme .btn-clinical-hub-nav:hover {
   color: var(--text-color, #334155);
 }
 
-.calc-actions {
+.calc-ref-line {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-color, #e2e8f0);
+  font-size: 11.5px;
+  color: var(--text-secondary, #475569);
+}
+
+.calc-copy-preview {
   display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px dashed rgba(100, 116, 139, 0.3);
+  font-size: 11.5px;
+  color: var(--text-secondary, #475569);
+  line-height: 1.4;
+}
+
+.calc-copy-preview-lbl {
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-color, #334155);
+}
+
+.calc-copy-preview-text {
+  font-family: var(--font-mono, monospace);
+  word-break: break-word;
+}
+
+/* Thanh hành động Chèn hồ sơ + Sao chép + Làm lại */
+.calc-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-top: 4px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.calc-insert-group {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.calc-insert-select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-color, #0f172a);
+  font-size: 12.5px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 140px;
+}
+
+.calc-btn-insert {
+  background: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
+  white-space: nowrap;
+  font-weight: 700 !important;
+}
+
+.calc-btn-insert:hover:not(:disabled) {
+  background: #047857 !important;
+}
+
+.calc-btn-insert:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.calc-actions-secondary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Footer của Modal Hub */
 .hub-modal-footer {
-  padding: 12px 20px;
+  padding: 10px 20px;
   border-top: 1px solid var(--border-color, #e2e8f0);
   background: var(--bg-muted, #f8fafc);
   display: flex;
@@ -8353,12 +8995,48 @@ body.dark-theme .hub-modal-header {
   border-color: #1e293b;
 }
 
-body.dark-theme .hub-title-main {
+body.dark-theme .hub-title-main { color: #f1f5f9; }
+body.dark-theme .hub-title-sub { color: #94a3b8; }
+
+body.dark-theme .hub-version-badge {
+  background: rgba(56, 189, 248, 0.16);
+  color: #38bdf8;
+}
+
+body.dark-theme .hub-patient-bar {
+  background: #0d1629;
+  border-color: #1e293b;
+}
+
+body.dark-theme .hub-patient-bar.has-patient {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.16) 0%, rgba(14, 165, 233, 0.14) 100%);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+body.dark-theme .hub-patient-label { color: #e2e8f0; }
+
+body.dark-theme .hub-patient-select,
+body.dark-theme .calc-insert-select {
+  background: #0f172a;
+  border-color: #334155;
   color: #f1f5f9;
 }
 
-body.dark-theme .hub-title-sub {
-  color: #94a3b8;
+body.dark-theme .hub-meta-chip {
+  background: #0f172a;
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
+}
+
+body.dark-theme .hub-meta-chip.chip-warn {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+body.dark-theme .hub-meta-chip.chip-diag {
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #6ee7b7;
 }
 
 body.dark-theme .hub-search-filter-bar {
@@ -8394,54 +9072,42 @@ body.dark-theme .hub-filter-chip.active {
   color: #ffffff;
 }
 
-body.dark-theme .hub-body-split {
-  background: #0b1324;
+body.dark-theme .hub-chip-count {
+  background: rgba(255, 255, 255, 0.12);
 }
 
-body.dark-theme .hub-sidebar {
-  background: #090e17;
-  border-color: #1e293b;
-}
-
-body.dark-theme .hub-content {
-  background: #0b1324;
-}
-
-body.dark-theme .hub-tool-item {
-  border-color: #16243f;
-}
-
-body.dark-theme .hub-tool-item:hover {
-  background: rgba(56, 189, 248, 0.08);
-}
-
+body.dark-theme .hub-body-split { background: #0b1324; }
+body.dark-theme .hub-sidebar { background: #090e17; border-color: #1e293b; }
+body.dark-theme .hub-content { background: #0b1324; }
+body.dark-theme .hub-tool-item { border-bottom-color: #16243f; }
+body.dark-theme .hub-tool-item:hover { background: rgba(56, 189, 248, 0.08); }
 body.dark-theme .hub-tool-item.active {
   background: rgba(56, 189, 248, 0.15);
   border-left-color: #38bdf8;
 }
 
-body.dark-theme .hub-tool-title {
-  color: #f1f5f9;
+body.dark-theme .hub-tool-title { color: #f1f5f9; }
+body.dark-theme .hub-tool-desc { color: #94a3b8; }
+body.dark-theme .hub-tool-badge {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
 }
 
-body.dark-theme .hub-tool-desc {
-  color: #94a3b8;
-}
+body.dark-theme .calc-panel-header { border-color: #1e293b; }
+body.dark-theme .calc-title { color: #f1f5f9; }
+body.dark-theme .calc-subtitle { color: #94a3b8; }
+body.dark-theme .calc-label,
+body.dark-theme .calc-seg-label { color: #e2e8f0; }
 
-body.dark-theme .calc-panel-header {
+body.dark-theme .calc-segmented-tabs {
+  background: #090e17;
   border-color: #1e293b;
 }
 
-body.dark-theme .calc-title {
-  color: #f1f5f9;
-}
-
-body.dark-theme .calc-subtitle {
-  color: #94a3b8;
-}
-
-body.dark-theme .calc-label {
-  color: #e2e8f0;
+body.dark-theme .calc-seg-tab { color: #94a3b8; }
+body.dark-theme .calc-seg-tab.active {
+  background: #1e293b;
+  color: #38bdf8;
 }
 
 body.dark-theme .calc-input,
@@ -8457,76 +9123,137 @@ body.dark-theme .calc-select:focus {
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
 }
 
-body.dark-theme .calc-chip {
+body.dark-theme .calc-chip,
+body.dark-theme .calc-mini-btn {
   background: #1e293b;
   border-color: #334155;
   color: #cbd5e1;
 }
 
-body.dark-theme .calc-chip:hover {
-  background: #334155;
-}
-
-body.dark-theme .calc-chip.active {
+body.dark-theme .calc-chip:hover { background: #334155; }
+body.dark-theme .calc-chip.active,
+body.dark-theme .calc-mini-btn.active {
   background: #0284c7;
   border-color: #0284c7;
   color: #ffffff;
 }
 
-body.dark-theme .calc-radio-card {
+body.dark-theme .calc-radio-card,
+body.dark-theme .calc-pill-btn {
   background: #0f172a;
   border-color: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-theme .calc-pill-btn small {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-theme .calc-radio-card.active {
   border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.14);
 }
 
-body.dark-theme .calc-radio-title {
-  color: #f1f5f9;
+body.dark-theme .calc-pill-btn.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
 }
 
-body.dark-theme .calc-radio-sub {
-  color: #94a3b8;
+body.dark-theme .calc-pill-btn.active.pt-2 {
+  background: #b45309;
+  border-color: #f59e0b;
 }
+
+body.dark-theme .calc-pill-btn.active.pt-3 {
+  background: #b91c1c;
+  border-color: #f87171;
+}
+
+body.dark-theme .calc-radio-title { color: #f1f5f9; }
+body.dark-theme .calc-radio-sub { color: #94a3b8; }
 
 body.dark-theme .calc-check-item {
   background: #0f172a;
   border-color: #1e293b;
 }
 
-body.dark-theme .calc-check-item:hover {
-  border-color: #334155;
-}
-
+body.dark-theme .calc-check-item:hover { border-color: #334155; }
 body.dark-theme .calc-check-item.active {
   border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.13);
 }
 
-body.dark-theme .calc-check-title {
-  color: #f1f5f9;
+body.dark-theme .calc-check-item.check-danger.active {
+  border-color: #f87171;
+  background: rgba(220, 38, 38, 0.18);
 }
 
-body.dark-theme .calc-check-desc {
-  color: #94a3b8;
-}
+body.dark-theme .calc-check-title { color: #f1f5f9; }
+body.dark-theme .calc-check-desc { color: #94a3b8; }
 
 body.dark-theme .calc-result-box {
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(14, 165, 233, 0.22) 100%);
-  border-color: rgba(56, 189, 248, 0.4);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(14, 165, 233, 0.2) 100%);
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
-body.dark-theme .calc-result-val {
-  color: #38bdf8;
+body.dark-theme .calc-result-box.sev-good {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.22) 100%);
+  border-color: rgba(52, 211, 153, 0.4);
+  border-left-color: #34d399;
+}
+
+body.dark-theme .calc-result-box.sev-moderate {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.22) 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  border-left-color: #fbbf24;
+}
+
+body.dark-theme .calc-result-box.sev-severe {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.18) 0%, rgba(194, 65, 12, 0.24) 100%);
+  border-color: rgba(251, 146, 60, 0.45);
+  border-left-color: #fb923c;
+}
+
+body.dark-theme .calc-result-box.sev-critical {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(185, 28, 28, 0.26) 100%);
+  border-color: rgba(248, 113, 113, 0.5);
+  border-left-color: #f87171;
+}
+
+body.dark-theme .calc-result-val { color: #38bdf8; }
+body.dark-theme .calc-stage-title.res-good,
+body.dark-theme .calc-metric-val.res-good,
+body.dark-theme .calc-result-main.res-good .calc-result-val { color: #34d399; }
+body.dark-theme .calc-stage-title.res-mild,
+body.dark-theme .calc-metric-val.res-mild,
+body.dark-theme .calc-result-main.res-mild .calc-result-val { color: #38bdf8; }
+body.dark-theme .calc-stage-title.res-moderate,
+body.dark-theme .calc-metric-val.res-moderate,
+body.dark-theme .calc-result-main.res-moderate .calc-result-val { color: #fbbf24; }
+body.dark-theme .calc-stage-title.res-severe,
+body.dark-theme .calc-metric-val.res-severe,
+body.dark-theme .calc-result-main.res-severe .calc-result-val { color: #fb923c; }
+body.dark-theme .calc-stage-title.res-critical,
+body.dark-theme .calc-metric-val.res-critical,
+body.dark-theme .calc-result-main.res-critical .calc-result-val { color: #f87171; }
+
+body.dark-theme .calc-badge-res,
+body.dark-theme .calc-metric-card,
+body.dark-theme .calc-mini-table {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #e2e8f0;
 }
 
 body.dark-theme .calc-badge-res {
-  background: #0f172a;
   border-color: rgba(56, 189, 248, 0.35);
   color: #7dd3fc;
 }
+
+body.dark-theme .calc-metric-val { color: #f1f5f9; }
+body.dark-theme .calc-mini-table th { background: #162238; color: #94a3b8; }
+body.dark-theme .calc-mini-table td { border-color: #1e293b; }
 
 body.dark-theme .calc-advice-box {
   background: #0f172a;
@@ -8534,19 +9261,31 @@ body.dark-theme .calc-advice-box {
   color: #cbd5e1;
 }
 
+body.dark-theme .calc-ref-line { border-color: #1e293b; color: #94a3b8; }
+
+body.dark-theme .calc-copy-preview {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.dark-theme .calc-copy-preview-lbl { color: #cbd5e1; }
+
 body.dark-theme .hub-modal-footer {
   background: #090e17;
   border-color: #1e293b;
 }
 
-body.dark-theme .hub-footer-tip {
-  color: #94a3b8;
-}
+body.dark-theme .hub-footer-tip { color: #94a3b8; }
 
 /* ==============================================================================
- * RESPONSIVE CHO MOBILE (DƯỚI 768px)
+ * RESPONSIVE CHO MOBILE (DƯỚI 768px) — TỐI ƯU ĐI BUỒNG 1 TAY
  * ============================================================================== */
 @media (max-width: 768px) {
+  .hub-modal-overlay {
+    padding: 0 !important;
+  }
+
   .hub-modal-card {
     width: 100vw !important;
     height: 100vh !important;
@@ -8555,39 +9294,135 @@ body.dark-theme .hub-footer-tip {
   }
 
   .hub-modal-header {
-    padding: 12px 14px;
+    padding: 10px 12px;
+  }
+
+  .hub-title-main {
+    font-size: 14.5px;
+  }
+
+  .hub-title-sub {
+    display: none;
+  }
+
+  .hub-patient-bar {
+    padding: 7px 12px;
+    gap: 6px;
+  }
+
+  .hub-patient-selector-wrap {
+    max-width: 100%;
+    min-width: 100%;
+  }
+
+  .hub-patient-meta {
+    justify-content: flex-start;
   }
 
   .hub-search-filter-bar {
     padding: 8px 12px;
+    gap: 7px;
+  }
+
+  .hub-search-box {
+    min-width: 100%;
   }
 
   .hub-body-split {
     flex-direction: column;
   }
 
+  /* Chuyển sidebar thành dải pill ngang cuộn mượt để dành tối đa diện tích cho máy tính */
   .hub-sidebar {
     width: 100%;
-    max-height: 190px;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px;
+    gap: 7px;
     border-right: none;
     border-bottom: 1.5px solid var(--border-color, #e2e8f0);
-    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+
+  .hub-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hub-tool-item {
+    flex: 0 0 auto;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-left-width: 1px;
+    border-radius: 9999px;
+    background: var(--bg-card, #ffffff);
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hub-tool-item.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+  }
+
+  .hub-tool-item.active .hub-tool-title,
+  .hub-tool-item.active .hub-tool-name {
+    color: #ffffff;
+  }
+
+  .hub-tool-icon {
+    font-size: 15px;
+    margin-top: 0;
+  }
+
+  .hub-tool-desc,
+  .hub-tool-badge,
+  .hub-fav-btn {
+    display: none;
+  }
+
+  body.dark-theme .hub-tool-item {
+    background: #0f172a;
+    border-color: #334155;
+  }
+
+  body.dark-theme .hub-tool-item.active {
+    background: #0284c7;
+    border-color: #38bdf8;
   }
 
   .hub-content {
-    padding: 14px 12px;
+    padding: 14px 12px 24px;
   }
 
-  .calc-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calc-radio-group {
+  .calc-grid,
+  .calc-radio-group,
+  .calc-radio-group.cols-3,
+  .calc-seg-pills.cols-3-equal {
     grid-template-columns: 1fr;
   }
 
   .calc-result-val {
     font-size: 28px;
+  }
+
+  .calc-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calc-insert-group {
+    min-width: 100%;
+  }
+
+  .calc-actions-secondary {
+    width: 100%;
+  }
+
+  .calc-actions-secondary .btn {
+    flex: 1;
   }
 
   .hub-footer-tip {

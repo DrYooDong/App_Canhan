@@ -55,13 +55,28 @@
     <!-- MÀN HÌNH ĐĂNG NHẬP BẢO MẬT BẮT BUỘC KHI VÀO TRANG WEB -->
     <div id="loginGateOverlay" class="login-gate-overlay">
         <script>
-            // Kiểm tra trạng thái mở khóa tức thì để tránh chớp nháy giao diện
-            if (sessionStorage.getItem('medward_session_unlocked') === 'true') {
-                document.getElementById('loginGateOverlay').style.display = 'none';
-            } else {
-                document.getElementById('loginGateOverlay').style.display = 'flex';
-                document.body.classList.add('app-locked');
-            }
+            // Kiểm tra trạng thái mở khóa tức thì (kèm kiểm tra quá hạn tự khóa) để tránh chớp nháy giao diện
+            (function () {
+                var isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
+                if (isUnlocked) {
+                    try {
+                        var rawMin = localStorage.getItem('medward_auto_lock_minutes_v2');
+                        var mins = (rawMin === null || rawMin === '') ? 5 : Number(rawMin);
+                        var lastAt = Number(sessionStorage.getItem('medward_last_activity_at') || 0);
+                        if (Number.isFinite(mins) && mins > 0 && lastAt > 0 && (Date.now() - lastAt) >= mins * 60 * 1000) {
+                            sessionStorage.removeItem('medward_session_unlocked');
+                            sessionStorage.removeItem('medward_last_activity_at');
+                            isUnlocked = false;
+                        }
+                    } catch (e) { }
+                }
+                if (isUnlocked) {
+                    document.getElementById('loginGateOverlay').style.display = 'none';
+                } else {
+                    document.getElementById('loginGateOverlay').style.display = 'flex';
+                    document.body.classList.add('app-locked');
+                }
+            })();
         </script>
         <div class="login-gate-card">
             <div class="login-gate-brand">
@@ -86,6 +101,9 @@
                         <div class="login-gate-banner-sub">Mỗi tài khoản là một không gian điều trị độc lập riêng biệt</div>
                     </div>
                 </div>
+
+                <!-- THÔNG BÁO TỰ ĐỘNG KHÓA DO KHÔNG TƯƠNG TÁC -->
+                <div id="gateAutoLockNotice" class="gate-autolock-notice" style="display: none;"></div>
 
                 <!-- PHẦN 1: CHỌN TÀI KHOẢN BÁC SĨ (MULTI-ACCOUNT SELECTOR) -->
                 <div class="gate-section-block">
@@ -1068,6 +1086,13 @@
                 <div class="modal-title">🩺 Chi Tiết Người Bệnh</div>
                 <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
                     <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
+                        onclick="window.clinicalHub?.openForCurrentDetailPatient()"
+                        title="Mở Thang Điểm &amp; Công Cụ Lâm Sàng cho NB này (Alt+C)"
+                        data-tooltip="Thang điểm &amp; Công cụ lâm sàng cho NB này (Alt+C)"
+                        aria-label="Mở Thang Điểm Lâm Sàng cho người bệnh này">
+                        <span style="font-size: 15px; line-height: 1;">🧮</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
                         onclick="window.patientController.openSmartSoapPasteModal()"
                         title="Dán nhanh diễn tiến SOAP (S, O, A, P)"
                         data-tooltip="Dán nhanh diễn tiến SOAP (S, O, A, P)"
@@ -1913,6 +1938,32 @@
                             </div>
                         </div>
 
+                        <!-- CÀI ĐẶT TỰ ĐỘNG KHÓA KHI KHÔNG TƯƠNG TÁC -->
+                        <div class="pattern-profile-setting">
+                            <div class="pattern-setting-header">
+                                <span class="pattern-setting-title">
+                                    <span>⏱️ Tự động khóa khi không tương tác:</span>
+                                </span>
+                                <span id="currentAutoLockBadge" class="pattern-badge-info">
+                                    5 phút (Mặc định)
+                                </span>
+                            </div>
+                            <p
+                                style="font-size: 11.8px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
+                                Tự động khóa màn hình để bảo mật thông tin bệnh nhân khi Bác sĩ rời máy tính hoặc điện thoại không thao tác.
+                            </p>
+                            <select id="profAutoLockSelect" class="form-control"
+                                onchange="window.authController?.setAutoLockMinutes(this.value)">
+                                <option value="1">1 phút (Bảo mật cao)</option>
+                                <option value="3">3 phút</option>
+                                <option value="5" selected>5 phút (Mặc định - Khuyên dùng)</option>
+                                <option value="10">10 phút</option>
+                                <option value="15">15 phút</option>
+                                <option value="30">30 phút</option>
+                                <option value="0">Tắt tự động khóa</option>
+                            </select>
+                        </div>
+
                         <div style="display: flex; gap: 8px; margin-top: 14px;">
                             <button type="submit" class="btn btn-primary" style="flex: 1;">Cập Nhật Hồ Sơ</button>
                             <button type="button" class="btn btn-danger" id="btnLogout"
@@ -2257,18 +2308,38 @@
     </div>
 
     <!-- MODAL 6.5: TRUNG TÂM THANG ĐIỂM & CÔNG CỤ LÂM SÀNG BỎ TÚI (CLINICAL HUB) -->
-    <div class="modal-overlay" id="clinicalHubModal" style="display: none;">
+    <div class="modal-overlay hub-modal-overlay" id="clinicalHubModal" style="display: none;"
+        onclick="if(event.target === this) window.clinicalHub?.closeModal()">
         <div class="modal-card hub-modal-card">
             <!-- Header -->
             <div class="hub-modal-header">
                 <div class="hub-title-wrap">
                     <span class="hub-title-icon">🧮</span>
                     <div>
-                        <div class="hub-title-main">Trung Tâm Thang Điểm &amp; Công Cụ Lâm Sàng</div>
-                        <div class="hub-title-sub">10 thang điểm kinh điển &amp; máy tính bỏ túi phục vụ đi buồng thăm bệnh hằng ngày</div>
+                        <div class="hub-title-main">
+                            Trung Tâm Thang Điểm &amp; Công Cụ Lâm Sàng
+                            <span class="hub-version-badge" id="hubTotalCountBadge">16 công cụ</span>
+                        </div>
+                        <div class="hub-title-sub">Tính nhanh tại giường, tự điền thông số NB &amp; chèn trực tiếp vào hồ sơ đi buồng</div>
                     </div>
                 </div>
-                <button class="btn-close-modal" onclick="window.clinicalHub.closeModal()">&times;</button>
+                <button type="button" class="btn-close-modal" onclick="window.clinicalHub?.closeModal()" aria-label="Đóng">&times;</button>
+            </div>
+
+            <!-- Thanh liên kết nhanh Người Bệnh đang đi buồng -->
+            <div class="hub-patient-bar" id="hubPatientBar">
+                <div class="hub-patient-selector-wrap">
+                    <span class="hub-patient-label">🩺 Liên kết NB:</span>
+                    <select id="hubPatientSelect" class="hub-patient-select"
+                        onchange="window.clinicalHub?.selectPatient(this.value)">
+                        <option value="">-- Tính độc lập (chưa gắn người bệnh) --</option>
+                    </select>
+                    <button type="button" id="hubPatientClearBtn" class="hub-patient-clear-btn" style="display: none;"
+                        onclick="window.clinicalHub?.selectPatient('')" title="Hủy liên kết người bệnh">✕</button>
+                </div>
+                <div class="hub-patient-meta" id="hubPatientMeta">
+                    <span class="hub-patient-hint">Chọn NB để tự động lấy tuổi / Hct &amp; chèn thẳng kết quả vào hồ sơ</span>
+                </div>
             </div>
 
             <!-- Thanh tìm kiếm & bộ lọc danh mục -->
@@ -2276,24 +2347,28 @@
                 <div class="hub-search-box">
                     <span class="hub-search-icon">🔍</span>
                     <input type="text" id="hubSearchInput" class="hub-search-input"
-                        placeholder="Tìm thang điểm, máy tính (CURB-65, qSOFA, Dịch truyền, CrCl, Dengue, Gan...)"
-                        oninput="window.clinicalHub.handleSearch(this.value)">
+                        placeholder="Tìm nhanh: NEWS2, CURB-65, qSOFA, eGFR, CrCl, dịch truyền, Na+, Ca2+, Dengue, MAP..."
+                        oninput="window.clinicalHub?.handleSearch(this.value)">
+                    <button type="button" id="hubSearchClear" class="hub-search-clear" style="display: none;"
+                        onclick="window.clinicalHub?.clearSearch()" aria-label="Xóa tìm kiếm">&times;</button>
                 </div>
-                <div class="hub-filter-chips">
+                <div class="hub-filter-chips" id="hubFilterChips">
                     <button type="button" class="hub-filter-chip active" data-cat="all"
-                        onclick="window.clinicalHub.setCategory('all')">Tất cả (10)</button>
+                        onclick="window.clinicalHub?.setCategory('all')">Tất cả <span class="hub-chip-count" id="hubCountAll">16</span></button>
+                    <button type="button" class="hub-filter-chip" data-cat="favorites"
+                        onclick="window.clinicalHub?.setCategory('favorites')">⭐ Đã ghim <span class="hub-chip-count" id="hubCountFav">0</span></button>
                     <button type="button" class="hub-filter-chip" data-cat="scores"
-                        onclick="window.clinicalHub.setCategory('scores')">📋 Thang điểm (5)</button>
+                        onclick="window.clinicalHub?.setCategory('scores')">📋 Thang điểm <span class="hub-chip-count" id="hubCountScores">6</span></button>
                     <button type="button" class="hub-filter-chip" data-cat="calculators"
-                        onclick="window.clinicalHub.setCategory('calculators')">💧 Máy tính (5)</button>
+                        onclick="window.clinicalHub?.setCategory('calculators')">💧 Máy tính <span class="hub-chip-count" id="hubCountCalc">7</span></button>
                     <button type="button" class="hub-filter-chip" data-cat="infectious"
-                        onclick="window.clinicalHub.setCategory('infectious')">🦟 Khoa Nhiễm</button>
+                        onclick="window.clinicalHub?.setCategory('infectious')">🦟 Khoa Nhiễm <span class="hub-chip-count" id="hubCountInf">5</span></button>
                 </div>
             </div>
 
             <!-- Thân Modal: Cột trái (danh sách) & Cột phải (nội dung tính toán) -->
             <div class="hub-body-split">
-                <!-- Danh sách công cụ (Sidebar) -->
+                <!-- Danh sách công cụ (Sidebar trên Desktop / Dải cuộn ngang trên Mobile) -->
                 <div class="hub-sidebar" id="hubToolList">
                     <!-- Sinh động bởi JavaScript (window.clinicalHub.renderToolList()) -->
                 </div>
@@ -2307,9 +2382,9 @@
             <!-- Footer -->
             <div class="hub-modal-footer">
                 <div class="hub-footer-tip">
-                    💡 Mẹo lâm sàng: Bấm <kbd>Alt</kbd> + <kbd>C</kbd> ở bất kỳ đâu để mở nhanh trung tâm thang điểm này.
+                    💡 Mẹo: <kbd>Alt</kbd>+<kbd>C</kbd> mở/đóng nhanh • <kbd>↑</kbd><kbd>↓</kbd> đổi công cụ • <kbd>Esc</kbd> đóng cửa sổ này
                 </div>
-                <button type="button" class="btn btn-secondary" onclick="window.clinicalHub.closeModal()">
+                <button type="button" class="btn btn-secondary" onclick="window.clinicalHub?.closeModal()">
                     ✕ Đóng lại
                 </button>
             </div>
@@ -2678,14 +2753,14 @@
     <div id="toastContainer" class="toast-container" role="status" aria-live="polite"></div>
 
     <!-- Scripts -->
-    <script src="js/config.js?v=2.5"></script>
+    <script src="js/config.js?v=2.6"></script>
     <script src="js/supabase_service.js?v=2.5"></script>
     <script src="js/pattern_lock.js?v=2.5"></script>
-    <script src="js/auth.js?v=2.5"></script>
+    <script src="js/auth.js?v=2.6"></script>
     <script src="js/patient_service.js?v=2.5"></script>
     <script src="js/handover_service.js?v=2.5"></script>
     <script src="js/clinical_hub.js?v=2.5"></script>
-    <script src="js/app.js?v=2.5"></script>
+    <script src="js/app.js?v=2.6"></script>
 
 </body>
 

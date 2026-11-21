@@ -81,6 +81,11 @@ class MedWardApp {
 
   setupKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
+      // Không kích hoạt phím tắt ứng dụng khi màn hình đang khóa
+      if (window.authController && !window.authController.isLoggedIn) {
+        return;
+      }
+
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const key = e.key;
       const lowerKey = key.toLowerCase();
@@ -88,8 +93,13 @@ class MedWardApp {
       const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
       const isModalOpen = !!document.querySelector('.modal-overlay.active');
 
-      // 1. Phím ESC: Luôn đóng bất kỳ modal nào đang mở
+      // 1. Phím ESC: Đóng Clinical Hub trước nếu đang mở chồng lên modal khác, sau đó mới đóng tất cả
       if (key === 'Escape') {
+        const hubModal = document.getElementById('clinicalHubModal');
+        if (hubModal && hubModal.classList.contains('active')) {
+          window.clinicalHub?.closeModal?.();
+          return;
+        }
         this.closeAllModals();
         return;
       }
@@ -232,9 +242,10 @@ class MedWardApp {
         // Ctrl + Shift + K: Khóa nhanh màn hình ca trực (bảo vệ buồng trực)
         if (lowerKey === 'k' && e.shiftKey) {
           e.preventDefault();
-          window.authController?.handleLogout?.();
-          if (window.showToast) {
-            window.showToast('🔒 Đã khóa nhanh màn hình buồng trực');
+          if (typeof window.authController?.lockScreen === 'function') {
+            window.authController.lockScreen({ reason: 'manual' });
+          } else {
+            window.authController?.handleLogout?.();
           }
           return;
         }

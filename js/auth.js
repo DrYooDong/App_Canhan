@@ -11,9 +11,30 @@ class AuthController {
     this.isLoggedIn = false;
     this.knownDoctors = [];
     this.currentGateView = 'unlock'; // 'unlock' | 'login' | 'register'
+    this.lockReason = null; // null | 'inactivity' | 'manual'
+    this.autoLockTimer = null;
+    this.autoLockWarnTimer = null;
+    this.autoLockInterval = null;
+    this._autoLockEventsBound = false;
+    this._autoLockWarningShown = false;
+    this._lastActivityThrottleAt = 0;
+    this.autoLockMinutes = this.getAutoLockMinutes();
+    this.lastActivityAt = Date.now();
 
     // Khởi tạo trạng thái đăng nhập đồng bộ ngay lập tức để chống chớp giật màn hình
-    const isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
+    let isUnlocked = sessionStorage.getItem('medward_session_unlocked') === 'true';
+    if (isUnlocked && this.autoLockMinutes > 0) {
+      const savedLastAt = Number(sessionStorage.getItem('medward_last_activity_at') || 0);
+      if (savedLastAt > 0 && (Date.now() - savedLastAt) >= this.autoLockMinutes * 60 * 1000) {
+        sessionStorage.removeItem('medward_session_unlocked');
+        sessionStorage.removeItem('medward_last_activity_at');
+        isUnlocked = false;
+        this.lockReason = 'inactivity';
+      } else {
+        sessionStorage.setItem('medward_last_activity_at', String(this.lastActivityAt));
+      }
+    }
+
     this.isLoggedIn = isUnlocked;
     this.activeDoctor = this.getActiveDoctor();
     this.selectedDoctor = this.activeDoctor;
@@ -23,6 +44,7 @@ class AuthController {
       document.body.classList.add('app-locked');
       if (overlay) overlay.style.display = 'flex';
       this.showGateView('unlock');
+      this.updateGateAutoLockBanner();
     } else {
       document.body.classList.remove('app-locked');
       if (overlay) overlay.style.display = 'none';
@@ -45,12 +67,276 @@ class AuthController {
     this.updateUserUI();
     this.checkLoginGate();
     this.bindEvents();
+    this.setupAutoLockMonitor();
+    this.updateAutoLockProfileUI();
 
     // Lắng nghe thay đổi kết nối Cloud
     if (window.supabaseService?.onStateChange) {
       window.supabaseService.onStateChange((status) => {
         this.updateCloudStatusUI(status);
       });
+    }
+  }
+
+  // ============================================================================
+  // TỰ ĐỘNG KHÓA MÀN HÌNH SAU THỜI GIAN KHÔNG TƯƠNG TÁC (MẶC ĐỊNH 5 PHÚT)
+  // ============================================================================
+  getAutoLockMinutes() {
+    const defaultMin = (typeof CONFIG !== 'undefined' && Number.isFinite(CONFIG.AUTO_LOCK_DEFAULT_MINUTES))
+      ? CONFIG.AUTO_LOCK_DEFAULT_MINUTES
+      : 5;
+    try {
+      const storageKey = (typeof CONFIG !== 'undefined' && CONFIG.STORAGE_KEYS?.AUTO_LOCK_MINUTES)
+        ? CONFIG.STORAGE_KEYS.AUTO_LOCK_MINUTES
+        : 'medward_auto_lock_minutes_v2';
+      const raw = localStorage.getItem(storageKey);
+      if (raw === null || raw === '') return defaultMin;
+      const parsed = Number(raw);
+      if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 240) {
+        return parsed;
+      }
+    } catch (e) {}
+    return defaultMin;
+  }
+
+  setAutoLockMinutes(minutes, showNotice = true) {
+    const parsed = Number(minutes);
+    const val = (Number.isFinite(parsed) && parsed >= 0 && parsed <= 240)
+      ? parsed
+      : ((typeof CONFIG !== 'undefined' && CONFIG.AUTO_LOCK_DEFAULT_MINUTES) || 5);
+    this.autoLockMinutes = val;
+    try {
+      const storageKey = (typeof CONFIG !== 'undefined' && CONFIG.STORAGE_KEYS?.AUTO_LOCK_MINUTES)
+        ? CONFIG.STORAGE_KEYS.AUTO_LOCK_MINUTES
+        : 'medward_auto_lock_minutes_v2';
+      localStorage.setItem(storageKey, String(val));
+    } catch (e) {}
+
+    this.updateAutoLockProfileUI();
+
+    if (val <= 0) {
+      this.clearAutoLockTimers();
+      try { sessionStorage.removeItem('medward_last_activity_at'); } catch (e) {}
+      if (showNotice && window.showToast) {
+        window.showToast('🔓 Đã tắt tính năng tự động khóa màn hình');
+      }
+    } else {
+      if (this.isLoggedIn) {
+        this.resetAutoLockTimer(true);
+      }
+      if (showNotice && window.showToast) {
+        window.showToast(`⏱️ Đã đặt tự động khóa sau ${val} phút không tương tác`);
+      }
+    }
+  }
+
+  updateAutoLockProfileUI() {
+    const selectEl = document.getElementById('profAutoLockSelect');
+    const badgeEl = document.getElementById('currentAutoLockBadge');
+    const mins = this.autoLockMinutes;
+
+    if (selectEl) {
+      const strVal = String(mins);
+      if (Array.from(selectEl.options).some(opt => opt.value === strVal)) {
+        selectEl.value = strVal;
+      }
+    }
+
+    if (badgeEl) {
+      if (mins <= 0) {
+        badgeEl.innerText = 'Đang tắt';
+        badgeEl.classList.add('is-disabled');
+      } else {
+        badgeEl.innerText = mins === 5 ? '5 phút (Mặc định)' : `${mins} phút`;
+        badgeEl.classList.remove('is-disabled');
+      }
+    }
+  }
+
+  updateGateAutoLockBanner() {
+    const noticeEl = document.getElementById('gateAutoLockNotice');
+    if (!noticeEl) return;
+
+    if (this.lockReason === 'inactivity') {
+      const mins = this.autoLockMinutes > 0 ? this.autoLockMinutes : 5;
+      noticeEl.innerText = `🔒 Phiên làm việc đã tự động khóa sau ${mins} phút không tương tác để bảo mật hồ sơ bệnh nhân.`;
+      noticeEl.style.display = 'flex';
+    } else {
+      noticeEl.style.display = 'none';
+      noticeEl.innerText = '';
+    }
+  }
+
+  setupAutoLockMonitor() {
+    if (this._autoLockEventsBound) return;
+    this._autoLockEventsBound = true;
+
+    const activityEvents = ['pointerdown', 'mousedown', 'keydown', 'touchstart', 'input', 'scroll', 'wheel', 'mousemove'];
+    const handleUserActivity = () => {
+      if (!this.isLoggedIn || this.autoLockMinutes <= 0) return;
+      const now = Date.now();
+      // Nếu vừa hiển thị cảnh báo sắp khóa thì reset ngay lập tức; bình thường throttle 1 giây
+      if (!this._autoLockWarningShown && (now - this._lastActivityThrottleAt) < 1000) {
+        return;
+      }
+      this._lastActivityThrottleAt = now;
+      this.resetAutoLockTimer(false);
+    };
+
+    activityEvents.forEach(evtName => {
+      window.addEventListener(evtName, handleUserActivity, { capture: true, passive: true });
+    });
+
+    const handleResumeCheck = () => {
+      if (document.visibilityState === 'hidden') return;
+      this.checkAutoLockElapsed();
+    };
+
+    document.addEventListener('visibilitychange', handleResumeCheck);
+    window.addEventListener('focus', handleResumeCheck);
+    window.addEventListener('pageshow', handleResumeCheck);
+
+    // Fallback kiểm tra định kỳ mỗi 15s (phòng trường hợp trình duyệt throttle setTimeout khi ngủ)
+    this.autoLockInterval = setInterval(() => {
+      this.checkAutoLockElapsed();
+    }, 15000);
+
+    if (this.isLoggedIn && this.autoLockMinutes > 0) {
+      this.resetAutoLockTimer(true);
+    }
+  }
+
+  clearAutoLockTimers() {
+    if (this.autoLockTimer) {
+      clearTimeout(this.autoLockTimer);
+      this.autoLockTimer = null;
+    }
+    if (this.autoLockWarnTimer) {
+      clearTimeout(this.autoLockWarnTimer);
+      this.autoLockWarnTimer = null;
+    }
+    this._autoLockWarningShown = false;
+  }
+
+  resetAutoLockTimer(force = false) {
+    if (!this.isLoggedIn || this.autoLockMinutes <= 0) {
+      this.clearAutoLockTimers();
+      return;
+    }
+    const now = Date.now();
+    this.lastActivityAt = now;
+    try {
+      sessionStorage.setItem('medward_last_activity_at', String(now));
+    } catch (e) {}
+    this._autoLockWarningShown = false;
+    this.scheduleAutoLockTimers();
+  }
+
+  scheduleAutoLockTimers() {
+    this.clearAutoLockTimers();
+    if (!this.isLoggedIn || this.autoLockMinutes <= 0) return;
+
+    const timeoutMs = this.autoLockMinutes * 60 * 1000;
+    const elapsed = Date.now() - this.lastActivityAt;
+    const remaining = timeoutMs - elapsed;
+
+    if (remaining <= 0) {
+      this.lockScreen({ reason: 'inactivity' });
+      return;
+    }
+
+    const warnSeconds = (typeof CONFIG !== 'undefined' && CONFIG.AUTO_LOCK_WARNING_SECONDS) || 30;
+    const warnMs = warnSeconds * 1000;
+    const timeUntilWarn = remaining - warnMs;
+
+    if (timeoutMs >= 60000 && timeUntilWarn > 0) {
+      this.autoLockWarnTimer = setTimeout(() => {
+        if (!this.isLoggedIn || this.autoLockMinutes <= 0) return;
+        this._autoLockWarningShown = true;
+        if (window.showToast) {
+          window.showToast({
+            title: '⏱️ SẮP TỰ ĐỘNG KHÓA MÀN HÌNH',
+            message: `Màn hình sẽ tự khóa sau ${warnSeconds} giây nếu không có thao tác.`,
+            type: 'normal',
+            icon: '🔒',
+            duration: 6000
+          });
+        }
+      }, timeUntilWarn);
+    }
+
+    this.autoLockTimer = setTimeout(() => {
+      this.checkAutoLockElapsed();
+    }, remaining + 50);
+  }
+
+  checkAutoLockElapsed() {
+    if (!this.isLoggedIn || this.autoLockMinutes <= 0) return false;
+
+    const timeoutMs = this.autoLockMinutes * 60 * 1000;
+    let storedAt = 0;
+    try {
+      storedAt = Number(sessionStorage.getItem('medward_last_activity_at') || 0);
+    } catch (e) {}
+    const effectiveLastAt = Math.max(this.lastActivityAt || 0, storedAt || 0);
+    if (!effectiveLastAt) {
+      this.resetAutoLockTimer(true);
+      return false;
+    }
+
+    const elapsed = Date.now() - effectiveLastAt;
+    if (elapsed >= timeoutMs) {
+      this.lockScreen({ reason: 'inactivity' });
+      return true;
+    }
+
+    // Đồng bộ lại timer theo mốc wall-clock mới nhất (khi tab vừa resume từ nền)
+    this.lastActivityAt = effectiveLastAt;
+    if (!this.autoLockTimer) {
+      this.scheduleAutoLockTimers();
+    }
+    return false;
+  }
+
+  lockScreen({ reason = 'manual', silent = false } = {}) {
+    this.clearAutoLockTimers();
+
+    // Lưu an toàn các thay đổi đang gõ dở trước khi khóa màn hình
+    try {
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.closest?.('.app-container') &&
+        (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+      }
+      window.patientController?.flushPendingAutoSaves?.().catch?.(() => {});
+      window.patientController?.saveLocalCache?.();
+    } catch (e) {}
+
+    try {
+      sessionStorage.removeItem('medward_session_unlocked');
+      sessionStorage.removeItem('medward_last_activity_at');
+    } catch (e) {}
+
+    this.isLoggedIn = false;
+    this.selectedDoctor = this.activeDoctor || this.getActiveDoctor();
+    this.lockReason = reason;
+
+    this.updateUserUI();
+    this.checkLoginGate();
+    this.updateGateAutoLockBanner();
+
+    if (!silent && window.showToast) {
+      if (reason === 'inactivity') {
+        const mins = this.autoLockMinutes > 0 ? this.autoLockMinutes : 5;
+        window.showToast({
+          title: '🔒 TỰ ĐỘNG KHÓA BẢO MẬT',
+          message: `Đã tự động khóa màn hình sau ${mins} phút không tương tác.`,
+          type: 'normal',
+          icon: '🔒'
+        });
+      } else {
+        window.showToast('🔒 Đã khóa màn hình ca trực');
+      }
     }
   }
 
@@ -688,6 +974,11 @@ class AuthController {
   async unlockSession(doctor = null) {
     sessionStorage.setItem('medward_session_unlocked', 'true');
     this.isLoggedIn = true;
+    this.lockReason = null;
+    this.updateGateAutoLockBanner();
+
+    const pinInput = document.getElementById('gatePinInput');
+    if (pinInput) pinInput.value = '';
 
     if (doctor) {
       this.activeDoctor = { ...doctor };
@@ -698,6 +989,7 @@ class AuthController {
     this.saveActiveDoctor();
     this.updateUserUI();
     this.checkLoginGate();
+    this.resetAutoLockTimer(true);
 
     if (window.patientController) {
       await window.patientController.switchWorkspaceDoctor(this.activeDoctor.id);
@@ -1226,6 +1518,7 @@ class AuthController {
     setVal('profHospital', doc.hospital || 'Bệnh viện Đa khoa Khu vực Thủ Đức');
     setVal('profPhone', doc.phone || '');
     setVal('profUsername', doc.username || '');
+    this.updateAutoLockProfileUI();
   }
 
   async handleSaveProfile() {
@@ -1310,14 +1603,18 @@ class AuthController {
 
   async handleLogout() {
     if (confirm('Khóa bảng theo dõi và đăng xuất khỏi ca trực?')) {
+      this.clearAutoLockTimers();
+      this.lockReason = null;
       try {
         await window.supabaseService?.signOut?.();
       } catch (e) {}
       sessionStorage.removeItem('medward_session_unlocked');
+      sessionStorage.removeItem('medward_last_activity_at');
       this.isLoggedIn = false;
       this.closeAuthModal();
       this.updateUserUI();
       this.checkLoginGate();
+      this.updateGateAutoLockBanner();
       if (window.patientController) {
         window.patientController.render();
       }
